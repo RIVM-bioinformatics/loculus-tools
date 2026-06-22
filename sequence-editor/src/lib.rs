@@ -128,9 +128,12 @@ impl MsaEngine {
     /// and return it as a `Uint8Array`.
     ///
     /// The slice covers rows `[start_row, end_row]` inclusive and columns
-    /// `[start_col, end_col]` inclusive. Out-of-range indices are clamped
-    /// silently. The returned bytes are laid out row-major; rows shorter than
-    /// `end_col` simply contribute fewer bytes.
+    /// `[start_col, end_col]` inclusive. Row indices are clamped to the
+    /// number of loaded sequences. Every row always contributes exactly
+    /// `(end_col - start_col + 1)` bytes; columns that lie beyond the end of
+    /// the sequence are filled with `b' '` (space). This keeps the buffer
+    /// strictly row-major with a fixed stride, so callers can index
+    /// `bytes[r * cols + c]` without inspecting per-row lengths.
     #[wasm_bindgen]
     pub fn update_viewport(
         &mut self,
@@ -150,15 +153,23 @@ impl MsaEngine {
             return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
         }
 
+        // Fixed column stride: every row contributes exactly this many bytes.
+        let cols = end_col - start_col + 1;
+
         for r in start_row..=row_end {
             if let Some(seq) = self.sequences.get(r) {
-                if start_col >= seq.len() {
-                    continue;
+                let seq_cols = if start_col < seq.len() {
+                    (end_col + 1).min(seq.len()) - start_col
+                } else {
+                    0
+                };
+                if seq_cols > 0 {
+                    self.viewport_buffer
+                        .extend_from_slice(&seq[start_col..start_col + seq_cols]);
                 }
-                // `end_col` is inclusive in the API; slice end is exclusive.
-                let col_end_exclusive = (end_col + 1).min(seq.len());
-                if start_col < col_end_exclusive {
-                    self.viewport_buffer.extend_from_slice(&seq[start_col..col_end_exclusive]);
+                // Pad the remainder of the row with spaces.
+                for _ in seq_cols..cols {
+                    self.viewport_buffer.push(b' ');
                 }
             }
         }
@@ -198,22 +209,29 @@ impl MsaEngine {
             return 0;
         }
 
+        // Fixed column stride: every row contributes exactly this many bytes.
+        let cols = end_col - start_col + 1;
+
         for r in start_row..=row_end {
+            if written + cols > out.len() {
+                // Buffer too small to fit even one more full row — stop here.
+                break;
+            }
             if let Some(seq) = self.sequences.get(r) {
-                if start_col >= seq.len() {
-                    continue;
+                let seq_cols = if start_col < seq.len() {
+                    (end_col + 1).min(seq.len()) - start_col
+                } else {
+                    0
+                };
+                if seq_cols > 0 {
+                    out[written..written + seq_cols]
+                        .copy_from_slice(&seq[start_col..start_col + seq_cols]);
                 }
-                let col_end_exclusive = (end_col + 1).min(seq.len());
-                if start_col < col_end_exclusive {
-                    let chunk = &seq[start_col..col_end_exclusive];
-                    let remaining = out.len() - written;
-                    let n = chunk.len().min(remaining);
-                    out[written..written + n].copy_from_slice(&chunk[..n]);
-                    written += n;
-                    if written >= out.len() {
-                        break;
-                    }
+                // Pad the remainder of the row with spaces.
+                for b in &mut out[written + seq_cols..written + cols] {
+                    *b = b' ';
                 }
+                written += cols;
             }
         }
 
@@ -586,18 +604,29 @@ mod tests {
     fn update_viewport_into_out_of_range_returns_zero() {
         let mut e = engine_with_sample();
         let mut out = vec![0u8; 16];
+        // Rows completely out of range.
         assert_eq!(e.update_viewport_into(100, 200, 0, 7, &mut out), 0);
-        assert_eq!(e.update_viewport_into(0, 2, 100, 200, &mut out), 0);
+        // start_col beyond all sequence lengths (all 8 chars, requesting col 100+).
+        // Every row emits all-spaces for those cols, so the function still
+        // returns rows * cols bytes — verify via the regression test below.
+        // start_row > clamped row_end after clamp is the real "zero" trigger.
+        let n = e.update_viewport_into(5, 2, 0, 7, &mut out); // start > end → 0
+        assert_eq!(n, 0);
     }
 
     #[test]
     fn update_viewport_into_small_buffer_truncates() {
         let mut e = engine_with_sample();
-        // Buffer too small for the full slice — should write what fits.
+        // stride = 8 cols per row; a 5-byte buffer can't fit even one full row,
+        // so the function writes 0 complete rows and returns 0.
         let mut out = vec![0u8; 5];
         let n = e.update_viewport_into(0, 2, 0, 7, &mut out);
-        assert_eq!(n, 5);
-        assert_eq!(&out, b"ATGCA");
+        assert_eq!(n, 0);
+        // A buffer exactly one row wide gets the first row.
+        let mut out = vec![0u8; 8];
+        let n = e.update_viewport_into(0, 2, 0, 7, &mut out);
+        assert_eq!(n, 8);
+        assert_eq!(&out, b"ATGCATGC");
     }
 
     #[test]
@@ -607,9 +636,37 @@ mod tests {
         assert_eq!(e.update_viewport_into(0, 5, 0, 5, &mut out), 0);
     }
 
-    // ------------------------------------------------------------------
-    // Phase 3: mutation core tests
-    // ------------------------------------------------------------------
+    /// Regression test for the "bleeding row" bug: requesting columns beyond
+    /// the end of a sequence must pad with spaces rather than letting the next
+    /// row's bytes shift into the current row's slot.
+    #[test]
+    fn viewport_pads_short_rows_with_spaces() {
+        let mut e = engine_with_sample();
+        // Sequences are all 8 chars wide; request cols 0..=11 (4 beyond end).
+        // Each row must be exactly 12 bytes: real data + space padding.
+        let cols = 12usize;
+        let rows = 3usize;
+        let mut out = vec![0u8; rows * cols];
+        let n = e.update_viewport_into(0, 2, 0, 11, &mut out);
+        assert_eq!(n, rows * cols);
+        assert_eq!(&out[0..cols],        b"ATGCATGC    ");
+        assert_eq!(&out[cols..2*cols],   b"ATGGTG-A    ");
+        assert_eq!(&out[2*cols..3*cols], b"ATGCAT-C    ");
+    }
+
+    /// When start_col is beyond the end of every sequence every row is
+    /// all-spaces, but the stride is still maintained.
+    #[test]
+    fn viewport_pads_entirely_out_of_range_cols() {
+        let mut e = engine_with_sample();
+        let cols = 4usize;
+        let rows = 3usize;
+        let mut out = vec![0xFFu8; rows * cols];
+        let n = e.update_viewport_into(0, 2, 100, 103, &mut out);
+        assert_eq!(n, rows * cols);
+        assert_eq!(&out, b"            "); // 12 spaces
+    }
+
 
     #[test]
     fn mutate_base_subset_changes_only_target_rows() {
@@ -691,9 +748,6 @@ mod tests {
         assert_eq!(e.get_base(2, 0), b'T');
     }
 
-    // ------------------------------------------------------------------
-    // Phase 4: undo / redo tests
-    // ------------------------------------------------------------------
 
     #[test]
     fn undo_substitution_restores_old_base() {

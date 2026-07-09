@@ -15,6 +15,7 @@ import {
 import { useEngineWorker } from "./engine/useEngineWorker";
 import type { ViewportResult, Meta } from "./engine/protocol";
 import BenchmarkPanel from "./BenchmarkPanel";
+import { ScrollingViewport } from "./ScrollingViewport";
 
 const SAMPLE_FASTA = `>seq1 first record
 ATGCATGCATGC
@@ -345,6 +346,20 @@ export default function TestHarness() {
           )}
         </Paper>
       </Stack>
+
+      {/* ----------------------------- Scrolling viewport ----------------------------- */}
+      <Box sx={{ p: 2, pt: 0 }}>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Scrolling viewport (sliding window · overscan ±100 cols · trigger at 30 cols)
+          </Typography>
+          {meta ? (
+            <ScrollingViewport eng={eng} meta={meta} />
+          ) : (
+            <Alert severity="info">Load a FASTA to enable the scrolling viewport.</Alert>
+          )}
+        </Paper>
+      </Box>
 
       {/* ----------------------------- Benchmark ----------------------------- */}
       <Box sx={{ p: 2, pt: 0 }}>

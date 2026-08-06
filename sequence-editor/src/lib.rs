@@ -152,6 +152,9 @@ impl MsaEngine {
         if start_row > row_end {
             return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
         }
+        if start_col > end_col {
+            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+        }
 
         // Fixed column stride: every row contributes exactly this many bytes.
         let cols = end_col - start_col + 1;
@@ -206,6 +209,9 @@ impl MsaEngine {
         }
         let row_end = end_row.min(self.sequences.len() - 1);
         if start_row > row_end {
+            return 0;
+        }
+        if start_col > end_col {
             return 0;
         }
 
@@ -405,20 +411,27 @@ impl MsaEngine {
         match cmd {
             UndoCommand::Substitutions { col_idx, mutated_rows, old_bases } => {
                 // Restore old bases; capture current bases for redo.
-                let mut redo_old_bases: Vec<u8> = Vec::with_capacity(mutated_rows.len());
-                for (i, &r) in mutated_rows.iter().enumerate() {
+                // Rebuild paired row/base vectors to keep them aligned even if
+                // malformed history data ever appears.
+                let paired_len = mutated_rows.len().min(old_bases.len());
+                let mut redo_rows: Vec<usize> = Vec::with_capacity(paired_len);
+                let mut redo_old_bases: Vec<u8> = Vec::with_capacity(paired_len);
+                for (r, old_base) in mutated_rows.into_iter().zip(old_bases.into_iter()) {
                     if let Some(seq) = self.sequences.get_mut(r) {
                         if col_idx < seq.len() {
+                            redo_rows.push(r);
                             redo_old_bases.push(seq[col_idx]);
-                            seq[col_idx] = old_bases[i];
+                            seq[col_idx] = old_base;
                         }
                     }
                 }
-                self.redo_stack.push(UndoCommand::Substitutions {
-                    col_idx,
-                    mutated_rows,
-                    old_bases: redo_old_bases,
-                });
+                if !redo_rows.is_empty() {
+                    self.redo_stack.push(UndoCommand::Substitutions {
+                        col_idx,
+                        mutated_rows: redo_rows,
+                        old_bases: redo_old_bases,
+                    });
+                }
             }
             UndoCommand::StructuralSnapshot { matrix_snapshot, width_snapshot } => {
                 // Capture current state for redo, then restore the snapshot.
@@ -445,20 +458,25 @@ impl MsaEngine {
             UndoCommand::Substitutions { col_idx, mutated_rows, old_bases } => {
                 // Re-apply: old_bases here are the post-edit bases captured at
                 // undo time. Capture current (pre-redo) bases for the undo stack.
-                let mut undo_old_bases: Vec<u8> = Vec::with_capacity(mutated_rows.len());
-                for (i, &r) in mutated_rows.iter().enumerate() {
+                let paired_len = mutated_rows.len().min(old_bases.len());
+                let mut undo_rows: Vec<usize> = Vec::with_capacity(paired_len);
+                let mut undo_old_bases: Vec<u8> = Vec::with_capacity(paired_len);
+                for (r, old_base) in mutated_rows.into_iter().zip(old_bases.into_iter()) {
                     if let Some(seq) = self.sequences.get_mut(r) {
                         if col_idx < seq.len() {
+                            undo_rows.push(r);
                             undo_old_bases.push(seq[col_idx]);
-                            seq[col_idx] = old_bases[i];
+                            seq[col_idx] = old_base;
                         }
                     }
                 }
-                self.undo_stack.push(UndoCommand::Substitutions {
-                    col_idx,
-                    mutated_rows,
-                    old_bases: undo_old_bases,
-                });
+                if !undo_rows.is_empty() {
+                    self.undo_stack.push(UndoCommand::Substitutions {
+                        col_idx,
+                        mutated_rows: undo_rows,
+                        old_bases: undo_old_bases,
+                    });
+                }
             }
             UndoCommand::StructuralSnapshot { matrix_snapshot, width_snapshot } => {
                 let undo_snapshot = UndoCommand::StructuralSnapshot {
@@ -612,6 +630,13 @@ mod tests {
         // start_row > clamped row_end after clamp is the real "zero" trigger.
         let n = e.update_viewport_into(5, 2, 0, 7, &mut out); // start > end → 0
         assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn update_viewport_into_invalid_column_range_returns_zero() {
+        let mut e = engine_with_sample();
+        let mut out = vec![0u8; 16];
+        assert_eq!(e.update_viewport_into(0, 2, 8, 7, &mut out), 0);
     }
 
     #[test]
@@ -852,6 +877,29 @@ mod tests {
         assert!(e.redo());
         assert_eq!(e.get_alignment_width(), 8);
         assert!(!e.redo());
+    }
+
+    #[test]
+    fn undo_redo_substitution_handles_mismatched_history_vectors() {
+        let mut e = engine_with_sample();
+
+        // Simulate malformed history data where mutated_rows.len() > old_bases.len().
+        // The engine should process only valid row/base pairs and keep stacks consistent.
+        e.undo_stack.push(UndoCommand::Substitutions {
+            col_idx: 0,
+            mutated_rows: vec![0, 1],
+            old_bases: vec![b'G'],
+        });
+
+        assert!(e.undo());
+        // Only row 0 should be restored from the single available old base.
+        assert_eq!(e.get_base(0, 0), b'G');
+        assert_eq!(e.get_base(1, 0), b'A');
+
+        assert!(e.redo());
+        // Redo must only touch row 0 and restore its previous value.
+        assert_eq!(e.get_base(0, 0), b'A');
+        assert_eq!(e.get_base(1, 0), b'A');
     }
 }
 

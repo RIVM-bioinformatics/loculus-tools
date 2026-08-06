@@ -2,6 +2,10 @@
 
 A Rust-powered WebAssembly MSA (Multiple Sequence Alignment) engine for viral genome alignment editing, optimized for 60 FPS performance with instantaneous mutations.
 
+> **Companion documents**
+> - [`engine-api.md`](./engine-api.md) — JavaScript/TypeScript API reference for frontend developers
+> - [`engine.md`](./engine.md) — internal implementation details and architecture for Rust developers
+
 ## Quick Start
 
 ### Prerequisites
@@ -43,8 +47,11 @@ The production-ready build will be in `www/dist/`.
 
 The application uses a three-layer architecture:
 
-- **Rust/WASM (Referred to as Engine)**: Manages the alignment matrix and handles all mutations and parsing
-- **Web Worker (Referred to as Bridge)**: Runs the WASM engine off the main thread via `postMessage`
-- **React UI**: High-level UI state management and controls
-- **WebGL (still experimental, actually renderer of data fetched from the engine)**: GPU-accelerated rendering of the sequence grid at 60 FPS
-- Note; the testHarnass interface is not intended to be used in production, it's only for testing interactions between the engine and a react UI. This uses Canvas to render the sequence grid. The sliding viewport test is closer to the intended product (but doesn't support interactions yet).
+- **Rust/WASM Engine** (`src/lib.rs`): Manages the alignment matrix in memory, handles all mutations, parses FASTA input, and maintains undo/redo history. For implementation details, see [`engine.md`](./engine.md).
+- **Web Worker Bridge** (`www/src/engine/`): Runs the WASM engine off the main thread via `postMessage` to prevent blocking UI interactions. Handles request/response serialization and buffer transfers.
+- **React UI** (`www/src/`): High-level UI state management and controls. For the complete JavaScript/TypeScript API, see [`engine-api.md`](./engine-api.md).
+- **WebGL Renderer** (experimental): GPU-accelerated rendering of the sequence grid at 60 FPS.
+
+> **For frontend developers:** Start with [`engine-api.md`](./engine-api.md) to learn how to interact with the engine through the `useEngineWorker()` hook.
+>
+> **For internal developers:** See [`engine.md`](./engine.md) for details on the Rust implementation, data structures, and how the WASM boundary works.

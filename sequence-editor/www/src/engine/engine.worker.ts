@@ -10,9 +10,10 @@
  * Efficiency notes:
  *  - WASM is instantiated exactly once; the `MsaEngine` is constructed right
  *    after and reused for every subsequent command.
- *  - `update_viewport` returns a `Uint8Array` view into WASM memory. We slice
- *    out a standalone `ArrayBuffer` and transfer it via the `postMessage`
- *    transfer list — zero-copy across the worker boundary.
+ *  - `update_viewport` returns a new `Uint8Array` (copied from WASM linear
+ *    memory into a JS-owned buffer). We then `sabView.set()` that buffer into
+ *    the SharedArrayBuffer — two copies total, but avoids the ~3ms overhead
+ *    of wasm-bindgen's `&mut [u8]` marshalling for large SAB views.
  *  - Row-index vectors arrive as `Uint32Array` and are passed straight to the
  *    wasm-bindgen-generated method (no `Array.from` boxing).
  *  - Errors are caught and surfaced as `{ type: "error" }` so the client's
@@ -99,19 +100,40 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       break;
     }
     case "viewport": {
-      // Zero-copy SAB path: `update_viewport` returns a Uint8Array that is a
-      // direct view into WASM linear memory (zero-copy from Rust). We then do
-      // a single fast `sabView.set()` memcpy into the SharedArrayBuffer and
-      // send only a tiny control message — no ArrayBuffer transfer.
+      const view = e.update_viewport(req.startRow, req.endRow, req.startCol, req.endCol);
+      const len = view.byteLength;
+
+      // Validate that the viewport data fits in the SharedArrayBuffer before
+      // writing. If it doesn't, return an error rather than crashing the worker
+      // with a RangeError from sabView.set().
+      if (len > SAB_MAX_BYTES) {
+        post({
+          type: "error",
+          reqId: req.reqId,
+          message: `Viewport too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+        });
+        break;
+      }
+      if (!sabView) {
+        post({
+          type: "error",
+          reqId: req.reqId,
+          message: "SharedArrayBuffer not initialized",
+        });
+        break;
+      }
+
+      // SAB path: `update_viewport` returns a new Uint8Array (copied from WASM
+      // linear memory into a JS-owned buffer). We then do a single fast
+      // `sabView.set()` memcpy into the SharedArrayBuffer and send only a tiny
+      // control message — no ArrayBuffer transfer via postMessage.
       //
       // NOTE: We deliberately do NOT use `update_viewport_into(&mut [u8])`
       // here. wasm-bindgen marshals `&mut [u8]` by copying the entire JS
       // Uint8Array into WASM linear memory and back out, which for our 16MB
       // SAB view adds ~3ms per call. The `set()` approach is a single
       // typed-array memcpy and is dramatically faster.
-      const view = e.update_viewport(req.startRow, req.endRow, req.startCol, req.endCol);
-      const len = view.byteLength;
-      sabView!.set(view, 0);
+      sabView.set(view, 0);
       
       // Derive metadata from actual engine output, not request bounds.
       // Engine clamps ranges and pads with spaces; we must compute actual rows

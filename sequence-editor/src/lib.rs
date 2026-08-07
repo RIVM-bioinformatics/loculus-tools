@@ -29,7 +29,7 @@ enum UndoCommand {
 pub struct MsaEngine {
     /// `sequences`; the inner matrix which is a sequences of ASCII bytes (e.g. `b'A'`, `b'-'`).
     /// `names`; row names / identifiers (one per sequence, in order).
-    /// `alignment_width`; global alignment width (number of columns). All rows are expected to be this length; enforced at load time.
+    /// `alignment_width`; global alignment width (number of columns). The first sequence sets this at load time; subsequent sequences are accepted as-is even if they differ in length. Callers can detect ragged alignments via `get_row_length`.
     /// `viewport_buffer`; reusable buffer for viewport extraction. Cleared and refilled on each `update_viewport` call to avoid per-scroll allocations.
     /// `undo_stack` and `redo_stack`; transactional history of edits for undo/redo functionality. Each command captures the minimal information needed to reverse or re-apply an edit.
     sequences: Vec<Vec<u8>>,
@@ -65,7 +65,7 @@ impl MsaEngine {
     /// 
     /// The sequences are assumed to be pre-aligned as this is given from loculus as a provider of the sequence data. The first sequence sets the `alignment_width` for the engine; subsequent sequences are loaded as-is, even if they differ in length (the caller can detect ragged alignments via `get_row_length`).
     ///
-    /// Returns the number of sequences parsed after succesful engine population.
+    /// Returns the number of sequences parsed after successful engine population.
     pub fn load_fasta(&mut self, fasta_content: &str) -> usize {
         self.sequences.clear();
         self.names.clear();
@@ -329,12 +329,14 @@ impl MsaEngine {
 
         for r in 0..self.sequences.len() {
             let seq = &mut self.sequences[r];
-            if col_idx <= seq.len() {
-                if target_rows.contains(&r) {
-                    seq.insert(col_idx, base);
-                } else {
-                    seq.insert(col_idx, b'-'); // Balance unselected rows with a gap
-                }
+            // Pad rows that are shorter than col_idx to ensure consistent width
+            while seq.len() < col_idx {
+                seq.push(b' ');
+            }
+            if target_rows.contains(&r) {
+                seq.insert(col_idx, base);
+            } else {
+                seq.insert(col_idx, b'-'); // Balance unselected rows with a gap
             }
         }
         self.alignment_width += 1;

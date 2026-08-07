@@ -67,7 +67,7 @@ crate-type = ["cdylib", "rlib"]   # cdylib → .wasm; rlib → native tests
 
 [dependencies]
 wasm-bindgen = "0.2.125"
-js-sys = "0.3.77"                 # pinned; "0.2" resolves to an ancient broken version
+js-sys = "0.3.77"                 # requires 0.3.x; "0.2" resolves to an ancient broken version
 
 [dependencies.serde]
 version = "1.0"
@@ -79,7 +79,7 @@ lto = true
 codegen-units = 1
 ```
 
-> **Gotcha:** `js-sys` must be pinned to `0.3.77` (or another `0.3.x`). Using
+> **Gotcha:** `js-sys` requires `0.3.x` (any `0.3` release). Using
 > `js-sys = "0.2"` resolves to an ancient `0.2.7` that will not compile against
 > modern `wasm-bindgen`.
 

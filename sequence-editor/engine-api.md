@@ -169,6 +169,10 @@ interface ViewportResult {
 - Columns beyond the end of a sequence are padded with **space** (`0x20`).
 - Invalid ranges are safe: if `startRow > endRow` or `startCol > endCol`, the
   returned `bytes` is empty (`cols` will be `0` for invalid column ranges).
+- **Important:** `rows` must be derived from the actual returned data, not from
+  the request. When column range is invalid (`startCol > endCol`), `cols` is `0`
+  and `bytes.length === 0`, so `rows === 0`. Always enforce the invariant
+  `bytes.length === rows * cols`.
 - The returned `bytes` is a **standalone copy** — you own it and it will not be
   overwritten by later calls.
 

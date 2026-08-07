@@ -52,11 +52,9 @@ export interface EngineClient {
   ready: boolean;
   /** Last error surfaced by the worker (or null). */
   error: string | null;
-  /** Timing of the most recent completed call (or null). */
-  lastTiming: CallTiming | null;
   /**
    * Synchronous ref to the most recent timing. Read this immediately after an
-   * awaited call (e.g. in a benchmark loop) — `lastTiming` (state) may not have
+   * awaited call (e.g. in a benchmark loop) — React state may not have
    * flushed yet within the same microtask.
    */
   lastTimingRef: React.MutableRefObject<CallTiming | null>;
@@ -96,9 +94,8 @@ export function useEngineWorker(): EngineClient {
   >(new Map());
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastTiming, setLastTiming] = useState<CallTiming | null>(null);
   /**
-   * Synchronous mirror of `lastTiming` so callers (e.g. the benchmark) can read
+   * Synchronous mirror so callers (e.g. the benchmark) can read
    * the most recent timing *immediately* after an awaited call, without waiting
    * for React state to flush.
    */
@@ -268,7 +265,6 @@ export function useEngineWorker(): EngineClient {
   return {
     ready,
     error,
-    lastTiming,
     lastTimingRef,
     load,
     viewport,

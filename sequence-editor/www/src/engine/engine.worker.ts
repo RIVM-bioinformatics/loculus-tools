@@ -112,11 +112,17 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       const view = e.update_viewport(req.startRow, req.endRow, req.startCol, req.endCol);
       const len = view.byteLength;
       sabView!.set(view, 0);
-      const rows = Math.max(0, req.endRow - req.startRow + 1);
-      const cols = Math.max(0, req.endCol - req.startCol + 1);
+      
+      // Derive metadata from actual engine output, not request bounds.
+      // Engine clamps ranges and pads with spaces; we must compute actual rows
+      // from the returned byte length and clamped column count.
+      const reqCols = Math.max(0, req.endCol - req.startCol + 1);
+      const actualCols = reqCols > 0 ? reqCols : 0;
+      const actualRows = actualCols > 0 ? Math.floor(len / actualCols) : 0;
+      
       const data: ViewportResult = {
-        rows,
-        cols,
+        rows: actualRows,
+        cols: actualCols,
         startRow: req.startRow,
         startCol: req.startCol,
       };

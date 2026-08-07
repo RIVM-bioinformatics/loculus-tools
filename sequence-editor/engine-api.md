@@ -37,7 +37,6 @@ interface EngineClient {
   // State
   ready: boolean;                 // true once the WASM engine is initialized
   error: string | null;           // last error surfaced by the worker
-  lastTiming: CallTiming | null;  // timing of the most recent call (state)
   lastTimingRef: React.MutableRefObject<CallTiming | null>; // sync timing ref
 
   // Operations
@@ -81,12 +80,15 @@ if (!engine.ready) {
 Set to the last error message surfaced by the worker (e.g. a WASM init failure
 or a worker crash). `null` when there is no error.
 
-### `lastTiming` / `lastTimingRef`
+### `lastTimingRef`
 
-Timing information for the most recent completed call (see §7). `lastTiming` is
-React state; `lastTimingRef` is a synchronous ref you can read immediately after
-an `await` (useful in benchmark loops, where React state may not have flushed
-yet).
+Timing information for the most recent completed call (see §7). This is a
+synchronous ref — read it immediately after an `await` (useful in benchmark
+loops, where React state may not have flushed yet).
+
+> **Note:** There is intentionally no `lastTiming` React state. Updating state
+> on every worker response would cause re-render storms during benchmarks,
+> inflating latency measurements. Read `lastTimingRef.current` instead.
 
 ---
 
@@ -280,9 +282,8 @@ const didRedo = await engine.redo();
 
 ## 7. Timing & Performance
 
-Every call reports timing information you can read from `lastTimingRef` (or
-`lastTiming`). This is useful for benchmarking and for understanding where time
-goes.
+Every call reports timing information you can read from `lastTimingRef`. This is
+useful for benchmarking and for understanding where time goes.
 
 ```ts
 interface CallTiming {
@@ -301,9 +302,10 @@ const t = engine.lastTimingRef.current;
 console.log(`engine took ${t?.engineMs}ms`);
 ```
 
-> **Note:** `lastTiming` (React state) is intentionally **not** updated on every
-> response to avoid re-render storms during benchmarks. Read `lastTimingRef`
-> synchronously after an `await` instead.
+> **Note:** `lastTimingRef` is a synchronous ref (not React state). The hook
+> intentionally avoids updating React state on every response to prevent
+> re-render storms during benchmarks. Read `lastTimingRef.current` synchronously
+> after an `await` instead.
 
 ---
 

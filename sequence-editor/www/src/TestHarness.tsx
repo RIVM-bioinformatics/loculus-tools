@@ -171,7 +171,7 @@ export default function TestHarness() {
       for (let r = 0; r < res.rows; r++) {
         const absRow = res.startRow + r;
         const off = r * res.cols;
-        const text = String.fromCharCode(...res.bytes.subarray(off, off + res.cols));
+        const text = new TextDecoder().decode(res.bytes.subarray(off, off + res.cols));
         const name = await eng.name(absRow);
         out.push({ row: absRow, name, text });
       }

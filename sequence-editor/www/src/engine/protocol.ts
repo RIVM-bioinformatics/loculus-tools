@@ -2,9 +2,11 @@
  * Wire protocol between the main thread and the MSA Web Worker.
  *
  * Design goals:
- *  - **Zero-copy for binary payloads.** Viewport responses transfer their
- *    underlying `ArrayBuffer` via the `postMessage` transfer list, so no
- *    structured-clone copy of the (potentially large) byte slice happens.
+ *  - **Zero-copy for binary payloads via SharedArrayBuffer.** Viewport
+ *    responses write into a single SAB created at worker init. The worker
+ *    sends a tiny control message (`{sabLen, data: ViewportResult}`) and the
+ *    main thread reads bytes directly from shared memory — no per-call
+ *    structured clone of binary data.
  *  - **O(1) response correlation.** Every request carries a monotonically
  *    increasing `reqId`; the client keeps a `Map<reqId, resolver>` for
  *    constant-time dispatch.
@@ -12,7 +14,7 @@
  *    `Uint32Array` (not `number[]`) to avoid per-element number boxing and to
  *    match the wasm-bindgen `&[usize]` slice mapping directly.
  *  - **No JSON for hot paths.** Only small plain objects are structured-cloned;
- *    binary data is always transferred.
+ *    binary data is always transferred via the shared SAB.
  */
 
 // ---------------------------------------------------------------------------

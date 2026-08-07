@@ -7,8 +7,9 @@
  * `Map<reqId, resolver>`.
  *
  * The worker is created lazily on first use and reused for the component's
- * lifetime. Binary viewport responses arrive as transferred `ArrayBuffer`s
- * (zero-copy) and are handed back as `Uint8Array`.
+ * lifetime. Binary viewport responses arrive via a `SharedArrayBuffer` shared
+ * at init time — the main thread reads bytes directly from shared memory, with
+ * no per-call transfer or structured clone of binary data.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -130,6 +131,10 @@ export function useEngineWorker(): EngineClient {
         if (entry) {
           entry.resolve(res);
           pending.current.delete(res.reqId);
+          // Also surface the error to the general `error` state so UI
+          // components that watch `engine.error` are notified, not just the
+          // caller's rejected promise.
+          setError(res.message);
         } else {
           setError(res.message);
         }
@@ -206,7 +211,7 @@ export function useEngineWorker(): EngineClient {
         // type that returns a large buffer). For requests, the payload is tiny.
         const bytes =
           req.type === "viewport"
-            ? (req.endRow - req.startRow + 1) * (req.endCol - req.startCol + 1)
+            ? Math.max(0, (req.endRow - req.startRow + 1) * (req.endCol - req.startCol + 1))
             : 0;
         pending.current.set(reqId, {
           resolve: (res) => {

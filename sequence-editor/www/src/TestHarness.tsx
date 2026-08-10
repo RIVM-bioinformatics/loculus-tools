@@ -133,6 +133,9 @@ export default function TestHarness() {
   const [rowsCsv, setRowsCsv] = useState("0,1");
   const [col, setCol] = useState("3");
   const [base, setBase] = useState("G");
+  // Move inputs
+  const [moveRow, setMoveRow] = useState("0");
+  const [moveColsCsv, setMoveColsCsv] = useState("2,3,4,5");
 
   const refreshMeta = useCallback(async () => {
     try {
@@ -205,6 +208,43 @@ export default function TestHarness() {
       }
     },
     [eng, rowsCsv, col, base, refreshMeta]
+  );
+
+  const applyMove = useCallback(
+    async (direction: "Left" | "Right") => {
+      setErr("");
+      try {
+        const rowNum = Number(moveRow);
+        const cols = parseRows(moveColsCsv);
+        await eng.moveHorizontal(rowNum, cols, direction);
+        setStatus(`Moved ${direction} — refetch slice to verify`);
+        await refreshMeta();
+      } catch (e: any) {
+        const msg = e.code ? `${e.code}: ${e.message}` : String(e);
+        setErr(msg);
+      }
+    },
+    [eng, moveRow, moveColsCsv, refreshMeta]
+  );
+
+  const applyReorder = useCallback(
+    async (dir: "up" | "down") => {
+      setErr("");
+      try {
+        const rows = parseRows(rowsCsv);
+        if (dir === "up") {
+          await eng.moveRowsUp(rows);
+        } else {
+          await eng.moveRowsDown(rows);
+        }
+        setStatus(`Rows moved ${dir} — refetch slice to verify`);
+        await refreshMeta();
+      } catch (e: any) {
+        const msg = e.code ? `${e.code}: ${e.message}` : String(e);
+        setErr(msg);
+      }
+    },
+    [eng, rowsCsv, refreshMeta]
   );
 
   const doUndo = useCallback(async () => {
@@ -312,6 +352,53 @@ export default function TestHarness() {
             <Button variant="outlined" color="error" onClick={() => applyEdit("deleteColumn")}>
               Delete column (all rows)
             </Button>
+
+            <Divider />
+            <Typography variant="subtitle2">Move horizontally (Rule 4)</Typography>
+            <Stack direction="row" spacing={1}>
+              <TextField
+                label="row"
+                value={moveRow}
+                onChange={(e) => setMoveRow(e.target.value)}
+                size="small"
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                label="cols (csv)"
+                value={moveColsCsv}
+                onChange={(e) => setMoveColsCsv(e.target.value)}
+                size="small"
+                sx={{ flex: 2 }}
+              />
+            </Stack>
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" onClick={() => applyMove("Left")} disabled={!eng.ready}>
+                ← Move left
+              </Button>
+              <Button variant="outlined" onClick={() => applyMove("Right")} disabled={!eng.ready}>
+                Move right →
+              </Button>
+            </Stack>
+
+            <Divider />
+            <Typography variant="subtitle2">Reorder rows (Rule 5)</Typography>
+            <Stack direction="row" spacing={1}>
+              <TextField
+                label="rows (csv)"
+                value={rowsCsv}
+                onChange={(e) => setRowsCsv(e.target.value)}
+                size="small"
+                sx={{ flex: 1 }}
+              />
+            </Stack>
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" onClick={() => applyReorder("up")} disabled={!eng.ready}>
+                ↑ Move row(s) up
+              </Button>
+              <Button variant="outlined" onClick={() => applyReorder("down")} disabled={!eng.ready}>
+                Move row(s) down ↓
+              </Button>
+            </Stack>
 
             <Divider />
             <Stack direction="row" spacing={1}>

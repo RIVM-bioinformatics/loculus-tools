@@ -20,7 +20,7 @@
  *    promise rejects rather than hanging.
  */
 
-import init, { MsaEngine } from "../../wasm/sequence_editor.js";
+import init, { MsaEngine, MoveDirection } from "../../wasm/sequence_editor.js";
 import type {
   EngineRequest,
   EngineResponse,
@@ -227,6 +227,37 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       const data = e.get_name(req.row);
       engineMs = performance.now() - engineStart;
       post({ type: "result", reqId: req.reqId, ok: true, data, timing: { engineMs, workerMs: 0 } });
+      break;
+    }
+    case "moveHorizontal": {
+      const direction = req.direction === "Left" ? MoveDirection.Left : MoveDirection.Right;
+      const errCode = e.move_horizontal(req.row, req.cols, direction);
+      engineMs = performance.now() - engineStart;
+      if (errCode) {
+        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
+      } else {
+        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
+      }
+      break;
+    }
+    case "moveRowsUp": {
+      const errCode = e.move_rows_up(req.rows);
+      engineMs = performance.now() - engineStart;
+      if (errCode) {
+        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
+      } else {
+        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
+      }
+      break;
+    }
+    case "moveRowsDown": {
+      const errCode = e.move_rows_down(req.rows);
+      engineMs = performance.now() - engineStart;
+      if (errCode) {
+        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
+      } else {
+        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
+      }
       break;
     }
   }

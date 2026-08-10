@@ -61,7 +61,10 @@ export type EngineRequest =
   | { type: "undo"; reqId: number }
   | { type: "redo"; reqId: number }
   | { type: "meta"; reqId: number }
-  | { type: "name"; reqId: number; row: number };
+  | { type: "name"; reqId: number; row: number }
+  | { type: "moveHorizontal"; reqId: number; row: number; cols: Uint32Array; direction: "Left" | "Right" }
+  | { type: "moveRowsUp"; reqId: number; rows: Uint32Array }
+  | { type: "moveRowsDown"; reqId: number; rows: Uint32Array };
 
 // ---------------------------------------------------------------------------
 // Worker → Main responses

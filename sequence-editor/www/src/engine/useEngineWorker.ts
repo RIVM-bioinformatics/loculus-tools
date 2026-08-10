@@ -74,6 +74,9 @@ export interface EngineClient {
   redo: () => Promise<boolean>;
   meta: () => Promise<Meta>;
   name: (row: number) => Promise<string>;
+  moveHorizontal: (row: number, cols: number[], direction: "Left" | "Right") => Promise<void>;
+  moveRowsUp: (rows: number[]) => Promise<void>;
+  moveRowsDown: (rows: number[]) => Promise<void>;
 }
 
 type Resolver = (res: EngineResponse) => void;
@@ -275,6 +278,19 @@ export function useEngineWorker(): EngineClient {
   const redo = useCallback(() => send<boolean>({ type: "redo" }), [send]);
   const meta = useCallback(() => send<Meta>({ type: "meta" }), [send]);
   const name = useCallback((row: number) => send<string>({ type: "name", row }), [send]);
+  const moveHorizontal = useCallback(
+    (row: number, cols: number[], direction: "Left" | "Right") =>
+      send<void>({ type: "moveHorizontal", row, cols: toRows(cols), direction }),
+    [send]
+  );
+  const moveRowsUp = useCallback(
+    (rows: number[]) => send<void>({ type: "moveRowsUp", rows: toRows(rows) }),
+    [send]
+  );
+  const moveRowsDown = useCallback(
+    (rows: number[]) => send<void>({ type: "moveRowsDown", rows: toRows(rows) }),
+    [send]
+  );
 
   return {
     ready,
@@ -290,5 +306,8 @@ export function useEngineWorker(): EngineClient {
     redo,
     meta,
     name,
+    moveHorizontal,
+    moveRowsUp,
+    moveRowsDown,
   };
 }

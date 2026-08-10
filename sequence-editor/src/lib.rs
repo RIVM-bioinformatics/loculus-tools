@@ -787,32 +787,36 @@ mod tests {
     #[test]
     fn insert_at_subset_balances_with_gaps() {
         let mut e = engine_with_sample();
-        // Insert 'A' at col 2 on rows 0 and 1 only.
-        e.insert_at_subset(&[0, 1], 2, b'A');
+        // Insert '-' at col 2 on rows 0 and 1 only.
+        e.insert_at_subset(&[0, 1], 2);
         assert_eq!(e.get_alignment_width(), 9);
-        // Row 0: AT A GCATGC -> "ATAGCATGC"
+        // Row 0: AT - GCATGC -> "AT-GCATGC"
         assert_eq!(e.get_row_length(0), 9);
-        assert_eq!(e.get_base(0, 2), b'A');
-        // Row 2 (non-target): gets a gap at col 2 -> "AT-GCAT-C"
-        assert_eq!(e.get_base(2, 2), b'-');
+        assert_eq!(e.get_base(0, 2), b'-');
+        // Row 2 (non-target): gets '-' appended at end -> "ATGCAT-C-"
+        assert_eq!(e.get_base(2, 2), b'G'); // unchanged, non-target
         assert_eq!(e.get_row_length(2), 9);
     }
 
     #[test]
-    fn delete_at_subset_removes_from_targets_gaps_non_targets() {
+    fn delete_at_subset_removes_from_targets_only() {
         let mut e = engine_with_sample();
-        // Delete col 1 from rows 0 and 2 only.
-        e.delete_at_subset(&[0, 2], 1);
-        // Row 0 was "ATGCATGC" -> "AGCATGC" (len 7)
-        assert_eq!(e.get_row_length(0), 7);
+        // Delete col 6 from rows 1 and 2 only. Both have '-' at col 6.
+        // Row 0 untouched (no '-' at col 6).
+        let result = e.delete_at_subset(&[1, 2], 6);
+        assert_eq!(result, ""); // success
+        // Row 0: completely untouched -> "ATGCATGC" (len 8)
+        assert_eq!(e.get_row_length(0), 8);
         assert_eq!(e.get_base(0, 0), b'A');
-        assert_eq!(e.get_base(0, 1), b'G');
-        // Row 1 (non-target): col 1 gap-filled -> "A-GGTG-A"
+        assert_eq!(e.get_base(0, 6), b'G');
+        // Row 1 was "ATGGTG-A" -> remove col 6 ('-'), append '-' -> "ATGGTGA-" (len 8)
         assert_eq!(e.get_row_length(1), 8);
-        assert_eq!(e.get_base(1, 1), b'-');
-        // Row 2 was "ATGCAT-C" -> "AGCAT-C" (len 7)
-        assert_eq!(e.get_row_length(2), 7);
-        assert_eq!(e.get_base(2, 1), b'G');
+        assert_eq!(e.get_base(1, 6), b'A');
+        assert_eq!(e.get_base(1, 7), b'-');
+        // Row 2 was "ATGCAT-C" -> remove col 6 ('-'), append '-' -> "ATGCATC-" (len 8)
+        assert_eq!(e.get_row_length(2), 8);
+        assert_eq!(e.get_base(2, 6), b'C');
+        assert_eq!(e.get_base(2, 7), b'-');
     }
 
     #[test]
@@ -856,7 +860,7 @@ mod tests {
     fn undo_structural_insert_restores_width_and_matrix() {
         let mut e = engine_with_sample();
         let width_before = e.get_alignment_width();
-        e.insert_at_subset(&[0, 1], 2, b'A');
+        e.insert_at_subset(&[0, 1], 2);
         assert_eq!(e.get_alignment_width(), width_before + 1);
         assert!(e.undo());
         assert_eq!(e.get_alignment_width(), width_before);
@@ -867,12 +871,12 @@ mod tests {
     #[test]
     fn redo_structural_insert_reapplies() {
         let mut e = engine_with_sample();
-        e.insert_at_subset(&[0, 1], 2, b'A');
+        e.insert_at_subset(&[0, 1], 2);
         assert!(e.undo());
         assert!(e.redo());
         assert_eq!(e.get_alignment_width(), 9);
-        assert_eq!(e.get_base(0, 2), b'A');
-        assert_eq!(e.get_base(2, 2), b'-'); // non-target gap
+        assert_eq!(e.get_base(0, 2), b'-'); // gap
+        assert_eq!(e.get_base(2, 2), b'G'); // unchanged, non-target
     }
 
     #[test]
@@ -912,7 +916,7 @@ mod tests {
         // Edit 1: substitute
         e.mutate_base_subset(&[0], 0, b'T');
         // Edit 2: insert
-        e.insert_at_subset(&[0, 1], 2, b'A');
+        e.insert_at_subset(&[0, 1], 2);
         // Edit 3: delete column
         e.delete_column(4);
 
@@ -956,6 +960,119 @@ mod tests {
         // Redo must only touch row 0 and restore its previous value.
         assert_eq!(e.get_base(0, 0), b'A');
         assert_eq!(e.get_base(1, 0), b'A');
+    }
+
+    // ── Constraint validation tests (Rules 1-8) ──
+
+    #[test]
+    fn delete_non_gap_returns_error() {
+        let mut e = engine_with_sample();
+        // Row 0 col 0 is 'A' (IUPAC), not '-'. Delete must be rejected.
+        let err = e.delete_at_subset(&[0], 0);
+        assert_eq!(err, ERR_DELETE_NOT_GAP);
+        // Matrix must be completely unchanged.
+        assert_eq!(e.get_base(0, 0), b'A');
+        assert_eq!(e.get_row_length(0), 8);
+    }
+
+    #[test]
+    fn delete_gap_succeeds() {
+        let mut e = engine_with_sample();
+        // Row 1 col 6 is '-', Row 2 col 6 is '-'.
+        let err = e.delete_at_subset(&[1, 2], 6);
+        assert_eq!(err, ""); // success
+        // Row 1 col 6 was '-', removed, '-' appended at end
+        assert_eq!(e.get_base(1, 6), b'A');
+        // Row 0 completely untouched
+        assert_eq!(e.get_base(0, 6), b'G');
+    }
+
+    #[test]
+    fn mutate_non_iupac_returns_error() {
+        let mut e = engine_with_sample();
+        // Mutate col 6 on row 0 where char is 'G' (IUPAC) — should succeed.
+        let err = e.mutate_base_subset(&[0], 6, b'X');
+        assert_eq!(err, "");
+        assert_eq!(e.get_base(0, 6), b'X');
+
+        // Directly corrupt a cell to a non-IUPAC, non-gap character (a space),
+        // then attempt to mutate it — must be rejected.
+        e.sequences[1][6] = b' ';
+        let err = e.mutate_base_subset(&[1], 6, b'T');
+        assert_eq!(err, ERR_MUTATE_NOT_IUPAC);
+        assert_eq!(e.get_base(1, 6), b' '); // unchanged
+    }
+
+    #[test]
+    fn mutate_gap_is_allowed() {
+        let mut e = engine_with_sample();
+        // Row 1 col 6 is '-'. Mutating '-' to 'A' must succeed.
+        let err = e.mutate_base_subset(&[1], 6, b'A');
+        assert_eq!(err, "");
+        assert_eq!(e.get_base(1, 6), b'A');
+    }
+
+    #[test]
+    fn mutate_iupac_to_gap_is_allowed() {
+        let mut e = engine_with_sample();
+        // Row 0 col 0 is 'A' (IUPAC). Mutate to '-' must succeed.
+        let err = e.mutate_base_subset(&[0], 0, b'-');
+        assert_eq!(err, "");
+        assert_eq!(e.get_base(0, 0), b'-');
+    }
+
+    #[test]
+    fn delete_at_subset_non_targets_untouched() {
+        let mut e = engine_with_sample();
+        // Delete col 6 on rows 1 and 2 (both have '-' at col 6).
+        let err = e.delete_at_subset(&[1, 2], 6);
+        assert_eq!(err, "");
+        // Row 0 (non-target) must be completely unchanged.
+        assert_eq!(e.get_row_length(0), 8);
+        assert_eq!(e.get_base(0, 0), b'A');
+        assert_eq!(e.get_base(0, 1), b'T');
+    }
+
+    #[test]
+    fn alignment_width_from_longest_sequence() {
+        let mut e = MsaEngine::new();
+        e.load_fasta(">seq1\nATGC\n>seq2\nATGCATGC\n>seq3\nATGCAT");
+        // Longest sequence is seq2 with length 8.
+        assert_eq!(e.get_alignment_width(), 8);
+        assert_eq!(e.get_row_length(0), 4);
+        assert_eq!(e.get_row_length(1), 8);
+        assert_eq!(e.get_row_length(2), 6);
+    }
+
+    #[test]
+    fn insert_only_accepts_gap_by_default() {
+        let mut e = engine_with_sample();
+        // Insert at col 2 on rows 0 and 1. Only '-' is inserted.
+        let err = e.insert_at_subset(&[0, 1], 2);
+        assert_eq!(err, "");
+        assert_eq!(e.get_alignment_width(), 9);
+        // Target rows get '-' at col 2
+        assert_eq!(e.get_base(0, 2), b'-');
+        assert_eq!(e.get_base(1, 2), b'-');
+        // Non-target rows get '-' appended at end
+        assert_eq!(e.get_row_length(2), 9);
+        assert_eq!(e.get_base(2, 8), b'-');
+    }
+
+    #[test]
+    fn insert_non_target_appends_gap() {
+        let mut e = engine_with_sample();
+        let orig_len = e.get_row_length(0);
+        // Insert on row 0 only.
+        e.insert_at_subset(&[0], 3);
+        assert_eq!(e.get_row_length(0), orig_len + 1);
+        assert_eq!(e.get_row_length(1), orig_len + 1);
+        assert_eq!(e.get_row_length(2), orig_len + 1);
+        // Non-target rows (1, 2) have '-' appended at end
+        assert_eq!(e.get_base(1, orig_len), b'-');
+        assert_eq!(e.get_base(2, orig_len), b'-');
+        // Target row (0) has '-' inserted at col 3
+        assert_eq!(e.get_base(0, 3), b'-');
     }
 }
 

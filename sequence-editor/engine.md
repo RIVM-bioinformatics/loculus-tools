@@ -107,7 +107,7 @@ pub struct MsaEngine {
 |-------|---------|
 | `sequences` | The matrix. Each inner `Vec<u8>` is one sequence of ASCII bytes (`b'A'`, `b'-'`, …). |
 | `names` | Row identifiers, parallel to `sequences`. |
-| `alignment_width` | The global number of columns. Set from the first sequence at load time. |
+| `alignment_width` | The global number of columns. Set from the longest sequence at load time. |
 | `viewport_buffer` | A single reusable buffer for viewport extraction, pre-allocated to ~5000 bytes and grown on demand. |
 | `undo_stack` / `redo_stack` | Transactional edit history. |
 
@@ -174,9 +174,10 @@ raw pointers are only meaningful within that worker's WASM linear memory.
   convention).
 - Sequence lines are appended as **uppercased** ASCII bytes; internal whitespace
   is skipped. Sequences may span multiple lines.
-- The **first** sequence sets `alignment_width`. Subsequent sequences are loaded
-  as-is even if they differ in length — the engine does **not** enforce uniform
-  length. The caller can detect ragged alignments via `get_row_length`.
+- The **longest** sequence sets `alignment_width` (not the first). Subsequent
+  sequences are loaded as-is even if they differ in length — the engine does
+  **not** enforce uniform length. The caller can detect ragged alignments via
+  `get_row_length`.
 - Blank lines are ignored.
 - Returns the number of sequences parsed.
 
@@ -252,31 +253,42 @@ single column.
 
 - Only the rows in `rows` are touched; all others are left unchanged.
 - Out-of-range rows or columns are silently skipped.
+- **Validation (Rule 3):** The existing character at each target position must
+  be an IUPAC nucleotide or `-`. If any target position contains a character
+  that is neither, the method returns `ERR_MUTATE_NOT_IUPAC` and **no rows are
+  modified** (all-or-nothing).
 - Records a `Substitutions` undo command capturing the old bases of the rows it
   actually changed.
 - If no rows are actually mutated (all out of range), it is a no-op and records
   nothing.
+- Returns an empty string on success, or an error code constant on failure.
 
-### 5.2 `insert_at_subset(rows, col, base)`
+### 5.2 `insert_at_subset(rows, col)`
 
-Simultaneous gap/base insertion at a single column across **all** rows.
+Simultaneous gap insertion at a single column on a **subset** of rows. The
+inserted character is always `-` (there is no `base` parameter).
 
-- Target rows receive `base`; non-target rows receive `b'-'` to preserve
-  alignment.
+- Target rows receive `-` at `col_idx`.
+- **Non-target rows have a `-` appended at the end** to keep matrix width
+  consistent (they are not modified at `col_idx`).
 - `alignment_width` is incremented by 1.
 - Records a `StructuralSnapshot` undo command.
+- Returns an empty string on success (no validation needed since only `-` can
+  be inserted).
 
 ### 5.3 `delete_at_subset(rows, col)`
 
-Simultaneous deletion at a single column across all rows.
+Simultaneous deletion at a single column on a **subset** of rows.
 
-- Target rows have the column **removed**.
-- Non-target rows have the column **replaced with a gap** (`b'-'`) to preserve
-  alignment width for the other rows.
-- Because target and non-target rows diverge in length after a true remove,
-  `alignment_width` is left unchanged. The matrix may become ragged; callers
-  should be aware.
+- Only the rows in `rows` are affected. The character at `col` is **removed**
+  and a `-` is appended at the end to keep the row length unchanged.
+- **Non-target rows are completely untouched** (no gap-fill, no modification).
+- `alignment_width` is left unchanged.
+- **Validation (Rule 1):** The character at `col` in every target row must be
+  `-`. If any target row has a non-`-` character, the method returns
+  `ERR_DELETE_NOT_GAP` and **no rows are modified** (all-or-nothing).
 - Records a `StructuralSnapshot` undo command.
+- Returns an empty string on success, or an error code constant on failure.
 
 ### 5.4 `delete_column(col)`
 
@@ -284,6 +296,7 @@ Delete a column from **every** row, shrinking `alignment_width` by 1.
 
 - This is the width-preserving inverse of a full-column insert.
 - Records a `StructuralSnapshot` undo command.
+- Returns an empty string on success.
 
 ---
 
@@ -349,10 +362,16 @@ e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGGTG-A");
 assert_eq!(e.get_sequence_count(), 2);
 assert_eq!(e.get_alignment_width(), 8);
 
-e.mutate_base_subset(&[0], 3, b'G');
+// Mutation methods return an empty string on success, or an error code.
+assert_eq!(e.mutate_base_subset(&[0], 3, b'G'), "");
 assert_eq!(e.get_base(0, 3), b'G');
 assert!(e.undo());
 assert_eq!(e.get_base(0, 3), b'C');
+
+// Attempting to delete a non-gap returns an error code.
+let err = e.delete_at_subset(&[0], 0); // col 0 is 'A', not '-'
+assert_eq!(err, "DeleteNotGap");
+assert_eq!(e.get_base(0, 0), b'A'); // unchanged
 ```
 
 ### 7.2 From JavaScript (via WASM)
@@ -377,7 +396,9 @@ The UI never calls the engine directly; it sends typed request messages over
    chicken-and-egg problem where the UI waits for a `ready` signal that only
    fires after a command triggers init).
 2. Handles `load`, `viewport`, `mutate`, `insert`, `delete`, `undo`, `redo`,
-   and `meta` requests.
+   and `meta` requests. Mutation handlers check the Rust return string: if
+   non-empty (an error code), the worker posts `{ok: false, errorCode}` instead
+   of `{ok: true}`, causing the client promise to reject with the error code.
 3. For viewport requests, transfers the returned `ArrayBuffer` (or writes into a
    shared `SharedArrayBuffer`) so binary data crosses the boundary without a
    second copy.
@@ -455,7 +476,7 @@ implemented in `www/` and are described in the companion documents.
 |------|--------|
 | Core data structures & memory layout | ✅ Done (`MsaEngine`, viewport buffer) |
 | WASM boundary API | ✅ Done (`load_fasta`, `update_viewport`, `update_viewport_into`, metadata getters) |
-| Mutation core | ✅ Done (`mutate_base_subset`, `insert_at_subset`, `delete_at_subset`, `delete_column`) |
+| Mutation core | ✅ Done (`mutate_base_subset`, `insert_at_subset`, `delete_at_subset`, `delete_column`) with IUPAC/gap validation and error codes |
 | Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
 | Web Worker bridge | ✅ Done (in `www/`, consumes the engine) |
 | MUI test harness | ✅ Done (in `www/`, consumes the engine) |
@@ -481,7 +502,5 @@ engine's API (e.g. `RenderMode`, `set_render_mode`, `set_reading_frame`,
   only, keeping nucleotides as the single source of truth. Editing in amino-acid
   mode will require validation (e.g. disallowing single-base substitutions,
   which are ambiguous at the codon level).
-- **`delete_at_subset` width semantics:** Because non-target rows are gap-filled
-  rather than removed, the global width is unchanged and the matrix can become
-  ragged. A future "delete column from all rows" operation (already available as
-  `delete_column`) is the width-shrinking path.
+- **Horizontal move and row reorder:** Not yet implemented (planned for a
+  future phase).

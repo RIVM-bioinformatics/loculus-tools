@@ -43,7 +43,7 @@ interface EngineClient {
   load: (fasta: string) => Promise<number>;
   viewport: (r: ViewportRequest) => Promise<ViewportResult & { bytes: Uint8Array }>;
   mutate: (rows: number[], col: number, base: string) => Promise<void>;
-  insert: (rows: number[], col: number, base: string) => Promise<void>;
+  insert: (rows: number[], col: number) => Promise<void>;
   delete: (rows: number[], col: number) => Promise<void>;
   deleteColumn: (col: number) => Promise<void>;
   undo: () => Promise<boolean>;
@@ -220,26 +220,42 @@ await engine.mutate([0, 1], 3, "G"); // set col 3 to 'G' on rows 0 and 1
   character's code is used.
 - Out-of-range rows/columns are silently skipped.
 
-### `insert(rows: number[], col: number, base: string): Promise<void>`
+**Validation (Rule 3):** The existing character at each target position must be
+an IUPAC nucleotide (`A`, `C`, `G`, `T`, `U`, `R`, `Y`, `S`, `W`, `K`, `M`,
+`B`, `D`, `H`, `V`, `N`) or a gap (`-`). If any target position contains a
+character that is neither, the promise rejects with error code
+`"MutateNotIupac"` and **no rows are modified** (all-or-nothing).
 
-Inserts a base at a single column across **all** rows. Target rows receive
-`base`; **non-target rows receive a gap (`-`)** to preserve alignment. The
-alignment width increases by 1.
+### `insert(rows: number[], col: number): Promise<void>`
+
+Inserts a gap (`-`) at a single column on a **subset** of rows. The inserted
+character is always `-` — there is no `base` parameter. Target rows receive the
+gap at `col_idx`; **non-target rows have a `-` appended at the end** to keep
+matrix width consistent. The alignment width increases by 1.
 
 ```ts
-await engine.insert([0, 1], 2, "A");
-// row 0,1 get 'A' at col 2; all other rows get '-' at col 2
+await engine.insert([0, 1], 2);
+// row 0,1 get '-' at col 2; all other rows get '-' appended at end
 ```
+
+- `rows` — array of row indices to receive the gap at `col_idx`.
+- `col` — the column index where the gap is inserted in target rows.
 
 ### `delete(rows: number[], col: number): Promise<void>`
 
-Deletes a column on a **subset** of rows. Target rows have the column removed;
-**non-target rows have it replaced with a gap (`-`)**. The global width is left
-unchanged (the matrix may become ragged).
+Deletes a column on a **subset** of rows. Only the rows in `rows` are affected:
+the character at `col` is removed and a `-` is appended at the end to keep the
+row length unchanged. **Non-target rows are completely untouched.**
 
 ```ts
 await engine.delete([0, 2], 1);
 ```
+
+**Validation (Rule 1):** The character at `col` in every target row must be a
+gap (`-`). If any target row has a non-`-` character at that position, the
+promise rejects with error code `"DeleteNotGap"` and **no rows are modified**
+(all-or-nothing). To delete an IUPAC character, first mutate it to `-` via
+`mutate()`, then call `delete()`.
 
 ### `deleteColumn(col: number): Promise<void>`
 
@@ -356,6 +372,27 @@ try {
 
 The `error` field on the client also reflects the last worker error.
 
+### Error codes
+
+Mutation methods that fail validation reject the promise with an `Error` that
+has a `.code` property containing a string error code. You can inspect it to
+show a user-friendly message:
+
+```ts
+try {
+  await engine.delete([0], 3); // col 3 is 'A', not '-'
+} catch (err: any) {
+  if (err.code === "DeleteNotGap") {
+    showToast("Mutate the character to '-' first, then delete.");
+  }
+}
+```
+
+| Error code | Triggered by | Meaning |
+|------------|-------------|---------|
+| `"DeleteNotGap"` | `delete()` | Attempted to delete a non-`-` character. Mutate it to `-` first. |
+| `"MutateNotIupac"` | `mutate()` | Attempted to mutate a character that is not IUPAC or `-`. |
+
 ---
 
 ## 10. Quick Reference
@@ -366,9 +403,9 @@ The `error` field on the client also reflects the last worker error.
 | `meta` | — | `Promise<Meta>` | Alignment metadata (rows, width, undo/redo depth) |
 | `name` | `row: number` | `Promise<string>` | Row name |
 | `viewport` | `{startRow, endRow, startCol, endCol}` | `Promise<ViewportResult & {bytes}>` | Fetch a windowed slice |
-| `mutate` | `rows: number[], col, base: string` | `Promise<void>` | Change bases on a subset of rows |
-| `insert` | `rows: number[], col, base: string` | `Promise<void>` | Insert a base (gaps on non-targets) |
-| `delete` | `rows: number[], col` | `Promise<void>` | Delete a column on a subset (gaps on non-targets) |
+| `mutate` | `rows: number[], col, base: string` | `Promise<void>` | Change bases on a subset of rows (validates existing char is IUPAC or `-`) |
+| `insert` | `rows: number[], col` | `Promise<void>` | Insert a `-` at col on target rows; append `-` on non-targets |
+| `delete` | `rows: number[], col` | `Promise<void>` | Delete a column on a subset (validates target is `-`; non-targets untouched) |
 | `deleteColumn` | `col: number` | `Promise<void>` | Delete a column from all rows |
 | `undo` | — | `Promise<boolean>` | Undo last edit |
 | `redo` | — | `Promise<boolean>` | Redo last undone edit |

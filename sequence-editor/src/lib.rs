@@ -6,19 +6,10 @@
 //! owning Web Worker can transfer the buffer across `postMessage` without
 //! handing out raw pointers into WASM linear memory.
 
+mod alphabets;
+use alphabets::{is_gap, is_iupac};
+
 use wasm_bindgen::prelude::*;
-
-// ── IUPAC / gap validation helpers ──
-
-/// Returns `true` if `c` is an IUPAC nucleotide code (A, C, G, T, U, R, Y, S, W, K, M, B, D, H, V, N).
-fn is_iupac(c: u8) -> bool {
-    return matches!(c.to_ascii_uppercase(), b'A' | b'C' | b'G' | b'T' | b'U' | b'R' | b'Y' | b'S' | b'W' | b'K' | b'M' | b'B' | b'D' | b'H' | b'V' | b'N');
-}
-
-/// Returns `true` if `c` is a gap character (`-`).
-fn is_gap(c: u8) -> bool {
-    return c == b'-';
-}
 
 // ── Error code constants ──
 // These are returned as `String` from mutation methods. Empty string = success.

@@ -386,15 +386,23 @@ impl MsaEngine {
         String::new()
     }
 
-    /// Simultaneous deletion at a single column index across all rows. Target
-    /// rows have the column removed; non-target rows have it replaced with a
-    /// gap to preserve alignment width for the other rows.
+    /// Simultaneous deletion at a single column index on a subset of rows.
+    /// Only rows in `row_indices` are affected: the character at `col_idx`
+    /// is removed and a `-` is appended at the end to keep width unchanged.
+    /// Non-target rows are completely untouched.
     ///
-    /// Because target and non-target rows diverge in length after a true
-    /// remove, `alignment_width` is left unchanged (the gap-fill on non-targets
-    /// keeps the global width stable). A future "delete column from all rows"
-    /// operation can shrink the width.
-    pub fn delete_at_subset(&mut self, row_indices: &[usize], col_idx: usize) {
+    /// Returns an empty string on success, or `ERR_DELETE_NOT_GAP` if any
+    /// target position contains a non-`-` character (all-or-nothing).
+    pub fn delete_at_subset(&mut self, row_indices: &[usize], col_idx: usize) -> String {
+        // Validate: all target positions must be '-'.
+        for &r in row_indices {
+            if let Some(seq) = self.sequences.get(r) {
+                if col_idx < seq.len() && !is_gap(seq[col_idx]) {
+                    return String::from(ERR_DELETE_NOT_GAP);
+                }
+            }
+        }
+
         self.record_structural_undo();
 
         let target_rows: std::collections::HashSet<usize> = row_indices.iter().copied().collect();
@@ -404,14 +412,13 @@ impl MsaEngine {
             if col_idx < seq.len() {
                 if target_rows.contains(&r) {
                     seq.remove(col_idx);
-                } else {
-                    seq[col_idx] = b'-'; // Keep alignment: gap-fill non-targets
+                    seq.push(b'-'); // Pad at end to keep width unchanged
                 }
+                // Non-target rows: completely untouched
             }
         }
-        // Width unchanged: non-targets were gap-filled, targets shrank by 1.
-        // The matrix is now ragged; callers should be aware. For a uniform
-        // column delete (all rows), use delete_column.
+        // Width unchanged
+        String::new()
     }
 
     /// Delete a column from every row, shrinking `alignment_width` by 1.

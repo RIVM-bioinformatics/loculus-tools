@@ -423,7 +423,8 @@ impl MsaEngine {
 
     /// Delete a column from every row, shrinking `alignment_width` by 1.
     /// This is the width-preserving inverse of a full-column insert.
-    pub fn delete_column(&mut self, col_idx: usize) {
+    /// Returns an empty string on success.
+    pub fn delete_column(&mut self, col_idx: usize) -> String {
         self.record_structural_undo();
         for seq in self.sequences.iter_mut() {
             if col_idx < seq.len() {
@@ -433,6 +434,7 @@ impl MsaEngine {
         if self.alignment_width > 0 {
             self.alignment_width -= 1;
         }
+        String::new()
     }
 
     /// transactional history with undo/redo stacks.

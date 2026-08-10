@@ -18,9 +18,9 @@ A Rust-powered WebAssembly MSA (Multiple Sequence Alignment) engine for viral ge
 
 1. **Build the WASM module** (from the `sequence-editor/` directory):
    ```bash
-   wasm-pack build --target web
+   wasm-pack build --target web --out-dir www/wasm
    ```
-   This compiles the Rust code to WebAssembly and outputs to the `wasm/` folder.
+   This compiles the Rust code to WebAssembly and outputs the compiled package to the `www/wasm/` folder.
 
 2. **Install web dependencies**:
    ```bash

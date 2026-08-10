@@ -1221,5 +1221,150 @@ mod tests {
         // Target row (0) has '-' inserted at col 3
         assert_eq!(e.get_base(0, 3), b'-');
     }
+
+    // ── Horizontal move tests (Rule 4) ──
+
+    #[test]
+    fn move_horizontal_left_succeeds() {
+        let mut e = engine_with_sample();
+        // Row 0: "ATGCATGC". Move "CATG" (cols 2..=5) left into col 1 which is 'T'.
+        // But col 1 is 'T' (IUPAC), not '-'. So first mutate col 1 to '-'.
+        e.mutate_base_subset(&[0], 1, b'-');
+        // Row 0: "A-GCATGC". Now move "GCAT" (cols 2..=5) left by 1.
+        let err = e.move_horizontal(0, &[2, 3, 4, 5], MoveDirection::Left);
+        assert_eq!(err, "");
+        // After left move: "AGCAT-GC"
+        assert_eq!(e.get_base(0, 0), b'A');
+        assert_eq!(e.get_base(0, 1), b'G');
+        assert_eq!(e.get_base(0, 2), b'C');
+        assert_eq!(e.get_base(0, 3), b'A');
+        assert_eq!(e.get_base(0, 4), b'T');
+        assert_eq!(e.get_base(0, 5), b'-');
+        assert_eq!(e.get_base(0, 6), b'G');
+        assert_eq!(e.get_base(0, 7), b'C');
+    }
+
+    #[test]
+    fn move_horizontal_right_succeeds() {
+        let mut e = engine_with_sample();
+        // Row 1: "ATGGTG-A". Move "GGTG" (cols 2..=5) right into col 6 which is '-'.
+        let err = e.move_horizontal(1, &[2, 3, 4, 5], MoveDirection::Right);
+        assert_eq!(err, "");
+        // After right move: "AT-GGTGA"
+        assert_eq!(e.get_base(1, 0), b'A');
+        assert_eq!(e.get_base(1, 1), b'T');
+        assert_eq!(e.get_base(1, 2), b'-');
+        assert_eq!(e.get_base(1, 3), b'G');
+        assert_eq!(e.get_base(1, 4), b'G');
+        assert_eq!(e.get_base(1, 5), b'T');
+        assert_eq!(e.get_base(1, 6), b'G');
+        assert_eq!(e.get_base(1, 7), b'A');
+    }
+
+    #[test]
+    fn move_horizontal_no_gap_target_returns_error() {
+        let mut e = engine_with_sample();
+        // Row 0: "ATGCATGC". Try to move "ATGC" (cols 0..=3) left — no space to left.
+        let err = e.move_horizontal(0, &[0, 1, 2, 3], MoveDirection::Left);
+        assert_eq!(err, ERR_MOVE_NO_GAP_TARGET);
+        // Row 0: "ATGCATGC". Try to move "CATG" (cols 4..=7) right — no space to right.
+        let err = e.move_horizontal(0, &[4, 5, 6, 7], MoveDirection::Right);
+        assert_eq!(err, ERR_MOVE_NO_GAP_TARGET);
+    }
+
+    #[test]
+    fn move_horizontal_not_iupac_returns_error() {
+        let mut e = engine_with_sample();
+        // Row 1 col 6 is '-'. Try to move a block that includes '-'.
+        let err = e.move_horizontal(1, &[5, 6], MoveDirection::Left);
+        // col 5 is 'G' (IUPAC), col 6 is '-' (not IUPAC) — should fail.
+        assert_eq!(err, ERR_MOVE_NOT_IUPAC);
+    }
+
+    #[test]
+    fn move_horizontal_undo_restores() {
+        let mut e = engine_with_sample();
+        e.mutate_base_subset(&[0], 1, b'-');
+        // Row 0: "A-GCATGC"
+        e.move_horizontal(0, &[2, 3, 4, 5], MoveDirection::Left);
+        assert_eq!(e.get_base(0, 1), b'G');
+        assert!(e.undo());
+        // After undo: back to "A-GCATGC"
+        assert_eq!(e.get_base(0, 1), b'-');
+        assert_eq!(e.get_base(0, 2), b'G');
+    }
+
+    // ── Row reorder tests (Rule 5) ──
+
+    #[test]
+    fn move_rows_up_swaps_with_above() {
+        let mut e = engine_with_sample();
+        // Move row 1 up — swaps with row 0.
+        let err = e.move_rows_up(&[1]);
+        assert_eq!(err, "");
+        assert_eq!(e.get_name(0), "seq2");
+        assert_eq!(e.get_name(1), "seq1");
+        assert_eq!(e.get_name(2), "seq3");
+    }
+
+    #[test]
+    fn move_rows_down_swaps_with_below() {
+        let mut e = engine_with_sample();
+        // Move row 1 down — swaps with row 2.
+        let err = e.move_rows_down(&[1]);
+        assert_eq!(err, "");
+        assert_eq!(e.get_name(0), "seq1");
+        assert_eq!(e.get_name(1), "seq3");
+        assert_eq!(e.get_name(2), "seq2");
+    }
+
+    #[test]
+    fn move_rows_up_at_top_is_noop() {
+        let mut e = engine_with_sample();
+        let err = e.move_rows_up(&[0]);
+        assert_eq!(err, "");
+        assert_eq!(e.get_name(0), "seq1");
+    }
+
+    #[test]
+    fn move_rows_down_at_bottom_is_noop() {
+        let mut e = engine_with_sample();
+        let err = e.move_rows_down(&[2]);
+        assert_eq!(err, "");
+        assert_eq!(e.get_name(2), "seq3");
+    }
+
+    #[test]
+    fn move_rows_multiple_simultaneously() {
+        let mut e = engine_with_sample();
+        // Move rows 0 and 2 up. Row 0 is at top (no-op), row 2 swaps with row 1.
+        let err = e.move_rows_up(&[0, 2]);
+        assert_eq!(err, "");
+        assert_eq!(e.get_name(0), "seq1"); // unchanged (was at top)
+        assert_eq!(e.get_name(1), "seq3"); // row 2 moved up
+        assert_eq!(e.get_name(2), "seq2"); // row 1 moved down
+    }
+
+    #[test]
+    fn move_rows_up_undo_restores() {
+        let mut e = engine_with_sample();
+        e.move_rows_up(&[1]);
+        assert_eq!(e.get_name(0), "seq2");
+        assert!(e.undo());
+        assert_eq!(e.get_name(0), "seq1");
+        assert_eq!(e.get_name(1), "seq2");
+    }
+
+    #[test]
+    fn move_rows_preserves_sequence_data() {
+        let mut e = engine_with_sample();
+        // Row 0: "ATGCATGC", Row 1: "ATGGTG-A"
+        e.move_rows_up(&[1]);
+        // After swap, row 0 should have seq2's data, row 1 should have seq1's.
+        assert_eq!(e.get_base(0, 0), b'A'); // seq2[0] = 'A'
+        assert_eq!(e.get_base(0, 3), b'G'); // seq2[3] = 'G'
+        assert_eq!(e.get_base(1, 0), b'A'); // seq1[0] = 'A'
+        assert_eq!(e.get_base(1, 3), b'C'); // seq1[3] = 'C'
+    }
 }
 

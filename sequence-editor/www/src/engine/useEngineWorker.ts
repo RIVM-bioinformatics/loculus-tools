@@ -67,7 +67,7 @@ export interface EngineClient {
     endCol: number;
   }) => Promise<ViewportResult & { bytes: Uint8Array }>;
   mutate: (rows: number[], col: number, base: string) => Promise<void>;
-  insert: (rows: number[], col: number, base: string) => Promise<void>;
+  insert: (rows: number[], col: number) => Promise<void>;
   delete: (rows: number[], col: number) => Promise<void>;
   deleteColumn: (col: number) => Promise<void>;
   undo: () => Promise<boolean>;
@@ -143,45 +143,50 @@ export function useEngineWorker(): EngineClient {
       // res.type === "result"
       const entry = pending.current.get(res.reqId);
       if (entry) {
-        // For SAB-based viewport responses, read bytes directly from the shared
-        // buffer using the reported length. No transfer reassembly needed.
-        if (
-          res.sabLen !== undefined &&
-          res.data &&
-          typeof res.data === "object" &&
-          "rows" in res.data &&
-          sabRef.current
-        ) {
-          const view = new Uint8Array(sabRef.current, 0, res.sabLen);
-          // Copy into a standalone buffer so callers own their bytes and are
-          // immune to subsequent viewport calls overwriting the SAB.
-          const copy = new Uint8Array(res.sabLen);
-          copy.set(view);
-          (res.data as ViewportResult & { bytes: Uint8Array }).bytes = copy;
+        // The `ok: false` variant carries only `errorCode`; all the data-bearing
+        // fields (sabLen, data, timing, transfer) only exist on the `ok: true`
+        // variant. Narrow the union before touching them.
+        if (res.ok) {
+          // For SAB-based viewport responses, read bytes directly from the
+          // shared buffer using the reported length. No transfer reassembly.
+          if (
+            res.sabLen !== undefined &&
+            res.data &&
+            typeof res.data === "object" &&
+            "rows" in res.data &&
+            sabRef.current
+          ) {
+            const view = new Uint8Array(sabRef.current, 0, res.sabLen);
+            // Copy into a standalone buffer so callers own their bytes and are
+            // immune to subsequent viewport calls overwriting the SAB.
+            const copy = new Uint8Array(res.sabLen);
+            copy.set(view);
+            (res.data as ViewportResult & { bytes: Uint8Array }).bytes = copy;
+          }
+
+          // Record timing if the worker reported it.
+          if (res.timing) {
+            const receivedTs = performance.now();
+            const totalMs = receivedTs - entry.sentTs;
+            const { engineMs, workerMs } = res.timing;
+            const t: CallTiming = {
+              totalMs,
+              engineMs,
+              workerMs,
+              bridgeOutMs: Math.max(0, workerMs - engineMs),
+              bridgeBackMs: Math.max(0, totalMs - workerMs),
+              bytes: res.sabLen ?? (res.transfer ? res.transfer.byteLength : entry.bytes),
+            };
+            lastTimingRef.current = t;
+            // NOTE: We intentionally do NOT call setLastTiming(t) here. Updating
+            // React state on every worker response causes 500 re-renders during
+            // a benchmark run, and each re-render forces the browser to composite
+            // — inflating the double-rAF "renderMs" measurement to 100ms+. The
+            // benchmark reads lastTimingRef.current (synchronous ref) instead.
+          }
         }
         entry.resolve(res);
         pending.current.delete(res.reqId);
-
-        // Record timing if the worker reported it.
-        if (res.timing) {
-          const receivedTs = performance.now();
-          const totalMs = receivedTs - entry.sentTs;
-          const { engineMs, workerMs } = res.timing;
-          const t: CallTiming = {
-            totalMs,
-            engineMs,
-            workerMs,
-            bridgeOutMs: Math.max(0, workerMs - engineMs),
-            bridgeBackMs: Math.max(0, totalMs - workerMs),
-            bytes: res.sabLen ?? (res.transfer ? res.transfer.byteLength : entry.bytes),
-          };
-          lastTimingRef.current = t;
-          // NOTE: We intentionally do NOT call setLastTiming(t) here. Updating
-          // React state on every worker response causes 500 re-renders during
-          // a benchmark run, and each re-render forces the browser to composite
-          // — inflating the double-rAF "renderMs" measurement to 100ms+. The
-          // benchmark reads lastTimingRef.current (synchronous ref) instead.
-        }
       }
     };
 
@@ -217,6 +222,10 @@ export function useEngineWorker(): EngineClient {
           resolve: (res) => {
             if (res.type === "result" && res.ok) {
               resolve(res.data as T);
+            } else if (res.type === "result" && !res.ok) {
+              const err = new Error(`Engine rejected: ${res.errorCode}`);
+              (err as any).code = res.errorCode;
+              reject(err);
             } else if (res.type === "error") {
               reject(new Error(res.message));
             } else {
@@ -249,8 +258,8 @@ export function useEngineWorker(): EngineClient {
     [send]
   );
   const insert = useCallback(
-    (rows: number[], col: number, base: string) =>
-      send<void>({ type: "insert", rows: toRows(rows), col, base: base.charCodeAt(0) }),
+    (rows: number[], col: number) =>
+      send<void>({ type: "insert", rows: toRows(rows), col }),
     [send]
   );
   const del = useCallback(

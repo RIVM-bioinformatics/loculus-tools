@@ -161,27 +161,43 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       break;
     }
     case "mutate": {
-      e.mutate_base_subset(req.rows, req.col, req.base);
+      const errCode = e.mutate_base_subset(req.rows, req.col, req.base);
       engineMs = performance.now() - engineStart;
-      post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
+      if (errCode) {
+        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
+      } else {
+        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
+      }
       break;
     }
     case "insert": {
-      e.insert_at_subset(req.rows, req.col, req.base);
+      const errCode = e.insert_at_subset(req.rows, req.col);
       engineMs = performance.now() - engineStart;
-      post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
+      if (errCode) {
+        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
+      } else {
+        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
+      }
       break;
     }
     case "delete": {
-      e.delete_at_subset(req.rows, req.col);
+      const errCode = e.delete_at_subset(req.rows, req.col);
       engineMs = performance.now() - engineStart;
-      post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
+      if (errCode) {
+        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
+      } else {
+        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
+      }
       break;
     }
     case "deleteColumn": {
-      e.delete_column(req.col);
+      const errCode = e.delete_column(req.col);
       engineMs = performance.now() - engineStart;
-      post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
+      if (errCode) {
+        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
+      } else {
+        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
+      }
       break;
     }
     case "undo": {

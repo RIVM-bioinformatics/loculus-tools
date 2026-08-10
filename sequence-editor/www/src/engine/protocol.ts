@@ -55,7 +55,7 @@ export type EngineRequest =
       endCol: number;
     }
   | { type: "mutate"; reqId: number; rows: Uint32Array; col: number; base: number }
-  | { type: "insert"; reqId: number; rows: Uint32Array; col: number; base: number }
+  | { type: "insert"; reqId: number; rows: Uint32Array; col: number }
   | { type: "delete"; reqId: number; rows: Uint32Array; col: number }
   | { type: "deleteColumn"; reqId: number; col: number }
   | { type: "undo"; reqId: number }
@@ -120,6 +120,12 @@ export type EngineResponse =
        */
       sabLen?: number;
       timing?: EngineTiming;
+    }
+  | {
+      type: "result";
+      reqId: number;
+      ok: false;
+      errorCode: string;
     }
   | { type: "error"; reqId: number; message: string };
 

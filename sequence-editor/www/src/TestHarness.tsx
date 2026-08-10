@@ -188,14 +188,20 @@ export default function TestHarness() {
       try {
         const colNum = Number(col);
         const rows = parseRows(rowsCsv);
-        if (op === "mutate") await eng.mutate(rows, colNum, base);
-        else if (op === "insert") await eng.insert(rows, colNum, base);
-        else if (op === "delete") await eng.delete(rows, colNum);
-        else await eng.deleteColumn(colNum);
+        if (op === "mutate") {
+          await eng.mutate(rows, colNum, base);
+        } else if (op === "insert") {
+          await eng.insert(rows, colNum);
+        } else if (op === "delete") {
+          await eng.delete(rows, colNum);
+        } else {
+          await eng.deleteColumn(colNum);
+        }
         setStatus(`${op} applied — refetch slice to verify`);
         await refreshMeta();
-      } catch (e) {
-        setErr(String(e));
+      } catch (e: any) {
+        const msg = e.code ? `${e.code}: ${e.message}` : String(e);
+        setErr(msg);
       }
     },
     [eng, rowsCsv, col, base, refreshMeta]
@@ -285,7 +291,7 @@ export default function TestHarness() {
                 sx={{ flex: 1 }}
               />
               <TextField
-                label="base"
+                label="base (mutate only)"
                 value={base}
                 onChange={(e) => setBase(e.target.value.slice(0, 1).toUpperCase())}
                 size="small"
@@ -297,7 +303,7 @@ export default function TestHarness() {
                 Mutate
               </Button>
               <Button variant="contained" color="secondary" onClick={() => applyEdit("insert")}>
-                Insert
+                Insert '-'
               </Button>
               <Button variant="contained" color="error" onClick={() => applyEdit("delete")}>
                 Delete

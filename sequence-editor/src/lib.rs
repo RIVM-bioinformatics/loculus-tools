@@ -312,7 +312,21 @@ impl MsaEngine {
     /// Simultaneous block character change (substitution) on a subset of rows
     /// at a single column index. Rows outside `row_indices` are untouched.
     /// Out-of-range rows or columns are silently skipped.
-    pub fn mutate_base_subset(&mut self, row_indices: &[usize], col_idx: usize, new_base: u8) {
+    ///
+    /// Returns an empty string on success, or an error code constant on
+    /// validation failure (all-or-nothing: no rows are modified on failure).
+    pub fn mutate_base_subset(&mut self, row_indices: &[usize], col_idx: usize, new_base: u8) -> String {
+        // Validate: all existing characters at the target positions must be IUPAC or '-'.
+        for &r in row_indices {
+            if let Some(seq) = self.sequences.get(r) {
+                if col_idx < seq.len() {
+                    let existing = seq[col_idx];
+                    if !is_iupac(existing) && !is_gap(existing) {
+                        return String::from(ERR_MUTATE_NOT_IUPAC);
+                    }
+                }
+            }
+        }
         // Capture old bases for the rows we will actually touch, for undo.
         let mut mutated_rows: Vec<usize> = Vec::new();
         let mut old_bases: Vec<u8> = Vec::new();
@@ -325,7 +339,7 @@ impl MsaEngine {
             }
         }
         if mutated_rows.is_empty() {
-            return;
+            return String::new();
         }
         self.undo_stack.push(UndoCommand::Substitutions {
             col_idx,
@@ -341,6 +355,7 @@ impl MsaEngine {
                 }
             }
         }
+        String::new()
     }
 
     /// Simultaneous gap/base insertion at a single column index across all

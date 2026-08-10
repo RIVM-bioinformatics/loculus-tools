@@ -137,13 +137,13 @@ impl MsaEngine {
         // Flush the final record.
         if let Some(n) = current_name.take() {
             if !current_seq.is_empty() {
-                if self.alignment_width == 0 {
-                    self.alignment_width = current_seq.len();
-                }
                 self.names.push(n);
                 self.sequences.push(std::mem::take(&mut current_seq));
             }
         }
+
+        // alignment_width is the length of the longest sequence (Rule 8).
+        self.alignment_width = self.sequences.iter().map(|s| s.len()).max().unwrap_or(0);
 
         self.sequences.len()
     }
@@ -559,6 +559,7 @@ mod tests {
         let mut e = MsaEngine::new();
         e.load_fasta(">x\nATGC\nATGC\n>y\nTTTT\nGGGG");
         assert_eq!(e.get_sequence_count(), 2);
+        // alignment_width = longest sequence length = 8 (ATGCATGC / TTTTGGGG)
         assert_eq!(e.get_alignment_width(), 8);
         assert_eq!(e.get_base(0, 4), b'A');
         assert_eq!(e.get_base(1, 4), b'G');

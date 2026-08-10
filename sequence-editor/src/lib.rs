@@ -23,6 +23,13 @@ const ERR_MOVE_NO_GAP_TARGET: &str = "MoveNoGapTarget";
 /// Attempted to move non-IUPAC characters.
 const ERR_MOVE_NOT_IUPAC: &str = "MoveNotIupac";
 
+/// Direction for horizontal character movement.
+#[wasm_bindgen]
+pub enum MoveDirection {
+    Left,
+    Right,
+}
+
 #[derive(Clone)]
 enum UndoCommand {
     /// Cheap character changes: store exactly what changed and where.
@@ -425,6 +432,148 @@ impl MsaEngine {
         if self.alignment_width > 0 {
             self.alignment_width -= 1;
         }
+        String::new()
+    }
+
+    // Horizontal moves of character blocks
+
+    /// Move a contiguous block of IUPAC characters horizontally by 1 position
+    /// within a single row. Each call moves exactly 1 position; callers must
+    /// issue multiple calls for multi-position moves.
+    ///
+    /// `col_indices` is treated as a range `[min, max]` — non-contiguous
+    /// indices are clamped to their min/max.
+    ///
+    /// **Left move:** validates the selected chars are IUPAC and the position
+    /// to the left is `-`, then rotates the block left by 1.
+    ///
+    /// **Right move:** validates the selected chars are IUPAC and the position
+    /// to the right is `-`, then rotates the block right by 1.
+    ///
+    /// Returns an empty string on success, or an error code on failure
+    /// (all-or-nothing).
+    pub fn move_horizontal(
+        &mut self,
+        row: usize,
+        col_indices: &[usize],
+        direction: MoveDirection,
+    ) -> String {
+        let seq = match self.sequences.get(row) {
+            Some(s) => s,
+            None => return String::new(), // out-of-range row is a no-op
+        };
+
+        if col_indices.is_empty() {
+            return String::new();
+        }
+
+        let start = *col_indices.iter().min().unwrap();
+        let end = *col_indices.iter().max().unwrap();
+
+        if end >= seq.len() {
+            return String::new(); // out of range
+        }
+
+        // Validate: all selected characters must be IUPAC (not '-').
+        for &c in &seq[start..=end] {
+            if !is_iupac(c) {
+                return String::from(ERR_MOVE_NOT_IUPAC);
+            }
+        }
+
+        match direction {
+            MoveDirection::Left => {
+                if start == 0 {
+                    return String::from(ERR_MOVE_NO_GAP_TARGET);
+                }
+                if !is_gap(seq[start - 1]) {
+                    return String::from(ERR_MOVE_NO_GAP_TARGET);
+                }
+            }
+            MoveDirection::Right => {
+                if end + 1 >= seq.len() {
+                    return String::from(ERR_MOVE_NO_GAP_TARGET);
+                }
+                if !is_gap(seq[end + 1]) {
+                    return String::from(ERR_MOVE_NO_GAP_TARGET);
+                }
+            }
+        }
+
+        self.record_structural_undo();
+
+        let seq = &mut self.sequences[row];
+        match direction {
+            MoveDirection::Left => {
+                // Rotate [start-1, end] left by 1: the '-' at start-1 moves to end.
+                let gap = seq[start - 1];
+                seq.copy_within(start..=end, start - 1);
+                seq[end] = gap;
+            }
+            MoveDirection::Right => {
+                // Rotate [start, end+1] right by 1: the '-' at end+1 moves to start.
+                let gap = seq[end + 1];
+                seq.copy_within(start..=end, start + 1);
+                seq[start] = gap;
+            }
+        }
+
+        String::new()
+    }
+
+    // vertical moves and reordering of rows
+
+    /// Move the specified rows up by 1 position. Each specified row swaps with
+    /// the row immediately above it. Rows already at the top (index 0) are
+    /// silently skipped. Multiple rows may be moved simultaneously.
+    /// Returns an empty string on success.
+    pub fn move_rows_up(&mut self, row_indices: &[usize]) -> String {
+        if row_indices.is_empty() || self.sequences.len() < 2 {
+            return String::new();
+        }
+
+        self.record_structural_undo();
+
+        // Sort and deduplicate to process in a predictable order.
+        let mut indices: Vec<usize> = row_indices.to_vec();
+        indices.sort_unstable();
+        indices.dedup();
+
+        for &r in &indices {
+            if r == 0 || r >= self.sequences.len() {
+                continue;
+            }
+            self.sequences.swap(r, r - 1);
+            self.names.swap(r, r - 1);
+        }
+
+        String::new()
+    }
+
+    /// Move the specified rows down by 1 position. Each specified row swaps
+    /// with the row immediately below it. Rows already at the bottom are
+    /// silently skipped. Multiple rows may be moved simultaneously.
+    /// Returns an empty string on success.
+    pub fn move_rows_down(&mut self, row_indices: &[usize]) -> String {
+        if row_indices.is_empty() || self.sequences.len() < 2 {
+            return String::new();
+        }
+
+        self.record_structural_undo();
+
+        // Sort descending so swaps don't interfere with each other.
+        let mut indices: Vec<usize> = row_indices.to_vec();
+        indices.sort_unstable_by(|a, b| b.cmp(a));
+        indices.dedup();
+
+        for &r in &indices {
+            if r + 1 >= self.sequences.len() {
+                continue;
+            }
+            self.sequences.swap(r, r + 1);
+            self.names.swap(r, r + 1);
+        }
+
         String::new()
     }
 

@@ -41,6 +41,7 @@ enum UndoCommand {
     /// Structural inserts/deletes: a lightweight clone of the full matrix.
     StructuralSnapshot {
         matrix_snapshot: Vec<Vec<u8>>,
+        names_snapshot: Vec<String>,
         width_snapshot: usize,
     },
 }
@@ -583,8 +584,10 @@ impl MsaEngine {
     ///> we might need to revisit this if we want to support larger alignments in the future, but it keeps the logic simple for now and is fast enough for our expected use case.
     fn record_structural_undo(&mut self) {
         let matrix_snapshot = self.sequences.clone();
+        let names_snapshot = self.names.clone();
         self.undo_stack.push(UndoCommand::StructuralSnapshot {
             matrix_snapshot,
+            names_snapshot,
             width_snapshot: self.alignment_width,
         });
         self.redo_stack.clear();
@@ -628,13 +631,15 @@ impl MsaEngine {
                     });
                 }
             }
-            UndoCommand::StructuralSnapshot { matrix_snapshot, width_snapshot } => {
+            UndoCommand::StructuralSnapshot { matrix_snapshot, names_snapshot, width_snapshot } => {
                 // Capture current state for redo, then restore the snapshot.
                 let redo_snapshot = UndoCommand::StructuralSnapshot {
                     matrix_snapshot: self.sequences.clone(),
+                    names_snapshot: self.names.clone(),
                     width_snapshot: self.alignment_width,
                 };
                 self.sequences = matrix_snapshot;
+                self.names = names_snapshot;
                 self.alignment_width = width_snapshot;
                 self.redo_stack.push(redo_snapshot);
             }
@@ -673,12 +678,14 @@ impl MsaEngine {
                     });
                 }
             }
-            UndoCommand::StructuralSnapshot { matrix_snapshot, width_snapshot } => {
+            UndoCommand::StructuralSnapshot { matrix_snapshot, names_snapshot, width_snapshot } => {
                 let undo_snapshot = UndoCommand::StructuralSnapshot {
                     matrix_snapshot: self.sequences.clone(),
+                    names_snapshot: self.names.clone(),
                     width_snapshot: self.alignment_width,
                 };
                 self.sequences = matrix_snapshot;
+                self.names = names_snapshot;
                 self.alignment_width = width_snapshot;
                 self.undo_stack.push(undo_snapshot);
             }

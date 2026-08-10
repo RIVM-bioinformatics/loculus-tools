@@ -8,6 +8,30 @@
 
 use wasm_bindgen::prelude::*;
 
+// ── IUPAC / gap validation helpers ──
+
+/// Returns `true` if `c` is an IUPAC nucleotide code (A, C, G, T, U, R, Y, S, W, K, M, B, D, H, V, N).
+fn is_iupac(c: u8) -> bool {
+    return matches!(c.to_ascii_uppercase(), b'A' | b'C' | b'G' | b'T' | b'U' | b'R' | b'Y' | b'S' | b'W' | b'K' | b'M' | b'B' | b'D' | b'H' | b'V' | b'N');
+}
+
+/// Returns `true` if `c` is a gap character (`-`).
+fn is_gap(c: u8) -> bool {
+    return c == b'-';
+}
+
+// ── Error code constants ──
+// These are returned as `String` from mutation methods. Empty string = success.
+
+/// Attempted to delete a character that is not `-`.
+const ERR_DELETE_NOT_GAP: &str = "DeleteNotGap";
+/// Attempted to mutate a character that is not IUPAC or `-`.
+const ERR_MUTATE_NOT_IUPAC: &str = "MutateNotIupac";
+/// Attempted to move IUPAC characters but target position(s) are not `-`.
+const ERR_MOVE_NO_GAP_TARGET: &str = "MoveNoGapTarget";
+/// Attempted to move non-IUPAC characters.
+const ERR_MOVE_NOT_IUPAC: &str = "MoveNotIupac";
+
 #[derive(Clone)]
 enum UndoCommand {
     /// Cheap character changes: store exactly what changed and where.

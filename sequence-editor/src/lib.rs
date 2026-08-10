@@ -358,10 +358,14 @@ impl MsaEngine {
         String::new()
     }
 
-    /// Simultaneous gap/base insertion at a single column index across all
-    /// rows. Target rows receive `base`; non-target rows receive `b'-'` to
-    /// preserve alignment. `alignment_width` is incremented by 1.
-    pub fn insert_at_subset(&mut self, row_indices: &[usize], col_idx: usize, base: u8) {
+    /// Simultaneous gap insertion at a single column index on a subset of
+    /// rows. The inserted character is always `-` (gap). Target rows receive
+    /// the gap at `col_idx`; non-target rows have a `-` appended at the end
+    /// to keep matrix width consistent. `alignment_width` is incremented by 1.
+    ///
+    /// Returns an empty string on success (no validation needed since only
+    /// `-` can be inserted).
+    pub fn insert_at_subset(&mut self, row_indices: &[usize], col_idx: usize) -> String {
         self.record_structural_undo();
 
         let target_rows: std::collections::HashSet<usize> = row_indices.iter().copied().collect();
@@ -373,12 +377,13 @@ impl MsaEngine {
                 seq.push(b' ');
             }
             if target_rows.contains(&r) {
-                seq.insert(col_idx, base);
+                seq.insert(col_idx, b'-');
             } else {
-                seq.insert(col_idx, b'-'); // Balance unselected rows with a gap
+                seq.push(b'-'); // Balance unselected rows by appending gap at end
             }
         }
         self.alignment_width += 1;
+        String::new()
     }
 
     /// Simultaneous deletion at a single column index across all rows. Target

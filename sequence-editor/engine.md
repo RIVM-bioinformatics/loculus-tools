@@ -1,10 +1,12 @@
 # The Sequence-Editor Engine
 
-This document describes the **Rust/WASM MSA engine** — the "brain" of the sequence
-editor. It explains what the engine is, how it is implemented, how it is exposed
+This document describes the **Rust/WASM MSA engine**, which can also be seen as the "brain" of the sequence
+editor.  
+Here, it is described what the engine is, how it is implemented, how it is exposed
 to JavaScript, and how it fits into the wider architecture.
 
-> **Scope note:** This document covers the engine itself (`src/lib.rs`) and its
+> [!NOTE]
+> **Scope:** This document covers the engine itself (`src/lib.rs`) and its
 > WASM boundary. The Web Worker bridge, the React UI, and the Canvas renderer are
 > separate layers that *consume* the engine; they are referenced here only where
 > they shape the engine's API.
@@ -27,21 +29,51 @@ The engine is a Rust crate (`sequence-editor`) compiled to WebAssembly via
 - It **maintains** transactional undo/redo history.
 - It **extracts** windowed viewport slices for rendering.
 
-Everything else in the system — the Web Worker, the React shell, the Canvas
-renderer — is a consumer of the engine. The engine never touches the DOM, never
-renders, and never talks to the network. It is a pure, synchronous, in-memory
-data engine.
+Everything else in the system (the Web Worker, the React shell, the Canvas
+renderer), is a consumer of the engine. The engine never touches the DOM, never renders, and never talks to the network.  
+It is purely a synchronous in-memory data engine.
 
 ### Design goals
 
-- **Performance:** Optimized for viral genomes (up to ~80 sequences × 200K base
-  pairs, ~16MB raw matrix) with instantaneous mutations and 60 FPS rendering.
+- **Performance:** Optimized for viral genomes (up to ~80 sequences × 200K base pairs, ~16MB raw matrix) with instant mutations and non-blocking rendering.
 - **Zero-allocation scrolling:** A single reusable viewport buffer avoids
   per-scroll allocations.
-- **Windowed access:** The frontend never requests the whole matrix; it always
-  asks for a bounded slice.
+- **Windowed access:** The frontend never has to deal with the whole matrix; it always works with a bounded slice to reduce memory usage and improve performance.
 - **Simple, correct history:** Undo/redo via cheap per-edit records for
   substitutions and full-matrix snapshots for structural edits.
+
+> [!NOTE]
+> **If the intended usecase is ~16MB, why go through all this effort to make a separate engine instead of doing everything in the React app?**
+>
+> It's a fair question — at ~16MB the data trivially fits in memory, so why add a
+> Rust/WASM layer and a Web Worker at all? The short answer is that the 16MB footprint only makes the *memory* trivial; it says nothing about the harder problems of *who owns the data*, *how edits stay consistent and atomic*, *how the UI stays responsive*, and *how the logic is verified*. The separate engine addresses these concerns. Concretely:
+> 
+> 1. **Separation of concerns & testability:** Keeping the business logic
+>   (parsing, matrix layout, mutation logic, history) in a pure Rust crate
+>   decoupled from the UI makes it testable in isolation (see
+>   [section 7.1](#71-from-rust-native-tests)).
+> 2. **Previous lessons:** In an earlier PoC of this project we implemented 
+>   the same editing logic *inside* the React app, and it quickly became 
+>   completely unmaintainable (by hand at least). 
+> 3. **A single source of truth for the alignment.** The sequence information,
+>   and all its derived information (e.g. `alignment_width`), lives in only 
+>   one place: the engine. The React side can now only be concerned with 
+>   the questions *how to render?* and *how to pass on interactions?*.
+> 4. **Windowed access keeps the frontend cheap.** Because the engine owns the
+>   full matrix and only hands out bounded viewport slices, the entire React
+>   layer operates on O(visible cells) data. This is what makes the
+>   sliding-window Canvas renderer viable and keeps scrolling smooth no matter
+>   the size of the alignment (with some limits of course).
+> 5. **The Web Worker model keeps the UI thread responsive.** All parsing, structural
+>   edits, undo/redo snapshots, and (future) search run synchronously in the
+>   worker, off the main thread, so a large FASTA parse or a structural insert
+>   across 80 sequences never drops a frame on the UI thread. Doing this in
+>   React would block rendering for a noticeable period.
+> 7. **Future features require speed.** Features that are not yet implemented, 
+>   such as live 3-frame nucleotide→amino-acid translation, and especially searching 
+>   the sequences for exact (multiple) matches of user-input are computationally expensive.
+>   These actions gain massively from compiled language implementation and the ability to
+>   run off the main thread.
 
 ---
 
@@ -79,7 +111,7 @@ lto = true
 codegen-units = 1
 ```
 
-> **Gotcha:** `js-sys` requires `0.3.x` (any `0.3` release). Using
+> **Note:** `js-sys` requires `0.3.x` (any `0.3` release). Using
 > `js-sys = "0.2"` resolves to an ancient `0.2.7` that will not compile against
 > modern `wasm-bindgen`.
 
@@ -105,7 +137,7 @@ pub struct MsaEngine {
 
 | Field | Purpose |
 |-------|---------|
-| `sequences` | The matrix. Each inner `Vec<u8>` is one sequence of ASCII bytes (`b'A'`, `b'-'`, …). |
+| `sequences` | The matrix. Each inner `Vec<u8>` is one sequence of ASCII bytes (`b'A'`, `b'-'`, ...). |
 | `names` | Row identifiers, parallel to `sequences`. |
 | `alignment_width` | The global number of columns. Set from the longest sequence at load time. |
 | `viewport_buffer` | A single reusable buffer for viewport extraction, pre-allocated to ~5000 bytes and grown on demand. |
@@ -113,8 +145,7 @@ pub struct MsaEngine {
 
 ### 3.2 `UndoCommand`
 
-History is stored as an enum with two variants, chosen for minimal memory and
-maximal simplicity:
+History is stored as an enum with two variants, chosen primarily for simplicity:
 
 ```rust
 #[derive(Clone)]
@@ -134,14 +165,12 @@ enum UndoCommand {
 }
 ```
 
-- **`Substitutions`** — used for base changes. It records only the column, the
-  affected rows, and the previous bases in parallel vectors (same index = same
-  cell). This is O(changed cells), so a single base edit costs almost nothing.
-- **`StructuralSnapshot`** — used for insertions/deletions that change row
-  lengths, and for horizontal moves and row reorders. It stores a full clone of
-  the matrix, the names vector, and the width. This is O(matrix) but is cheap
-  in practice given the ~16MB ceiling, and it keeps the logic trivially
-  correct.
+- **`Substitutions`**  
+  used for base changes.  It records only the column, the
+  affected rows, and the previous bases in parallel vectors (same index = same cell). This is O(changed cells), so a single base edit costs almost nothing.
+- **`StructuralSnapshot`**  
+  used for insertions/deletions that change row lengths, and for horizontal moves and row reorders.  
+  It stores a full clone of the matrix, the names vector, and the width. This is O(matrix) but is cheap in practice given the ~16MB ceiling, and it keeps the logic trivially correct.
 
 > **Design note:** The full-matrix snapshot approach is a deliberate trade-off.
 > It is simple and fast enough for the expected ~16MB footprint, but it would

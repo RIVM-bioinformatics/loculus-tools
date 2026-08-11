@@ -320,6 +320,11 @@ impl MsaEngine {
     /// Returns an empty string on success, or an error code constant on
     /// validation failure (all-or-nothing: no rows are modified on failure).
     pub fn mutate_base_subset(&mut self, row_indices: &[usize], col_idx: usize, new_base: u8) -> String {
+        // Validate the destination base: it must be an IUPAC nucleotide or '-'
+        // (Rule 3). Mutating to any other character is not allowed.
+        if !is_iupac(new_base) && !is_gap(new_base) {
+            return String::from(ERR_MUTATE_NOT_IUPAC);
+        }
         // Validate: all existing characters at the target positions must be IUPAC or '-'.
         for &r in row_indices {
             if let Some(seq) = self.sequences.get(r) {
@@ -429,15 +434,19 @@ impl MsaEngine {
     /// This is the width-preserving inverse of a full-column insert.
     /// Returns an empty string on success.
     pub fn delete_column(&mut self, col_idx: usize) -> String {
+        // If the column is out of range for every row, nothing is removed and
+        // the width must not change — otherwise `alignment_width` would
+        // desynchronize from the actual row lengths.
+        if col_idx >= self.alignment_width {
+            return String::new();
+        }
         self.record_structural_undo();
         for seq in self.sequences.iter_mut() {
             if col_idx < seq.len() {
                 seq.remove(col_idx);
             }
         }
-        if self.alignment_width > 0 {
-            self.alignment_width -= 1;
-        }
+        self.alignment_width -= 1;
         String::new()
     }
 
@@ -985,6 +994,20 @@ mod tests {
         assert_eq!(e.get_base(2, 0), b'T');
     }
 
+    #[test]
+    fn delete_column_out_of_range_is_noop() {
+        let mut e = engine_with_sample();
+        let width_before = e.get_alignment_width();
+        // Column beyond the alignment width: nothing removed, width unchanged.
+        let err = e.delete_column(100);
+        assert_eq!(err, "");
+        assert_eq!(e.get_alignment_width(), width_before);
+        assert_eq!(e.get_row_length(0), width_before);
+        assert_eq!(e.get_base(0, 0), b'A');
+        // No undo entry should have been recorded for a no-op.
+        assert_eq!(e.undo_depth(), 0);
+    }
+
 
     #[test]
     fn undo_substitution_restores_old_base() {
@@ -1142,13 +1165,14 @@ mod tests {
     #[test]
     fn mutate_non_iupac_returns_error() {
         let mut e = engine_with_sample();
-        // Mutate col 6 on row 0 where char is 'G' (IUPAC) — should succeed.
+
+        // Mutating TO a non-IUPAC, non-gap character must be rejected (Rule 3).
         let err = e.mutate_base_subset(&[0], 6, b'X');
-        assert_eq!(err, "");
-        assert_eq!(e.get_base(0, 6), b'X');
+        assert_eq!(err, ERR_MUTATE_NOT_IUPAC);
+        assert_eq!(e.get_base(0, 6), b'G'); // unchanged
 
         // Directly corrupt a cell to a non-IUPAC, non-gap character (a space),
-        // then attempt to mutate it — must be rejected.
+        // then attempt to mutate it — must be rejected (source validation).
         e.sequences[1][6] = b' ';
         let err = e.mutate_base_subset(&[1], 6, b'T');
         assert_eq!(err, ERR_MUTATE_NOT_IUPAC);

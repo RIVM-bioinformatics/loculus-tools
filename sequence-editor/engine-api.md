@@ -225,9 +225,10 @@ await engine.mutate([0, 1], 3, "G"); // set col 3 to 'G' on rows 0 and 1
 
 **Validation (Rule 3):** The existing character at each target position must be
 an IUPAC nucleotide (`A`, `C`, `G`, `T`, `U`, `R`, `Y`, `S`, `W`, `K`, `M`,
-`B`, `D`, `H`, `V`, `N`) or a gap (`-`). If any target position contains a
-character that is neither, the promise rejects with error code
-`"MutateNotIupac"` and **no rows are modified** (all-or-nothing).
+`B`, `D`, `H`, `V`, `N`) or a gap (`-`), **and** the `base` being written must
+itself be an IUPAC nucleotide or a gap (`-`). If any target position contains a
+character that is neither, or `base` is neither, the promise rejects with error
+code `"MutateNotIupac"` and **no rows are modified** (all-or-nothing).
 
 ### `insert(rows: number[], col: number): Promise<void>`
 
@@ -436,7 +437,7 @@ try {
 | Error code | Triggered by | Meaning |
 |------------|-------------|---------|
 | `"DeleteNotGap"` | `delete()` | Attempted to delete a non-`-` character. Mutate it to `-` first. |
-| `"MutateNotIupac"` | `mutate()` | Attempted to mutate a character that is not IUPAC or `-`. |
+| `"MutateNotIupac"` | `mutate()` | Attempted to mutate a character that is not IUPAC or `-`, or to write a base that is not IUPAC or `-`. |
 | `"MoveNotIupac"` | `moveHorizontal()` | Attempted to move a block containing non-IUPAC characters. |
 | `"MoveNoGapTarget"` | `moveHorizontal()` | No gap adjacent to the block in the move direction. |
 
@@ -450,7 +451,7 @@ try {
 | `meta` | — | `Promise<Meta>` | Alignment metadata (rows, width, undo/redo depth) |
 | `name` | `row: number` | `Promise<string>` | Row name |
 | `viewport` | `{startRow, endRow, startCol, endCol}` | `Promise<ViewportResult & {bytes}>` | Fetch a windowed slice |
-| `mutate` | `rows: number[], col, base: string` | `Promise<void>` | Change bases on a subset of rows (validates existing char is IUPAC or `-`) |
+| `mutate` | `rows: number[], col, base: string` | `Promise<void>` | Change bases on a subset of rows (validates existing char and new base are IUPAC or `-`) |
 | `insert` | `rows: number[], col` | `Promise<void>` | Insert a `-` at col on target rows; append `-` on non-targets |
 | `delete` | `rows: number[], col` | `Promise<void>` | Delete a column on a subset (validates target is `-`; non-targets untouched) |
 | `deleteColumn` | `col: number` | `Promise<void>` | Delete a column from all rows |

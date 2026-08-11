@@ -256,9 +256,10 @@ single column.
 - Only the rows in `rows` are touched; all others are left unchanged.
 - Out-of-range rows or columns are silently skipped.
 - **Validation (Rule 3):** The existing character at each target position must
-  be an IUPAC nucleotide or `-`. If any target position contains a character
-  that is neither, the method returns `ERR_MUTATE_NOT_IUPAC` and **no rows are
-  modified** (all-or-nothing).
+  be an IUPAC nucleotide or `-`, **and** the new base must itself be an IUPAC
+  nucleotide or `-`. If any target position contains a character that is
+  neither, or the new base is neither, the method returns `ERR_MUTATE_NOT_IUPAC`
+  and **no rows are modified** (all-or-nothing).
 - Records a `Substitutions` undo command capturing the old bases of the rows it
   actually changed.
 - If no rows are actually mutated (all out of range), it is a no-op and records

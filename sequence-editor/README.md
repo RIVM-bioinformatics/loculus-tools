@@ -50,7 +50,7 @@ The application uses a three-layer architecture:
 - **Rust/WASM Engine** (`src/lib.rs`): Manages the alignment matrix in memory, handles all mutations, parses FASTA input, and maintains undo/redo history. For implementation details, see [`engine.md`](./engine.md).
 - **Web Worker Bridge** (`www/src/engine/`): Runs the WASM engine off the main thread via `postMessage` to prevent blocking UI interactions. Handles request/response serialization and buffer transfers.
 - **React UI** (`www/src/`): High-level UI state management and controls. For the complete JavaScript/TypeScript API, see [`engine-api.md`](./engine-api.md).
-- **WebGL Renderer** (experimental): GPU-accelerated rendering of the sequence grid at 60 FPS.
+- **Canvas Renderer** (planned): A 2D `<canvas>` renderer that paints the sliding-window viewport of the sequence grid at 60 FPS. This mirrors the viewport approach used in the test harness and is preferred over a WebGL pipeline for long-term maintainability.
 
 > **For frontend developers:** Start with [`engine-api.md`](./engine-api.md) to learn how to interact with the engine through the `useEngineWorker()` hook.
 >

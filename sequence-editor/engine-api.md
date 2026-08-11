@@ -46,6 +46,9 @@ interface EngineClient {
   insert: (rows: number[], col: number) => Promise<void>;
   delete: (rows: number[], col: number) => Promise<void>;
   deleteColumn: (col: number) => Promise<void>;
+  moveHorizontal: (row: number, cols: number[], direction: "Left" | "Right") => Promise<void>;
+  moveRowsUp: (rows: number[]) => Promise<void>;
+  moveRowsDown: (rows: number[]) => Promise<void>;
   undo: () => Promise<boolean>;
   redo: () => Promise<boolean>;
   meta: () => Promise<Meta>;
@@ -266,6 +269,48 @@ the width-shrinking inverse of a full-column insert.
 await engine.deleteColumn(4);
 ```
 
+### `moveHorizontal(row: number, cols: number[], direction: "Left" | "Right"): Promise<void>`
+
+Moves a contiguous block of IUPAC characters horizontally by **1 position**
+within a single row. Each call moves exactly 1 position; issue multiple calls
+for multi-position moves.
+
+```ts
+await engine.moveHorizontal(0, [2, 3, 4, 5], "Left");
+// Row 0: "A-GCATGC" → "AGCAT-GC"
+```
+
+- `row` — the row index to operate on.
+- `cols` — column indices forming the block to move. Non-contiguous indices are
+  treated as the range `[min, max]`.
+- `direction` — `"Left"` or `"Right"`.
+
+**Validation (Rule 4):** All characters in the selected block must be IUPAC
+nucleotides (not `-`). The adjacent position in the move direction must be a
+gap (`-`). If either condition fails, the promise rejects with error code
+`"MoveNotIupac"` or `"MoveNoGapTarget"` and **no rows are modified**
+(all-or-nothing).
+
+### `moveRowsUp(rows: number[]): Promise<void>`
+
+Moves the specified rows **up by 1 position**. Each row swaps with the row
+immediately above it. Rows already at the top (index 0) are silently skipped.
+Multiple rows may be moved simultaneously.
+
+```ts
+await engine.moveRowsUp([1, 2]); // swap row 1 with 0, row 2 with 1
+```
+
+### `moveRowsDown(rows: number[]): Promise<void>`
+
+Moves the specified rows **down by 1 position**. Each row swaps with the row
+immediately below it. Rows already at the bottom are silently skipped.
+Multiple rows may be moved simultaneously.
+
+```ts
+await engine.moveRowsDown([0]); // swap row 0 with 1
+```
+
 ---
 
 ## 6. Undo / Redo
@@ -392,6 +437,8 @@ try {
 |------------|-------------|---------|
 | `"DeleteNotGap"` | `delete()` | Attempted to delete a non-`-` character. Mutate it to `-` first. |
 | `"MutateNotIupac"` | `mutate()` | Attempted to mutate a character that is not IUPAC or `-`. |
+| `"MoveNotIupac"` | `moveHorizontal()` | Attempted to move a block containing non-IUPAC characters. |
+| `"MoveNoGapTarget"` | `moveHorizontal()` | No gap adjacent to the block in the move direction. |
 
 ---
 
@@ -407,5 +454,8 @@ try {
 | `insert` | `rows: number[], col` | `Promise<void>` | Insert a `-` at col on target rows; append `-` on non-targets |
 | `delete` | `rows: number[], col` | `Promise<void>` | Delete a column on a subset (validates target is `-`; non-targets untouched) |
 | `deleteColumn` | `col: number` | `Promise<void>` | Delete a column from all rows |
+| `moveHorizontal` | `row, cols: number[], direction` | `Promise<void>` | Move IUPAC block 1 position left/right within a row |
+| `moveRowsUp` | `rows: number[]` | `Promise<void>` | Move specified rows up by 1 |
+| `moveRowsDown` | `rows: number[]` | `Promise<void>` | Move specified rows down by 1 |
 | `undo` | — | `Promise<boolean>` | Undo last edit |
 | `redo` | — | `Promise<boolean>` | Redo last undone edit |

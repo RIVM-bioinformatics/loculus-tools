@@ -128,6 +128,7 @@ enum UndoCommand {
     /// Structural inserts/deletes: a lightweight clone of the full matrix.
     StructuralSnapshot {
         matrix_snapshot: Vec<Vec<u8>>,
+        names_snapshot: Vec<String>,
         width_snapshot: usize,
     },
 }
@@ -137,9 +138,10 @@ enum UndoCommand {
   affected rows, and the previous bases in parallel vectors (same index = same
   cell). This is O(changed cells), so a single base edit costs almost nothing.
 - **`StructuralSnapshot`** — used for insertions/deletions that change row
-  lengths. It stores a full clone of the matrix plus the width. This is O(matrix)
-  but is cheap in practice given the ~16MB ceiling, and it keeps the logic
-  trivially correct.
+  lengths, and for horizontal moves and row reorders. It stores a full clone of
+  the matrix, the names vector, and the width. This is O(matrix) but is cheap
+  in practice given the ~16MB ceiling, and it keeps the logic trivially
+  correct.
 
 > **Design note:** The full-matrix snapshot approach is a deliberate trade-off.
 > It is simple and fast enough for the expected ~16MB footprint, but it would
@@ -296,6 +298,41 @@ Delete a column from **every** row, shrinking `alignment_width` by 1.
 
 - This is the width-preserving inverse of a full-column insert.
 - Records a `StructuralSnapshot` undo command.
+- Returns an empty string on success.
+
+### 5.5 `move_horizontal(row, col_indices, direction)`
+
+Move a contiguous block of IUPAC characters horizontally by **1 position**
+within a single row. Each call moves exactly 1 position; callers issue multiple
+calls for multi-position moves.
+
+- `col_indices` is treated as the range `[min, max]` — non-contiguous indices
+  are clamped to their min/max.
+- **Left move:** validates all selected chars are IUPAC and the position to the
+  left is `-`, then rotates the block left by 1 (the `-` moves to the end of
+  the block).
+- **Right move:** validates all selected chars are IUPAC and the position to the
+  right is `-`, then rotates the block right by 1 (the `-` moves to the start
+  of the block).
+- Returns `ERR_MOVE_NOT_IUPAC` if any selected character is not IUPAC, or
+  `ERR_MOVE_NO_GAP_TARGET` if the adjacent position is not `-` (all-or-nothing).
+- Out-of-range rows are a no-op.
+- Records a `StructuralSnapshot` undo command.
+
+### 5.6 `move_rows_up(row_indices)` / `move_rows_down(row_indices)`
+
+Reorder rows by swapping each specified row with its immediate neighbour.
+
+- `move_rows_up`: each specified row swaps with the row above (row-1). Rows at
+  index 0 are silently skipped.
+- `move_rows_down`: each specified row swaps with the row below (row+1). Rows
+  at the bottom are silently skipped.
+- Multiple rows can be moved simultaneously. Indices are sorted (ascending for
+  up, descending for down) so swaps don't interfere.
+- No character constraints — rows can be reordered regardless of content.
+- Both `sequences` and `names` are swapped together.
+- Records a `StructuralSnapshot` undo command (which now captures `names`
+  as well, so undo/redo of row reorder correctly restores names).
 - Returns an empty string on success.
 
 ---
@@ -476,7 +513,7 @@ implemented in `www/` and are described in the companion documents.
 |------|--------|
 | Core data structures & memory layout | ✅ Done (`MsaEngine`, viewport buffer) |
 | WASM boundary API | ✅ Done (`load_fasta`, `update_viewport`, `update_viewport_into`, metadata getters) |
-| Mutation core | ✅ Done (`mutate_base_subset`, `insert_at_subset`, `delete_at_subset`, `delete_column`) with IUPAC/gap validation and error codes |
+| Mutation core | ✅ Done (`mutate_base_subset`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and error codes |
 | Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
 | Web Worker bridge | ✅ Done (in `www/`, consumes the engine) |
 | MUI test harness | ✅ Done (in `www/`, consumes the engine) |
@@ -502,5 +539,3 @@ engine's API (e.g. `RenderMode`, `set_render_mode`, `set_reading_frame`,
   only, keeping nucleotides as the single source of truth. Editing in amino-acid
   mode will require validation (e.g. disallowing single-base substitutions,
   which are ambiguous at the codon level).
-- **Horizontal move and row reorder:** Not yet implemented (planned for a
-  future phase).

@@ -3,12 +3,12 @@
 //! Provides a bitset-based [`Alphabet`] type and pre-built constants for
 //! IUPAC nucleotide codes, gap characters, and a stub for amino acids.
 
-// ── Alphabet type ──
+// Alphabet type
 
 /// A set of valid ASCII byte characters for a sequence alphabet.
 ///
 /// Uses a fixed-size 256-bit bitset so [`contains`](Alphabet::contains) is a
-/// single array lookup — no heap allocation, no dependencies.
+/// single array lookup without dependencies.
 #[derive(Clone, Debug)]
 pub struct Alphabet {
     /// Bit `i` is set if byte value `i` is a member of this alphabet.
@@ -39,7 +39,7 @@ impl Alphabet {
     }
 }
 
-// ── Pre-built alphabets ──
+// Pre-built alphabets
 
 /// IUPAC nucleotide alphabet (DNA). Includes both upper and lower case.
 ///
@@ -66,7 +66,7 @@ pub const IUPAC: &Alphabet = {
     ALPH
 };
 
-/// Gap character alphabet — only `-`.
+/// Gap character alphabet -> only `-`.
 pub const GAP: &Alphabet = &Alphabet::new(b"-");
 
 /// Amino acid alphabet stub

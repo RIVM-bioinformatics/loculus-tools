@@ -11,8 +11,8 @@ use alphabets::{is_gap, is_iupac};
 
 use wasm_bindgen::prelude::*;
 
-// ── Error code constants ──
-// These are returned as `String` from mutation methods. Empty string = success.
+// Error code constants
+// These are returned as `String` from mutation methods. Empty string => success.
 
 /// Attempted to delete a character that is not `-`.
 const ERR_DELETE_NOT_GAP: &str = "DeleteNotGap";
@@ -90,8 +90,8 @@ impl MsaEngine {
     /// The sequences are assumed to be pre-aligned as this is given from
     /// loculus as a provider of the sequence data. After all sequences are
     /// parsed, `alignment_width` is set to the length of the longest
-    /// sequence. Shorter sequences are NOT automatically padded — callers
-    /// can detect ragged alignments via `get_row_length`.
+    /// sequence. Shorter sequences are NOT automatically padded. 
+    /// Callers can detect ragged alignments via `get_row_length`.
     ///
     /// Returns the number of sequences parsed after successful engine population.
     pub fn load_fasta(&mut self, fasta_content: &str) -> usize {
@@ -215,9 +215,8 @@ impl MsaEngine {
     /// This is the zero-copy-across-boundary path: the worker passes a
     /// `Uint8Array` view backed by a `SharedArrayBuffer` that the main thread
     /// also holds. The WASM engine writes into it via a single `memcpy` per
-    /// row, and the main thread reads the same memory directly — no
-    /// `postMessage` transfer of binary data, no structured clone, no extra
-    /// `ArrayBuffer.slice`.
+    /// row, and the main thread reads the same memory directly. There is no
+    /// `postMessage` transfer of binary data, structured clone, or `ArrayBuffer.slice`.
     ///
     /// `out` must be at least as large as the worst-case slice
     /// (`(end_row - start_row + 1) * (end_col - start_col + 1)` bytes).
@@ -248,7 +247,7 @@ impl MsaEngine {
 
         for r in start_row..=row_end {
             if written + cols > out.len() {
-                // Buffer too small to fit even one more full row — stop here.
+                // Buffer too small to fit even one more full row -> stop here.
                 break;
             }
             if let Some(seq) = self.sequences.get(r) {
@@ -435,7 +434,7 @@ impl MsaEngine {
     /// Returns an empty string on success.
     pub fn delete_column(&mut self, col_idx: usize) -> String {
         // If the column is out of range for every row, nothing is removed and
-        // the width must not change — otherwise `alignment_width` would
+        // the width must not change, otherwise `alignment_width` would
         // desynchronize from the actual row lengths.
         if col_idx >= self.alignment_width {
             return String::new();
@@ -456,7 +455,7 @@ impl MsaEngine {
     /// within a single row. Each call moves exactly 1 position; callers must
     /// issue multiple calls for multi-position moves.
     ///
-    /// `col_indices` is treated as a range `[min, max]` — non-contiguous
+    /// `col_indices` is treated as a range `[min, max]`, non-contiguous
     /// indices are clamped to their min/max.
     ///
     /// **Left move:** validates the selected chars are IUPAC and the position

@@ -85,7 +85,7 @@ or a worker crash). `null` when there is no error.
 
 ### `lastTimingRef`
 
-Timing information for the most recent completed call (see §7). This is a
+Timing information for the most recent completed call (see [section 7](#7-timing--performance)). This is a
 synchronous ref — read it immediately after an `await` (useful in benchmark
 loops, where React state may not have flushed yet).
 
@@ -208,6 +208,35 @@ const baseAt = (row: number, col: number) =>
 All edit methods are **asynchronous** and resolve once the engine has applied
 the change. After an edit, refetch the affected viewport to see the new state.
 
+### 5.0 Editing constraints (the ruleset)
+
+The engine enforces a fixed set of editing constraints. Any edit that violates
+one of them is rejected with an error code (see [section 9](#9-error-handling)) and **no rows are modified**
+(all-or-nothing). The rules are:
+
+1. **Delete only gaps.** You can only delete a `-` (dash) character. To delete
+   an IUPAC character, first `mutate()` it to `-`, then `delete()` it.
+2. **Insert only gaps.** You can only insert a `-` character. To insert an
+   IUPAC character, first `insert()` a `-`, then `mutate()` it to the desired
+   base. The `insert()` method has no `base` parameter.
+3. **Mutate only between IUPAC and `-`.** Both the existing character at the
+   target position and the new `base` must be an IUPAC nucleotide or `-`.
+4. **Move only IUPAC into gaps, horizontally.** You can move IUPAC characters
+   into the place of `-` characters, but never `-` into the place of IUPAC
+   characters, and only within a single row. A move requires a `-` adjacent to
+   the block in the move direction.
+5. **Rows may be reordered freely.** `moveRowsUp` / `moveRowsDown` have no
+   character-based constraints. Each call moves the specified rows by exactly
+   one position.
+6. **Subset delete pads targets at the end.** `delete()` only affects the
+   specified rows; those rows get a `-` appended at the end to keep width
+   unchanged.
+7. **Subset insert pads non-targets at the end.** `insert()` only affects the
+   specified rows; non-target rows get a `-` appended at the end so every row
+   grows by one column and the alignment width increases by 1.
+8. **`alignment_width` from the longest sequence.** The alignment width is set
+   from the longest loaded sequence.
+
 ### `mutate(rows: number[], col: number, base: string): Promise<void>`
 
 Changes the base at a single column on a **subset** of rows. Rows not listed are
@@ -223,7 +252,7 @@ await engine.mutate([0, 1], 3, "G"); // set col 3 to 'G' on rows 0 and 1
   character's code is used.
 - Out-of-range rows/columns are silently skipped.
 
-**Validation (Rule 3):** The existing character at each target position must be
+**Validation (Rule 3, [section 5](#50-editing-constraints-the-ruleset)):** The existing character at each target position must be
 an IUPAC nucleotide (`A`, `C`, `G`, `T`, `U`, `R`, `Y`, `S`, `W`, `K`, `M`,
 `B`, `D`, `H`, `V`, `N`) or a gap (`-`), **and** the `base` being written must
 itself be an IUPAC nucleotide or a gap (`-`). If any target position contains a
@@ -255,7 +284,7 @@ row length unchanged. **Non-target rows are completely untouched.**
 await engine.delete([0, 2], 1);
 ```
 
-**Validation (Rule 1):** The character at `col` in every target row must be a
+**Validation (Rule 1, [section 5](#50-editing-constraints-the-ruleset)):** The character at `col` in every target row must be
 gap (`-`). If any target row has a non-`-` character at that position, the
 promise rejects with error code `"DeleteNotGap"` and **no rows are modified**
 (all-or-nothing). To delete an IUPAC character, first mutate it to `-` via
@@ -286,7 +315,7 @@ await engine.moveHorizontal(0, [2, 3, 4, 5], "Left");
   treated as the range `[min, max]`.
 - `direction` — `"Left"` or `"Right"`.
 
-**Validation (Rule 4):** All characters in the selected block must be IUPAC
+**Validation (Rule 4, [section 5](#50-editing-constraints-the-ruleset)):** All characters in the selected block must be IUPAC
 nucleotides (not `-`). The adjacent position in the move direction must be a
 gap (`-`). If either condition fails, the promise rejects with error code
 `"MoveNotIupac"` or `"MoveNoGapTarget"` and **no rows are modified**
@@ -460,3 +489,40 @@ try {
 | `moveRowsDown` | `rows: number[]` | `Promise<void>` | Move specified rows down by 1 |
 | `undo` | — | `Promise<boolean>` | Undo last edit |
 | `redo` | — | `Promise<boolean>` | Redo last undone edit |
+
+---
+
+## 11. Roadmap & Future Work
+
+The following features are planned and will extend the `EngineClient` API. They
+are not yet implemented.
+
+### Amino-acid translation
+
+A button will toggle the view between nucleotides and amino acids, with a
+choice of reading frame (1, 2, or 3). The engine will translate nucleotides to
+amino acids **on the fly for the visible viewport only**, keeping nucleotides
+as the single source of truth. Expected API additions:
+
+- `setRenderMode(mode)` / `setReadingFrame(frame)` — switch between nucleotide
+  and amino-acid display, and select the frame.
+- `getDisplayWidth()` — report the display width (≈1/3 of the nucleotide width
+  in amino-acid mode) so the frontend can resize scroll areas.
+- The viewport bytes will be translated amino acids when in amino-acid mode.
+
+### Sequence search
+
+A search box will let users find a nucleotide sequence (or, in amino-acid mode,
+a peptide motif) across all loaded data. Search runs entirely in Rust against
+the full matrix; the frontend never holds the whole dataset. Expected API
+additions:
+
+- `executeSearch(query)` — run the search and return the number of hits.
+- `getAllHitCoordinates()` — return the flattened hit coordinates.
+- `jumpNext()` / `jumpPrev()` — navigate between hits; the engine returns the
+  coordinates to scroll to.
+- `getCurrentHitIndex()` — report the active hit (for a "Match 3 of 42" UI).
+
+Search will support exact matching and gap-insensitive matching (for primers
+and motifs that may be split by alignment gaps), and will switch to peptide
+search when amino-acid mode is active.

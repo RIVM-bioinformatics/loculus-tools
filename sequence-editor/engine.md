@@ -5,7 +5,7 @@ editor. It explains what the engine is, how it is implemented, how it is exposed
 to JavaScript, and how it fits into the wider architecture.
 
 > **Scope note:** This document covers the engine itself (`src/lib.rs`) and its
-> WASM boundary. The Web Worker bridge, the React UI, and the WebGL renderer are
+> WASM boundary. The Web Worker bridge, the React UI, and the Canvas renderer are
 > separate layers that *consume* the engine; they are referenced here only where
 > they shape the engine's API.
 >
@@ -27,7 +27,7 @@ The engine is a Rust crate (`sequence-editor`) compiled to WebAssembly via
 - It **maintains** transactional undo/redo history.
 - It **extracts** windowed viewport slices for rendering.
 
-Everything else in the system — the Web Worker, the React shell, the WebGL
+Everything else in the system — the Web Worker, the React shell, the Canvas
 renderer — is a consumer of the engine. The engine never touches the DOM, never
 renders, and never talks to the network. It is a pure, synchronous, in-memory
 data engine.
@@ -248,6 +248,67 @@ records an `UndoCommand` onto `undo_stack` *before* mutating, and clears the
 `redo_stack` (a new edit invalidates the redo branch). The main thread only
 sends a command and awaits an acknowledgment.
 
+### 5.0 Editing constraints (the ruleset)
+
+The mutation core is governed by a fixed set of editing constraints. These
+constraints define exactly which combinations of actions are allowed and which
+are rejected. Every mutation method below enforces them and returns an error
+code (see [section 5.7](#57-error-codes)) when a constraint is violated, leaving the matrix **unchanged**
+(all-or-nothing).
+
+1. **Delete only gaps.** It is only possible to delete an item in the matrix if
+   that item is the `-` (dash) character. Deleting any other character is not
+   allowed.
+   - To delete an IUPAC character, a user must first mutate it to `-`, then
+     delete it.
+   - Attempting to delete a non-`-` character is rejected with
+     `ERR_DELETE_NOT_GAP` and the mutation is not applied.
+2. **Insert only gaps.** It is only possible to insert a `-` (dash) character
+   into the matrix. Inserting any other character is not allowed.
+   - To insert an IUPAC character, a user must first insert a `-`, then mutate
+     it to the desired IUPAC character.
+   - The insert API has no `base` parameter — only `-` can ever be inserted.
+3. **Mutate only between IUPAC and `-`.** It is only possible to mutate an
+   IUPAC character to another IUPAC character or to `-`. Mutating any other
+   character is not allowed.
+   - Both the existing character at the target position **and** the new base
+     must be IUPAC or `-`.
+   - Attempting to mutate a character that is not IUPAC or `-` (either as the
+     source or the destination) is rejected with `ERR_MUTATE_NOT_IUPAC` and the
+     mutation is not applied.
+4. **Move only IUPAC into gaps, horizontally.** Moving a character within the
+   matrix is allowed, but only IUPAC characters may be moved into the place of
+   `-` characters.
+   - A user cannot move `-` characters into the place of an IUPAC character.
+   - A user *can* move IUPAC characters into the place of `-` characters (this
+     shifts the `-` character).
+   - Moving may only happen horizontally (within one row); vertical movement
+     between rows is not allowed.
+   - If there are no `-` characters in the row to accommodate the move, the
+     action is rejected with `ERR_MOVE_NO_GAP_TARGET` and the move is not
+     applied. If the selected block contains a non-IUPAC character, the action
+     is rejected with `ERR_MOVE_NOT_IUPAC`.
+5. **Rows may be reordered freely.** It is possible to reorder the rows in the
+   matrix regardless of the characters present in those rows. Reordering has no
+   character-based constraints.
+   - The engine exposes `move_rows_up` / `move_rows_down` (a move-up/move-down
+     direction parameter).
+   - Multiple rows may be moved at the same time.
+   - A move-up or move-down command applies a single move of one position for
+     the specified rows. To move a row multiple positions, issue multiple
+     commands.
+6. **Subset delete pads targets at the end.** `delete_at_subset` applies only
+   to the specified rows (in conjunction with rule 1). To keep matrix width
+   unchanged, the rows that were the target of the delete have a `-` appended
+   at the very end of the row.
+7. **Subset insert pads non-targets at the end.** `insert_at_subset` applies
+   only to the specified rows (in conjunction with rule 2). Target rows receive
+   the `-` at the specified column index; non-target rows have a `-` appended
+   at the very end of the row so that every row grows by exactly one column and
+   the global alignment width increases by 1.
+8. **`alignment_width` from the longest sequence.** `alignment_width` is set
+   from the longest sequence loaded into the matrix (not the first).
+
 ### 5.1 `mutate_base_subset(rows, col, base)`
 
 Simultaneous block character change (substitution) on a subset of rows at a
@@ -255,7 +316,7 @@ single column.
 
 - Only the rows in `rows` are touched; all others are left unchanged.
 - Out-of-range rows or columns are silently skipped.
-- **Validation (Rule 3):** The existing character at each target position must
+- **Validation (Rule 3, [section 5](#50-editing-constraints-the-ruleset)):** The existing character at each target position must
   be an IUPAC nucleotide or `-`, **and** the new base must itself be an IUPAC
   nucleotide or `-`. If any target position contains a character that is
   neither, or the new base is neither, the method returns `ERR_MUTATE_NOT_IUPAC`
@@ -287,7 +348,7 @@ Simultaneous deletion at a single column on a **subset** of rows.
   and a `-` is appended at the end to keep the row length unchanged.
 - **Non-target rows are completely untouched** (no gap-fill, no modification).
 - `alignment_width` is left unchanged.
-- **Validation (Rule 1):** The character at `col` in every target row must be
+- **Validation (Rule 1, [section 5](#50-editing-constraints-the-ruleset)):** The character at `col` in every target row must be
   `-`. If any target row has a non-`-` character, the method returns
   `ERR_DELETE_NOT_GAP` and **no rows are modified** (all-or-nothing).
 - Records a `StructuralSnapshot` undo command.
@@ -335,6 +396,20 @@ Reorder rows by swapping each specified row with its immediate neighbour.
 - Records a `StructuralSnapshot` undo command (which now captures `names`
   as well, so undo/redo of row reorder correctly restores names).
 - Returns an empty string on success.
+
+### 5.7 Error codes
+
+Mutation methods return an empty string on success, or one of the following
+error-code constants on validation failure. The Web Worker bridge maps a
+non-empty return value to `{ok: false, errorCode}` so the client promise
+rejects with the code (see `engine-api.md` [section 9](#9-performance-characteristics)).
+
+| Constant | Value | Meaning |
+|----------|-------|---------|
+| `ERR_DELETE_NOT_GAP` | `"DeleteNotGap"` | Attempted to delete a non-`-` character (rule 1, [section 5](#50-editing-constraints-the-ruleset)). Mutate it to `-` first. |
+| `ERR_MUTATE_NOT_IUPAC` | `"MutateNotIupac"` | Attempted to mutate a character that is not IUPAC or `-`, or to write a base that is not IUPAC or `-` (rule 3, [section 5](#50-editing-constraints-the-ruleset)). |
+| `ERR_MOVE_NOT_IUPAC` | `"MoveNotIupac"` | Attempted to move a block containing non-IUPAC characters (rule 4, [section 5](#50-editing-constraints-the-ruleset)). |
+| `ERR_MOVE_NO_GAP_TARGET` | `"MoveNoGapTarget"` | No gap adjacent to the block in the move direction (rule 4, [section 5](#50-editing-constraints-the-ruleset)). |
 
 ---
 
@@ -420,7 +495,7 @@ The engine is compiled with `wasm-pack`:
 wasm-pack build --target web --release --out-dir www/wasm
 ```
 
-The generated bindings expose the methods described in §4. Note that `&[usize]`
+The generated bindings expose the methods described in [section 4](#4-the-wasm-boundary-api). Note that `&[usize]`
 maps to a `Uint32Array` in the JS bindings (not a plain `number[]`).
 
 ### 7.3 From the Web Worker (the intended production path)
@@ -456,6 +531,8 @@ correlates responses to requests via a `reqId` counter.
 end-to-end: load a FASTA, fetch a slice, apply a mutation/insertion/delete,
 refetch, and visually confirm the bytes changed. It renders slices as plain
 colorized text (no Canvas/WebGL) — the goal is correctness, not performance.
+The sliding-window viewport rendering it demonstrates is the pattern the
+production Canvas renderer will build on.
 
 ---
 
@@ -471,7 +548,7 @@ colorized text (no Canvas/WebGL) — the goal is correctness, not performance.
                           [ SharedArrayBuffer / Uint8Array ]
                                   │
                                   ▼
-                          [ WebGL Render Loop (rAF) ]
+                          [ Canvas Render Loop (rAF) ]
 ```
 
 - **Rust/WASM (the engine)** — the brain: matrix, mutation math, parsing,
@@ -480,8 +557,11 @@ colorized text (no Canvas/WebGL) — the goal is correctness, not performance.
   off the main thread so parsing/mutation/viewport extraction never block the UI
   or the render loop.
 - **React (the shell)** — high-level UI state; never touches WASM directly.
-- **WebGL (the viewport)** — GPU renderer that reads raw bytes produced by the
-  engine (relayed through the worker).
+- **Canvas (the viewport)** — a 2D `<canvas>` renderer that reads raw bytes
+  produced by the engine (relayed through the worker) and paints the visible
+  window each frame. This mirrors the sliding-window viewport approach used in
+  the test harness and is deliberately preferred over a WebGL pipeline for
+  long-term maintainability.
 
 The engine is deliberately decoupled from all of this. It exposes a synchronous,
 windowed, mutation-oriented API; the worker and UI layers decide how to schedule
@@ -518,14 +598,16 @@ implemented in `www/` and are described in the companion documents.
 | Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
 | Web Worker bridge | ✅ Done (in `www/`, consumes the engine) |
 | MUI test harness | ✅ Done (in `www/`, consumes the engine) |
-| WebGL renderer | ⏳ Not part of the engine (separate consumer layer) |
+| Canvas renderer | ⏳ Planned (2D `<canvas>` sliding-window viewport, in `www/`) |
 | Translation layer | ⏳ Not yet implemented in the engine |
+| Sequence search | ⏳ Not yet implemented in the engine |
 
 The engine covers the core data, mutation, and history layers. The worker bridge
-and test harness are implemented as consumers in `www/`. The WebGL renderer and
-the dynamic 3-frame translation layer are future work and would extend the
-engine's API (e.g. `RenderMode`, `set_render_mode`, `set_reading_frame`,
-`get_display_width`, and a codon-translating viewport path).
+and test harness are implemented as consumers in `www/`. The Canvas renderer,
+the dynamic 3-frame translation layer, and sequence search are future work and
+would extend the engine's API (e.g. `RenderMode`, `set_render_mode`,
+`set_reading_frame`, `get_display_width`, a codon-translating viewport path, and
+a search/hit-navigation API).
 
 ---
 
@@ -535,8 +617,18 @@ engine's API (e.g. `RenderMode`, `set_render_mode`, `set_reading_frame`,
   caller must detect and handle raggedness via `get_row_length`.
 - **Structural snapshot cost:** Full-matrix snapshots are fine at ~16MB but
   would need revisiting for much larger alignments.
+- **Canvas renderer:** The production renderer will be a 2D `<canvas>` that
+  paints the sliding-window viewport (the same pattern demonstrated by the test
+  harness), rather than a WebGL pipeline. This keeps the rendering layer simple
+  and maintainable while still hitting 60 FPS for the expected dataset sizes.
 - **Translation layer:** Not yet implemented. When added, the engine will
   translate nucleotides to amino acids on the fly for the visible viewport
   only, keeping nucleotides as the single source of truth. Editing in amino-acid
   mode will require validation (e.g. disallowing single-base substitutions,
   which are ambiguous at the codon level).
+- **Sequence search:** Not yet implemented. When added, the engine will search
+  the full matrix in Rust (exact match, and gap-insensitive matching for
+  primers/motifs), cache hit coordinates internally, and expose navigation
+  (next/previous hit) so the frontend can jump between matches without ever
+  holding the full matrix. In amino-acid mode, search will switch to searching
+  translated peptide motifs.

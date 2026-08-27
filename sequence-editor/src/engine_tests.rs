@@ -137,6 +137,20 @@ fn update_viewport_into_invalid_column_range_returns_zero() {
 }
 
 #[test]
+fn update_viewport_into_rejects_unrepresentable_or_oversized_ranges() {
+    let mut e = engine_with_sample();
+    let mut out = vec![0xFFu8; 16];
+
+    // An inclusive range ending at usize::MAX cannot add its final endpoint.
+    assert_eq!(e.update_viewport_into(0, 2, 0, usize::MAX, &mut out), 0);
+    assert_eq!(out, vec![0xFFu8; 16]);
+
+    // This stride is representable, but its requested byte count is not.
+    assert_eq!(e.update_viewport_into(0, 2, 1, usize::MAX, &mut out), 0);
+    assert_eq!(out, vec![0xFFu8; 16]);
+}
+
+#[test]
 fn update_viewport_into_small_buffer_truncates() {
     let mut e = engine_with_sample();
     // stride = 8 cols per row; a 5-byte buffer can't fit even one full row,
@@ -236,6 +250,44 @@ fn insert_at_subset_balances_with_gaps() {
     // Row 2 (non-target): gets '-' appended at end -> "ATGCAT-C-"
     assert_eq!(e.get_base(2, 2), b'G'); // unchanged, non-target
     assert_eq!(e.get_row_length(2), 9);
+}
+
+#[test]
+fn insert_at_subset_on_empty_engine_is_a_noop() {
+    let mut e = MsaEngine::new();
+
+    assert_eq!(e.insert_at_subset(&[0], 0), "");
+    assert_eq!(e.get_sequence_count(), 0);
+    assert_eq!(e.get_alignment_width(), 0);
+    assert_eq!(e.undo_depth(), 0);
+    assert_eq!(e.redo_depth(), 0);
+}
+
+#[test]
+fn insert_at_subset_clamps_columns_beyond_alignment_width() {
+    let mut e = engine_with_sample();
+
+    assert_eq!(e.insert_at_subset(&[0], 100), "");
+    assert_eq!(e.get_alignment_width(), 9);
+    for row in 0..e.get_sequence_count() {
+        assert_eq!(e.get_row_length(row), 9);
+    }
+    assert_eq!(e.get_base(0, 8), b'-');
+}
+
+#[test]
+fn insert_at_subset_preserves_ragged_row_behavior() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">short\nATGC\n>long\nATGCATGC\n>middle\nATGCAT");
+
+    assert_eq!(e.insert_at_subset(&[0], 6), "");
+    assert_eq!(e.get_row_length(0), 7);
+    assert_eq!(e.get_row_length(1), 9);
+    assert_eq!(e.get_row_length(2), 7);
+    assert_eq!(e.get_alignment_width(), 9);
+    assert_eq!(e.get_base(0, 4), b'-');
+    assert_eq!(e.get_base(0, 6), b'-');
+    assert_eq!(e.get_base(2, 6), b'-');
 }
 
 #[test]

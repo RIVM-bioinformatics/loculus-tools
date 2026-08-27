@@ -38,8 +38,43 @@ let initializing = false;
  */
 let sab: SharedArrayBuffer | null = null;
 let sabView: Uint8Array | null = null;
-/** Max rows × cols we ever expect to serve in a single viewport request. */
+/** Max rows × cols we ever expect to serve in a single viewport request.  
+ * TODO: see sequence-editor/src/lib.rs MAX_VIEWPORT_BYTES for detailed future todo comment
+ */
 const SAB_MAX_BYTES = 80 * 200_000;
+
+interface ViewportShape {
+  rows: number;
+  cols: number;
+}
+
+function checkedInclusiveLength(start: number, end: number): number | null {
+  const span = end - start;
+  if (!Number.isSafeInteger(span) || span >= Number.MAX_SAFE_INTEGER) {
+    return null;
+  }
+  return span + 1;
+}
+
+function getViewportShape(
+  req: Extract<EngineRequest, { type: "viewport" }>
+): ViewportShape | null {
+  const bounds = [req.startRow, req.endRow, req.startCol, req.endCol];
+  if (!bounds.every((value) => Number.isSafeInteger(value) && value >= 0)) {
+    return null;
+  }
+  if (req.startRow > req.endRow || req.startCol > req.endCol) {
+    return null;
+  }
+
+  const rows = checkedInclusiveLength(req.startRow, req.endRow);
+  const cols = checkedInclusiveLength(req.startCol, req.endCol);
+  if (rows === null || cols === null || rows > Math.floor(SAB_MAX_BYTES / cols)) {
+    return null;
+  }
+
+  return { rows, cols };
+}
 
 /** Pending commands issued before WASM finished initializing. */
 const queue: EngineRequest[] = [];
@@ -100,6 +135,16 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       break;
     }
     case "viewport": {
+      const shape = getViewportShape(req);
+      if (!shape) {
+        post({
+          type: "error",
+          reqId: req.reqId,
+          message: `Viewport bounds must be non-negative safe integers within ${SAB_MAX_BYTES} bytes`,
+        });
+        break;
+      }
+
       const view = e.update_viewport(req.startRow, req.endRow, req.startCol, req.endCol);
       const len = view.byteLength;
 
@@ -138,13 +183,11 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       // Derive metadata from actual engine output, not request bounds.
       // Engine clamps ranges and pads with spaces; we must compute actual rows
       // from the returned byte length and clamped column count.
-      const reqCols = Math.max(0, req.endCol - req.startCol + 1);
-      const actualCols = reqCols > 0 ? reqCols : 0;
-      const actualRows = actualCols > 0 ? Math.floor(len / actualCols) : 0;
+      const actualRows = Math.floor(len / shape.cols);
       
       const data: ViewportResult = {
         rows: actualRows,
-        cols: actualCols,
+        cols: shape.cols,
         startRow: req.startRow,
         startCol: req.startCol,
       };

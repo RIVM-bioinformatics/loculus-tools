@@ -1,0 +1,13 @@
+{
+  // Use cargo check on save for accurate diagnostics.
+  "rust-analyzer.check.command": "check",
+  // Check for the wasm32 target so that wasm-bindgen's proc-macro expansions
+  // match the actual compilation target. Without this, rust-analyzer checks
+  // against the host (x86_64) where wasm-bindgen generates different code,
+  // producing false-positive E0308 errors.
+  "rust-analyzer.cargo.target": "wasm32-unknown-unknown",
+  // Enable proc-macro expansion server so #[wasm_bindgen] is expanded correctly.
+  "rust-analyzer.procMacro.enable": true,
+  // Enable build scripts so generated wasm-bindgen bindings are visible.
+  "rust-analyzer.cargo.buildScripts.enable": true,
+}

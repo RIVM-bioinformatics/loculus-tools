@@ -21,12 +21,12 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 
 import { useTreeViewStore } from '../../stores/treeViewStore';
+import { DRAWER_WIDTH } from '../../constants/drawer';
 
 import { CalculationSettings } from './CalculationSettings';
 import { ViewSettings } from './ViewSettings';
 import { MetadataStyling } from './MetadataStyling';
 import { SearchFilter } from './SearchFilter';
-import { DRAWER_WIDTH } from '../../constants/drawer';
 
 export const SideControlPanel = () => {
   const drawerOpen = useTreeViewStore((state) => state.drawerOpen);

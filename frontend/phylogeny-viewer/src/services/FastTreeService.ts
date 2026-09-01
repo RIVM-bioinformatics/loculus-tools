@@ -3,8 +3,8 @@ import type {
   FastTreeMode,
 } from '../models/calculation';
 
-import { preloaderService } from './biowasm/PreloaderService';
-import { stripFastaHeaders } from './biowasm/Tn93Service';
+import { preloaderService } from './PreloaderService';
+import { stripFastaHeaders } from './Tn93Service';
 
 export const extractNewickTree = (output: string): string => {
   const lastSemi = output.lastIndexOf(';');

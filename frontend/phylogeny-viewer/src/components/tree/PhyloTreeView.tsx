@@ -25,9 +25,6 @@ import { useCalculationStore } from '../../stores/calculationStore';
 import { useDatasetStore } from '../../stores/datasetStore';
 import { useTreeViewStore } from '../../stores/treeViewStore';
 import { useMetadataStore } from '../../stores/metadataStore';
-
-import { DynamicLegend } from './DynamicLegend';
-import { DraggableNodeTooltip } from './DraggableNodeTooltip';
 import {
   TREE_ANCESTOR_DOT_RADIUS,
   TREE_HEADER_HEIGHT,
@@ -46,6 +43,9 @@ import {
   TREE_REGULAR_FILL_COLOR_SUPPORT_LINE,
   TREE_SCALE_INCREMENTS,
 } from '../../constants/tree';
+
+import { DynamicLegend } from './DynamicLegend';
+import { DraggableNodeTooltip } from './DraggableNodeTooltip';
 
 const dimColor = (color: string): string => color;
 
@@ -93,8 +93,6 @@ export const PhyloTreeView = () => {
       return null;
     }
   }, [newick]);
-
-  console.log('Parsed tree:', parsedTree.maxBranchLength.toString());
 
   // Extract leaf names in tree order
   const leafNames = useMemo<string[]>(() => {

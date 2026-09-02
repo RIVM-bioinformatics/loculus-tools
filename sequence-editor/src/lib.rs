@@ -39,6 +39,16 @@ const ERR_MOVE_NO_GAP_TARGET: &str = "MoveNoGapTarget";
 /// Attempted to move non-IUPAC characters.
 const ERR_MOVE_NOT_IUPAC: &str = "MoveNotIupac";
 
+/// Matches the worker's SharedArrayBuffer capacity and bounds direct WASM calls.
+/// TODO: we may need to revisit this later for a more logical max size of a viewport. i.e. Do we even want to support 200K columns in the viewport if a modern display can only show a few thousand (pixels) at a time? For now, this is a safe upper bound that matches the worker's buffer size.
+const MAX_VIEWPORT_BYTES: usize = 80 * 200_000;
+
+/// Return the length of an inclusive range `[start, end]`, or `None` if the
+/// range is invalid or would overflow `usize`.
+fn inclusive_range_len(start: usize, end: usize) -> Option<usize> {
+    end.checked_sub(start)?.checked_add(1)
+}
+
 /// Direction for horizontal character movement.
 #[wasm_bindgen]
 pub enum MoveDirection {
@@ -213,23 +223,45 @@ impl MsaEngine {
         if start_row > row_end {
             return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
         }
+        // If the start column is greater than the end column, return an empty slice.
         if start_col > end_col {
             return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
         }
 
-        // Fixed column stride: every row contributes exactly this many bytes.
-        let cols = end_col - start_col + 1;
+        // Compute the number of rows and columns in the requested slice, checking for overflow.
+        let rows = match inclusive_range_len(start_row, row_end) {
+            Some(rows) => rows,
+            None => return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0)),
+        };
 
+        // Fixed column stride: every row contributes exactly this many bytes.
+        let cols = match inclusive_range_len(start_col, end_col) {
+            Some(cols) => cols,
+            None => return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0)),
+        };
+
+        // Check that the total byte length does not exceed the maximum allowed for the viewport buffer.
+        let byte_len = match rows.checked_mul(cols) {
+            Some(byte_len) if byte_len <= MAX_VIEWPORT_BYTES => byte_len,
+            _ => return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0)),
+        };
+
+        // Reserve the necessary capacity in the viewport buffer. If it fails, return an empty Uint8Array.
+        if self.viewport_buffer.try_reserve_exact(byte_len).is_err() {
+            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+        }
+
+        // Actual viewport extraction logic
         for r in start_row..=row_end {
             if let Some(seq) = self.nucleotide_sequences.get(r) {
                 let seq_cols = if start_col < seq.len() {
-                    (end_col + 1).min(seq.len()) - start_col
+                    (seq.len() - start_col).min(cols)
                 } else {
                     0
                 };
                 if seq_cols > 0 {
                     self.viewport_buffer
-                        .extend_from_slice(&seq[start_col..start_col + seq_cols]);
+                        .extend_from_slice(&seq[start_col..][..seq_cols]);
                 }
                 // Pad the remainder of the row with spaces.
                 for _ in seq_cols..cols {
@@ -271,30 +303,51 @@ impl MsaEngine {
         if start_row > row_end {
             return 0;
         }
+        // If the start column is greater than the end column, return 0.
         if start_col > end_col {
             return 0;
         }
 
-        // Fixed column stride: every row contributes exactly this many bytes.
-        let cols = end_col - start_col + 1;
+        // Compute the number of rows and columns in the requested slice, checking for overflow.
+        let rows = match inclusive_range_len(start_row, row_end) {
+            Some(rows) => rows,
+            None => return 0,
+        };
 
+        // Fixed column stride: every row contributes exactly this many bytes.
+        let cols = match inclusive_range_len(start_col, end_col) {
+            Some(cols) => cols,
+            None => return 0,
+        };
+
+        // Check that the total byte length does not exceed the maximum allowed for the viewport buffer.
+        match rows.checked_mul(cols) {
+            Some(byte_len) if byte_len <= MAX_VIEWPORT_BYTES => {}
+            _ => return 0,
+        }
+
+        // Actual viewport extraction logic
         for r in start_row..=row_end {
-            if written + cols > out.len() {
+            let remaining = match out.len().checked_sub(written) {
+                Some(remaining) => remaining,
+                None => return 0,
+            };
+            if remaining < cols {
                 // Buffer too small to fit even one more full row -> stop here.
                 break;
             }
             if let Some(seq) = self.nucleotide_sequences.get(r) {
                 let seq_cols = if start_col < seq.len() {
-                    (end_col + 1).min(seq.len()) - start_col
+                    (seq.len() - start_col).min(cols)
                 } else {
                     0
                 };
+                let row_out = &mut out[written..][..cols];
                 if seq_cols > 0 {
-                    out[written..written + seq_cols]
-                        .copy_from_slice(&seq[start_col..start_col + seq_cols]);
+                    row_out[..seq_cols].copy_from_slice(&seq[start_col..][..seq_cols]);
                 }
                 // Pad the remainder of the row with spaces.
-                for b in &mut out[written + seq_cols..written + cols] {
+                for b in &mut row_out[seq_cols..] {
                     *b = b' ';
                 }
                 written += cols;
@@ -628,29 +681,41 @@ impl MsaEngine {
 
     /// Simultaneous gap insertion at a single column index on a subset of
     /// rows. The inserted character is always `-` (gap). Target rows receive
-    /// the gap at `col_idx`; non-target rows have a `-` appended at the end
-    /// to keep matrix width consistent. `alignment_width` is incremented by 1.
+    /// the gap at the clamped insertion column; non-target rows have a `-`
+    /// appended at the end to keep matrix width consistent.
     ///
     /// Returns an empty string on success (no validation needed since only
     /// `-` can be inserted).
     pub fn insert_at_subset(&mut self, row_indices: &[usize], col_idx: usize) -> String {
+        if self.nucleotide_sequences.is_empty() {
+            return String::new();
+        }
+
+        // Clamp the insertion column to the current alignment width. If `col_idx` is greater than the current width, the gap will be appended to all rows.
+        let insertion_col = col_idx.min(self.alignment_width);
         self.record_structural_undo();
 
+        // Use a HashSet for O(1) lookups of target rows.
         let target_rows: std::collections::HashSet<usize> = row_indices.iter().copied().collect();
 
         for r in 0..self.nucleotide_sequences.len() {
             let seq = &mut self.nucleotide_sequences[r];
-            // Pad rows that are shorter than col_idx to ensure consistent width
-            while seq.len() < col_idx {
+            // Pad rows that are shorter than the insertion column before inserting.
+            while seq.len() < insertion_col {
                 seq.push(b'-');
             }
             if target_rows.contains(&r) {
-                seq.insert(col_idx, b'-');
+                seq.insert(insertion_col, b'-');
             } else {
                 seq.push(b'-'); // Balance unselected rows by appending gap at end
             }
         }
-        self.alignment_width += 1;
+        self.alignment_width = self
+            .nucleotide_sequences
+            .iter()
+            .map(Vec::len)
+            .max()
+            .unwrap_or(0);
         String::new()
     }
 

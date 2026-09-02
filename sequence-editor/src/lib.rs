@@ -7,9 +7,25 @@
 //! handing out raw pointers into WASM linear memory.
 
 mod alphabets;
-use alphabets::{is_gap, is_iupac};
+mod search_algorithms;
 
+use alphabets::{is_gap, is_iupac, translate_codon};
+use search_algorithms::{naive_search, Match, MatrixType, SearchResult};
 use wasm_bindgen::prelude::*;
+
+// Bound to the JS `console.log`, so this works in both the main thread and
+// Web Worker (the engine's actual home) — both expose a global `console`.
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+/// `println!`-style logging that shows up in the browser/worker devtools
+/// console. Use like `console_log!("query={:?} rows={}", query, n);`.
+macro_rules! console_log {
+    ($($arg:tt)*) => { log(&format!($($arg)*)) };
+}
 
 // Error code constants
 // These are returned as `String` from mutation methods. Empty string => success.
@@ -46,6 +62,13 @@ enum UndoCommand {
     },
 }
 
+/// Struct that stores 3 amino acid sequences, one for each reading frame.
+struct AminoacidSequence {
+    frame_1: Vec<u8>,
+    frame_2: Vec<u8>,
+    frame_3: Vec<u8>,
+}
+
 /// The core MSA engine. Owns the alignment matrix, row names, the reusable
 /// viewport buffer, and the undo/redo stacks.
 #[wasm_bindgen]
@@ -56,7 +79,8 @@ pub struct MsaEngine {
     /// the length of the longest sequence after all sequences are loaded.
     /// `viewport_buffer`; reusable buffer for viewport extraction. Cleared and refilled on each `update_viewport` call to avoid per-scroll allocations.
     /// `undo_stack` and `redo_stack`; transactional history of edits for undo/redo functionality. Each command captures the minimal information needed to reverse or re-apply an edit.
-    sequences: Vec<Vec<u8>>,
+    nucleotide_sequences: Vec<Vec<u8>>,
+    aminoacid_sequences: Vec<AminoacidSequence>,
     names: Vec<String>,
     alignment_width: usize,
     viewport_buffer: Vec<u8>,
@@ -70,7 +94,8 @@ impl MsaEngine {
     #[wasm_bindgen(constructor)]
     pub fn new() -> MsaEngine {
         MsaEngine {
-            sequences: Vec::new(),
+            nucleotide_sequences: Vec::new(),
+            aminoacid_sequences: Vec::new(),
             names: Vec::new(),
             alignment_width: 0,
             // Pre-allocate for a typical screen-sized viewport (rows * cols).
@@ -86,16 +111,17 @@ impl MsaEngine {
     /// Performs a line-by-line scan. Sequences may span multiple lines;
     /// a new sequence begins at any line starting with `>`. Whitespace and
     /// blank lines are ignored. All sequence bytes are uppercased.
-    /// 
+    ///
     /// The sequences are assumed to be pre-aligned as this is given from
     /// loculus as a provider of the sequence data. After all sequences are
     /// parsed, `alignment_width` is set to the length of the longest
-    /// sequence. Shorter sequences are NOT automatically padded. 
+    /// sequence. Shorter sequences are NOT automatically padded.
     /// Callers can detect ragged alignments via `get_row_length`.
     ///
     /// Returns the number of sequences parsed after successful engine population.
     pub fn load_fasta(&mut self, fasta_content: &str) -> usize {
-        self.sequences.clear();
+        self.nucleotide_sequences.clear();
+        self.aminoacid_sequences.clear();
         self.names.clear();
         self.alignment_width = 0;
         self.undo_stack.clear();
@@ -117,7 +143,8 @@ impl MsaEngine {
                             self.alignment_width = current_seq.len();
                         }
                         self.names.push(n);
-                        self.sequences.push(std::mem::take(&mut current_seq));
+                        self.nucleotide_sequences
+                            .push(std::mem::take(&mut current_seq));
                     }
                 }
                 // Header text is everything after '>'; take the first token as
@@ -142,14 +169,20 @@ impl MsaEngine {
         if let Some(n) = current_name.take() {
             if !current_seq.is_empty() {
                 self.names.push(n);
-                self.sequences.push(std::mem::take(&mut current_seq));
+                self.nucleotide_sequences
+                    .push(std::mem::take(&mut current_seq));
             }
         }
 
         // alignment_width is the length of the longest sequence (Rule 8).
-        self.alignment_width = self.sequences.iter().map(|s| s.len()).max().unwrap_or(0);
+        self.alignment_width = self
+            .nucleotide_sequences
+            .iter()
+            .map(|s| s.len())
+            .max()
+            .unwrap_or(0);
 
-        self.sequences.len()
+        self.nucleotide_sequences.len()
     }
 
     /// Extract a windowed slice of the matrix into the reusable viewport buffer
@@ -173,10 +206,10 @@ impl MsaEngine {
         self.viewport_buffer.clear();
 
         // Clamp row range to valid bounds.
-        if self.sequences.is_empty() {
+        if self.nucleotide_sequences.is_empty() {
             return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
         }
-        let row_end = end_row.min(self.sequences.len() - 1);
+        let row_end = end_row.min(self.nucleotide_sequences.len() - 1);
         if start_row > row_end {
             return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
         }
@@ -188,7 +221,7 @@ impl MsaEngine {
         let cols = end_col - start_col + 1;
 
         for r in start_row..=row_end {
-            if let Some(seq) = self.sequences.get(r) {
+            if let Some(seq) = self.nucleotide_sequences.get(r) {
                 let seq_cols = if start_col < seq.len() {
                     (end_col + 1).min(seq.len()) - start_col
                 } else {
@@ -231,10 +264,10 @@ impl MsaEngine {
     ) -> usize {
         let mut written = 0;
 
-        if self.sequences.is_empty() {
+        if self.nucleotide_sequences.is_empty() {
             return 0;
         }
-        let row_end = end_row.min(self.sequences.len() - 1);
+        let row_end = end_row.min(self.nucleotide_sequences.len() - 1);
         if start_row > row_end {
             return 0;
         }
@@ -250,7 +283,7 @@ impl MsaEngine {
                 // Buffer too small to fit even one more full row -> stop here.
                 break;
             }
-            if let Some(seq) = self.sequences.get(r) {
+            if let Some(seq) = self.nucleotide_sequences.get(r) {
                 let seq_cols = if start_col < seq.len() {
                     (end_col + 1).min(seq.len()) - start_col
                 } else {
@@ -271,6 +304,225 @@ impl MsaEngine {
         written
     }
 
+    /// create a function for checking the query input
+    /// It should be in the alphabet of the sequences, otherwise return an error message
+    fn is_valid_nucleotide_query(&self, query: &str) -> bool {
+        for b in query.bytes() {
+            if !is_iupac(b) && !is_gap(b) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn search_nucleotide(&self, query: &str) -> SearchResult {
+        if self.nucleotide_sequences.is_empty() || !self.is_valid_nucleotide_query(query) {
+            SearchResult {
+                query: query.to_string(),
+                num_matches: 0,
+                positions: Vec::new(),
+            }
+        } else {
+            naive_search(&self.nucleotide_sequences, query, MatrixType::Nucleotide)
+        }
+    }
+
+    fn search_amino_acid(&self, query: &str) -> SearchResult {
+        if self.aminoacid_sequences.is_empty() {
+            SearchResult {
+                query: query.to_string(),
+                num_matches: 0,
+                positions: Vec::new(),
+            }
+        } else {
+            let amino_acid_bytes: Vec<Vec<u8>> = self
+                .aminoacid_sequences
+                .iter()
+                .map(|s| {
+                    let mut combined = s.frame_1.clone();
+                    combined.extend_from_slice(&s.frame_2);
+                    combined.extend_from_slice(&s.frame_3);
+                    combined
+                })
+                .collect();
+
+            naive_search(&amino_acid_bytes, query, MatrixType::AminoAcid)
+        }
+    }
+
+    fn search_record_names(&self, query: &str) -> SearchResult {
+        if self.names.is_empty() {
+            SearchResult {
+                query: query.to_string(),
+                num_matches: 0,
+                positions: Vec::new(),
+            }
+        } else {
+            let positions: Vec<Match> = self
+                .names
+                .iter()
+                .enumerate()
+                .filter_map(|(row, name)| {
+                    if name.contains(query) {
+                        Some(Match {
+                            row,
+                            col: 0,
+                            is_nucleotide: false,
+                            is_amino_acid: false,
+                            is_record_name: true,
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            SearchResult {
+                query: query.to_string(),
+                num_matches: positions.len(),
+                positions,
+            }
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn search(&self, query: String, check_record_names: bool) -> Result<JsValue, JsValue> {
+        console_log!(
+            "Starting search with query: {}\nRecord names check: {}",
+            query,
+            check_record_names
+        );
+
+        let nucleotide_result = self.search_nucleotide(&query);
+        let amino_acid_result = self.search_amino_acid(&query);
+        let record_names_result = if check_record_names {
+            self.search_record_names(&query)
+        } else {
+            SearchResult {
+                query: query.to_string(),
+                num_matches: 0,
+                positions: Vec::new(),
+            }
+        };
+
+        let combined_result = vec![nucleotide_result, amino_acid_result, record_names_result];
+        console_log!(
+            "Number of matches: {}",
+            combined_result.iter().map(|r| r.num_matches).sum::<usize>()
+        );
+
+        serde_wasm_bindgen::to_value(&combined_result)
+            .map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Translate one nucleotide row into all three reading frames.
+    ///
+    /// TODO: CHECK THIS
+    /// Gap codons (any of the 3 bytes is `-`) translate to a gap amino acid
+    /// (`-`) rather than being treated as an error — gaps are a normal part of
+    /// an aligned sequence. Non-gap codons that aren't valid IUPAC/standard
+    /// codons fall through `translate_codon`'s own `X` (unknown) fallback.
+    /// This must never panic: a panic inside a `#[wasm_bindgen]` method
+    /// permanently poisons the engine object (every later call then fails
+    /// with "recursive use of an object detected").
+    fn translate_sequence(seq: &[u8]) -> AminoacidSequence {
+        let mut frames: [Vec<u8>; 3] = [Vec::new(), Vec::new(), Vec::new()];
+
+        for (offset, frame) in frames.iter_mut().enumerate() {
+            for codon_bytes in seq[offset.min(seq.len())..].chunks(3) {
+                if codon_bytes.len() < 3 {
+                    break;
+                }
+                let codon = [codon_bytes[0], codon_bytes[1], codon_bytes[2]];
+                let amino_acid = if codon.iter().any(|&b| is_gap(b)) {
+                    b'-'
+                } else {
+                    translate_codon(codon)
+                };
+                frame.push(amino_acid);
+            }
+        }
+
+        let [frame_1, frame_2, frame_3] = frames;
+        AminoacidSequence {
+            frame_1,
+            frame_2,
+            frame_3,
+        }
+    }
+
+    /// When the translate function is called, it will check if there are any untranslated sequences and then translate all rows of nucleotide sequences for all reading frames.
+    /// Afterwards it will select the viewport of the translated amino acid sequences for the specified range and reading frame.
+    ///
+    /// Mirrors `update_viewport`'s conventions exactly: rows and columns are
+    /// inclusive (`[start, end]`), and every row contributes exactly
+    /// `(end_col - start_col + 1)` bytes, padding short rows with `b' '`.
+    /// Without this fixed stride, the worker's `bytes / cols` row count would
+    /// be wrong whenever a translated row is shorter than the requested
+    /// column range (which it almost always is, since amino acid frames are
+    /// ~1/3 the length of the nucleotide sequence).
+    pub fn translate(
+        &mut self,
+        start_row: usize,
+        end_row: usize,
+        start_col: usize,
+        end_col: usize,
+        reading_frame: u8,
+    ) -> js_sys::Uint8Array {
+        if self.aminoacid_sequences.is_empty() {
+            for seq in &self.nucleotide_sequences {
+                self.aminoacid_sequences.push(Self::translate_sequence(seq));
+            }
+        }
+
+        if self.aminoacid_sequences.is_empty() {
+            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+        }
+        let row_end = end_row.min(self.aminoacid_sequences.len() - 1);
+        if start_row > row_end || start_col > end_col {
+            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+        }
+
+        let cols = end_col - start_col + 1;
+        let mut viewport = Vec::with_capacity((row_end - start_row + 1) * cols);
+
+        for row in start_row..=row_end {
+            let seq = &self.aminoacid_sequences[row];
+            let frame = match reading_frame {
+                0 => &seq.frame_1,
+                1 => &seq.frame_2,
+                2 => &seq.frame_3,
+                // Out-of-range frame: fall back to frame 1 instead of panicking.
+                _ => &seq.frame_1,
+            };
+            let frame_cols = if start_col < frame.len() {
+                (end_col + 1).min(frame.len()) - start_col
+            } else {
+                0
+            };
+            if frame_cols > 0 {
+                viewport.extend_from_slice(&frame[start_col..start_col + frame_cols]);
+            }
+            // Pad the remainder of the row with spaces, same as `update_viewport`.
+            for _ in frame_cols..cols {
+                viewport.push(b' ');
+            }
+        }
+
+        js_sys::Uint8Array::from(&viewport[..])
+    }
+
+    pub fn get_aminoacid_view(&self, row: usize) -> js_sys::Uint8Array {
+        if let Some(seq) = self.aminoacid_sequences.get(row) {
+            let mut combined = Vec::new();
+            combined.extend_from_slice(&seq.frame_1);
+            combined.extend_from_slice(&seq.frame_2);
+            combined.extend_from_slice(&seq.frame_3);
+            js_sys::Uint8Array::from(&combined[..])
+        } else {
+            js_sys::Uint8Array::new(&js_sys::ArrayBuffer::new(0))
+        }
+    }
+
     /// Number of bytes currently held in the viewport buffer.
     pub fn get_viewport_len(&self) -> usize {
         self.viewport_buffer.len()
@@ -278,7 +530,7 @@ impl MsaEngine {
 
     /// Number of sequences currently loaded.
     pub fn get_sequence_count(&self) -> usize {
-        self.sequences.len()
+        self.nucleotide_sequences.len()
     }
 
     /// Global alignment width (columns). Zero if nothing is loaded.
@@ -295,7 +547,7 @@ impl MsaEngine {
     /// Return the raw byte at `(row, col)`, or `0` if out of range.
     /// Useful for the test harness to spot-check individual cells.
     pub fn get_base(&self, row: usize, col: usize) -> u8 {
-        self.sequences
+        self.nucleotide_sequences
             .get(row)
             .and_then(|seq| seq.get(col).copied())
             .unwrap_or(0)
@@ -303,7 +555,10 @@ impl MsaEngine {
 
     /// Return the length of a specific row, or `0` if the row index is invalid.
     pub fn get_row_length(&self, row: usize) -> usize {
-        self.sequences.get(row).map(|seq| seq.len()).unwrap_or(0)
+        self.nucleotide_sequences
+            .get(row)
+            .map(|seq| seq.len())
+            .unwrap_or(0)
     }
 
     // mutation methods.
@@ -318,7 +573,12 @@ impl MsaEngine {
     ///
     /// Returns an empty string on success, or an error code constant on
     /// validation failure (all-or-nothing: no rows are modified on failure).
-    pub fn mutate_base_subset(&mut self, row_indices: &[usize], col_idx: usize, new_base: u8) -> String {
+    pub fn mutate_base_subset(
+        &mut self,
+        row_indices: &[usize],
+        col_idx: usize,
+        new_base: u8,
+    ) -> String {
         // Validate the destination base: it must be an IUPAC nucleotide or '-'
         // (Rule 3). Mutating to any other character is not allowed.
         if !is_iupac(new_base) && !is_gap(new_base) {
@@ -326,7 +586,7 @@ impl MsaEngine {
         }
         // Validate: all existing characters at the target positions must be IUPAC or '-'.
         for &r in row_indices {
-            if let Some(seq) = self.sequences.get(r) {
+            if let Some(seq) = self.nucleotide_sequences.get(r) {
                 if col_idx < seq.len() {
                     let existing = seq[col_idx];
                     if !is_iupac(existing) && !is_gap(existing) {
@@ -339,7 +599,7 @@ impl MsaEngine {
         let mut mutated_rows: Vec<usize> = Vec::new();
         let mut old_bases: Vec<u8> = Vec::new();
         for &r in row_indices {
-            if let Some(seq) = self.sequences.get(r) {
+            if let Some(seq) = self.nucleotide_sequences.get(r) {
                 if col_idx < seq.len() {
                     mutated_rows.push(r);
                     old_bases.push(seq[col_idx]);
@@ -357,7 +617,7 @@ impl MsaEngine {
         self.redo_stack.clear();
 
         for &r in &mutated_rows {
-            if let Some(seq) = self.sequences.get_mut(r) {
+            if let Some(seq) = self.nucleotide_sequences.get_mut(r) {
                 if col_idx < seq.len() {
                     seq[col_idx] = new_base;
                 }
@@ -378,8 +638,8 @@ impl MsaEngine {
 
         let target_rows: std::collections::HashSet<usize> = row_indices.iter().copied().collect();
 
-        for r in 0..self.sequences.len() {
-            let seq = &mut self.sequences[r];
+        for r in 0..self.nucleotide_sequences.len() {
+            let seq = &mut self.nucleotide_sequences[r];
             // Pad rows that are shorter than col_idx to ensure consistent width
             while seq.len() < col_idx {
                 seq.push(b'-');
@@ -404,7 +664,7 @@ impl MsaEngine {
     pub fn delete_at_subset(&mut self, row_indices: &[usize], col_idx: usize) -> String {
         // Validate: all target positions must be '-'.
         for &r in row_indices {
-            if let Some(seq) = self.sequences.get(r) {
+            if let Some(seq) = self.nucleotide_sequences.get(r) {
                 if col_idx < seq.len() && !is_gap(seq[col_idx]) {
                     return String::from(ERR_DELETE_NOT_GAP);
                 }
@@ -415,8 +675,8 @@ impl MsaEngine {
 
         let target_rows: std::collections::HashSet<usize> = row_indices.iter().copied().collect();
 
-        for r in 0..self.sequences.len() {
-            let seq = &mut self.sequences[r];
+        for r in 0..self.nucleotide_sequences.len() {
+            let seq = &mut self.nucleotide_sequences[r];
             if col_idx < seq.len() {
                 if target_rows.contains(&r) {
                     seq.remove(col_idx);
@@ -440,7 +700,7 @@ impl MsaEngine {
             return String::new();
         }
         self.record_structural_undo();
-        for seq in self.sequences.iter_mut() {
+        for seq in self.nucleotide_sequences.iter_mut() {
             if col_idx < seq.len() {
                 seq.remove(col_idx);
             }
@@ -472,7 +732,7 @@ impl MsaEngine {
         col_indices: &[usize],
         direction: MoveDirection,
     ) -> String {
-        let seq = match self.sequences.get(row) {
+        let seq = match self.nucleotide_sequences.get(row) {
             Some(s) => s,
             None => return String::new(), // out-of-range row is a no-op
         };
@@ -516,7 +776,7 @@ impl MsaEngine {
 
         self.record_structural_undo();
 
-        let seq = &mut self.sequences[row];
+        let seq = &mut self.nucleotide_sequences[row];
         match direction {
             MoveDirection::Left => {
                 // Rotate [start-1, end] left by 1: the '-' at start-1 moves to end.
@@ -542,7 +802,7 @@ impl MsaEngine {
     /// silently skipped. Multiple rows may be moved simultaneously.
     /// Returns an empty string on success.
     pub fn move_rows_up(&mut self, row_indices: &[usize]) -> String {
-        if row_indices.is_empty() || self.sequences.len() < 2 {
+        if row_indices.is_empty() || self.nucleotide_sequences.len() < 2 {
             return String::new();
         }
 
@@ -554,10 +814,10 @@ impl MsaEngine {
         indices.dedup();
 
         for &r in &indices {
-            if r == 0 || r >= self.sequences.len() {
+            if r == 0 || r >= self.nucleotide_sequences.len() {
                 continue;
             }
-            self.sequences.swap(r, r - 1);
+            self.nucleotide_sequences.swap(r, r - 1);
             self.names.swap(r, r - 1);
         }
 
@@ -569,7 +829,7 @@ impl MsaEngine {
     /// silently skipped. Multiple rows may be moved simultaneously.
     /// Returns an empty string on success.
     pub fn move_rows_down(&mut self, row_indices: &[usize]) -> String {
-        if row_indices.is_empty() || self.sequences.len() < 2 {
+        if row_indices.is_empty() || self.nucleotide_sequences.len() < 2 {
             return String::new();
         }
 
@@ -581,10 +841,10 @@ impl MsaEngine {
         indices.dedup();
 
         for &r in &indices {
-            if r + 1 >= self.sequences.len() {
+            if r + 1 >= self.nucleotide_sequences.len() {
                 continue;
             }
-            self.sequences.swap(r, r + 1);
+            self.nucleotide_sequences.swap(r, r + 1);
             self.names.swap(r, r + 1);
         }
 
@@ -596,7 +856,7 @@ impl MsaEngine {
     /// ~16MB max footprint.
     ///> we might need to revisit this if we want to support larger alignments in the future, but it keeps the logic simple for now and is fast enough for our expected use case.
     fn record_structural_undo(&mut self) {
-        let matrix_snapshot = self.sequences.clone();
+        let matrix_snapshot = self.nucleotide_sequences.clone();
         let names_snapshot = self.names.clone();
         self.undo_stack.push(UndoCommand::StructuralSnapshot {
             matrix_snapshot,
@@ -620,7 +880,11 @@ impl MsaEngine {
             None => return false,
         };
         match cmd {
-            UndoCommand::Substitutions { col_idx, mutated_rows, old_bases } => {
+            UndoCommand::Substitutions {
+                col_idx,
+                mutated_rows,
+                old_bases,
+            } => {
                 // Restore old bases; capture current bases for redo.
                 // Rebuild paired row/base vectors to keep them aligned even if
                 // malformed history data ever appears.
@@ -628,7 +892,7 @@ impl MsaEngine {
                 let mut redo_rows: Vec<usize> = Vec::with_capacity(paired_len);
                 let mut redo_old_bases: Vec<u8> = Vec::with_capacity(paired_len);
                 for (r, old_base) in mutated_rows.into_iter().zip(old_bases.into_iter()) {
-                    if let Some(seq) = self.sequences.get_mut(r) {
+                    if let Some(seq) = self.nucleotide_sequences.get_mut(r) {
                         if col_idx < seq.len() {
                             redo_rows.push(r);
                             redo_old_bases.push(seq[col_idx]);
@@ -644,14 +908,18 @@ impl MsaEngine {
                     });
                 }
             }
-            UndoCommand::StructuralSnapshot { matrix_snapshot, names_snapshot, width_snapshot } => {
+            UndoCommand::StructuralSnapshot {
+                matrix_snapshot,
+                names_snapshot,
+                width_snapshot,
+            } => {
                 // Capture current state for redo, then restore the snapshot.
                 let redo_snapshot = UndoCommand::StructuralSnapshot {
-                    matrix_snapshot: self.sequences.clone(),
+                    matrix_snapshot: self.nucleotide_sequences.clone(),
                     names_snapshot: self.names.clone(),
                     width_snapshot: self.alignment_width,
                 };
-                self.sequences = matrix_snapshot;
+                self.nucleotide_sequences = matrix_snapshot;
                 self.names = names_snapshot;
                 self.alignment_width = width_snapshot;
                 self.redo_stack.push(redo_snapshot);
@@ -668,14 +936,18 @@ impl MsaEngine {
             None => return false,
         };
         match cmd {
-            UndoCommand::Substitutions { col_idx, mutated_rows, old_bases } => {
+            UndoCommand::Substitutions {
+                col_idx,
+                mutated_rows,
+                old_bases,
+            } => {
                 // Re-apply: old_bases here are the post-edit bases captured at
                 // undo time. Capture current (pre-redo) bases for the undo stack.
                 let paired_len = mutated_rows.len().min(old_bases.len());
                 let mut undo_rows: Vec<usize> = Vec::with_capacity(paired_len);
                 let mut undo_old_bases: Vec<u8> = Vec::with_capacity(paired_len);
                 for (r, old_base) in mutated_rows.into_iter().zip(old_bases.into_iter()) {
-                    if let Some(seq) = self.sequences.get_mut(r) {
+                    if let Some(seq) = self.nucleotide_sequences.get_mut(r) {
                         if col_idx < seq.len() {
                             undo_rows.push(r);
                             undo_old_bases.push(seq[col_idx]);
@@ -691,13 +963,17 @@ impl MsaEngine {
                     });
                 }
             }
-            UndoCommand::StructuralSnapshot { matrix_snapshot, names_snapshot, width_snapshot } => {
+            UndoCommand::StructuralSnapshot {
+                matrix_snapshot,
+                names_snapshot,
+                width_snapshot,
+            } => {
                 let undo_snapshot = UndoCommand::StructuralSnapshot {
-                    matrix_snapshot: self.sequences.clone(),
+                    matrix_snapshot: self.nucleotide_sequences.clone(),
                     names_snapshot: self.names.clone(),
                     width_snapshot: self.alignment_width,
                 };
-                self.sequences = matrix_snapshot;
+                self.nucleotide_sequences = matrix_snapshot;
                 self.names = names_snapshot;
                 self.alignment_width = width_snapshot;
                 self.undo_stack.push(undo_snapshot);
@@ -728,7 +1004,8 @@ impl Default for MsaEngine {
 // `<module>_tests` so that `cargo test` output is clearly namespaced
 // (e.g. `engine_tests::...`, `alphabets_tests::...`).
 #[cfg(test)]
+mod alphabets_tests;
+#[cfg(test)]
 mod engine_tests;
 #[cfg(test)]
-mod alphabets_tests;
-
+mod search_algorithms_tests;

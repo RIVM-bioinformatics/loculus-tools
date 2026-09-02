@@ -10,7 +10,7 @@ use super::*;
 
 fn engine_with_sample() -> MsaEngine {
     let mut e = MsaEngine::new();
-    e.load_fasta(">seq1 first\nATGCATGC\n>seq2\nATGGTG-A\n>seq3 third\nATGCAT-C");
+    e.load_fasta(">seq1 first record\nATGCATGC\n>seq2\nATGGTG-A\n>seq3 third record\nATGCAT-C");
     e
 }
 
@@ -171,9 +171,9 @@ fn viewport_pads_short_rows_with_spaces() {
     let mut out = vec![0u8; rows * cols];
     let n = e.update_viewport_into(0, 2, 0, 11, &mut out);
     assert_eq!(n, rows * cols);
-    assert_eq!(&out[0..cols],        b"ATGCATGC    ");
-    assert_eq!(&out[cols..2*cols],   b"ATGGTG-A    ");
-    assert_eq!(&out[2*cols..3*cols], b"ATGCAT-C    ");
+    assert_eq!(&out[0..cols], b"ATGCATGC    ");
+    assert_eq!(&out[cols..2 * cols], b"ATGGTG-A    ");
+    assert_eq!(&out[2 * cols..3 * cols], b"ATGCAT-C    ");
 }
 
 /// When start_col is beyond the end of every sequence every row is
@@ -245,7 +245,7 @@ fn delete_at_subset_removes_from_targets_only() {
     // Row 0 untouched (no '-' at col 6).
     let result = e.delete_at_subset(&[1, 2], 6);
     assert_eq!(result, ""); // success
-    // Row 0: completely untouched -> "ATGCATGC" (len 8)
+                            // Row 0: completely untouched -> "ATGCATGC" (len 8)
     assert_eq!(e.get_row_length(0), 8);
     assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.get_base(0, 6), b'G');
@@ -382,7 +382,7 @@ fn multi_step_undo_redo_sequence() {
     assert!(e.undo()); // undo substitute
     assert_eq!(e.get_base(0, 0), b'A');
     assert!(!e.undo()); // stack empty
-    // Redo all three.
+                        // Redo all three.
     assert!(e.redo());
     assert_eq!(e.get_base(0, 0), b'T');
     assert!(e.redo());
@@ -434,7 +434,7 @@ fn delete_gap_succeeds() {
     // Row 1 col 6 is '-', Row 2 col 6 is '-'.
     let err = e.delete_at_subset(&[1, 2], 6);
     assert_eq!(err, ""); // success
-    // Row 1 col 6 was '-', removed, '-' appended at end
+                         // Row 1 col 6 was '-', removed, '-' appended at end
     assert_eq!(e.get_base(1, 6), b'A');
     // Row 0 completely untouched
     assert_eq!(e.get_base(0, 6), b'G');
@@ -451,7 +451,7 @@ fn mutate_non_iupac_returns_error() {
 
     // Directly corrupt a cell to a non-IUPAC, non-gap character (a space),
     // then attempt to mutate it — must be rejected (source validation).
-    e.sequences[1][6] = b' ';
+    e.nucleotide_sequences[1][6] = b' ';
     let err = e.mutate_base_subset(&[1], 6, b'T');
     assert_eq!(err, ERR_MUTATE_NOT_IUPAC);
     assert_eq!(e.get_base(1, 6), b' '); // unchanged
@@ -672,4 +672,45 @@ fn move_rows_preserves_sequence_data() {
     assert_eq!(e.get_base(0, 3), b'G'); // seq2[3] = 'G'
     assert_eq!(e.get_base(1, 0), b'A'); // seq1[0] = 'A'
     assert_eq!(e.get_base(1, 3), b'C'); // seq1[3] = 'C'
+}
+
+// ── search_record_names ──
+//
+// `search_record_names` is a private `MsaEngine` method, not a free function
+// — it can only be called on an `&self`/`&mut self` engine instance, and only
+// from this crate (or a descendant module like this one, via `use super::*;`).
+
+#[test]
+fn search_record_names_matches_substring_in_every_name() {
+    let e = engine_with_sample(); // names: "seq1", "seq2", "seq3"
+
+    let result = e.search_record_names("seq");
+
+    assert_eq!(result.query, "seq");
+    assert_eq!(result.num_matches, 3);
+    assert_eq!(result.positions.len(), 3);
+    assert_eq!(result.positions[0].row, 0);
+    assert_eq!(result.positions[1].row, 1);
+    assert_eq!(result.positions[2].row, 2);
+    assert!(result.positions.iter().all(|m| m.is_record_name));
+}
+
+#[test]
+fn search_record_names_matches_only_matching_rows() {
+    let e = engine_with_sample(); // names: "seq1", "seq2", "seq3"
+
+    let result = e.search_record_names("seq2");
+
+    assert_eq!(result.num_matches, 1);
+    assert_eq!(result.positions[0].row, 1);
+}
+
+#[test]
+fn search_record_names_returns_empty_when_no_sequences_loaded() {
+    let e = MsaEngine::new();
+
+    let result = e.search_record_names("seq");
+
+    assert_eq!(result.num_matches, 0);
+    assert!(result.positions.is_empty());
 }

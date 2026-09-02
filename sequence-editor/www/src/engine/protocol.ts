@@ -40,6 +40,20 @@ export interface ViewportResult {
   startCol: number;
 }
 
+/**The following interfaces match the Rust `search_algorithms::Match` and search_algorithms::SearchResult structures. */
+export interface SearchMatch {
+  row: number;
+  col: number;
+  is_nucleotide: boolean;
+  is_amino_acid: boolean;
+  is_record_name: boolean;
+}
+export interface SearchResult {
+  query: string;
+  num_matches: number;
+  positions: SearchMatch[];
+}
+
 // ---------------------------------------------------------------------------
 // Main → Worker requests
 // ---------------------------------------------------------------------------
@@ -47,13 +61,24 @@ export interface ViewportResult {
 export type EngineRequest =
   | { type: "load"; reqId: number; fasta: string }
   | {
-      type: "viewport";
-      reqId: number;
-      startRow: number;
-      endRow: number;
-      startCol: number;
-      endCol: number;
-    }
+    type: "viewport";
+    reqId: number;
+    startRow: number;
+    endRow: number;
+    startCol: number;
+    endCol: number;
+  }
+  | { type: "search"; reqId: number; query: string; checkRecordNames: boolean }
+  | {
+    type: "translate";
+    reqId: number;
+    startRow: number;
+    endRow: number;
+    startCol: number;
+    endCol: number;
+    /** 0-indexed reading frame (0, 1, or 2). */
+    readingFrame: number;
+  }
   | { type: "mutate"; reqId: number; rows: Uint32Array; col: number; base: number }
   | { type: "insert"; reqId: number; rows: Uint32Array; col: number }
   | { type: "delete"; reqId: number; rows: Uint32Array; col: number }
@@ -100,36 +125,36 @@ export interface EngineTiming {
 export type EngineResponse =
   | { type: "ready" }
   | {
-      /**
-       * Sent once after the worker creates its SharedArrayBuffer. The main
-       * thread holds this reference and reads viewport bytes directly from it
-       * on every subsequent viewport response — no per-call transfer.
-       */
-      type: "sab";
-      buffer: SharedArrayBuffer;
-      /** Maximum bytes the SAB can hold (rows*cols upper bound). */
-      capacity: number;
-    }
+    /**
+     * Sent once after the worker creates its SharedArrayBuffer. The main
+     * thread holds this reference and reads viewport bytes directly from it
+     * on every subsequent viewport response — no per-call transfer.
+     */
+    type: "sab";
+    buffer: SharedArrayBuffer;
+    /** Maximum bytes the SAB can hold (rows*cols upper bound). */
+    capacity: number;
+  }
   | {
-      type: "result";
-      reqId: number;
-      ok: true;
-      data?: EngineResultData;
-      /** For viewport responses: the transferred byte buffer (row-major). */
-      transfer?: ArrayBuffer;
-      /**
-       * For SAB-based viewport responses: number of bytes the worker wrote
-       * into the shared buffer. The main thread reads `sab[0..len]`.
-       */
-      sabLen?: number;
-      timing?: EngineTiming;
-    }
+    type: "result";
+    reqId: number;
+    ok: true;
+    data?: EngineResultData;
+    /** For viewport responses: the transferred byte buffer (row-major). */
+    transfer?: ArrayBuffer;
+    /**
+     * For SAB-based viewport responses: number of bytes the worker wrote
+     * into the shared buffer. The main thread reads `sab[0..len]`.
+     */
+    sabLen?: number;
+    timing?: EngineTiming;
+  }
   | {
-      type: "result";
-      reqId: number;
-      ok: false;
-      errorCode: string;
-    }
+    type: "result";
+    reqId: number;
+    ok: false;
+    errorCode: string;
+  }
   | { type: "error"; reqId: number; message: string };
 
 export type EngineResultData =
@@ -137,4 +162,6 @@ export type EngineResultData =
   | boolean
   | string
   | Meta
-  | ViewportResult;
+  | ViewportResult
+  | SearchResult
+  | SearchResult[];

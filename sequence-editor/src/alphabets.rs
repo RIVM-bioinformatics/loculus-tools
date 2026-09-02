@@ -86,3 +86,57 @@ pub fn is_iupac(c: u8) -> bool {
 pub fn is_gap(c: u8) -> bool {
     GAP.contains(c)
 }
+
+/// Translate a DNA codon to its standard-code amino acid, as an ASCII byte
+/// (`b'*'` for stop). Unknown/ambiguous codons map to `b'X'`.
+///
+/// A `const fn` match instead of a `HashMap`: `HashMap` can't be built at
+/// compile time in stable Rust (its hasher isn't `const`-evaluable), whereas
+/// this is a plain jump table the compiler can fold away entirely.
+pub const fn translate_codon(codon: [u8; 3]) -> u8 {
+    match &codon {
+        // Phe
+        b"TTT" | b"TTC" => b'F',
+        // Leu
+        b"TTA" | b"TTG" | b"CTT" | b"CTC" | b"CTA" | b"CTG" => b'L',
+        // Ile
+        b"ATT" | b"ATC" | b"ATA" => b'I',
+        // Met
+        b"ATG" => b'M',
+        // Val
+        b"GTT" | b"GTC" | b"GTA" | b"GTG" => b'V',
+        // Ser
+        b"TCT" | b"TCC" | b"TCA" | b"TCG" | b"AGT" | b"AGC" => b'S',
+        // Pro
+        b"CCT" | b"CCC" | b"CCA" | b"CCG" => b'P',
+        // Thr
+        b"ACT" | b"ACC" | b"ACA" | b"ACG" => b'T',
+        // Ala
+        b"GCT" | b"GCC" | b"GCA" | b"GCG" => b'A',
+        // Tyr
+        b"TAT" | b"TAC" => b'Y',
+        // Stop
+        b"TAA" | b"TAG" | b"TGA" => b'*',
+        // His
+        b"CAT" | b"CAC" => b'H',
+        // Gln
+        b"CAA" | b"CAG" => b'Q',
+        // Asn
+        b"AAT" | b"AAC" => b'N',
+        // Lys
+        b"AAA" | b"AAG" => b'K',
+        // Asp
+        b"GAT" | b"GAC" => b'D',
+        // Glu
+        b"GAA" | b"GAG" => b'E',
+        // Cys
+        b"TGT" | b"TGC" => b'C',
+        // Trp
+        b"TGG" => b'W',
+        // Arg
+        b"CGT" | b"CGC" | b"CGA" | b"CGG" | b"AGA" | b"AGG" => b'R',
+        // Gly
+        b"GGT" | b"GGC" | b"GGA" | b"GGG" => b'G',
+        _ => b'X',
+    }
+}

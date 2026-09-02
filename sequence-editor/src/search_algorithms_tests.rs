@@ -6,7 +6,7 @@
 //! Because it is a sibling module of `search_algorithms` at the crate root,
 //! it imports the search items via `crate::search_algorithms`.
 
-use crate::search_algorithms::*;
+use crate::search_algorithms::{fm_index_search, naive_search, MatrixType};
 
 // A single real-world-shaped sequence, written across multiple source lines
 // for readability. The trailing `\` on each line is a Rust string-literal
@@ -71,22 +71,22 @@ fn naive_search_finds_matches_in_every_row() {
     assert_eq!(result.positions[1].row, 1);
 }
 
-// #[test]
-// fn fm_index_search_finds_matches_in_every_row() {
-//     let matrix = make_matrix();
-//     let query = "cattggcatggaagtcacaccttcgggaacgtggttgacct";
+#[test]
+fn fm_index_search_finds_matches_in_every_row() {
+    let matrix = make_matrix();
+    let query = "cattggcatggaagtcacaccttcgggaacgtggttgacct";
 
-//     let result = fm_index_search(&matrix, query, MatrixType::Nucleotide);
+    let result = fm_index_search(&matrix, query, MatrixType::Nucleotide);
 
-//     assert_eq!(result.query, query);
-//     assert_eq!(result.num_matches, 2);
-//     assert_eq!(result.positions.len(), 2);
-//     // `fm_index_search` is suffix-array based and doesn't preserve row order
-//     // the way the naive linear scan does, so compare rows as a set.
-//     let mut rows: Vec<usize> = result.positions.iter().map(|m| m.row).collect();
-//     rows.sort_unstable();
-//     assert_eq!(rows, vec![0, 1]);
-// }
+    assert_eq!(result.query, query);
+    assert_eq!(result.num_matches, 2);
+    assert_eq!(result.positions.len(), 2);
+    // `fm_index_search` is suffix-array based and doesn't preserve row order
+    // the way the naive linear scan does, so compare rows as a set.
+    let mut rows: Vec<usize> = result.positions.iter().map(|m| m.row).collect();
+    rows.sort_unstable();
+    assert_eq!(rows, vec![0, 1]);
+}
 
 #[test]
 fn naive_search_reports_no_matches_for_missing_query() {
@@ -97,11 +97,11 @@ fn naive_search_reports_no_matches_for_missing_query() {
     assert!(result.positions.is_empty());
 }
 
-// #[test]
-// fn fm_index_search_reports_no_matches_for_missing_query() {
-//     let matrix = make_matrix();
-//     let result = fm_index_search(&matrix, "this-query-does-not-exist", MatrixType::Nucleotide);
+#[test]
+fn fm_index_search_reports_no_matches_for_missing_query() {
+    let matrix = make_matrix();
+    let result = fm_index_search(&matrix, "this-query-does-not-exist", MatrixType::Nucleotide);
 
-//     assert_eq!(result.num_matches, 0);
-//     assert!(result.positions.is_empty());
-// }
+    assert_eq!(result.num_matches, 0);
+    assert!(result.positions.is_empty());
+}

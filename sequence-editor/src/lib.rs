@@ -9,8 +9,8 @@
 mod alphabets;
 mod search_algorithms;
 
-use alphabets::{is_gap, is_iupac, translate_codon};
-use search_algorithms::{naive_search, Match, MatrixType, SearchResult};
+use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
+use search_algorithms::{run_search, Match, MatrixType, SearchAlgorithm, SearchResult};
 use wasm_bindgen::prelude::*;
 
 // Bound to the JS `console.log`, so this works in both the main thread and
@@ -368,48 +368,64 @@ impl MsaEngine {
         true
     }
 
+    fn is_valid_amino_acid_query(&self, query: &str) -> bool {
+        for b in query.bytes() {
+            if !is_amino(b) && !is_gap(b) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn is_valid_record_name_query(&self, query: &str) -> bool {
+        for b in query.bytes() {
+            // Allow all ASCII characters for record names
+            if b > 127 {
+                return false;
+            }
+        }
+        true
+    }
+
     fn search_nucleotide(&self, query: &str) -> SearchResult {
         if self.nucleotide_sequences.is_empty() || !self.is_valid_nucleotide_query(query) {
-            SearchResult {
-                query: query.to_string(),
-                num_matches: 0,
-                positions: Vec::new(),
-            }
+            SearchResult::empty(query)
         } else {
-            naive_search(&self.nucleotide_sequences, query, MatrixType::Nucleotide)
+            run_search(
+                &SearchAlgorithm::FmIndex,
+                &self.nucleotide_sequences,
+                query,
+                MatrixType::Nucleotide,
+            )
         }
     }
 
     fn search_amino_acid(&self, query: &str) -> SearchResult {
-        if self.aminoacid_sequences.is_empty() {
-            SearchResult {
-                query: query.to_string(),
-                num_matches: 0,
-                positions: Vec::new(),
-            }
-        } else {
-            let amino_acid_bytes: Vec<Vec<u8>> = self
-                .aminoacid_sequences
-                .iter()
-                .map(|s| {
-                    let mut combined = s.frame_1.clone();
-                    combined.extend_from_slice(&s.frame_2);
-                    combined.extend_from_slice(&s.frame_3);
-                    combined
-                })
-                .collect();
-
-            naive_search(&amino_acid_bytes, query, MatrixType::AminoAcid)
+        if self.aminoacid_sequences.is_empty() || !self.is_valid_amino_acid_query(query) {
+            return SearchResult::empty(query);
         }
+        let amino_acid_bytes: Vec<Vec<u8>> = self
+            .aminoacid_sequences
+            .iter()
+            .map(|s| {
+                let mut combined = s.frame_1.clone();
+                combined.extend_from_slice(&s.frame_2);
+                combined.extend_from_slice(&s.frame_3);
+                combined
+            })
+            .collect();
+
+        run_search(
+            &SearchAlgorithm::FmIndex,
+            &amino_acid_bytes,
+            query,
+            MatrixType::AminoAcid,
+        )
     }
 
     fn search_record_names(&self, query: &str) -> SearchResult {
-        if self.names.is_empty() {
-            SearchResult {
-                query: query.to_string(),
-                num_matches: 0,
-                positions: Vec::new(),
-            }
+        if self.names.is_empty() || !self.is_valid_record_name_query(query) {
+            SearchResult::empty(query)
         } else {
             let positions: Vec<Match> = self
                 .names
@@ -420,9 +436,7 @@ impl MsaEngine {
                         Some(Match {
                             row,
                             col: 0,
-                            is_nucleotide: false,
-                            is_amino_acid: false,
-                            is_record_name: true,
+                            matrix_type: MatrixType::RecordName,
                         })
                     } else {
                         None
@@ -450,18 +464,20 @@ impl MsaEngine {
         let record_names_result = if check_record_names {
             self.search_record_names(&query)
         } else {
-            SearchResult {
-                query: query.to_string(),
-                num_matches: 0,
-                positions: Vec::new(),
-            }
+            SearchResult::empty(&query)
         };
 
-        let combined_result = vec![nucleotide_result, amino_acid_result, record_names_result];
-        console_log!(
-            "Number of matches: {}",
-            combined_result.iter().map(|r| r.num_matches).sum::<usize>()
-        );
+        let mut all_positions = nucleotide_result.positions;
+        all_positions.extend(amino_acid_result.positions);
+        all_positions.extend(record_names_result.positions);
+
+        let combined_result = SearchResult {
+            query: query.to_string(),
+            num_matches: all_positions.len(),
+            positions: all_positions,
+        };
+
+        console_log!("Number of matches: {}", combined_result.num_matches);
 
         serde_wasm_bindgen::to_value(&combined_result)
             .map_err(|e| JsValue::from_str(&e.to_string()))

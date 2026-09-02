@@ -67,7 +67,7 @@ export interface EngineClient {
     startCol: number;
     endCol: number;
   }) => Promise<ViewportResult & { bytes: Uint8Array }>;
-  search: (query: string, checkRecordNames?: boolean) => Promise<SearchResult[]>;
+  search: (query: string, checkRecordNames?: boolean) => Promise<SearchResult>;
   translate: (r: {
     startRow: number;
     endRow: number;
@@ -269,7 +269,7 @@ export function useEngineWorker(): EngineClient {
 
   const search = useCallback(
     (query: string, checkRecordNames = false) =>
-      send<SearchResult[]>({ type: "search", query, checkRecordNames }),
+      send<SearchResult>({ type: "search", query, checkRecordNames }),
     [send]
   );
 

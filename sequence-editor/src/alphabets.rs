@@ -69,9 +69,29 @@ pub const IUPAC: &Alphabet = {
 /// Gap character alphabet -> only `-`.
 pub const GAP: &Alphabet = &Alphabet::new(b"-");
 
-/// Amino acid alphabet stub
-///! Not yet implemented. Will be expanded when protein translations are added.
-pub const AMINO: &Alphabet = &Alphabet::new(b"");
+/// IUPAC amino acid alphabet. Includes both upper and lower case.
+///
+/// Symbols: F, L, I, M, V, S, P, T, A, Y, H, Q, N, K, D, E, C, W, R, G, B, Z, X, *
+/// (and their lower-case equivalents).
+pub const AMINO: &Alphabet = {
+    const UPPER: &[u8] = b"FLIMVSPTAYHQNKDECWRGBZX*";
+    const fn build_aa() -> Alphabet {
+        let mut table = [0u64; 4];
+        let mut i = 0;
+        while i < UPPER.len() {
+            let upper_char = UPPER[i];
+            table[(upper_char as usize) >> 6] |= 1u64 << (upper_char as u32 & 63);
+            // Also insert lower-case variant
+            let lower_char = upper_char.to_ascii_lowercase();
+            table[(lower_char as usize) >> 6] |= 1u64 << (lower_char as u32 & 63);
+            i += 1;
+        }
+        Alphabet { table }
+    }
+
+    const ALPH: &Alphabet = &build_aa();
+    ALPH
+};
 
 // Convenience helpers & validators
 
@@ -85,6 +105,11 @@ pub fn is_iupac(c: u8) -> bool {
 #[inline]
 pub fn is_gap(c: u8) -> bool {
     GAP.contains(c)
+}
+
+#[inline]
+pub fn is_amino(c: u8) -> bool {
+    AMINO.contains(c)
 }
 
 /// Translate a DNA codon to its standard-code amino acid, as an ASCII byte

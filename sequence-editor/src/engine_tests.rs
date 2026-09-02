@@ -744,7 +744,10 @@ fn search_record_names_matches_substring_in_every_name() {
     assert_eq!(result.positions[0].row, 0);
     assert_eq!(result.positions[1].row, 1);
     assert_eq!(result.positions[2].row, 2);
-    assert!(result.positions.iter().all(|m| m.is_record_name));
+    assert!(result
+        .positions
+        .iter()
+        .all(|m| m.matrix_type == MatrixType::RecordName));
 }
 
 #[test]

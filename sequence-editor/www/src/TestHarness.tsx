@@ -176,13 +176,8 @@ export default function TestHarness() {
       // carries `is_nucleotide`/`is_amino_acid`/`is_record_name` flags so the
       // render below can still label which matrix each match came from.
       const results = await eng.search(searchQuery, includeRecordNames);
-      const combined: SearchResult = {
-        query: searchQuery,
-        num_matches: results.reduce((sum, r) => sum + r.num_matches, 0),
-        positions: results.flatMap((r) => r.positions),
-      };
-      setSearchResult(combined);
-      setStatus(`Found ${combined.num_matches} match(es) for "${searchQuery}"`);
+      setSearchResult(results);
+      setStatus(`Found ${results.num_matches} match(es) for "${searchQuery}"`);
     } catch (e) {
       setErr(String(e));
     }
@@ -383,18 +378,11 @@ export default function TestHarness() {
                 {searchResult.num_matches} match(es) for "{searchResult.query}"
                 {searchResult.num_matches > 0 && (
                   <Box component="ul" sx={{ m: 0, pl: 2 }}>
-                    {searchResult.positions.map((m, i) => {
-                      const kind = m.is_nucleotide
-                        ? "nucleotide"
-                        : m.is_amino_acid
-                        ? "amino acid"
-                        : "record name";
-                      return (
-                        <li key={i}>
-                          [{kind}] row {m.row}, col {m.col}
-                        </li>
-                      );
-                    })}
+                    {searchResult.positions.map((m, i) => (
+                      <li key={i}>
+                        [{m.matrix_type}] row {m.row}, col {m.col}
+                      </li>
+                    ))}
                   </Box>
                 )}
               </Alert>

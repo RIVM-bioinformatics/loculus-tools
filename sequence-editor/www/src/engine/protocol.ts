@@ -40,13 +40,17 @@ export interface ViewportResult {
   startCol: number;
 }
 
+export enum MatrixType {
+  Nucleotide = "nucleotide",
+  AminoAcid = "amino_acid",
+  RecordName = "record_name",
+}
+
 /**The following interfaces match the Rust `search_algorithms::Match` and search_algorithms::SearchResult structures. */
 export interface SearchMatch {
   row: number;
   col: number;
-  is_nucleotide: boolean;
-  is_amino_acid: boolean;
-  is_record_name: boolean;
+  matrix_type: MatrixType;
 }
 export interface SearchResult {
   query: string;
@@ -164,4 +168,3 @@ export type EngineResultData =
   | Meta
   | ViewportResult
   | SearchResult
-  | SearchResult[];

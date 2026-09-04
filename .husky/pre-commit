@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Get list of staged files
+STAGED_FILES=$(git diff --cached --name-only)
+
+# Check if any package.json or pnpm-lock.yaml are staged (root or any package)
+PACKAGE_FILES_TO_CHECK=""
+if echo "$STAGED_FILES" | grep -q "package\.json$"; then
+  PACKAGE_FILES_TO_CHECK="$PACKAGE_FILES_TO_CHECK package.json"
+fi
+if echo "$STAGED_FILES" | grep -q "pnpm-lock\.yaml$"; then
+  PACKAGE_FILES_TO_CHECK="$PACKAGE_FILES_TO_CHECK pnpm-lock.yaml"
+fi
+# Check package.json files in packages/*
+for pkg_file in $(echo "$STAGED_FILES" | grep -E "packages/[/]+/package\.json$"); do
+  PACKAGE_FILES_TO_CHECK="$PACKAGE_FILES_TO_CHECK $pkg_file"
+done
+
+# Only perform the check if relevant files are staged
+if [ -n "$PACKAGE_FILES_TO_CHECK" ]; then
+  # Check if staged package files contain 'link:../gen-epix-ui'
+  if grep -q 'link:..' $PACKAGE_FILES_TO_CHECK; then
+    echo "Error: Staged package files contain a local file reference to @gen-epix/ui."
+    echo "Please run installDep.sh to restore the dependency before committing."
+    exit 1
+  fi
+fi
+
+# If we get here, the check passed
+exit 0

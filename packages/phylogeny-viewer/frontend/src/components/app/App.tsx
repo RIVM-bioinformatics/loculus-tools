@@ -5,7 +5,6 @@ import {
 } from '@mui/material';
 
 import { theme } from '../../theme/theme';
-import { preloaderService } from '../../services/PreloaderService';
 import { useDatasetStore } from '../../stores/datasetStore';
 import { useCalculationStore } from '../../stores/calculationStore';
 import { useTreeViewStore } from '../../stores/treeViewStore';
@@ -21,12 +20,7 @@ export const App = () => {
   const setColorByField = useMetadataStore((state) => state.setColorByField);
 
   useEffect(() => {
-    // 2. Start preloading WASM modules (FastTree & TN93) in parallel
-    preloaderService.preloadAll().catch((err) => {
-      console.warn('[App] Background WASM preload warning:', err);
-    });
-
-    // 3. Scan URL parameters for deep-linking
+    // Scan URL parameters for deep-linking
     const urlParams = new URLSearchParams(window.location.search);
     const inputFastaUrl = urlParams.get('input-fasta');
     const inputMetadataUrl = urlParams.get('input-metadata');

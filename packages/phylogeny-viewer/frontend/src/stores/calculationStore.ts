@@ -6,8 +6,8 @@ import type {
   FastTreeMode,
   TreeEngine,
 } from '../models/calculation';
-import { FastTreeUtil } from '../utils/FastTreeUtil';
-import { Tn93Util } from '../utils/Tn93Util';
+import { FastTreeAioliService } from '../services/FastTreeAioliService';
+import { TN93AioliService } from '../services/TN93AioliService';
 
 import { useDatasetStore } from './datasetStore';
 
@@ -54,9 +54,9 @@ export const useCalculationStore = create<CalculationState>((set, get) => ({
       let generatedNewick = '';
 
       if (engine === 'tn93') {
-        generatedNewick = await Tn93Util.calculateTN93Tree(rawFasta);
+        generatedNewick = await TN93AioliService.getInstance().getTree(rawFasta);
       } else {
-        generatedNewick = await FastTreeUtil.calculateFastTree(rawFasta, fastTreeMode, fastTreeParams);
+        generatedNewick = await FastTreeAioliService.getInstance().getTree(rawFasta, fastTreeMode, fastTreeParams);
       }
 
       const durationMs = Math.round(performance.now() - startTime);

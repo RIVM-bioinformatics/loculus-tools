@@ -9,7 +9,7 @@
     "start-phylogeny-viewer": "pnpm --filter @rivm-loculus-tools/phylogeny-viewer start",
     "update-exports": "lerna run update-exports",
     "clean": "lerna clean && rm -fr node_modules",
-    "validate": "lerna run validate --concurrency 1 --stream",
+    "validate": "lerna run validate --stream",
     "lint": "lerna run lint",
     "lint-fix": "lerna run lint-fix",
     "check-types": "lerna run check-types",

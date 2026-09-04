@@ -219,6 +219,7 @@ export const DataImportModal = () => {
     >
       <DialogTitle sx={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}>
         <Typography
+          component={'span'}
           sx={{ fontWeight: 700 }}
           variant={'h6'}
         >

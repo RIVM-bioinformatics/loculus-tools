@@ -1,8 +1,8 @@
 {
   "packages": [
-    "frontend/*",
-    "backend/*",
-    "wasm/*"
+    "packages/**/frontend",
+    "packages/**/engine",
+    "packages/**/wasm"
   ],
   "version": "0.0.0",
   "npmClient": "pnpm"

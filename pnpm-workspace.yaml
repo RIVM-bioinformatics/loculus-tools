@@ -8,7 +8,7 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - '@gen-epix/ui-core@2.2.0 || 3.0.2'
-  - '@gen-epix/ui-phylogenetic-tree@2.2.0 || 3.0.2'
+  - '@gen-epix/ui-phylogenetic-tree@2.2.0 || 3.0.2 || 3.0.3'
   - '@gen-epix/eslint-config@0.5.0'
   - '@typescript-eslint/eslint-plugin@8.69.0'
   - '@typescript-eslint/parser@8.69.0'

@@ -80,4 +80,18 @@ export class FastaUtil {
       sequences,
     };
   }
+
+  public static stripFastaHeaders(fastaContent: string): string {
+    const lines = fastaContent.split('\n');
+    const strippedLines = lines.map((line) => {
+      if (line.startsWith('>')) {
+        const cleanHeader = line.substring(1).trim();
+        const firstPart = cleanHeader.split(/[|\t]/)[0].trim();
+        const safeId = firstPart.replace(/[():;,']/g, '_');
+        return `>${safeId}`;
+      }
+      return line;
+    });
+    return strippedLines.join('\n');
+  }
 }

@@ -9,15 +9,29 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: [
-      '@gen-epix/ui',
-      '@gen-epix/ui-casedb',
       '@biowasm/aioli',
       'neighbor-joining',
-      'decimal.js',
       'lodash',
     ],
   },
   plugins: [react()],
+  resolve: {
+    dedupe: [
+      '@emotion/cache',
+      '@emotion/react',
+      '@emotion/styled',
+      '@mui/icons-material',
+      '@mui/material',
+      '@mui/styled-engine',
+      '@mui/system',
+      '@mui/utils',
+      '@mui/x-date-pickers',
+      'i18next',
+      'react-dom',
+      'react-i18next',
+      'react',
+    ],
+  },
   server: {
     host: true,
     port: 5173,

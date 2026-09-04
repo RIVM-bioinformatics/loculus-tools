@@ -19,7 +19,7 @@
     "@emotion/styled": "11.14.1",
     "@gen-epix/ui-core": "3.0.2",
     "@gen-epix/ui-core-components": "4.0.2",
-    "@gen-epix/ui-phylogenetic-tree": "3.0.2",
+    "@gen-epix/ui-phylogenetic-tree": "3.0.3",
     "@hookform/resolvers": "5.9.1",
     "@mui/icons-material": "9.4.0",
     "@mui/material": "9.4.0",

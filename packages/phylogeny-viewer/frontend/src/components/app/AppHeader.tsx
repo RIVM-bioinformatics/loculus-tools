@@ -31,11 +31,7 @@ import { useDatasetStore } from '../../stores/datasetStore';
 import { useCalculationStore } from '../../stores/calculationStore';
 import { useTreeViewStore } from '../../stores/treeViewStore';
 import { useMetadataStore } from '../../stores/metadataStore';
-import {
-  downloadCanvasAsImage,
-  downloadCanvasAsSvg,
-  downloadNewickFile,
-} from '../../services/ExportService';
+import { ExportUtil } from '../../utils/ExportUtil';
 
 export const AppHeader = () => {
   const drawerOpen = useTreeViewStore((state) => state.drawerOpen);
@@ -65,7 +61,7 @@ export const AppHeader = () => {
 
   const onClickExportNewick = useCallback(() => {
     if (newick) {
-      downloadNewickFile(newick, 'phylogenetic_tree.nwk');
+      ExportUtil.downloadNewickFile(newick, 'phylogenetic_tree.nwk');
     }
     onCloseExportMenu();
   }, [newick, onCloseExportMenu]);
@@ -75,7 +71,7 @@ export const AppHeader = () => {
     if (!canvas) {
       return;
     }
-    downloadCanvasAsImage(canvas, 'png', 'phylogenetic_tree');
+    ExportUtil.downloadCanvasAsImage(canvas, 'png', 'phylogenetic_tree');
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 
@@ -84,7 +80,7 @@ export const AppHeader = () => {
     if (!canvas) {
       return;
     }
-    downloadCanvasAsImage(canvas, 'jpeg', 'phylogenetic_tree');
+    ExportUtil.downloadCanvasAsImage(canvas, 'jpeg', 'phylogenetic_tree');
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 
@@ -93,7 +89,7 @@ export const AppHeader = () => {
     if (!canvas) {
       return;
     }
-    downloadCanvasAsSvg(canvas, 'phylogenetic_tree.svg');
+    ExportUtil.downloadCanvasAsSvg(canvas, 'phylogenetic_tree.svg');
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 

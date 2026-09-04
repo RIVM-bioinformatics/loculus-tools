@@ -1,12 +1,13 @@
 import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 
-import type { AioliService } from '../classes/AioliServiceAbstract';
-import { AioliServiceAbstract } from '../classes/AioliServiceAbstract';
 import type {
   FastTreeMLParams,
   FastTreeMode,
 } from '../models/calculation';
 import { FastaUtil } from '../utils/FastaUtil';
+
+import type { AioliService } from './AioliServiceAbstract';
+import { AioliServiceAbstract } from './AioliServiceAbstract';
 
 export class FastTreeAioliService extends AioliServiceAbstract implements AioliService {
   private static __instance: FastTreeAioliService;

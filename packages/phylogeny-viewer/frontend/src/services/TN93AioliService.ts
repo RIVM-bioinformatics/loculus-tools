@@ -1,9 +1,10 @@
 import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 import { RapidNeighborJoining } from 'neighbor-joining';
 
-import type { AioliService } from '../classes/AioliServiceAbstract';
-import { AioliServiceAbstract } from '../classes/AioliServiceAbstract';
 import { FastaUtil } from '../utils/FastaUtil';
+
+import type { AioliService } from './AioliServiceAbstract';
+import { AioliServiceAbstract } from './AioliServiceAbstract';
 
 type DistanceEntry = {
   distance: number;

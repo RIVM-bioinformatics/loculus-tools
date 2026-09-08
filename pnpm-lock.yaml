@@ -36,14 +36,14 @@ importers:
         specifier: 11.14.1
         version: 11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2)
       '@gen-epix/ui-core':
-        specifier: 3.0.2
-        version: 3.0.2(react@19.2.8)
+        specifier: link:../../../../gen-epix-ui/packages/ui-core
+        version: link:../../../../gen-epix-ui/packages/ui-core
       '@gen-epix/ui-core-components':
-        specifier: 4.0.2
-        version: 4.0.2(4c17822a29a549c52104f38e0d43790e)
+        specifier: link:../../../../gen-epix-ui/packages/ui-core-components
+        version: link:../../../../gen-epix-ui/packages/ui-core-components
       '@gen-epix/ui-phylogenetic-tree':
-        specifier: 3.0.3
-        version: 3.0.3(@gen-epix/ui-core@3.0.2(react@19.2.8))(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+        specifier: link:../../../../gen-epix-ui/packages/ui-phylogenetic-tree
+        version: link:../../../../gen-epix-ui/packages/ui-phylogenetic-tree
       '@hookform/resolvers':
         specifier: 5.9.1
         version: 5.9.1(react-hook-form@7.87.0(react@19.2.8))(yup@1.7.1)(zod@4.5.4)
@@ -62,6 +62,9 @@ importers:
       '@mui/utils':
         specifier: 9.4.0
         version: 9.4.0(@types/react@19.2.18)(react@19.2.8)
+      i18next:
+        specifier: 26.4.2
+        version: 26.4.2(typescript@5.7.3)
       lodash:
         specifier: 4.18.1
         version: 4.18.1
@@ -80,6 +83,9 @@ importers:
       react-hook-form:
         specifier: 7.87.0
         version: 7.87.0(react@19.2.8)
+      react-i18next:
+        specifier: 17.0.13
+        version: 17.0.13(i18next@26.4.2(typescript@5.7.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.7.3)
       uuid:
         specifier: 14.0.2
         version: 14.0.2
@@ -390,29 +396,6 @@ packages:
       eslint: 10.9.1
       eslint-plugin-import-x: 4.16.2
       typescript: 6.0.3
-
-  '@gen-epix/ui-core-components@4.0.2':
-    resolution: {integrity: sha512-gc4mnAlM5t2S/em23oiiyNgcc1fKKBRjBhj6JPzem/lwOyRKalWzih6FHPj2FOrUSg48rIOzMqX078uj17ODhg==}
-    peerDependencies:
-      '@gen-epix/ui-core': ^3.0.2
-      '@mui/icons-material': '*'
-      '@mui/material': '*'
-      '@mui/utils': '*'
-      i18next: '*'
-      react: '*'
-      react-i18next: '*'
-
-  '@gen-epix/ui-core@3.0.2':
-    resolution: {integrity: sha512-cnQ79Qql7xgX12lr4jhNmQXbnVARiInwWk329c87dHhBWdGVipMSI7OduMdv5e8d179ky8zMFH8ClFeIMm7L6Q==}
-    peerDependencies:
-      react: '*'
-
-  '@gen-epix/ui-phylogenetic-tree@3.0.3':
-    resolution: {integrity: sha512-QcXF76CC3Kq/ij6JpweCMaWJ/aCIcde8tLH4aHYIXy/CEMwdD2uu5WexQ4M4pmDm7t4rRE8wYrQb1+bl0vNxMw==}
-    peerDependencies:
-      '@gen-epix/ui-core': ^3.0.2
-      '@mui/material': '*'
-      react: '*'
 
   '@hookform/resolvers@5.9.1':
     resolution: {integrity: sha512-7b7vsbraJxKgjVSA1Nur9tLwj539WGJUBLA7QNvXnFoT2pM5Z7G+6rlukk4B2/QrTZy6huRtH6wKeESPKuIr6w==}
@@ -1791,9 +1774,6 @@ packages:
       supports-color:
         optional: true
 
-  decimal.js@10.6.0:
-    resolution: {integrity: sha512-YpgQiITW3JXGntzdUmyUR1V812Hn8T1YVXhCu+wO3OpS4eU9l4YdD3qjyiKdV6mvV29zapkMeD390UVEf2lkUg==}
-
   dedent@1.5.3:
     resolution: {integrity: sha512-NHQtfOOW68WD8lgypbLA5oT+Bt0xXJhiYvoR6SmmNXZfpzOGXwdKWmcwG8N7PwVVWV3eF/68nmD9BaJSsTBhyQ==}
     peerDependencies:
@@ -2420,8 +2400,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  i18next@26.4.1:
-    resolution: {integrity: sha512-9YbX5E6gd1H+yaOSX3izCsPj5iWXyH7X4oC+iuHHJJw8AeHglzOK5SJf+1CHxaYKYigcea+8jvzSxqYx46YvyA==}
+  i18next@26.4.2:
+    resolution: {integrity: sha512-RX+R0VLg13IbvRuJSxnqykUFS9vQZTl8wYpWPCIUDWVrSGjsQywB5Y+pjzrkboxGAuYfJZVH1InFTdgBdxq6ug==}
     peerDependencies:
       typescript: ^5 || ^6 || ^7
     peerDependenciesMeta:
@@ -3775,17 +3755,6 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  use-cleanup-callback@1.3.0:
-    resolution: {integrity: sha512-mwUyKA/kLL70Qu2yID5bc8X0Cuw71P6dsmo6xFHvW6eWNFRMyFm4TPk4lmr8Rz8Hm4HL7ScKYvGbpWzNvHK6Tw==}
-    peerDependencies:
-      react: '>=16.8.0 || ^17'
-
-  use-debounce@10.1.1:
-    resolution: {integrity: sha512-kvds8BHR2k28cFsxW8k3nc/tRga2rs1RHYCqmmGqb90MEeE++oALwzh2COiuBLO1/QXiOuShXoSN2ZpWnMmvuQ==}
-    engines: {node: '>= 16.0.0'}
-    peerDependencies:
-      react: '*'
-
   use-sync-external-store@1.6.0:
     resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
     peerDependencies:
@@ -4404,36 +4373,6 @@ snapshots:
       - supports-color
       - ts-declaration-location
       - vitest
-
-  '@gen-epix/ui-core-components@4.0.2(4c17822a29a549c52104f38e0d43790e)':
-    dependencies:
-      '@gen-epix/ui-core': 3.0.2(react@19.2.8)
-      '@mui/icons-material': 9.4.0(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@types/react@19.2.18)(react@19.2.8)
-      '@mui/material': 9.4.0(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@mui/utils': 9.4.0(@types/react@19.2.18)(react@19.2.8)
-      i18next: 26.4.1(typescript@5.7.3)
-      lodash: 4.18.1
-      react: 19.2.8
-      react-hook-form: 7.87.0(react@19.2.8)
-      react-i18next: 17.0.13(i18next@26.4.1(typescript@5.7.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.7.3)
-      use-cleanup-callback: 1.3.0(react@19.2.8)
-      use-debounce: 10.1.1(react@19.2.8)
-      uuid: 14.0.2
-
-  '@gen-epix/ui-core@3.0.2(react@19.2.8)':
-    dependencies:
-      lodash: 4.18.1
-      react: 19.2.8
-      uuid: 14.0.2
-
-  '@gen-epix/ui-phylogenetic-tree@3.0.3(@gen-epix/ui-core@3.0.2(react@19.2.8))(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)':
-    dependencies:
-      '@gen-epix/ui-core': 3.0.2(react@19.2.8)
-      '@mui/material': 9.4.0(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      decimal.js: 10.6.0
-      lodash: 4.18.1
-      react: 19.2.8
-      use-debounce: 10.1.1(react@19.2.8)
 
   '@hookform/resolvers@5.9.1(react-hook-form@7.87.0(react@19.2.8))(yup@1.7.1)(zod@4.5.4)':
     dependencies:
@@ -5718,8 +5657,6 @@ snapshots:
     optionalDependencies:
       supports-color: 7.2.0
 
-  decimal.js@10.6.0: {}
-
   dedent@1.5.3(babel-plugin-macros@3.1.0):
     optionalDependencies:
       babel-plugin-macros: 3.1.0
@@ -6488,7 +6425,7 @@ snapshots:
 
   husky@9.1.7: {}
 
-  i18next@26.4.1(typescript@5.7.3):
+  i18next@26.4.2(typescript@5.7.3):
     optionalDependencies:
       typescript: 5.7.3
 
@@ -7571,11 +7508,11 @@ snapshots:
     dependencies:
       react: 19.2.8
 
-  react-i18next@17.0.13(i18next@26.4.1(typescript@5.7.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.7.3):
+  react-i18next@17.0.13(i18next@26.4.2(typescript@5.7.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.7.3):
     dependencies:
       '@babel/runtime': 7.29.7
       html-parse-stringify: 4.0.1
-      i18next: 26.4.1(typescript@5.7.3)
+      i18next: 26.4.2(typescript@5.7.3)
       react: 19.2.8
       use-sync-external-store: 1.6.0(react@19.2.8)
     optionalDependencies:
@@ -8089,14 +8026,6 @@ snapshots:
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
-
-  use-cleanup-callback@1.3.0(react@19.2.8):
-    dependencies:
-      react: 19.2.8
-
-  use-debounce@10.1.1(react@19.2.8):
-    dependencies:
-      react: 19.2.8
 
   use-sync-external-store@1.6.0(react@19.2.8):
     dependencies:

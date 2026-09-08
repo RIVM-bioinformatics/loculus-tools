@@ -21,6 +21,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SpeedIcon from '@mui/icons-material/Speed';
 import BiotechIcon from '@mui/icons-material/Biotech';
 
+import { CALCULATION_STATUS } from '../../models/calculation';
 import { useCalculationStore } from '../../stores/calculationStore';
 import { useDatasetStore } from '../../stores/datasetStore';
 import type {
@@ -42,7 +43,7 @@ export const CalculationSettings = () => {
   const rawFasta = useDatasetStore((state) => state.rawFasta);
   const parsedFasta = useDatasetStore((state) => state.parsedFasta);
 
-  const isCalculating = status === 'loading';
+  const isCalculating = status === CALCULATION_STATUS.LOADING;
   const hasValidFasta = Boolean(rawFasta && parsedFasta?.isAligned);
 
   const onChangeEngine = useCallback((event: SelectChangeEvent) => {

@@ -43,6 +43,7 @@ import {
   TREE_REGULAR_FILL_COLOR_SUPPORT_LINE,
   TREE_SCALE_INCREMENTS,
 } from '../../constants/tree';
+import { EventBusService } from '../../services/EventBusService';
 
 import { DynamicLegend } from './DynamicLegend';
 import { DraggableNodeTooltip } from './DraggableNodeTooltip';
@@ -56,7 +57,6 @@ export const PhyloTreeView = () => {
   const showSupportLines = useTreeViewStore((state) => state.showSupportLines);
   const showScaleBar = useTreeViewStore((state) => state.showScaleBar);
   const setTooltip = useTreeViewStore((state) => state.setTooltip);
-  const setImportModalOpen = useTreeViewStore((state) => state.setImportModalOpen);
 
   const colorByField = useMetadataStore((state) => state.colorByField);
   const colorMap = useMetadataStore((state) => state.colorMap);
@@ -163,8 +163,8 @@ export const PhyloTreeView = () => {
   }, []);
 
   const onClickLoadData = useCallback(() => {
-    setImportModalOpen(true);
-  }, [setImportModalOpen]);
+    EventBusService.getInstance().emit('onShowImportDialog');
+  }, []);
 
   if (!parsedTree || leafNames.length === 0) {
     return (

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
+import { CALCULATION_STATUS } from '../models/calculation';
 import type {
-  CalculationStatus,
   FastTreeMLParams,
   FastTreeMode,
   TreeEngine,
@@ -25,7 +25,7 @@ interface CalculationState {
   setFastTreeMode: (mode: FastTreeMode) => void;
   setFastTreeParams: (params: Partial<FastTreeMLParams>) => void;
   setNewick: (newick: string) => void;
-  status: CalculationStatus;
+  status: CALCULATION_STATUS;
 }
 
 export const useCalculationStore = create<CalculationState>((set, get) => ({
@@ -34,19 +34,19 @@ export const useCalculationStore = create<CalculationState>((set, get) => ({
     const parsedFasta = useDatasetStore.getState().parsedFasta;
 
     if (!rawFasta?.trim()) {
-      set({ error: 'No sequence data available to calculate tree.', status: 'error' });
+      set({ error: 'No sequence data available to calculate tree.', status: CALCULATION_STATUS.ERROR });
       return null;
     }
 
     if (parsedFasta && !parsedFasta.isAligned) {
       set({
         error: parsedFasta.error || 'The provided FASTA sequences are not aligned.',
-        status: 'error',
+        status: CALCULATION_STATUS.ERROR,
       });
       return null;
     }
 
-    set({ error: null, status: 'loading' });
+    set({ error: null, status: CALCULATION_STATUS.LOADING });
     const startTime = performance.now();
 
     try {
@@ -65,7 +65,7 @@ export const useCalculationStore = create<CalculationState>((set, get) => ({
         error: null,
         lastExecutionTimeMs: durationMs,
         newick: generatedNewick,
-        status: 'success',
+        status: CALCULATION_STATUS.SUCCESS,
       });
 
       return generatedNewick;
@@ -74,7 +74,7 @@ export const useCalculationStore = create<CalculationState>((set, get) => ({
       const errMsg = err instanceof Error ? err.message : 'Failed to calculate phylogenetic tree.';
       set({
         error: errMsg,
-        status: 'error',
+        status: CALCULATION_STATUS.ERROR,
       });
       return null;
     }
@@ -96,7 +96,7 @@ export const useCalculationStore = create<CalculationState>((set, get) => ({
       error: null,
       lastExecutionTimeMs: null,
       newick: '',
-      status: 'idle',
+      status: CALCULATION_STATUS.IDLE,
     });
   },
   setEngine: (engine: TreeEngine) => set({ engine }),
@@ -104,7 +104,7 @@ export const useCalculationStore = create<CalculationState>((set, get) => ({
   setFastTreeParams: (params: Partial<FastTreeMLParams>) =>
     set((state) => ({ fastTreeParams: { ...state.fastTreeParams, ...params } })),
 
-  setNewick: (newick: string) => set({ error: null, newick, status: 'success' }),
+  setNewick: (newick: string) => set({ error: null, newick, status: CALCULATION_STATUS.SUCCESS }),
 
-  status: 'idle',
+  status: CALCULATION_STATUS.IDLE,
 }));

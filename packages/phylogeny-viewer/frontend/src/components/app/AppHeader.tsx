@@ -32,11 +32,15 @@ import { useCalculationStore } from '../../stores/calculationStore';
 import { useTreeViewStore } from '../../stores/treeViewStore';
 import { useMetadataStore } from '../../stores/metadataStore';
 import { ExportUtil } from '../../utils/ExportUtil';
+import { EventBusService } from '../../services/EventBusService';
 
-export const AppHeader = () => {
+export type AppHeaderProps = {
+  readonly noInteraction?: boolean;
+};
+
+export const AppHeader = ({ noInteraction }: AppHeaderProps) => {
   const drawerOpen = useTreeViewStore((state) => state.drawerOpen);
   const setDrawerOpen = useTreeViewStore((state) => state.setDrawerOpen);
-  const setImportModalOpen = useTreeViewStore((state) => state.setImportModalOpen);
   const resetTreeView = useTreeViewStore((state) => state.resetTreeView);
 
   const parsedFasta = useDatasetStore((state) => state.parsedFasta);
@@ -103,7 +107,7 @@ export const AppHeader = () => {
   }, [resetCalculation, resetDataset, resetMetadataState, resetTreeView]);
 
   const onClickOpenDrawer = useCallback(() => setDrawerOpen(true), [setDrawerOpen]);
-  const onClickImportData = useCallback(() => setImportModalOpen(true), [setImportModalOpen]);
+  const onClickImportData = useCallback(() => EventBusService.getInstance().emit('onShowImportDialog'), []);
   const onClickDocumentation = useCallback(() => {
     window.open('https://github.com/RIVM-bioinformatics/loculus-tools', '_blank');
   }, []);
@@ -130,7 +134,7 @@ export const AppHeader = () => {
       >
         {/* Left: Menu toggle and App Branding */}
         <Box sx={{ alignItems: 'center', display: 'flex', gap: 1.5 }}>
-          {!drawerOpen && (
+          {!drawerOpen && !noInteraction && (
             <IconButton
               aria-label={'open drawer'}
               color={'inherit'}
@@ -193,93 +197,95 @@ export const AppHeader = () => {
           )}
         </Box>
         {/* Right: Global Actions */}
-        <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-          <Button
-            color={'inherit'}
-            onClick={onClickImportData}
-            size={'small'}
-            startIcon={<FileUploadOutlinedIcon />}
-            sx={{
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.25)',
-              },
-              backgroundColor: 'rgba(255, 255, 255, 0.15)',
-              color: '#FFFFFF',
-            }}
-            variant={'contained'}
-          >
-            {'Import Data'}
-          </Button>
-          <Button
-            color={'inherit'}
-            disabled={!hasTree}
-            onClick={onClickExport}
-            size={'small'}
-            startIcon={<FileDownloadOutlinedIcon />}
-            sx={{
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.25)',
-              },
-              backgroundColor: 'rgba(255, 255, 255, 0.15)',
-              color: '#FFFFFF',
-            }}
-            variant={'contained'}
-          >
-            {'Export'}
-          </Button>
-          <Menu
-            anchorEl={exportAnchorEl}
-            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-            onClose={onCloseExportMenu}
-            open={isExportMenuOpen}
-            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-          >
-            <MenuItem onClick={onClickExportNewick}>
-              <ListItemIcon>
-                <CodeIcon fontSize={'small'} />
-              </ListItemIcon>
-              <ListItemText primary={'Save as Newick (.nwk)'} />
-            </MenuItem>
-            <MenuItem onClick={onClickExportPng}>
-              <ListItemIcon>
-                <ImageIcon fontSize={'small'} />
-              </ListItemIcon>
-              <ListItemText primary={'Save as PNG Image'} />
-            </MenuItem>
-            <MenuItem onClick={onClickExportJpeg}>
-              <ListItemIcon>
-                <ImageIcon fontSize={'small'} />
-              </ListItemIcon>
-              <ListItemText primary={'Save as JPEG Image'} />
-            </MenuItem>
-            <MenuItem onClick={onClickExportSvg}>
-              <ListItemIcon>
-                <PictureAsPdfIcon fontSize={'small'} />
-              </ListItemIcon>
-              <ListItemText primary={'Save as SVG Vector'} />
-            </MenuItem>
-          </Menu>
-          <Tooltip title={'Reset current session and dataset'}>
-            <IconButton
+        {!noInteraction && (
+          <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
+            <Button
               color={'inherit'}
-              onClick={onClickResetSession}
+              onClick={onClickImportData}
               size={'small'}
-              sx={{ opacity: 0.85 }}
+              startIcon={<FileUploadOutlinedIcon />}
+              sx={{
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                },
+                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                color: '#FFFFFF',
+              }}
+              variant={'contained'}
             >
-              <RestartAltIcon fontSize={'small'} />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={'Documentation & Specifications'}>
-            <IconButton
+              {'Import Data'}
+            </Button>
+            <Button
               color={'inherit'}
-              onClick={onClickDocumentation}
+              disabled={!hasTree}
+              onClick={onClickExport}
               size={'small'}
-              sx={{ opacity: 0.85 }}
+              startIcon={<FileDownloadOutlinedIcon />}
+              sx={{
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                },
+                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                color: '#FFFFFF',
+              }}
+              variant={'contained'}
             >
-              <HelpOutlineIcon fontSize={'small'} />
-            </IconButton>
-          </Tooltip>
-        </Box>
+              {'Export'}
+            </Button>
+            <Menu
+              anchorEl={exportAnchorEl}
+              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+              onClose={onCloseExportMenu}
+              open={isExportMenuOpen}
+              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            >
+              <MenuItem onClick={onClickExportNewick}>
+                <ListItemIcon>
+                  <CodeIcon fontSize={'small'} />
+                </ListItemIcon>
+                <ListItemText primary={'Save as Newick (.nwk)'} />
+              </MenuItem>
+              <MenuItem onClick={onClickExportPng}>
+                <ListItemIcon>
+                  <ImageIcon fontSize={'small'} />
+                </ListItemIcon>
+                <ListItemText primary={'Save as PNG Image'} />
+              </MenuItem>
+              <MenuItem onClick={onClickExportJpeg}>
+                <ListItemIcon>
+                  <ImageIcon fontSize={'small'} />
+                </ListItemIcon>
+                <ListItemText primary={'Save as JPEG Image'} />
+              </MenuItem>
+              <MenuItem onClick={onClickExportSvg}>
+                <ListItemIcon>
+                  <PictureAsPdfIcon fontSize={'small'} />
+                </ListItemIcon>
+                <ListItemText primary={'Save as SVG Vector'} />
+              </MenuItem>
+            </Menu>
+            <Tooltip title={'Reset current session and dataset'}>
+              <IconButton
+                color={'inherit'}
+                onClick={onClickResetSession}
+                size={'small'}
+                sx={{ opacity: 0.85 }}
+              >
+                <RestartAltIcon fontSize={'small'} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={'Documentation & Specifications'}>
+              <IconButton
+                color={'inherit'}
+                onClick={onClickDocumentation}
+                size={'small'}
+                sx={{ opacity: 0.85 }}
+              >
+                <HelpOutlineIcon fontSize={'small'} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
       </Toolbar>
     </AppBar>
   );

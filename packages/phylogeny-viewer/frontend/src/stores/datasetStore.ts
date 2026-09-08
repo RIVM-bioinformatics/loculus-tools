@@ -8,20 +8,17 @@ import { TvsUtil } from '../utils/TvsUtil';
 import { useMetadataStore } from './metadataStore';
 
 interface DatasetState {
-  alignmentErrorDismissed: boolean;
   parsedFasta: FastaParseResult | null;
   parsedMetadata: MetadataParseResult | null;
   rawFasta: string;
   rawMetadata: string;
 
   resetDataset: () => void;
-  setAlignmentErrorDismissed: (dismissed: boolean) => void;
   setFastaContent: (fasta: string) => FastaParseResult;
   setMetadataContent: (tsv: string) => MetadataParseResult;
 }
 
 export const useDatasetStore = create<DatasetState>((set, get) => ({
-  alignmentErrorDismissed: false,
   parsedFasta: null,
   parsedMetadata: null,
   rawFasta: '',
@@ -29,7 +26,6 @@ export const useDatasetStore = create<DatasetState>((set, get) => ({
 
   resetDataset: () => {
     set({
-      alignmentErrorDismissed: false,
       parsedFasta: null,
       parsedMetadata: null,
       rawFasta: '',
@@ -37,14 +33,9 @@ export const useDatasetStore = create<DatasetState>((set, get) => ({
     });
   },
 
-  setAlignmentErrorDismissed: (dismissed: boolean) => {
-    set({ alignmentErrorDismissed: dismissed });
-  },
-
   setFastaContent: (fasta: string) => {
     const parsed = FastaUtil.parseFasta(fasta);
     set({
-      alignmentErrorDismissed: false,
       parsedFasta: parsed,
       rawFasta: fasta,
     });

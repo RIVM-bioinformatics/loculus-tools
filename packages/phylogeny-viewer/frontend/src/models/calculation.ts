@@ -1,11 +1,16 @@
+export enum CALCULATION_STATUS {
+  ERROR = 'ERROR',
+  IDLE = 'IDLE',
+  LOADING = 'LOADING',
+  SUCCESS = 'SUCCESS',
+}
+
 export interface CalculationResult {
   engine: TreeEngine;
   newick: string;
   sequenceCount: number;
   timeMs: number;
 }
-
-export type CalculationStatus = 'error' | 'idle' | 'loading' | 'success';
 
 export interface FastTreeMLParams {
   bootstrapping: number; // e.g. 1000, 0 for none

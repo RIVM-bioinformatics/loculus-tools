@@ -10,12 +10,10 @@ interface TreeViewStateStore {
   collapsedNodeIds: string[];
   drawerOpen: boolean;
   highlightedIds: string[];
-  importModalOpen: boolean;
   resetTreeView: () => void;
   searchQuery: string;
   setDrawerOpen: (open: boolean) => void;
   setHighlightedIds: (ids: string[]) => void;
-  setImportModalOpen: (open: boolean) => void;
   setSearchQuery: (query: string, allAccessions?: string[], metadataRecords?: MetadataRecord[], matchKeyColumn?: null | string) => void;
   setShowBranchLengths: (show: boolean) => void;
 
@@ -37,7 +35,6 @@ export const useTreeViewStore = create<TreeViewStateStore>((set) => ({
   collapsedNodeIds: [],
   drawerOpen: true,
   highlightedIds: [],
-  importModalOpen: false,
   resetTreeView: () => {
     set({
       collapsedNodeIds: [],
@@ -54,7 +51,6 @@ export const useTreeViewStore = create<TreeViewStateStore>((set) => ({
   searchQuery: '',
   setDrawerOpen: (open: boolean) => set({ drawerOpen: open }),
   setHighlightedIds: (ids: string[]) => set({ highlightedIds: ids }),
-  setImportModalOpen: (open: boolean) => set({ importModalOpen: open }),
   setSearchQuery: (query: string, allAccessions = [], metadataRecords = [], matchKeyColumn = null) => {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) {

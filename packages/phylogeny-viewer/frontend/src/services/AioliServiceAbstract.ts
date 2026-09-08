@@ -28,7 +28,6 @@ export abstract class AioliServiceAbstract {
     }
   }
 
-
   protected async mount(file: File): Promise<void> {
     await this.init();
     try {

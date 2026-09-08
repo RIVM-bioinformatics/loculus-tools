@@ -1,14 +1,15 @@
 import { Box } from '@mui/material';
 import type { ReactNode } from 'react';
 
-import { AppHeader } from './AppHeader';
+import { PageHeader } from './PageHeader';
 
 export type PageProps = {
   readonly children: ReactNode;
+  readonly drawerOpen: boolean;
   readonly noInteraction?: boolean;
 };
 
-export const Page = ({ children, noInteraction }: PageProps) => {
+export const Page = ({ children, drawerOpen, noInteraction }: PageProps) => {
   return (
     <Box
       sx={{
@@ -21,7 +22,10 @@ export const Page = ({ children, noInteraction }: PageProps) => {
       }}
     >
       {/* Top Navigation */}
-      <AppHeader noInteraction={noInteraction} />
+      <PageHeader
+        drawerOpen={drawerOpen}
+        noInteraction={noInteraction}
+      />
       {/* Main Body */}
       <Box
         sx={{

@@ -3,6 +3,7 @@ import { BackdropSpinner } from '@gen-epix/ui-core-components/components/Backdro
 import {
   useEffect,
   useRef,
+  useState,
 } from 'react';
 
 import { Page } from '../components/app/Page';
@@ -18,13 +19,11 @@ import { EventBusService } from '../services/EventBusService';
 import { useCalculationStore } from '../stores/calculationStore';
 import { useDatasetStore } from '../stores/datasetStore';
 import { useMetadataStore } from '../stores/metadataStore';
-import { useTreeViewStore } from '../stores/treeViewStore';
 
 
 export const MainPage = () => {
   const dataImportDialogRef = useRef<DataImportDialogRefMethods>(null);
   const alignmentErrorDialogRef = useRef<AlignmentErrorDialogRefMethods>(null);
-  const drawerOpen = useTreeViewStore((state) => state.drawerOpen);
   const calculationStatus = useCalculationStore((state) => state.status);
   const calculationEngine = useCalculationStore((state) => state.engine);
 
@@ -33,6 +32,8 @@ export const MainPage = () => {
   const calculateTree = useCalculationStore((state) => state.calculateTree);
   const setColorByField = useMetadataStore((state) => state.setColorByField);
 
+  const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+
   useEffect(() => {
     const eventBusService = EventBusService.getInstance();
 
@@ -40,6 +41,11 @@ export const MainPage = () => {
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onShowImportDialog', () => {
         dataImportDialogRef.current?.open();
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onToggleDrawer', (isOpen: boolean) => {
+        console.log('Toggling drawer, isOpen:', isOpen);
+        setIsDrawerOpen(isOpen);
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onShowAlignmentErrorDialog', () => {
@@ -110,10 +116,10 @@ export const MainPage = () => {
   }, [setFastaContent, setMetadataContent, calculateTree, setColorByField]);
 
   return (
-    <Page>
+    <Page drawerOpen={isDrawerOpen}>
       <>
         {/* Collapsible Sidebar */}
-        <SideControlPanel />
+        <SideControlPanel drawerOpen={isDrawerOpen} />
         {/* Primary Viewport */}
         <Box
           component={'main'}
@@ -127,7 +133,7 @@ export const MainPage = () => {
                 duration: theme.transitions.duration.leavingScreen,
                 easing: theme.transitions.easing.sharp,
               }),
-            width: drawerOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%',
+            width: isDrawerOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%',
           }}
         >
           <PhyloTreeView />

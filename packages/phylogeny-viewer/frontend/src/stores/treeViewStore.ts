@@ -8,11 +8,9 @@ import type { MetadataRecord } from '../models/metadata';
 
 interface TreeViewStateStore {
   collapsedNodeIds: string[];
-  drawerOpen: boolean;
   highlightedIds: string[];
   resetTreeView: () => void;
   searchQuery: string;
-  setDrawerOpen: (open: boolean) => void;
   setHighlightedIds: (ids: string[]) => void;
   setSearchQuery: (query: string, allAccessions?: string[], metadataRecords?: MetadataRecord[], matchKeyColumn?: null | string) => void;
   setShowBranchLengths: (show: boolean) => void;
@@ -33,7 +31,6 @@ interface TreeViewStateStore {
 
 export const useTreeViewStore = create<TreeViewStateStore>((set) => ({
   collapsedNodeIds: [],
-  drawerOpen: true,
   highlightedIds: [],
   resetTreeView: () => {
     set({
@@ -49,7 +46,6 @@ export const useTreeViewStore = create<TreeViewStateStore>((set) => ({
     });
   },
   searchQuery: '',
-  setDrawerOpen: (open: boolean) => set({ drawerOpen: open }),
   setHighlightedIds: (ids: string[]) => set({ highlightedIds: ids }),
   setSearchQuery: (query: string, allAccessions = [], metadataRecords = [], matchKeyColumn = null) => {
     const trimmed = query.trim().toLowerCase();

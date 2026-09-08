@@ -21,7 +21,6 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 
 import { EventBusService } from '../../services/EventBusService';
-import { useTreeViewStore } from '../../stores/treeViewStore';
 import { DRAWER_WIDTH } from '../../constants/drawer';
 
 import { CalculationSettings } from './CalculationSettings';
@@ -29,10 +28,11 @@ import { ViewSettings } from './ViewSettings';
 import { MetadataStyling } from './MetadataStyling';
 import { SearchFilter } from './SearchFilter';
 
-export const SideControlPanel = () => {
-  const drawerOpen = useTreeViewStore((state) => state.drawerOpen);
-  const setDrawerOpen = useTreeViewStore((state) => state.setDrawerOpen);
+export type SideControlPanelProps = {
+  drawerOpen: boolean;
+};
 
+export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
   const [expandedAccordions, setExpandedAccordions] = useState<string[]>([
     'calc',
     'view',
@@ -45,7 +45,7 @@ export const SideControlPanel = () => {
       prev.includes(panel) ? prev.filter((p) => p !== panel) : [...prev, panel]);
   }, []);
 
-  const onClickCloseDrawer = useCallback(() => setDrawerOpen(false), [setDrawerOpen]);
+  const onClickCloseDrawer = useCallback(() => EventBusService.getInstance().emit('onToggleDrawer', false), []);
   const onClickLoadData = useCallback(() => EventBusService.getInstance().emit('onShowImportDialog'), []);
   const onChangeCalculation = useCallback(() => toggleAccordion('calc'), [toggleAccordion]);
   const onChangeView = useCallback(() => toggleAccordion('view'), [toggleAccordion]);

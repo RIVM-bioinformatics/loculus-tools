@@ -4,6 +4,7 @@ import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 export type Event = {
   onShowAlignmentErrorDialog: void;
   onShowImportDialog: void;
+  onToggleDrawer: boolean;
 };
 
 export class EventBusService extends EventBusAbstract<Event> {

@@ -34,13 +34,12 @@ import { useMetadataStore } from '../../stores/metadataStore';
 import { ExportUtil } from '../../utils/ExportUtil';
 import { EventBusService } from '../../services/EventBusService';
 
-export type AppHeaderProps = {
+export type PageHeaderProps = {
+  readonly drawerOpen: boolean;
   readonly noInteraction?: boolean;
 };
 
-export const AppHeader = ({ noInteraction }: AppHeaderProps) => {
-  const drawerOpen = useTreeViewStore((state) => state.drawerOpen);
-  const setDrawerOpen = useTreeViewStore((state) => state.setDrawerOpen);
+export const PageHeader = ({ drawerOpen, noInteraction }: PageHeaderProps) => {
   const resetTreeView = useTreeViewStore((state) => state.resetTreeView);
 
   const parsedFasta = useDatasetStore((state) => state.parsedFasta);
@@ -106,9 +105,12 @@ export const AppHeader = ({ noInteraction }: AppHeaderProps) => {
     }
   }, [resetCalculation, resetDataset, resetMetadataState, resetTreeView]);
 
-  const onClickOpenDrawer = useCallback(() => setDrawerOpen(true), [setDrawerOpen]);
-  const onClickImportData = useCallback(() => EventBusService.getInstance().emit('onShowImportDialog'), []);
-  const onClickDocumentation = useCallback(() => {
+  const onToggleDrawerButtonClick = useCallback(() => {
+    console.log('onToggleDrawerButtonClick, drawerOpen:', drawerOpen);
+    EventBusService.getInstance().emit('onToggleDrawer', !drawerOpen);
+  }, [drawerOpen]);
+  const onImportDataButtonClick = useCallback(() => EventBusService.getInstance().emit('onShowImportDialog'), []);
+  const onDocumentationButtonClick = useCallback(() => {
     window.open('https://github.com/RIVM-bioinformatics/loculus-tools', '_blank');
   }, []);
 
@@ -134,12 +136,12 @@ export const AppHeader = ({ noInteraction }: AppHeaderProps) => {
       >
         {/* Left: Menu toggle and App Branding */}
         <Box sx={{ alignItems: 'center', display: 'flex', gap: 1.5 }}>
-          {!drawerOpen && !noInteraction && (
+          {!noInteraction && (
             <IconButton
               aria-label={'open drawer'}
               color={'inherit'}
               edge={'start'}
-              onClick={onClickOpenDrawer}
+              onClick={onToggleDrawerButtonClick}
               size={'small'}
             >
               <MenuIcon />
@@ -201,7 +203,7 @@ export const AppHeader = ({ noInteraction }: AppHeaderProps) => {
           <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
             <Button
               color={'inherit'}
-              onClick={onClickImportData}
+              onClick={onImportDataButtonClick}
               size={'small'}
               startIcon={<FileUploadOutlinedIcon />}
               sx={{
@@ -277,7 +279,7 @@ export const AppHeader = ({ noInteraction }: AppHeaderProps) => {
             <Tooltip title={'Documentation & Specifications'}>
               <IconButton
                 color={'inherit'}
-                onClick={onClickDocumentation}
+                onClick={onDocumentationButtonClick}
                 size={'small'}
                 sx={{ opacity: 0.85 }}
               >

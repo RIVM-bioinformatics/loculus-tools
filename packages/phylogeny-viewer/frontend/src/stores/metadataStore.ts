@@ -36,7 +36,6 @@ interface MetadataState {
   setColumnMatchCounts: (counts: Record<string, number>) => void;
   setMatchKeyColumn: (col: null | string) => void;
   setSelectedLabelFields: (fields: string[]) => void;
-  toggleLabelField: (field: string) => void;
   valueCounts: Record<string, number>;
 }
 
@@ -108,16 +107,6 @@ export const metadataStore = createStore<MetadataState>((set) => ({
 
   setSelectedLabelFields: (fields: string[]) => {
     set({ selectedLabelFields: fields });
-  },
-
-  toggleLabelField: (field: string) => {
-    set((state) => {
-      const exists = state.selectedLabelFields.includes(field);
-      const next = exists
-        ? state.selectedLabelFields.filter((f) => f !== field)
-        : [...state.selectedLabelFields, field];
-      return { selectedLabelFields: next };
-    });
   },
 
   valueCounts: {},

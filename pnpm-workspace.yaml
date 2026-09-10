@@ -7,8 +7,8 @@ allowBuilds:
   unrs-resolver: true
 
 minimumReleaseAgeExclude:
-  - '@gen-epix/ui-core@2.2.0 || 3.0.2'
-  - '@gen-epix/ui-phylogenetic-tree@2.2.0 || 3.0.2 || 3.0.3'
+  - '@gen-epix/ui-core@2.2.0 || 3.0.2 || 3.1.0'
+  - '@gen-epix/ui-phylogenetic-tree@2.2.0 || 3.0.2 || 3.0.3 || 3.1.0'
   - '@gen-epix/eslint-config@0.5.0'
   - '@typescript-eslint/eslint-plugin@8.69.0'
   - '@typescript-eslint/parser@8.69.0'
@@ -21,5 +21,10 @@ minimumReleaseAgeExclude:
   - '@typescript-eslint/utils@8.69.0'
   - '@typescript-eslint/visitor-keys@8.69.0'
   - globals@17.12.0
-  - '@types/react-dom@19.2.7'
-  - '@gen-epix/ui-core-components@4.0.2'
+  - '@types/react-dom@19.2.7 || 19.3.0'
+  - '@gen-epix/ui-core-components@4.0.2 || 4.1.0'
+  - '@types/react@19.3.0'
+  - react-dom@19.3.0
+  - react@19.3.0
+  - scheduler@0.28.0
+  - '@gen-epix/ui-core-form@4.1.0'

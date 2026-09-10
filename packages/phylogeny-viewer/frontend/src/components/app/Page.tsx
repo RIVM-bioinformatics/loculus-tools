@@ -5,7 +5,7 @@ import { PageHeader } from './PageHeader';
 
 export type PageProps = {
   readonly children: ReactNode;
-  readonly drawerOpen: boolean;
+  readonly drawerOpen?: boolean;
   readonly noInteraction?: boolean;
 };
 

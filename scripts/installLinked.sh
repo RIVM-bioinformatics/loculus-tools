@@ -12,7 +12,7 @@ const path = require('path');
 const packagePath = 'packages/phylogeny-viewer/frontend/package.json';
 const packageDirectory = path.dirname(path.resolve(packagePath));
 const uiRoot = path.resolve(process.env.GEN_EPIX_UI_PATH);
-const packageNames = ['ui-core', 'ui-core-components', 'ui-phylogenetic-tree'];
+const packageNames = ['ui-core', 'ui-core-form', 'ui-core-components', 'ui-phylogenetic-tree'];
 const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
 
 for (const packageName of packageNames) {

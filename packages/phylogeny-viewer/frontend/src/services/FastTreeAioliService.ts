@@ -60,7 +60,7 @@ export class FastTreeAioliService extends AioliServiceAbstract implements AioliS
 
   public async getTree(fastaContent: string, mode: FastTreeMode = 'noml', params?: Partial<FastTreeMLParams>): Promise<string> {
     const tTotalStart = performance.now();
-    console.log(`[FastTree] Starting calculation (mode: ${mode})...`);
+    console.info(`[FastTree] Starting calculation (mode: ${mode})...`);
 
     // Step 1: Strip headers & mount
     const strippedFasta = FastaUtil.stripFastaHeaders(fastaContent);
@@ -93,13 +93,13 @@ export class FastTreeAioliService extends AioliServiceAbstract implements AioliS
     // Step 3: Execute FastTree
     const tExec = performance.now();
     const result = await this.exec('fasttree', args);
-    console.log(`[FastTree] Execution: ${(performance.now() - tExec).toFixed(0)}ms`);
-    console.log('[FastTree] Full Raw Output:\n', result);
+    console.info(`[FastTree] Execution: ${(performance.now() - tExec).toFixed(0)}ms`);
+    console.info('[FastTree] Full Raw Output:\n', result);
 
     // Step 4: Extract Newick tree from output
     const newickTree = FastTreeAioliService.extractNewickTree(result);
-    console.log('[FastTree] Extracted Newick Tree:\n', newickTree);
-    console.log(`[FastTree] Finished in ${(performance.now() - tTotalStart).toFixed(0)}ms (Newick length: ${newickTree.length})`);
+    console.info('[FastTree] Extracted Newick Tree:\n', newickTree);
+    console.info(`[FastTree] Finished in ${(performance.now() - tTotalStart).toFixed(0)}ms (Newick length: ${newickTree.length})`);
 
     return newickTree;
   }

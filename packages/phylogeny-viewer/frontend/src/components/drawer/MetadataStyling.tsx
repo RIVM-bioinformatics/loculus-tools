@@ -1,32 +1,38 @@
-import type { ChangeEvent } from 'react';
 import {
   useCallback,
+  useId,
   useMemo,
 } from 'react';
 import {
   Box,
-  Checkbox,
-  Divider,
-  FormControl,
-  FormControlLabel,
-  FormGroup,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
   Typography,
 } from '@mui/material';
-import type { SelectChangeEvent } from '@mui/material';
-import PaletteIcon from '@mui/icons-material/Palette';
-import StyleIcon from '@mui/icons-material/Style';
-import KeyIcon from '@mui/icons-material/Key';
+// import PaletteIcon from '@mui/icons-material/Palette';
+// import StyleIcon from '@mui/icons-material/Style';
+// import KeyIcon from '@mui/icons-material/Key';
 import { useStore } from 'zustand';
+import type {
+  AutoCompleteOption,
+  FormFieldDefinition,
+} from '@gen-epix/ui-core-form/models/form';
+import { FORM_FIELD_DEFINITION_TYPE } from '@gen-epix/ui-core-form/models/form';
+import { FormUtil } from '@gen-epix/ui-core-form/utils/FormUtil';
+import { useForm } from 'react-hook-form';
+import { GenericForm } from '@gen-epix/ui-core-form/components/helpers/GenericForm';
 
 import { metadataStore } from '../../stores/metadataStore';
 import { datasetStore } from '../../stores/datasetStore';
 import { StatusChip } from '../ui/StatusChip';
+// import { StatusChip } from '../ui/StatusChip';
+
+type FormFields = {
+  colorByField?: string;
+  matchKeyColumn?: string;
+  selectedLabelFields?: string[];
+};
 
 export const MetadataStyling = () => {
+  const formId = useId();
   const parsedMetadata = useStore(datasetStore, (state) => state.parsedMetadata);
   const parsedFasta = useStore(datasetStore, (state) => state.parsedFasta);
 
@@ -37,14 +43,14 @@ export const MetadataStyling = () => {
   const colorByField = useStore(metadataStore, (state) => state.colorByField);
   const setColorByField = useStore(metadataStore, (state) => state.setColorByField);
   const selectedLabelFields = useStore(metadataStore, (state) => state.selectedLabelFields);
-  const toggleLabelField = useStore(metadataStore, (state) => state.toggleLabelField);
+  const setSelectedLabelFields = useStore(metadataStore, (state) => state.setSelectedLabelFields);
 
-  const columns = parsedMetadata?.columns || [];
+  const columns = useMemo(() => parsedMetadata?.columns || [], [parsedMetadata]);
+
   const records = useMemo(() => parsedMetadata?.records ?? [], [parsedMetadata]);
   const totalTaxa = parsedFasta?.sequences?.length || 0;
 
-  const onChangeColorBy = useCallback((event: SelectChangeEvent) => {
-    const field = event.target.value;
+  const onChangeColorBy = useCallback((field: string) => {
     if (field === 'none' || !field) {
       setColorByField(null);
       return;
@@ -54,8 +60,7 @@ export const MetadataStyling = () => {
     setColorByField(field, uniqueVals, vals);
   }, [records, setColorByField]);
 
-  const onChangeMatchKey = useCallback((event: SelectChangeEvent) => {
-    const col = event.target.value;
+  const onChangeMatchKey = useCallback((col: string) => {
     setMatchKeyColumn(col);
     // Refresh color by if active
     if (colorByField) {
@@ -65,151 +70,63 @@ export const MetadataStyling = () => {
     }
   }, [colorByField, records, setColorByField, setMatchKeyColumn]);
 
-  const onChangeLabelField = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    toggleLabelField(event.target.value);
-  }, [toggleLabelField]);
+  const onChangeLabelField = useCallback((fields: string[]) => {
+    setSelectedLabelFields(fields);
+  }, [setSelectedLabelFields]);
 
-  const eligibleLabelFields = columns.filter((col) => col !== matchKeyColumn);
+  const matchKeyColumnOptions = useMemo<AutoCompleteOption<string>[]>(() => columns.map(col => {
+    const count = columnMatchCounts[col];
+    const matchText =
+      totalTaxa > 0 && count !== undefined
+        ? ` (${count}/${totalTaxa} matches)`
+        : '';
 
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {/* Sequence ID Matching Column */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-          <KeyIcon
-            color={'primary'}
-            fontSize={'small'}
-          />
-          <Typography
-            color={'text.secondary'}
-            sx={{ fontWeight: 700 }}
-            variant={'caption'}
-          >
-            {'Sequence ID Matching Column'}
-          </Typography>
-        </Box>
-        <FormControl
-          fullWidth
-          size={'small'}
-        >
-          <InputLabel id={'match-key-label'}>
-            {'Matching Key Column'}
-          </InputLabel>
-          <Select
-            disabled={columns.length === 0}
-            label={'Matching Key Column'}
-            labelId={'match-key-label'}
-            onChange={onChangeMatchKey}
-            value={matchKeyColumn || (columns[0] ?? '')}
-          >
-            {columns.map((col) => {
-              const count = columnMatchCounts[col];
-              const matchText =
-                totalTaxa > 0 && count !== undefined
-                  ? ` (${count}/${totalTaxa} matches)`
-                  : '';
-              return (
-                <MenuItem
-                  key={col}
-                  value={col}
-                >
-                  <Box sx={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                    <span>
-                      {col}
-                    </span>
-                    {matchText && (
-                      <Typography
-                        color={count > 0 ? 'success.main' : 'text.disabled'}
-                        sx={{ ml: 1 }}
-                        variant={'caption'}
-                      >
-                        {matchText}
-                      </Typography>
-                    )}
-                  </Box>
-                </MenuItem>
-              );
-            })}
-          </Select>
-        </FormControl>
-        {matchKeyColumn && totalTaxa > 0 && columnMatchCounts[matchKeyColumn] !== undefined && (
-          <StatusChip
-            hasWarning={columnMatchCounts[matchKeyColumn] === 0}
-            label={`${columnMatchCounts[matchKeyColumn]}/${totalTaxa} sequences matched`}
-          />
-        )}
-      </Box>
-      <Divider />
-      {/* Color-by Dropdown */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-          <PaletteIcon
-            color={'primary'}
-            fontSize={'small'}
-          />
-          <Typography
-            color={'text.secondary'}
-            sx={{ fontWeight: 700 }}
-            variant={'caption'}
-          >
-            {'Color nodes by attribute'}
-          </Typography>
-        </Box>
-        <FormControl
-          fullWidth
-          size={'small'}
-        >
-          <InputLabel id={'color-by-label'}>
-            {'Color-by Field'}
-          </InputLabel>
-          <Select
-            disabled={columns.length === 0}
-            label={'Color-by Field'}
-            labelId={'color-by-label'}
-            onChange={onChangeColorBy}
-            value={colorByField || 'none'}
-          >
-            <MenuItem value={'none'}>
-              <em>
-                {'None (Default)'}
-              </em>
-            </MenuItem>
-            {columns.map((col) => (
-              <MenuItem
-                key={col}
-                value={col}
-              >
-                {col}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        {columns.length === 0 && (
-          <Typography
-            color={'text.secondary'}
-            sx={{ fontStyle: 'italic' }}
-            variant={'caption'}
-          >
-            {'Load a TSV metadata file to color nodes by attributes.'}
-          </Typography>
-        )}
-      </Box>
-      <Divider />
-      {/* Composite Leaf Label Builder */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-          <StyleIcon
-            color={'primary'}
-            fontSize={'small'}
-          />
-          <Typography
-            color={'text.secondary'}
-            sx={{ fontWeight: 700 }}
-            variant={'caption'}
-          >
-            {'Leaf label composition'}
-          </Typography>
-        </Box>
+    return {
+      label: col,
+      secondaryLabel: matchText || undefined,
+      value: col,
+    };
+  }), [columnMatchCounts, columns, totalTaxa]);
+
+  const colorByFieldOptions = useMemo<AutoCompleteOption<string>[]>(() => columns.map(col => ({
+    label: col,
+    value: col,
+  })), [columns]);
+
+  const labelFieldOptions = useMemo<AutoCompleteOption<string>[]>(() => columns.filter((col) => col !== matchKeyColumn).map(col => ({
+    label: col,
+    value: col,
+  })), [columns, matchKeyColumn]);
+
+  const formFieldDefinitions = useMemo<FormFieldDefinition<FormFields>[]>(() => [
+    {
+      contentAfter: (
+        <>
+          {matchKeyColumn && totalTaxa > 0 && columnMatchCounts[matchKeyColumn] !== undefined && (
+            <Box sx={{ marginBottom: 2, marginTop: 1 }}>
+              <StatusChip
+                hasWarning={columnMatchCounts[matchKeyColumn] === 0}
+                label={`${columnMatchCounts[matchKeyColumn]}/${totalTaxa} sequences matched`}
+              />
+            </Box>
+          )}
+        </>
+      ),
+      definition: FORM_FIELD_DEFINITION_TYPE.SELECT,
+      label: 'Sequence ID matching column',
+      name: 'matchKeyColumn',
+      onChange: onChangeMatchKey,
+      options: matchKeyColumnOptions,
+    } as const satisfies FormFieldDefinition<FormFields>,
+    {
+      definition: FORM_FIELD_DEFINITION_TYPE.AUTOCOMPLETE,
+      label: 'Color field',
+      name: 'colorByField',
+      onChange: onChangeColorBy,
+      options: colorByFieldOptions,
+    } as const satisfies FormFieldDefinition<FormFields>,
+    {
+      contentAfter: (
         <Typography
           color={'text.secondary'}
           variant={'caption'}
@@ -220,43 +137,41 @@ export const MetadataStyling = () => {
             {selectedLabelFields.length > 0 ? ` | ${selectedLabelFields.join(' | ')}` : ''}
           </code>
         </Typography>
-        <Paper
-          sx={{ borderRadius: 1.5, maxHeight: 180, overflowY: 'auto', p: 1.5 }}
-          variant={'outlined'}
-        >
-          {eligibleLabelFields.length > 0 ? (
-            <FormGroup>
-              {eligibleLabelFields.map((field) => (
-                <FormControlLabel
-                  control={(
-                    <Checkbox
-                      checked={selectedLabelFields.includes(field)}
-                      onChange={onChangeLabelField}
-                      size={'small'}
-                      value={field}
-                    />
-                  )}
-                  key={field}
-                  label={(
-                    <Typography variant={'caption'}>
-                      {field}
-                    </Typography>
-                  )}
-                  sx={{ my: -0.25 }}
-                />
-              ))}
-            </FormGroup>
-          ) : (
-            <Typography
-              color={'text.secondary'}
-              sx={{ fontStyle: 'italic' }}
-              variant={'caption'}
-            >
-              {'No metadata attributes available.'}
-            </Typography>
-          )}
-        </Paper>
-      </Box>
+
+      ),
+      definition: FORM_FIELD_DEFINITION_TYPE.AUTOCOMPLETE,
+      hideSelectAll: true,
+      label: 'Label fields',
+      multiple: true,
+      name: 'selectedLabelFields',
+      onChange: onChangeLabelField,
+      options: labelFieldOptions,
+    } as const satisfies FormFieldDefinition<FormFields>,
+  ] as const, [matchKeyColumn, totalTaxa, columnMatchCounts, onChangeMatchKey, matchKeyColumnOptions, onChangeColorBy, colorByFieldOptions, selectedLabelFields, onChangeLabelField, labelFieldOptions]);
+
+  const values = useMemo<FormFields>(() => FormUtil.createFormValues(formFieldDefinitions, {
+    colorByField,
+    matchKeyColumn,
+    selectedLabelFields,
+  }), [formFieldDefinitions, matchKeyColumn, colorByField, selectedLabelFields]);
+
+  const formMethods = useForm<FormFields>({
+    values,
+  });
+  const { handleSubmit } = formMethods;
+
+  const onFormSubmit = useCallback((_formValues: FormFields) => {
+    // do nothing
+  }, []);
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <GenericForm<FormFields>
+        formFieldDefinitions={formFieldDefinitions}
+        formId={formId}
+        formMethods={formMethods}
+        onSubmit={handleSubmit(onFormSubmit)}
+      />
     </Box>
   );
 };

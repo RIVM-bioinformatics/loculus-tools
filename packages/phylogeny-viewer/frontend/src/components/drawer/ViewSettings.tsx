@@ -1,22 +1,32 @@
-import type { ChangeEvent } from 'react';
-import { useCallback } from 'react';
+import {
+  useCallback,
+  useId,
+  useMemo,
+} from 'react';
 import {
   Box,
-  Divider,
-  FormControlLabel,
-  FormGroup,
-  Switch,
   Typography,
 } from '@mui/material';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import StraightenIcon from '@mui/icons-material/Straighten';
 import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { useStore } from 'zustand';
+import { GenericForm } from '@gen-epix/ui-core-form/components/helpers/GenericForm';
+import type { FormFieldDefinition } from '@gen-epix/ui-core-form/models/form';
+import { FORM_FIELD_DEFINITION_TYPE } from '@gen-epix/ui-core-form/models/form';
+import { FormUtil } from '@gen-epix/ui-core-form/utils/FormUtil';
+import { useForm } from 'react-hook-form';
 
 import { treeViewStore } from '../../stores/treeViewStore';
 
+type FormFields = {
+  showBranchLengths?: boolean;
+  showLeafLabels?: boolean;
+  showScaleBar?: boolean;
+};
+
 export const ViewSettings = () => {
+  const formId = useId();
   const showBranchLengths = useStore(treeViewStore, (state) => state.showBranchLengths);
   const setShowBranchLengths = useStore(treeViewStore, (state) => state.setShowBranchLengths);
   const showLeafLabels = useStore(treeViewStore, (state) => state.showLeafLabels);
@@ -24,15 +34,56 @@ export const ViewSettings = () => {
   const showScaleBar = useStore(treeViewStore, (state) => state.showScaleBar);
   const setShowScaleBar = useStore(treeViewStore, (state) => state.setShowScaleBar);
 
-  const onChangeLeafLabels = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setShowLeafLabels(event.target.checked);
+  const onChangeLeafLabels = useCallback((value: boolean) => {
+    setShowLeafLabels(value);
   }, [setShowLeafLabels]);
-  const onChangeBranchLengths = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setShowBranchLengths(event.target.checked);
+  const onChangeBranchLengths = useCallback((value: boolean) => {
+    setShowBranchLengths(value);
   }, [setShowBranchLengths]);
-  const onChangeScaleBar = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setShowScaleBar(event.target.checked);
+  const onChangeScaleBar = useCallback((value: boolean) => {
+    setShowScaleBar(value);
   }, [setShowScaleBar]);
+
+  const formFieldDefinitions = useMemo<FormFieldDefinition<FormFields>[]>(() => [
+    {
+      definition: FORM_FIELD_DEFINITION_TYPE.SWITCH,
+      icon: <LabelOutlinedIcon />,
+      label: 'Show leaf labels',
+      name: 'showLeafLabels',
+      onChange: onChangeLeafLabels,
+    } as const satisfies FormFieldDefinition<FormFields>,
+    {
+      definition: FORM_FIELD_DEFINITION_TYPE.SWITCH,
+      icon: <AccountTreeOutlinedIcon />,
+      label: 'Show branch lengths',
+      name: 'showBranchLengths',
+      onChange: onChangeBranchLengths,
+    } as const satisfies FormFieldDefinition<FormFields>,
+    {
+      definition: FORM_FIELD_DEFINITION_TYPE.SWITCH,
+      icon: <StraightenIcon />,
+      label: 'Show scale bar',
+      name: 'showScaleBar',
+      onChange: onChangeScaleBar,
+    } as const satisfies FormFieldDefinition<FormFields>,
+
+
+  ] as const, [onChangeBranchLengths, onChangeLeafLabels, onChangeScaleBar]);
+
+  const values = useMemo<FormFields>(() => FormUtil.createFormValues(formFieldDefinitions, {
+    showBranchLengths,
+    showLeafLabels,
+    showScaleBar,
+  }), [formFieldDefinitions, showBranchLengths, showLeafLabels, showScaleBar]);
+
+  const formMethods = useForm<FormFields>({
+    values,
+  });
+  const { handleSubmit } = formMethods;
+
+  const onFormSubmit = useCallback((_formValues: FormFields) => {
+    // do nothing
+  }, []);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -43,84 +94,12 @@ export const ViewSettings = () => {
       >
         {'Visual Toggles'}
       </Typography>
-      <FormGroup sx={{ gap: 1 }}>
-        <FormControlLabel
-          control={(
-            <Switch
-              checked={showLeafLabels}
-              onChange={onChangeLeafLabels}
-              size={'small'}
-            />
-          )}
-          label={(
-            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-              <LabelOutlinedIcon
-                color={'action'}
-                fontSize={'small'}
-              />
-              <Typography variant={'body2'}>
-                {'Show leaf labels'}
-              </Typography>
-            </Box>
-          )}
-        />
-        <FormControlLabel
-          control={(
-            <Switch
-              checked={showBranchLengths}
-              onChange={onChangeBranchLengths}
-              size={'small'}
-            />
-          )}
-          label={(
-            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-              <AccountTreeOutlinedIcon
-                color={'action'}
-                fontSize={'small'}
-              />
-              <Typography variant={'body2'}>
-                {'Show branch lengths'}
-              </Typography>
-            </Box>
-          )}
-        />
-        <FormControlLabel
-          control={(
-            <Switch
-              checked={showScaleBar}
-              onChange={onChangeScaleBar}
-              size={'small'}
-            />
-          )}
-          label={(
-            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-              <StraightenIcon
-                color={'action'}
-                fontSize={'small'}
-              />
-              <Typography variant={'body2'}>
-                {'Show distance scale bar'}
-              </Typography>
-            </Box>
-          )}
-        />
-      </FormGroup>
-      <Divider sx={{ my: 0.5 }} />
-      <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-        <VisibilityOutlinedIcon
-          color={'action'}
-          fontSize={'small'}
-        />
-        <Typography
-          color={'text.secondary'}
-          variant={'caption'}
-        >
-          {'Layout: '}
-          <strong>
-            {'Rectangular'}
-          </strong>
-        </Typography>
-      </Box>
+      <GenericForm<FormFields>
+        formFieldDefinitions={formFieldDefinitions}
+        formId={formId}
+        formMethods={formMethods}
+        onSubmit={handleSubmit(onFormSubmit)}
+      />
     </Box>
   );
 };

@@ -19,7 +19,7 @@ export abstract class AioliServiceAbstract {
     await this.init();
     try {
       const fullCommand = `${command} ${args.join(' ')}`.trim();
-      console.log('[BiowasmService] Executing:', fullCommand);
+      console.info('[BiowasmService] Executing:', fullCommand);
       const result = await this.aioli.exec(fullCommand);
       return typeof result === 'string' ? result : (result?.stdout || JSON.stringify(result));
     } catch (error) {
@@ -32,7 +32,7 @@ export abstract class AioliServiceAbstract {
     await this.init();
     try {
       await this.aioli.mount(file);
-      console.log('[BiowasmService] File mounted successfully:', file.name);
+      console.info('[BiowasmService] File mounted successfully:', file.name);
     } catch (error) {
       console.error('[BiowasmService] Failed to mount file:', error);
       throw error;

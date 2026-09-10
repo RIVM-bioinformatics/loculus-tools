@@ -26,7 +26,7 @@ export const ErrorPage = ({ error }: ErrorPageProps) => {
           <Typography
             variant={'h1'}
           >
-            {t`An error occurred`}
+            {t`Something went wrong`}
           </Typography>
         </Box>
         <Box sx={{ padding: 1 }}>

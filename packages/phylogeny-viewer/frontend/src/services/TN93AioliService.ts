@@ -80,7 +80,7 @@ export class TN93AioliService extends AioliServiceAbstract implements AioliServi
 
   public async getTree(fastaContent: string): Promise<string> {
     const tTotalStart = performance.now();
-    console.log('[TN93] Starting tree calculation...');
+    console.info('[TN93] Starting tree calculation...');
 
     const strippedFasta = FastaUtil.stripFastaHeaders(fastaContent);
     const file = new File([strippedFasta], 'input.fasta', { type: 'text/plain' });
@@ -88,8 +88,8 @@ export class TN93AioliService extends AioliServiceAbstract implements AioliServi
 
     const tRun = performance.now();
     const result = await this.exec('tn93', ['-t', '1.0', '-q', 'input.fasta']);
-    console.log(`[TN93] Distance matrix computation: ${(performance.now() - tRun).toFixed(0)}ms`);
-    console.log('[TN93] Full Raw Output:\n', result);
+    console.info(`[TN93] Distance matrix computation: ${(performance.now() - tRun).toFixed(0)}ms`);
+    console.info('[TN93] Full Raw Output:\n', result);
 
     const entries = TN93AioliService.parseTN93CSV(result);
     if (entries.length === 0) {
@@ -97,14 +97,14 @@ export class TN93AioliService extends AioliServiceAbstract implements AioliServi
     }
 
     const { matrix, taxa } = TN93AioliService.buildDistanceMatrix(entries);
-    console.log(`[TN93] Built matrix with ${taxa.length} taxa`);
+    console.info(`[TN93] Built matrix with ${taxa.length} taxa`);
 
     const tNJ = performance.now();
     const nj = new RapidNeighborJoining(matrix, taxa, false, (taxon: string) => taxon);
     nj.run();
     const newick = nj.getAsNewick();
-    console.log('[TN93] Generated Newick Tree:\n', newick);
-    console.log(`[TN93] NJ conversion: ${(performance.now() - tNJ).toFixed(0)}ms (Total: ${(performance.now() - tTotalStart).toFixed(0)}ms)`);
+    console.info('[TN93] Generated Newick Tree:\n', newick);
+    console.info(`[TN93] NJ conversion: ${(performance.now() - tNJ).toFixed(0)}ms (Total: ${(performance.now() - tTotalStart).toFixed(0)}ms)`);
 
     return newick;
   }

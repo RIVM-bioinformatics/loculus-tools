@@ -9,7 +9,6 @@ import {
   IconButton,
   InputAdornment,
   TextField,
-  Typography,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -52,21 +51,28 @@ export const SearchFilter = () => {
       }}
     >
       <TextField
-        label={'Search'}
+        aria-label={'Search'}
         onChange={onChangeQuery}
-        placeholder={'Metadata search query...'}
-        size={'small'}
+        placeholder={'Search'}
+        size={'medium'}
         slotProps={{
           input: {
             endAdornment: searchQuery ? (
-              <InputAdornment position={'end'}>
-                <IconButton
-                  onClick={onClickClear}
+              <>
+                <InputAdornment position={'end'}>
+                  <IconButton
+                    onClick={onClickClear}
+                    size={'small'}
+                  >
+                    <ClearIcon fontSize={'small'} />
+                  </IconButton>
+                </InputAdornment>
+                <Chip
+                  color={highlightedIds.length > 0 ? 'primary' : 'default'}
+                  label={`${highlightedIds.length} node${highlightedIds.length === 1 ? '' : 's'}`}
                   size={'small'}
-                >
-                  <ClearIcon fontSize={'small'} />
-                </IconButton>
-              </InputAdornment>
+                />
+              </>
             ) : null,
             startAdornment: (
               <InputAdornment position={'start'}>
@@ -79,23 +85,8 @@ export const SearchFilter = () => {
           },
         }}
         value={searchQuery}
-        variant={'filled'}
+        variant={'standard'}
       />
-      {searchQuery && (
-        <Box sx={{ alignItems: 'center', display: 'flex', gap: 1, justifyContent: 'space-between', padding: 1 }}>
-          <Typography
-            color={'text.secondary'}
-            variant={'caption'}
-          >
-            {'Matches found'}
-          </Typography>
-          <Chip
-            color={highlightedIds.length > 0 ? 'error' : 'default'}
-            label={`${highlightedIds.length} node${highlightedIds.length === 1 ? '' : 's'}`}
-            size={'small'}
-          />
-        </Box>
-      )}
     </Box>
   );
 };

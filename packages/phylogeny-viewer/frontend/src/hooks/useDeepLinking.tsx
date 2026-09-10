@@ -24,7 +24,6 @@ export const useDeepLinking = () => {
       if (inputFastaUrl) {
         setCalculationStatus(CALCULATION_STATUS.LOADING);
         try {
-          console.log('[App] Auto-fetching FASTA from URL:', inputFastaUrl);
           const fastaRes = await fetch(inputFastaUrl);
           if (!fastaRes.ok) {
             throw new Error(`FASTA fetch failed (${fastaRes.status})`);
@@ -39,7 +38,6 @@ export const useDeepLinking = () => {
 
           if (inputMetadataUrl) {
             try {
-              console.log('[App] Auto-fetching Metadata from URL:', inputMetadataUrl);
               const metaRes = await fetch(inputMetadataUrl);
               if (metaRes.ok) {
                 const metaText = await metaRes.text();

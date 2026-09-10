@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createStore } from 'zustand';
 
 import type {
   NodeTooltipInfo,
@@ -29,7 +29,7 @@ interface TreeViewStateStore {
   viewState: TreeViewState;
 }
 
-export const useTreeViewStore = create<TreeViewStateStore>((set) => ({
+export const treeViewStore = createStore<TreeViewStateStore>((set) => ({
   collapsedNodeIds: [],
   highlightedIds: [],
   resetTreeView: () => {

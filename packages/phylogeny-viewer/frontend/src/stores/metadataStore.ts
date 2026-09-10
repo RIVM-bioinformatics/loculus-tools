@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createStore } from 'zustand';
 
 import type { ColorMap } from '../models/metadata';
 
@@ -56,7 +56,7 @@ export const generateDeterministicColor = (value: string, index = 0): string => 
   return `hsl(${hue}, 70%, 45%)`;
 };
 
-export const useMetadataStore = create<MetadataState>((set) => ({
+export const metadataStore = createStore<MetadataState>((set) => ({
   colorByField: null,
   colorMap: {},
   columnMatchCounts: {},

@@ -26,11 +26,12 @@ import ForestIcon from '@mui/icons-material/Forest';
 import ImageIcon from '@mui/icons-material/Image';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CodeIcon from '@mui/icons-material/Code';
+import { useStore } from 'zustand/react';
 
-import { useDatasetStore } from '../../stores/datasetStore';
-import { useCalculationStore } from '../../stores/calculationStore';
-import { useTreeViewStore } from '../../stores/treeViewStore';
-import { useMetadataStore } from '../../stores/metadataStore';
+import { datasetStore } from '../../stores/datasetStore';
+import { calculationStore } from '../../stores/calculationStore';
+import { treeViewStore } from '../../stores/treeViewStore';
+import { metadataStore } from '../../stores/metadataStore';
 import { ExportUtil } from '../../utils/ExportUtil';
 import { EventBusService } from '../../services/EventBusService';
 
@@ -40,15 +41,15 @@ export type PageHeaderProps = {
 };
 
 export const PageHeader = ({ drawerOpen, noInteraction }: PageHeaderProps) => {
-  const resetTreeView = useTreeViewStore((state) => state.resetTreeView);
+  const resetTreeView = useStore(treeViewStore, (state) => state.resetTreeView);
 
-  const parsedFasta = useDatasetStore((state) => state.parsedFasta);
-  const parsedMetadata = useDatasetStore((state) => state.parsedMetadata);
-  const resetDataset = useDatasetStore((state) => state.resetDataset);
+  const parsedFasta = useStore(datasetStore, (state) => state.parsedFasta);
+  const parsedMetadata = useStore(datasetStore, (state) => state.parsedMetadata);
+  const resetDataset = useStore(datasetStore, (state) => state.resetDataset);
 
-  const newick = useCalculationStore((state) => state.newick);
-  const resetCalculation = useCalculationStore((state) => state.resetCalculation);
-  const resetMetadataState = useMetadataStore((state) => state.resetMetadataState);
+  const newick = useStore(calculationStore, (state) => state.newick);
+  const resetCalculation = useStore(calculationStore, (state) => state.resetCalculation);
+  const resetMetadataState = useStore(metadataStore, (state) => state.resetMetadataState);
 
   // Export Menu State
   const [exportAnchorEl, setExportAnchorEl] = useState<HTMLElement | null>(null);
@@ -106,7 +107,6 @@ export const PageHeader = ({ drawerOpen, noInteraction }: PageHeaderProps) => {
   }, [resetCalculation, resetDataset, resetMetadataState, resetTreeView]);
 
   const onToggleDrawerButtonClick = useCallback(() => {
-    console.log('onToggleDrawerButtonClick, drawerOpen:', drawerOpen);
     EventBusService.getInstance().emit('onToggleDrawer', !drawerOpen);
   }, [drawerOpen]);
   const onImportDataButtonClick = useCallback(() => EventBusService.getInstance().emit('onShowImportDialog'), []);

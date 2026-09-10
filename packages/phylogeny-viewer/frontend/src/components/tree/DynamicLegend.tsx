@@ -13,13 +13,14 @@ import {
 import PaletteIcon from '@mui/icons-material/Palette';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import { useStore } from 'zustand/react';
 
-import { useMetadataStore } from '../../stores/metadataStore';
+import { metadataStore } from '../../stores/metadataStore';
 
 export const DynamicLegend = () => {
-  const colorByField = useMetadataStore((state) => state.colorByField);
-  const colorMap = useMetadataStore((state) => state.colorMap);
-  const valueCounts = useMetadataStore((state) => state.valueCounts);
+  const colorByField = useStore(metadataStore, (state) => state.colorByField);
+  const colorMap = useStore(metadataStore, (state) => state.colorMap);
+  const valueCounts = useStore(metadataStore, (state) => state.valueCounts);
 
   const [expanded, setExpanded] = useState(true);
   const onClickToggleExpanded = useCallback(() => {

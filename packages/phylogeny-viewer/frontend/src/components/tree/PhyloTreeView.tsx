@@ -3,8 +3,8 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react';
+import { lighten } from '@mui/material/styles';
 import {
   Box,
   Button,
@@ -13,18 +13,21 @@ import {
 import ForestOutlinedIcon from '@mui/icons-material/ForestOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import type {
+  PhylogeneticTreeHighlightedNodeNamesSubjectValue,
   PhylogeneticTreePathClickEvent,
   PhylogeneticTreeRef,
 } from '@gen-epix/ui-phylogenetic-tree/components/PhylogeneticTree';
 import { PhylogeneticTree } from '@gen-epix/ui-phylogenetic-tree/components/PhylogeneticTree';
 import { NewickUtil } from '@gen-epix/ui-phylogenetic-tree/utils/NewickUtil';
 import type { TreeNode } from '@gen-epix/ui-phylogenetic-tree/models/tree';
+import { Subject } from '@gen-epix/ui-core/classes/Subject';
+import { useStore } from 'zustand';
 
 import { TvsUtil } from '../../utils/TvsUtil';
-import { useCalculationStore } from '../../stores/calculationStore';
-import { useDatasetStore } from '../../stores/datasetStore';
-import { useTreeViewStore } from '../../stores/treeViewStore';
-import { useMetadataStore } from '../../stores/metadataStore';
+import { calculationStore } from '../../stores/calculationStore';
+import { datasetStore } from '../../stores/datasetStore';
+import { treeViewStore } from '../../stores/treeViewStore';
+import { metadataStore } from '../../stores/metadataStore';
 import {
   TREE_ANCESTOR_DOT_RADIUS,
   TREE_HEADER_HEIGHT,
@@ -48,38 +51,61 @@ import { EventBusService } from '../../services/EventBusService';
 import { DynamicLegend } from './DynamicLegend';
 import { DraggableNodeTooltip } from './DraggableNodeTooltip';
 
-const dimColor = (color: string): string => color;
+const dimColor = (color: string) => lighten(color, 0.8);
 
 export const PhyloTreeView = () => {
-  const newick = useCalculationStore((state) => state.newick);
-  const showBranchLengths = useTreeViewStore((state) => state.showBranchLengths);
-  const showLeafLabels = useTreeViewStore((state) => state.showLeafLabels);
-  const showSupportLines = useTreeViewStore((state) => state.showSupportLines);
-  const showScaleBar = useTreeViewStore((state) => state.showScaleBar);
-  const setTooltip = useTreeViewStore((state) => state.setTooltip);
+  const newick = useStore(calculationStore, (state) => state.newick);
+  const showBranchLengths = useStore(treeViewStore, (state) => state.showBranchLengths);
+  const showLeafLabels = useStore(treeViewStore, (state) => state.showLeafLabels);
+  // const showSupportLines = useStore(treeViewStore, (state) => state.showSupportLines);
+  const showScaleBar = useStore(treeViewStore, (state) => state.showScaleBar);
+  const setTooltip = useStore(treeViewStore, (state) => state.setTooltip);
 
-  const colorByField = useMetadataStore((state) => state.colorByField);
-  const colorMap = useMetadataStore((state) => state.colorMap);
-  const selectedLabelFields = useMetadataStore((state) => state.selectedLabelFields);
-  const matchKeyColumn = useMetadataStore((state) => state.matchKeyColumn);
-  const parsedMetadata = useDatasetStore((state) => state.parsedMetadata);
+  const colorByField = useStore(metadataStore, (state) => state.colorByField);
+  const colorMap = useStore(metadataStore, (state) => state.colorMap);
+  const selectedLabelFields = useStore(metadataStore, (state) => state.selectedLabelFields);
+  const matchKeyColumn = useStore(metadataStore, (state) => state.matchKeyColumn);
+  const parsedMetadata = useStore(datasetStore, (state) => state.parsedMetadata);
 
   const treeRef = useRef<PhylogeneticTreeRef>(null);
-  const [renderKey, setRenderKey] = useState(0);
 
-  // Trigger a canvas redraw when visual display options change
+  const highlightedNodeNamesSubject = useMemo(() => {
+    const subject = new Subject<PhylogeneticTreeHighlightedNodeNamesSubjectValue>({
+      highlightedNodeNames: [],
+      persistedHighlightedNodeNames: [],
+    });
+    return subject;
+  }, []);
+
   useEffect(() => {
-    setRenderKey((prev) => prev + 1);
-  }, [
-    showBranchLengths,
-    showLeafLabels,
-    showSupportLines,
-    showScaleBar,
-    selectedLabelFields,
-    matchKeyColumn,
-    colorByField,
-    colorMap,
-  ]);
+    const unsubscribe = treeViewStore.subscribe((state, prevState) => {
+      if (JSON.stringify(state.highlightedIds) === JSON.stringify(prevState.highlightedIds)) {
+        return;
+      }
+      if (!state.highlightedIds?.length) {
+        highlightedNodeNamesSubject.next({ highlightedNodeNames: [], persistedHighlightedNodeNames: [] });
+      }
+      highlightedNodeNamesSubject.next({ highlightedNodeNames: highlightedNodeNamesSubject.data?.highlightedNodeNames || [], persistedHighlightedNodeNames: state.highlightedIds });
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [highlightedNodeNamesSubject, matchKeyColumn, parsedMetadata]);
+
+
+  const getLeafLabel = useCallback((nodeName: string) => {
+    if (!selectedLabelFields?.length) {
+      return nodeName;
+    }
+
+    const meta = TvsUtil.getRecordForSample(parsedMetadata, nodeName, matchKeyColumn);
+    if (!meta) {
+      return nodeName;
+    }
+
+    const labels = [nodeName, ...selectedLabelFields.map((field) => meta?.[field] || '<missing>')];
+    return labels.join(' | ');
+  }, [selectedLabelFields, parsedMetadata, matchKeyColumn]);
 
   // Parse Newick tree into TreeNode
   const parsedTree = useMemo<null | TreeNode>(() => {
@@ -226,9 +252,10 @@ export const PhyloTreeView = () => {
         backgroundColor={'#FFFFFF'}
         dimFn={dimColor}
         fontFamily={'Noto Sans, sans-serif'}
+        getLeafLabel={getLeafLabel}
         headerHeight={showScaleBar ? TREE_HEADER_HEIGHT : 0}
+        highlightedNodeNamesSubject={highlightedNodeNamesSubject}
         itemHeight={TREE_ITEM_HEIGHT}
-        key={`${showScaleBar ? 'scale-on' : 'scale-off'}-${renderKey}`}
         leafDotRadius={TREE_LEAF_DOT_RADIUS}
         linkedScrollDebounceDelayMs={TREE_LINKED_SCROLL_DEBOUNCE_DELAY_MS}
         maxScaleWidthPx={TREE_MAX_SCALE_WIDTH_PX}
@@ -247,6 +274,7 @@ export const PhyloTreeView = () => {
         scaleColor={'#475569'}
         scaleIncrements={TREE_SCALE_INCREMENTS}
         shouldShowDistances={showBranchLengths}
+        shouldShowLeafLabels={showLeafLabels}
         shouldShowSupportLinesWhenUnlinked={false}
         sortedLeafNames={leafNames}
         supportLineColorLinked={'#0f0'}

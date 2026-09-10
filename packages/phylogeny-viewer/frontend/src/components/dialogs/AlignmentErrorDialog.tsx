@@ -19,8 +19,9 @@ import { withDialog } from '@gen-epix/ui-core-components/hoc/withDialog';
 import type { DialogAction } from '@gen-epix/ui-core-components/components/Dialog';
 import type { ReactElement } from 'react';
 import { useEffect } from 'react';
+import { useStore } from 'zustand';
 
-import { useDatasetStore } from '../../stores/datasetStore';
+import { datasetStore } from '../../stores/datasetStore';
 
 export interface AlignmentErrorDialogOpenProps {
   //
@@ -38,7 +39,7 @@ export const AlignmentErrorDialog = withDialog<AlignmentErrorDialogProps, Alignm
     onClose,
   }: AlignmentErrorDialogProps,
 ): ReactElement => {
-  const parsedFasta = useDatasetStore((state) => state.parsedFasta);
+  const parsedFasta = useStore(datasetStore, (state) => state.parsedFasta);
 
   useEffect(() => {
     const actions: DialogAction[] = [];

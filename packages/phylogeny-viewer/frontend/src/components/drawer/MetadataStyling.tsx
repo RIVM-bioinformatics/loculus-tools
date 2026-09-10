@@ -21,22 +21,23 @@ import type { SelectChangeEvent } from '@mui/material';
 import PaletteIcon from '@mui/icons-material/Palette';
 import StyleIcon from '@mui/icons-material/Style';
 import KeyIcon from '@mui/icons-material/Key';
+import { useStore } from 'zustand';
 
-import { useMetadataStore } from '../../stores/metadataStore';
-import { useDatasetStore } from '../../stores/datasetStore';
+import { metadataStore } from '../../stores/metadataStore';
+import { datasetStore } from '../../stores/datasetStore';
 
 export const MetadataStyling = () => {
-  const parsedMetadata = useDatasetStore((state) => state.parsedMetadata);
-  const parsedFasta = useDatasetStore((state) => state.parsedFasta);
+  const parsedMetadata = useStore(datasetStore, (state) => state.parsedMetadata);
+  const parsedFasta = useStore(datasetStore, (state) => state.parsedFasta);
 
-  const matchKeyColumn = useMetadataStore((state) => state.matchKeyColumn);
-  const setMatchKeyColumn = useMetadataStore((state) => state.setMatchKeyColumn);
-  const columnMatchCounts = useMetadataStore((state) => state.columnMatchCounts);
+  const matchKeyColumn = useStore(metadataStore, (state) => state.matchKeyColumn);
+  const setMatchKeyColumn = useStore(metadataStore, (state) => state.setMatchKeyColumn);
+  const columnMatchCounts = useStore(metadataStore, (state) => state.columnMatchCounts);
 
-  const colorByField = useMetadataStore((state) => state.colorByField);
-  const setColorByField = useMetadataStore((state) => state.setColorByField);
-  const selectedLabelFields = useMetadataStore((state) => state.selectedLabelFields);
-  const toggleLabelField = useMetadataStore((state) => state.toggleLabelField);
+  const colorByField = useStore(metadataStore, (state) => state.colorByField);
+  const setColorByField = useStore(metadataStore, (state) => state.setColorByField);
+  const selectedLabelFields = useStore(metadataStore, (state) => state.selectedLabelFields);
+  const toggleLabelField = useStore(metadataStore, (state) => state.toggleLabelField);
 
   const columns = parsedMetadata?.columns || [];
   const records = useMemo(() => parsedMetadata?.records ?? [], [parsedMetadata]);
@@ -203,7 +204,7 @@ export const MetadataStyling = () => {
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
           <StyleIcon
-            color={'secondary'}
+            color={'primary'}
             fontSize={'small'}
           />
           <Typography

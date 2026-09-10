@@ -20,28 +20,29 @@ import type { SelectChangeEvent } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SpeedIcon from '@mui/icons-material/Speed';
 import BiotechIcon from '@mui/icons-material/Biotech';
+import { useStore } from 'zustand/react';
 
 import { CALCULATION_STATUS } from '../../models/calculation';
-import { useCalculationStore } from '../../stores/calculationStore';
-import { useDatasetStore } from '../../stores/datasetStore';
+import { calculationStore } from '../../stores/calculationStore';
+import { datasetStore } from '../../stores/datasetStore';
 import type {
   FastTreeMode,
   TreeEngine,
 } from '../../models/calculation';
 
 export const CalculationSettings = () => {
-  const engine = useCalculationStore((state) => state.engine);
-  const setEngine = useCalculationStore((state) => state.setEngine);
-  const fastTreeMode = useCalculationStore((state) => state.fastTreeMode);
-  const setFastTreeMode = useCalculationStore((state) => state.setFastTreeMode);
-  const fastTreeParams = useCalculationStore((state) => state.fastTreeParams);
-  const setFastTreeParams = useCalculationStore((state) => state.setFastTreeParams);
-  const status = useCalculationStore((state) => state.status);
-  const calculateTree = useCalculationStore((state) => state.calculateTree);
-  const lastExecutionTimeMs = useCalculationStore((state) => state.lastExecutionTimeMs);
+  const engine = useStore(calculationStore, (state) => state.engine);
+  const setEngine = useStore(calculationStore, (state) => state.setEngine);
+  const fastTreeMode = useStore(calculationStore, (state) => state.fastTreeMode);
+  const setFastTreeMode = useStore(calculationStore, (state) => state.setFastTreeMode);
+  const fastTreeParams = useStore(calculationStore, (state) => state.fastTreeParams);
+  const setFastTreeParams = useStore(calculationStore, (state) => state.setFastTreeParams);
+  const status = useStore(calculationStore, (state) => state.status);
+  const calculateTree = useStore(calculationStore, (state) => state.calculateTree);
+  const lastExecutionTimeMs = useStore(calculationStore, (state) => state.lastExecutionTimeMs);
 
-  const rawFasta = useDatasetStore((state) => state.rawFasta);
-  const parsedFasta = useDatasetStore((state) => state.parsedFasta);
+  const rawFasta = useStore(datasetStore, (state) => state.rawFasta);
+  const parsedFasta = useStore(datasetStore, (state) => state.parsedFasta);
 
   const isCalculating = status === CALCULATION_STATUS.LOADING;
   const hasValidFasta = Boolean(rawFasta && parsedFasta?.isAligned);
@@ -101,7 +102,7 @@ export const CalculationSettings = () => {
           <MenuItem value={'fasttree'}>
             <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
               <BiotechIcon
-                color={'secondary'}
+                color={'primary'}
                 fontSize={'small'}
               />
               <Typography

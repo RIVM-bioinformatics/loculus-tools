@@ -1,11 +1,11 @@
-import { create } from 'zustand';
+import { createStore } from 'zustand';
 
 import type { FastaParseResult } from '../models/fasta';
 import type { MetadataParseResult } from '../models/metadata';
 import { FastaUtil } from '../utils/FastaUtil';
 import { TvsUtil } from '../utils/TvsUtil';
 
-import { useMetadataStore } from './metadataStore';
+import { metadataStore } from './metadataStore';
 
 interface DatasetState {
   parsedFasta: FastaParseResult | null;
@@ -18,7 +18,7 @@ interface DatasetState {
   setMetadataContent: (tsv: string) => MetadataParseResult;
 }
 
-export const useDatasetStore = create<DatasetState>((set, get) => ({
+export const datasetStore = createStore<DatasetState>((set, get) => ({
   parsedFasta: null,
   parsedMetadata: null,
   rawFasta: '',
@@ -48,8 +48,8 @@ export const useDatasetStore = create<DatasetState>((set, get) => ({
         currentMetadata.recordsByColumn,
         fastaIds,
       );
-      useMetadataStore.getState().setColumnMatchCounts(matchCounts);
-      useMetadataStore.getState().setMatchKeyColumn(bestColumn);
+      metadataStore.getState().setColumnMatchCounts(matchCounts);
+      metadataStore.getState().setMatchKeyColumn(bestColumn);
     }
 
     return parsed;
@@ -70,13 +70,13 @@ export const useDatasetStore = create<DatasetState>((set, get) => ({
         parsed.recordsByColumn,
         fastaIds,
       );
-      useMetadataStore.getState().setColumnMatchCounts(matchCounts);
-      useMetadataStore.getState().setMatchKeyColumn(bestColumn);
+      metadataStore.getState().setColumnMatchCounts(matchCounts);
+      metadataStore.getState().setMatchKeyColumn(bestColumn);
     } else if (parsed && parsed.columns.length > 0) {
       // Default to best candidate
       const prioritized = ['displayName', 'accessionVersion', 'accession', 'SampleID', 'id', 'strain'];
       const defaultCol = prioritized.find((p) => parsed.columns.includes(p)) || parsed.columns[0];
-      useMetadataStore.getState().setMatchKeyColumn(defaultCol);
+      metadataStore.getState().setMatchKeyColumn(defaultCol);
     }
 
     return parsed;

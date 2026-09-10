@@ -17,7 +17,6 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 
 import { EventBusService } from '../../services/EventBusService';
@@ -26,7 +25,6 @@ import { DRAWER_WIDTH } from '../../constants/drawer';
 import { CalculationSettings } from './CalculationSettings';
 import { ViewSettings } from './ViewSettings';
 import { MetadataStyling } from './MetadataStyling';
-import { SearchFilter } from './SearchFilter';
 
 export type SideControlPanelProps = {
   drawerOpen: boolean;
@@ -50,7 +48,6 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
   const onChangeCalculation = useCallback(() => toggleAccordion('calc'), [toggleAccordion]);
   const onChangeView = useCallback(() => toggleAccordion('view'), [toggleAccordion]);
   const onChangeMetadata = useCallback(() => toggleAccordion('meta'), [toggleAccordion]);
-  const onChangeSearch = useCallback(() => toggleAccordion('search'), [toggleAccordion]);
 
   return (
     <Drawer
@@ -179,32 +176,6 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
           </AccordionSummary>
           <AccordionDetails sx={{ pb: 2, pt: 0, px: 2 }}>
             <MetadataStyling />
-          </AccordionDetails>
-        </Accordion>
-        {/* 4. Search & Filter */}
-        <Accordion
-          disableGutters
-          elevation={0}
-          expanded={expandedAccordions.includes('search')}
-          onChange={onChangeSearch}
-          sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-              <SearchOutlinedIcon
-                color={'primary'}
-                fontSize={'small'}
-              />
-              <Typography
-                sx={{ fontWeight: 600 }}
-                variant={'body2'}
-              >
-                {'Search & Highlights'}
-              </Typography>
-            </Box>
-          </AccordionSummary>
-          <AccordionDetails sx={{ pb: 2, pt: 0, px: 2 }}>
-            <SearchFilter />
           </AccordionDetails>
         </Accordion>
       </Box>

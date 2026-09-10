@@ -27,10 +27,11 @@ import type {
 } from '@gen-epix/ui-core-components/hoc/withDialog';
 import { withDialog } from '@gen-epix/ui-core-components/hoc/withDialog';
 import type { DialogAction } from '@gen-epix/ui-core-components/components/Dialog';
+import { useStore } from 'zustand';
 
-import { useDatasetStore } from '../../stores/datasetStore';
-import { useCalculationStore } from '../../stores/calculationStore';
-import { useMetadataStore } from '../../stores/metadataStore';
+import { datasetStore } from '../../stores/datasetStore';
+import { calculationStore } from '../../stores/calculationStore';
+import { metadataStore } from '../../stores/metadataStore';
 import { EventBusService } from '../../services/EventBusService';
 
 
@@ -65,10 +66,10 @@ export const DataImportDialog = withDialog<DataImportDialogProps, DataImportDial
     onClose,
   }: DataImportDialogProps,
 ): ReactElement => {
-  const setFastaContent = useDatasetStore((state) => state.setFastaContent);
-  const setMetadataContent = useDatasetStore((state) => state.setMetadataContent);
-  const calculateTree = useCalculationStore((state) => state.calculateTree);
-  const setColorByField = useMetadataStore((state) => state.setColorByField);
+  const setFastaContent = useStore(datasetStore, (state) => state.setFastaContent);
+  const setMetadataContent = useStore(datasetStore, (state) => state.setMetadataContent);
+  const calculateTree = useStore(calculationStore, (state) => state.calculateTree);
+  const setColorByField = useStore(metadataStore, (state) => state.setColorByField);
 
   // FASTA state
   const [fastaTab, setFastaTab] = useState(FASTA_TAB.DROP);

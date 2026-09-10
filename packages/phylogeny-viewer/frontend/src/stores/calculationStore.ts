@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createStore } from 'zustand';
 
 import { CALCULATION_STATUS } from '../models/calculation';
 import type {
@@ -9,7 +9,7 @@ import type {
 import { FastTreeAioliService } from '../services/FastTreeAioliService';
 import { TN93AioliService } from '../services/TN93AioliService';
 
-import { useDatasetStore } from './datasetStore';
+import { datasetStore } from './datasetStore';
 
 interface CalculationState {
   calculateTree: (overrideFasta?: string) => Promise<null | string>;
@@ -28,10 +28,10 @@ interface CalculationState {
   status: CALCULATION_STATUS;
 }
 
-export const useCalculationStore = create<CalculationState>((set, get) => ({
+export const calculationStore = createStore<CalculationState>((set, get) => ({
   calculateTree: async (overrideFasta?: string) => {
-    const rawFasta = overrideFasta ?? useDatasetStore.getState().rawFasta;
-    const parsedFasta = useDatasetStore.getState().parsedFasta;
+    const rawFasta = overrideFasta ?? datasetStore.getState().rawFasta;
+    const parsedFasta = datasetStore.getState().parsedFasta;
 
     if (!rawFasta?.trim()) {
       set({ error: 'No sequence data available to calculate tree.', status: CALCULATION_STATUS.ERROR });

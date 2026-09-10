@@ -22,19 +22,21 @@ import CloseIcon from '@mui/icons-material/Close';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
+import { useStore } from 'zustand/react';
 
-import { useTreeViewStore } from '../../stores/treeViewStore';
-import { useDatasetStore } from '../../stores/datasetStore';
-import { useMetadataStore } from '../../stores/metadataStore';
+import { treeViewStore } from '../../stores/treeViewStore';
+import { datasetStore } from '../../stores/datasetStore';
+import { metadataStore } from '../../stores/metadataStore';
 import { TvsUtil } from '../../utils/TvsUtil';
 
 export const DraggableNodeTooltip = () => {
-  const tooltip = useTreeViewStore((state) => state.tooltip);
-  const setTooltip = useTreeViewStore((state) => state.setTooltip);
-  const collapsedNodeIds = useTreeViewStore((state) => state.collapsedNodeIds);
-  const toggleCollapseNode = useTreeViewStore((state) => state.toggleCollapseNode);
+  const tooltip = useStore(treeViewStore, (state) => state.tooltip);
+  const setTooltip = useStore(treeViewStore, (state) => state.setTooltip);
+  const collapsedNodeIds = useStore(treeViewStore, (state) => state.collapsedNodeIds);
+  const toggleCollapseNode = useStore(treeViewStore, (state) => state.toggleCollapseNode);
+  const matchKeyColumn = useStore(metadataStore, (state) => state.matchKeyColumn);
 
-  const parsedMetadata = useDatasetStore((state) => state.parsedMetadata);
+  const parsedMetadata = useStore(datasetStore, (state) => state.parsedMetadata);
 
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -100,8 +102,6 @@ export const DraggableNodeTooltip = () => {
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging]);
-
-  const matchKeyColumn = useMetadataStore((state) => state.matchKeyColumn);
 
   if (!tooltip) {
     return null;

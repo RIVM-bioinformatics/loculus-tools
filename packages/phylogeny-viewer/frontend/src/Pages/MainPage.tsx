@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useStore } from 'zustand';
 
 import { Page } from '../components/app/Page';
 import type { AlignmentErrorDialogRefMethods } from '../components/dialogs/AlignmentErrorDialog';
@@ -16,21 +17,16 @@ import { PhyloTreeView } from '../components/tree/PhyloTreeView';
 import { DRAWER_WIDTH } from '../constants/drawer';
 import { CALCULATION_STATUS } from '../models/calculation';
 import { EventBusService } from '../services/EventBusService';
-import { useCalculationStore } from '../stores/calculationStore';
-import { useDatasetStore } from '../stores/datasetStore';
-import { useMetadataStore } from '../stores/metadataStore';
+import { calculationStore } from '../stores/calculationStore';
+import { useDeepLinking } from '../hooks/useDeepLinking';
+import { SearchFilter } from '../components/SearchFilter';
 
 
 export const MainPage = () => {
   const dataImportDialogRef = useRef<DataImportDialogRefMethods>(null);
   const alignmentErrorDialogRef = useRef<AlignmentErrorDialogRefMethods>(null);
-  const calculationStatus = useCalculationStore((state) => state.status);
-  const calculationEngine = useCalculationStore((state) => state.engine);
-
-  const setFastaContent = useDatasetStore((state) => state.setFastaContent);
-  const setMetadataContent = useDatasetStore((state) => state.setMetadataContent);
-  const calculateTree = useCalculationStore((state) => state.calculateTree);
-  const setColorByField = useMetadataStore((state) => state.setColorByField);
+  const calculationStatus = useStore(calculationStore, (state) => state.status);
+  const calculationEngine = useStore(calculationStore, (state) => state.engine);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
 
@@ -44,7 +40,6 @@ export const MainPage = () => {
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onToggleDrawer', (isOpen: boolean) => {
-        console.log('Toggling drawer, isOpen:', isOpen);
         setIsDrawerOpen(isOpen);
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
@@ -57,63 +52,8 @@ export const MainPage = () => {
     };
   }, []);
 
-  useEffect(() => {
-    // Scan URL parameters for deep-linking
-    const urlParams = new URLSearchParams(window.location.search);
-    const inputFastaUrl = urlParams.get('input-fasta');
-    const inputMetadataUrl = urlParams.get('input-metadata');
+  useDeepLinking();
 
-    const handleDeepLinking = async () => {
-      if (inputFastaUrl) {
-        try {
-          console.log('[App] Auto-fetching FASTA from URL:', inputFastaUrl);
-          const fastaRes = await fetch(inputFastaUrl);
-          if (!fastaRes.ok) {
-            throw new Error(`FASTA fetch failed (${fastaRes.status})`);
-          }
-          const fastaText = await fastaRes.text();
-
-          const fastaResult = setFastaContent(fastaText);
-          if (!fastaResult.isAligned) {
-            return;
-          }
-
-          if (inputMetadataUrl) {
-            try {
-              console.log('[App] Auto-fetching Metadata from URL:', inputMetadataUrl);
-              const metaRes = await fetch(inputMetadataUrl);
-              if (metaRes.ok) {
-                const metaText = await metaRes.text();
-                const metaResult = setMetadataContent(metaText);
-                if (metaResult.columns.length > 0) {
-                  const preferred = metaResult.columns.find((c) =>
-                    ['clade', 'country', 'division', 'host', 'lineage', 'region'].includes(c.toLowerCase())) || metaResult.columns[0];
-                  if (preferred) {
-                    const vals = metaResult.records.map((r) => r[preferred] || '');
-                    const uniqueVals = Array.from(new Set(vals.filter(Boolean)));
-                    setColorByField(preferred, uniqueVals, vals);
-                  }
-                }
-              }
-            } catch (metaErr) {
-              console.warn('[App] Failed to auto-fetch metadata:', metaErr);
-            }
-          }
-
-          // Automatically calculate initial tree
-          await calculateTree(fastaText);
-        } catch (fastaErr) {
-          console.error('[App] Failed to auto-load FASTA:', fastaErr);
-          EventBusService.getInstance().emit('onShowImportDialog');
-        }
-      } else {
-        // PV1-02: Show data loading modal if no data provided via URL query params
-        EventBusService.getInstance().emit('onShowImportDialog');
-      }
-    };
-
-    void handleDeepLinking();
-  }, [setFastaContent, setMetadataContent, calculateTree, setColorByField]);
 
   return (
     <Page drawerOpen={isDrawerOpen}>
@@ -136,7 +76,18 @@ export const MainPage = () => {
             width: isDrawerOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%',
           }}
         >
-          <PhyloTreeView />
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateRows: 'max-content auto',
+              height: '100%',
+              position: 'relative',
+              width: '100%',
+            }}
+          >
+            <SearchFilter />
+            <PhyloTreeView />
+          </Box>
         </Box>
         {/* Global Overlays & Modals */}
         <DataImportDialog ref={dataImportDialogRef} />

@@ -13,18 +13,19 @@ import StraightenIcon from '@mui/icons-material/Straighten';
 import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import LinearScaleIcon from '@mui/icons-material/LinearScale';
+import { useStore } from 'zustand';
 
-import { useTreeViewStore } from '../../stores/treeViewStore';
+import { treeViewStore } from '../../stores/treeViewStore';
 
 export const ViewSettings = () => {
-  const showBranchLengths = useTreeViewStore((state) => state.showBranchLengths);
-  const setShowBranchLengths = useTreeViewStore((state) => state.setShowBranchLengths);
-  const showLeafLabels = useTreeViewStore((state) => state.showLeafLabels);
-  const setShowLeafLabels = useTreeViewStore((state) => state.setShowLeafLabels);
-  const showSupportLines = useTreeViewStore((state) => state.showSupportLines);
-  const setShowSupportLines = useTreeViewStore((state) => state.setShowSupportLines);
-  const showScaleBar = useTreeViewStore((state) => state.showScaleBar);
-  const setShowScaleBar = useTreeViewStore((state) => state.setShowScaleBar);
+  const showBranchLengths = useStore(treeViewStore, (state) => state.showBranchLengths);
+  const setShowBranchLengths = useStore(treeViewStore, (state) => state.setShowBranchLengths);
+  const showLeafLabels = useStore(treeViewStore, (state) => state.showLeafLabels);
+  const setShowLeafLabels = useStore(treeViewStore, (state) => state.setShowLeafLabels);
+  const showSupportLines = useStore(treeViewStore, (state) => state.showSupportLines);
+  const setShowSupportLines = useStore(treeViewStore, (state) => state.setShowSupportLines);
+  const showScaleBar = useStore(treeViewStore, (state) => state.showScaleBar);
+  const setShowScaleBar = useStore(treeViewStore, (state) => state.setShowScaleBar);
 
   const onChangeLeafLabels = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setShowLeafLabels(event.target.checked);

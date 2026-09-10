@@ -195,7 +195,7 @@ export const DraggableNodeTooltip = () => {
                   sx={{ display: 'block', fontWeight: 700, mb: 0.5 }}
                   variant={'caption'}
                 >
-                  {'Sample Metadata:'}
+                  {'Sample Metadata'}
                 </Typography>
                 <Table
                   size={'small'}

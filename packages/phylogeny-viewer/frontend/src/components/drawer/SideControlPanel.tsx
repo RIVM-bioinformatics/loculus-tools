@@ -26,17 +26,18 @@ import { CalculationSettings } from './CalculationSettings';
 import { ViewSettings } from './ViewSettings';
 import { MetadataStyling } from './MetadataStyling';
 
+enum ACCORDIONS {
+  CALCULATION = 'CALCULATION',
+  METADATA = 'METADATA',
+  VIEW = 'VIEW',
+}
+
 export type SideControlPanelProps = {
   drawerOpen: boolean;
 };
 
 export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
-  const [expandedAccordions, setExpandedAccordions] = useState<string[]>([
-    'calc',
-    'view',
-    'meta',
-    'search',
-  ]);
+  const [expandedAccordions, setExpandedAccordions] = useState<string[]>([]);
 
   const toggleAccordion = useCallback((panel: string) => {
     setExpandedAccordions((prev) =>
@@ -45,9 +46,9 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
 
   const onClickCloseDrawer = useCallback(() => EventBusService.getInstance().emit('onToggleDrawer', false), []);
   const onClickLoadData = useCallback(() => EventBusService.getInstance().emit('onShowImportDialog'), []);
-  const onChangeCalculation = useCallback(() => toggleAccordion('calc'), [toggleAccordion]);
-  const onChangeView = useCallback(() => toggleAccordion('view'), [toggleAccordion]);
-  const onChangeMetadata = useCallback(() => toggleAccordion('meta'), [toggleAccordion]);
+  const onCalculationAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.CALCULATION), [toggleAccordion]);
+  const onViewAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.VIEW), [toggleAccordion]);
+  const onMetaDataAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.METADATA), [toggleAccordion]);
 
   return (
     <Drawer
@@ -104,8 +105,8 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
         <Accordion
           disableGutters
           elevation={0}
-          expanded={expandedAccordions.includes('calc')}
-          onChange={onChangeCalculation}
+          expanded={expandedAccordions.includes(ACCORDIONS.CALCULATION)}
+          onChange={onCalculationAccordionChange}
           sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
         >
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -118,7 +119,7 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
                 sx={{ fontWeight: 600 }}
                 variant={'body2'}
               >
-                {'Tree Calculation'}
+                {'Tree calculation'}
               </Typography>
             </Box>
           </AccordionSummary>
@@ -130,8 +131,8 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
         <Accordion
           disableGutters
           elevation={0}
-          expanded={expandedAccordions.includes('view')}
-          onChange={onChangeView}
+          expanded={expandedAccordions.includes(ACCORDIONS.VIEW)}
+          onChange={onViewAccordionChange}
           sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
         >
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -144,7 +145,7 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
                 sx={{ fontWeight: 600 }}
                 variant={'body2'}
               >
-                {'View & Display'}
+                {'View settings'}
               </Typography>
             </Box>
           </AccordionSummary>
@@ -156,8 +157,8 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
         <Accordion
           disableGutters
           elevation={0}
-          expanded={expandedAccordions.includes('meta')}
-          onChange={onChangeMetadata}
+          expanded={expandedAccordions.includes(ACCORDIONS.METADATA)}
+          onChange={onMetaDataAccordionChange}
           sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
         >
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -170,7 +171,7 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
                 sx={{ fontWeight: 600 }}
                 variant={'body2'}
               >
-                {'Metadata & Styling'}
+                {'Metadata & styling'}
               </Typography>
             </Box>
           </AccordionSummary>

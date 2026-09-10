@@ -6,7 +6,6 @@ import {
 import {
   Box,
   Checkbox,
-  Chip,
   Divider,
   FormControl,
   FormControlLabel,
@@ -25,6 +24,7 @@ import { useStore } from 'zustand';
 
 import { metadataStore } from '../../stores/metadataStore';
 import { datasetStore } from '../../stores/datasetStore';
+import { StatusChip } from '../ui/StatusChip';
 
 export const MetadataStyling = () => {
   const parsedMetadata = useStore(datasetStore, (state) => state.parsedMetadata);
@@ -85,7 +85,7 @@ export const MetadataStyling = () => {
             sx={{ fontWeight: 700 }}
             variant={'caption'}
           >
-            {'Sequence ID Matching Column:'}
+            {'Sequence ID Matching Column'}
           </Typography>
         </Box>
         <FormControl
@@ -133,15 +133,10 @@ export const MetadataStyling = () => {
           </Select>
         </FormControl>
         {matchKeyColumn && totalTaxa > 0 && columnMatchCounts[matchKeyColumn] !== undefined && (
-          <Box sx={{ alignItems: 'center', display: 'flex', gap: 0.5, mt: 0.25 }}>
-            <Chip
-              color={columnMatchCounts[matchKeyColumn] > 0 ? 'success' : 'warning'}
-              label={`${columnMatchCounts[matchKeyColumn]}/${totalTaxa} sequences matched`}
-              size={'small'}
-              sx={{ fontSize: '0.7rem', height: 20 }}
-              variant={'outlined'}
-            />
-          </Box>
+          <StatusChip
+            hasWarning={columnMatchCounts[matchKeyColumn] === 0}
+            label={`${columnMatchCounts[matchKeyColumn]}/${totalTaxa} sequences matched`}
+          />
         )}
       </Box>
       <Divider />
@@ -157,7 +152,7 @@ export const MetadataStyling = () => {
             sx={{ fontWeight: 700 }}
             variant={'caption'}
           >
-            {'Color Nodes by Attribute:'}
+            {'Color nodes by attribute'}
           </Typography>
         </Box>
         <FormControl
@@ -212,7 +207,7 @@ export const MetadataStyling = () => {
             sx={{ fontWeight: 700 }}
             variant={'caption'}
           >
-            {'Composite Leaf Labels:'}
+            {'Leaf label composition'}
           </Typography>
         </Box>
         <Typography

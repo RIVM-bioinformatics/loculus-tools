@@ -5,12 +5,14 @@ import { EventBusService } from '../services/EventBusService';
 import { calculationStore } from '../stores/calculationStore';
 import { datasetStore } from '../stores/datasetStore';
 import { metadataStore } from '../stores/metadataStore';
+import { CALCULATION_STATUS } from '../models/calculation';
 
 export const useDeepLinking = () => {
   const setFastaContent = useStore(datasetStore, (state) => state.setFastaContent);
   const setMetadataContent = useStore(datasetStore, (state) => state.setMetadataContent);
   const calculateTree = useStore(calculationStore, (state) => state.calculateTree);
   const setColorByField = useStore(metadataStore, (state) => state.setColorByField);
+  const setCalculationStatus = useStore(calculationStore, (state) => state.setCalculationStatus);
 
   useEffect(() => {
     // Scan URL parameters for deep-linking
@@ -20,6 +22,7 @@ export const useDeepLinking = () => {
 
     const handleDeepLinking = async () => {
       if (inputFastaUrl) {
+        setCalculationStatus(CALCULATION_STATUS.LOADING);
         try {
           console.log('[App] Auto-fetching FASTA from URL:', inputFastaUrl);
           const fastaRes = await fetch(inputFastaUrl);
@@ -69,5 +72,5 @@ export const useDeepLinking = () => {
     };
 
     void handleDeepLinking();
-  }, [setFastaContent, setMetadataContent, calculateTree, setColorByField]);
+  }, [setFastaContent, setMetadataContent, calculateTree, setColorByField, setCalculationStatus]);
 };

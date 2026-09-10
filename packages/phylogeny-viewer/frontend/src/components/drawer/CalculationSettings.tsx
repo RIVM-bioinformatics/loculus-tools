@@ -3,7 +3,6 @@ import { useCallback } from 'react';
 import {
   Box,
   Button,
-  Chip,
   CircularProgress,
   FormControl,
   FormControlLabel,
@@ -29,6 +28,7 @@ import type {
   FastTreeMode,
   TreeEngine,
 } from '../../models/calculation';
+import { StatusChip } from '../ui/StatusChip';
 
 export const CalculationSettings = () => {
   const engine = useStore(calculationStore, (state) => state.engine);
@@ -123,7 +123,7 @@ export const CalculationSettings = () => {
             sx={{ fontWeight: 700 }}
             variant={'caption'}
           >
-            {'FastTree Mode:'}
+            {'FastTree Mode'}
           </Typography>
           <RadioGroup
             onChange={onChangeFastTreeMode}
@@ -167,7 +167,7 @@ export const CalculationSettings = () => {
                 sx={{ fontWeight: 700 }}
                 variant={'caption'}
               >
-                {'ML Parameters:'}
+                {'ML Parameters'}
               </Typography>
               <FormControl
                 fullWidth
@@ -242,14 +242,10 @@ export const CalculationSettings = () => {
       </Button>
       {/* Timing Metrics Badge */}
       {lastExecutionTimeMs !== null && (
-        <Box sx={{ alignItems: 'center', display: 'flex', gap: 1, justifyContent: 'center' }}>
-          <Chip
-            color={'success'}
-            label={`Computed in ${lastExecutionTimeMs} ms (${engine.toUpperCase()})`}
-            size={'small'}
-            variant={'outlined'}
-          />
-        </Box>
+        <StatusChip
+          hasWarning={lastExecutionTimeMs > 5000}
+          label={`Computed in ${lastExecutionTimeMs} ms (${engine.toUpperCase()})`}
+        />
       )}
     </Box>
   );

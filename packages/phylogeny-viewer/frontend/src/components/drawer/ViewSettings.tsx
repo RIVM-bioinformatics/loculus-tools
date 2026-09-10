@@ -12,7 +12,6 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import StraightenIcon from '@mui/icons-material/Straighten';
 import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
-import LinearScaleIcon from '@mui/icons-material/LinearScale';
 import { useStore } from 'zustand';
 
 import { treeViewStore } from '../../stores/treeViewStore';
@@ -22,8 +21,6 @@ export const ViewSettings = () => {
   const setShowBranchLengths = useStore(treeViewStore, (state) => state.setShowBranchLengths);
   const showLeafLabels = useStore(treeViewStore, (state) => state.showLeafLabels);
   const setShowLeafLabels = useStore(treeViewStore, (state) => state.setShowLeafLabels);
-  const showSupportLines = useStore(treeViewStore, (state) => state.showSupportLines);
-  const setShowSupportLines = useStore(treeViewStore, (state) => state.setShowSupportLines);
   const showScaleBar = useStore(treeViewStore, (state) => state.showScaleBar);
   const setShowScaleBar = useStore(treeViewStore, (state) => state.setShowScaleBar);
 
@@ -36,9 +33,6 @@ export const ViewSettings = () => {
   const onChangeScaleBar = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setShowScaleBar(event.target.checked);
   }, [setShowScaleBar]);
-  const onChangeSupportLines = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setShowSupportLines(event.target.checked);
-  }, [setShowSupportLines]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -47,7 +41,7 @@ export const ViewSettings = () => {
         sx={{ fontWeight: 700 }}
         variant={'caption'}
       >
-        {'Visual Toggles:'}
+        {'Visual Toggles'}
       </Typography>
       <FormGroup sx={{ gap: 1 }}>
         <FormControlLabel
@@ -65,7 +59,7 @@ export const ViewSettings = () => {
                 fontSize={'small'}
               />
               <Typography variant={'body2'}>
-                {'Show Leaf Labels'}
+                {'Show leaf labels'}
               </Typography>
             </Box>
           )}
@@ -85,7 +79,7 @@ export const ViewSettings = () => {
                 fontSize={'small'}
               />
               <Typography variant={'body2'}>
-                {'Show Branch Lengths'}
+                {'Show branch lengths'}
               </Typography>
             </Box>
           )}
@@ -105,27 +99,7 @@ export const ViewSettings = () => {
                 fontSize={'small'}
               />
               <Typography variant={'body2'}>
-                {'Show Distance Scale Bar'}
-              </Typography>
-            </Box>
-          )}
-        />
-        <FormControlLabel
-          control={(
-            <Switch
-              checked={showSupportLines}
-              onChange={onChangeSupportLines}
-              size={'small'}
-            />
-          )}
-          label={(
-            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-              <LinearScaleIcon
-                color={'action'}
-                fontSize={'small'}
-              />
-              <Typography variant={'body2'}>
-                {'Show Leaf Guide Lines'}
+                {'Show distance scale bar'}
               </Typography>
             </Box>
           )}

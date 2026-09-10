@@ -15,9 +15,10 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import { useStore } from 'zustand';
 
-import { treeViewStore } from '../stores/treeViewStore';
-import { datasetStore } from '../stores/datasetStore';
-import { metadataStore } from '../stores/metadataStore';
+import { datasetStore } from '../../stores/datasetStore';
+import { metadataStore } from '../../stores/metadataStore';
+import { treeViewStore } from '../../stores/treeViewStore';
+
 
 export const SearchFilter = () => {
   const searchQuery = useStore(treeViewStore, (state) => state.searchQuery);
@@ -51,8 +52,9 @@ export const SearchFilter = () => {
       }}
     >
       <TextField
+        label={'Search'}
         onChange={onChangeQuery}
-        placeholder={'Search'}
+        placeholder={'Metadata search query...'}
         size={'small'}
         slotProps={{
           input: {
@@ -77,7 +79,7 @@ export const SearchFilter = () => {
           },
         }}
         value={searchQuery}
-        variant={'outlined'}
+        variant={'filled'}
       />
       {searchQuery && (
         <Box sx={{ alignItems: 'center', display: 'flex', gap: 1, justifyContent: 'space-between', padding: 1 }}>
@@ -85,7 +87,7 @@ export const SearchFilter = () => {
             color={'text.secondary'}
             variant={'caption'}
           >
-            {'Matches found:'}
+            {'Matches found'}
           </Typography>
           <Chip
             color={highlightedIds.length > 0 ? 'error' : 'default'}

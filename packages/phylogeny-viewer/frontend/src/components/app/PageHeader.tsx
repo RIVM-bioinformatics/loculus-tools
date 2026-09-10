@@ -123,7 +123,7 @@ export const PageHeader = ({ drawerOpen, noInteraction }: PageHeaderProps) => {
       elevation={1}
       position={'static'}
       sx={{
-        backgroundColor: '#01689B', // Official RIVM Blue
+        backgroundColor: 'primary.main',
         color: '#FFFFFF',
         height: 56,
         justifyContent: 'center',
@@ -151,7 +151,7 @@ export const PageHeader = ({ drawerOpen, noInteraction }: PageHeaderProps) => {
           <Typography
             component={'div'}
             noWrap
-            sx={{ fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.01em' }}
+            sx={{ color: 'inherit', fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.01em' }}
             variant={'h6'}
           >
             {'Phylogenetic Tree Viewer'}

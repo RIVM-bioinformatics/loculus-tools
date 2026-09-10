@@ -57,7 +57,6 @@ export const PhyloTreeView = () => {
   const newick = useStore(calculationStore, (state) => state.newick);
   const showBranchLengths = useStore(treeViewStore, (state) => state.showBranchLengths);
   const showLeafLabels = useStore(treeViewStore, (state) => state.showLeafLabels);
-  // const showSupportLines = useStore(treeViewStore, (state) => state.showSupportLines);
   const showScaleBar = useStore(treeViewStore, (state) => state.showScaleBar);
   const setTooltip = useStore(treeViewStore, (state) => state.setTooltip);
 
@@ -115,7 +114,7 @@ export const PhyloTreeView = () => {
     try {
       return NewickUtil.parse(newick.trim());
     } catch (e) {
-      console.error('Failed to parse Newick tree:', e);
+      console.error('Failed to parse Newick tree', e);
       return null;
     }
   }, [newick]);

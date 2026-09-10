@@ -19,8 +19,9 @@ interface CalculationState {
   fastTreeParams: FastTreeMLParams;
   lastExecutionTimeMs: null | number;
   newick: string;
-
   resetCalculation: () => void;
+
+  setCalculationStatus: (status: CALCULATION_STATUS) => void;
   setEngine: (engine: TreeEngine) => void;
   setFastTreeMode: (mode: FastTreeMode) => void;
   setFastTreeParams: (params: Partial<FastTreeMLParams>) => void;
@@ -90,7 +91,6 @@ export const calculationStore = createStore<CalculationState>((set, get) => ({
   },
   lastExecutionTimeMs: null,
   newick: '',
-
   resetCalculation: () => {
     set({
       error: null,
@@ -99,6 +99,8 @@ export const calculationStore = createStore<CalculationState>((set, get) => ({
       status: CALCULATION_STATUS.IDLE,
     });
   },
+
+  setCalculationStatus: (status: CALCULATION_STATUS) => set({ status }),
   setEngine: (engine: TreeEngine) => set({ engine }),
   setFastTreeMode: (mode: FastTreeMode) => set({ fastTreeMode: mode }),
   setFastTreeParams: (params: Partial<FastTreeMLParams>) =>

@@ -19,7 +19,7 @@ import { CALCULATION_STATUS } from '../models/calculation';
 import { EventBusService } from '../services/EventBusService';
 import { calculationStore } from '../stores/calculationStore';
 import { useDeepLinking } from '../hooks/useDeepLinking';
-import { SearchFilter } from '../components/SearchFilter';
+import { SearchFilter } from '../components/ui/SearchFilter';
 
 
 export const MainPage = () => {
@@ -93,11 +93,8 @@ export const MainPage = () => {
         <DataImportDialog ref={dataImportDialogRef} />
         <AlignmentErrorDialog ref={alignmentErrorDialogRef} />
         <BackdropSpinner
-          backgroundColor={'rgba(0, 0, 0, 0.8)'}
-          color={'primary'}
-          label={`Computing Phylogenetic Tree (${calculationEngine === 'tn93' ? 'TN93 + NJ' : 'FastTree'})...`}
+          label={`Computing phylogenetic tree (${calculationEngine === 'tn93' ? 'TN93 + NJ' : 'FastTree'})`}
           open={calculationStatus === CALCULATION_STATUS.LOADING}
-          textColor={'#fff'}
         />
       </>
     </Page>

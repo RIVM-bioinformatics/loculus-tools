@@ -17,13 +17,11 @@ interface TreeViewStateStore {
 
   setShowLeafLabels: (show: boolean) => void;
   setShowScaleBar: (show: boolean) => void;
-  setShowSupportLines: (show: boolean) => void;
   setTooltip: (tooltip: NodeTooltipInfo | null) => void;
   setViewState: (state: Partial<TreeViewState>) => void;
   showBranchLengths: boolean;
   showLeafLabels: boolean;
   showScaleBar: boolean;
-  showSupportLines: boolean;
   toggleCollapseNode: (nodeId: string) => void;
   tooltip: NodeTooltipInfo | null;
   viewState: TreeViewState;
@@ -89,7 +87,6 @@ export const treeViewStore = createStore<TreeViewStateStore>((set) => ({
 
   setShowLeafLabels: (show: boolean) => set({ showLeafLabels: show }),
   setShowScaleBar: (show: boolean) => set({ showScaleBar: show }),
-  setShowSupportLines: (show: boolean) => set({ showSupportLines: show }),
   setTooltip: (tooltip: NodeTooltipInfo | null) => set({ tooltip }),
 
   setViewState: (newState: Partial<TreeViewState>) =>
@@ -98,7 +95,6 @@ export const treeViewStore = createStore<TreeViewStateStore>((set) => ({
   showBranchLengths: true,
   showLeafLabels: true,
   showScaleBar: true,
-  showSupportLines: false,
   toggleCollapseNode: (nodeId: string) => {
     set((state) => {
       const exists = state.collapsedNodeIds.includes(nodeId);

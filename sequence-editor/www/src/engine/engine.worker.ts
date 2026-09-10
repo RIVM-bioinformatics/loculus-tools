@@ -25,6 +25,7 @@ import type {
   EngineRequest,
   EngineResponse,
   Meta,
+  SearchResult,
   ViewportResult,
 } from "./protocol";
 
@@ -132,6 +133,7 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       const n = e.load_fasta(req.fasta);
       engineMs = performance.now() - engineStart;
       post({ type: "result", reqId: req.reqId, ok: true, data: n, timing: { engineMs, workerMs: 0 } });
+      console.log(`Loaded ${n} sequences`);
       break;
     }
     case "viewport": {
@@ -179,12 +181,12 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       // SAB view adds ~3ms per call. The `set()` approach is a single
       // typed-array memcpy and is dramatically faster.
       sabView.set(view, 0);
-      
+
       // Derive metadata from actual engine output, not request bounds.
       // Engine clamps ranges and pads with spaces; we must compute actual rows
       // from the returned byte length and clamped column count.
       const actualRows = Math.floor(len / shape.cols);
-      
+
       const data: ViewportResult = {
         rows: actualRows,
         cols: shape.cols,
@@ -203,6 +205,81 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       });
       break;
     }
+
+    case "search": {
+      // `e.search` returns one `SearchResult` per matrix (nucleotide, amino
+      // acid, record names), serialized via serde_wasm_bindgen.
+      const data: SearchResult = e.search(req.query, req.checkRecordNames);
+      console.log(`Search query: ${req.query}, checkRecordNames: ${req.checkRecordNames}, result: ${JSON.stringify(data)}`);
+      engineMs = performance.now() - engineStart;
+      const workerMs = performance.now() - workerStart;
+      post({
+        type: "result",
+        reqId: req.reqId,
+        ok: true,
+        data,
+        timing: { engineMs, workerMs },
+      });
+      break;
+    }
+
+    case "translate": {
+      // `e.translate` returns raw amino-acid bytes, padded to a fixed stride
+      // just like `update_viewport` — reuse the same SAB copy-and-describe path.
+      const view = e.translate(
+        req.startRow,
+        req.endRow,
+        req.startCol,
+        req.endCol,
+        req.readingFrame
+      );
+      console.log(`Translated rows ${req.startRow}-${req.endRow}, cols ${req.startCol}-${req.endCol}, returned reading frame: ${req.readingFrame}`);
+      const len = view.byteLength;
+
+      if (len > SAB_MAX_BYTES) {
+        post({
+          type: "error",
+          reqId: req.reqId,
+          message: `Translate result too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+        });
+        break;
+      }
+      if (!sabView) {
+        post({
+          type: "error",
+          reqId: req.reqId,
+          message: "SharedArrayBuffer not initialized",
+        });
+        break;
+      }
+      sabView.set(view, 0);
+
+      // Rust's `translate` now uses the same inclusive `[start, end]` ranges
+      // and fixed-stride row padding as `update_viewport`.
+      const reqCols = Math.max(0, req.endCol - req.startCol + 1);
+      const actualCols = reqCols > 0 ? reqCols : 0;
+      const actualRows = actualCols > 0 ? Math.floor(len / actualCols) : 0;
+
+      const data: ViewportResult = {
+        rows: actualRows,
+        cols: actualCols,
+        startRow: req.startRow,
+        startCol: req.startCol,
+      };
+      console.log(`Viewport result: ${JSON.stringify(data)}`);
+      engineMs = performance.now() - engineStart;
+      const workerMs = performance.now() - workerStart;
+      post({
+        type: "result",
+        reqId: req.reqId,
+        ok: true,
+        data,
+        sabLen: len,
+        timing: { engineMs, workerMs },
+      });
+      break;
+    }
+
     case "mutate": {
       const errCode = e.mutate_base_subset(req.rows, req.col, req.base);
       engineMs = performance.now() - engineStart;

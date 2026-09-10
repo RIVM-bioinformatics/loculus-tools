@@ -29,12 +29,6 @@ fn gap_contains_only_dash() {
 }
 
 #[test]
-fn amino_stub_is_empty() {
-    assert_eq!(AMINO.table, [0u64; 4]);
-    assert!(!AMINO.contains(b'A'));
-}
-
-#[test]
 fn is_iupac_and_is_gap_helpers() {
     assert!(is_iupac(b'A'));
     assert!(is_iupac(b'n'));

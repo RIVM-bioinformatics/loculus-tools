@@ -69,9 +69,29 @@ pub const IUPAC: &Alphabet = {
 /// Gap character alphabet -> only `-`.
 pub const GAP: &Alphabet = &Alphabet::new(b"-");
 
-/// Amino acid alphabet stub
-///! Not yet implemented. Will be expanded when protein translations are added.
-pub const AMINO: &Alphabet = &Alphabet::new(b"");
+/// IUPAC amino acid alphabet. Includes both upper and lower case.
+///
+/// Symbols: F, L, I, M, V, S, P, T, A, Y, H, Q, N, K, D, E, C, W, R, G, B, Z, X, *
+/// (and their lower-case equivalents).
+pub const AMINO: &Alphabet = {
+    const UPPER: &[u8] = b"FLIMVSPTAYHQNKDECWRGBZX*";
+    const fn build_aa() -> Alphabet {
+        let mut table = [0u64; 4];
+        let mut i = 0;
+        while i < UPPER.len() {
+            let upper_char = UPPER[i];
+            table[(upper_char as usize) >> 6] |= 1u64 << (upper_char as u32 & 63);
+            // Also insert lower-case variant
+            let lower_char = upper_char.to_ascii_lowercase();
+            table[(lower_char as usize) >> 6] |= 1u64 << (lower_char as u32 & 63);
+            i += 1;
+        }
+        Alphabet { table }
+    }
+
+    const ALPH: &Alphabet = &build_aa();
+    ALPH
+};
 
 // Convenience helpers & validators
 
@@ -85,4 +105,63 @@ pub fn is_iupac(c: u8) -> bool {
 #[inline]
 pub fn is_gap(c: u8) -> bool {
     GAP.contains(c)
+}
+
+#[inline]
+pub fn is_amino(c: u8) -> bool {
+    AMINO.contains(c)
+}
+
+/// Translate a DNA codon to its standard-code amino acid, as an ASCII byte
+/// (`b'*'` for stop). Unknown/ambiguous codons map to `b'X'`.
+///
+/// A `const fn` match instead of a `HashMap`: `HashMap` can't be built at
+/// compile time in stable Rust (its hasher isn't `const`-evaluable), whereas
+/// this is a plain jump table the compiler can fold away entirely.
+pub const fn translate_codon(codon: [u8; 3]) -> u8 {
+    match &codon {
+        // Phe
+        b"TTT" | b"TTC" => b'F',
+        // Leu
+        b"TTA" | b"TTG" | b"CTT" | b"CTC" | b"CTA" | b"CTG" => b'L',
+        // Ile
+        b"ATT" | b"ATC" | b"ATA" => b'I',
+        // Met
+        b"ATG" => b'M',
+        // Val
+        b"GTT" | b"GTC" | b"GTA" | b"GTG" => b'V',
+        // Ser
+        b"TCT" | b"TCC" | b"TCA" | b"TCG" | b"AGT" | b"AGC" => b'S',
+        // Pro
+        b"CCT" | b"CCC" | b"CCA" | b"CCG" => b'P',
+        // Thr
+        b"ACT" | b"ACC" | b"ACA" | b"ACG" => b'T',
+        // Ala
+        b"GCT" | b"GCC" | b"GCA" | b"GCG" => b'A',
+        // Tyr
+        b"TAT" | b"TAC" => b'Y',
+        // Stop
+        b"TAA" | b"TAG" | b"TGA" => b'*',
+        // His
+        b"CAT" | b"CAC" => b'H',
+        // Gln
+        b"CAA" | b"CAG" => b'Q',
+        // Asn
+        b"AAT" | b"AAC" => b'N',
+        // Lys
+        b"AAA" | b"AAG" => b'K',
+        // Asp
+        b"GAT" | b"GAC" => b'D',
+        // Glu
+        b"GAA" | b"GAG" => b'E',
+        // Cys
+        b"TGT" | b"TGC" => b'C',
+        // Trp
+        b"TGG" => b'W',
+        // Arg
+        b"CGT" | b"CGC" | b"CGA" | b"CGG" | b"AGA" | b"AGG" => b'R',
+        // Gly
+        b"GGT" | b"GGC" | b"GGA" | b"GGG" => b'G',
+        _ => b'X',
+    }
 }

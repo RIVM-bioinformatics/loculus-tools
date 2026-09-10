@@ -17,6 +17,7 @@ import type {
   EngineRequest,
   EngineResponse,
   Meta,
+  SearchResult,
   ViewportResult,
 } from "./protocol";
 
@@ -65,6 +66,15 @@ export interface EngineClient {
     endRow: number;
     startCol: number;
     endCol: number;
+  }) => Promise<ViewportResult & { bytes: Uint8Array }>;
+  search: (query: string, checkRecordNames?: boolean) => Promise<SearchResult>;
+  translate: (r: {
+    startRow: number;
+    endRow: number;
+    startCol: number;
+    endCol: number;
+    /** 0-indexed reading frame (0, 1, or 2). */
+    readingFrame: number;
   }) => Promise<ViewportResult & { bytes: Uint8Array }>;
   mutate: (rows: number[], col: number, base: string) => Promise<void>;
   insert: (rows: number[], col: number) => Promise<void>;
@@ -230,6 +240,7 @@ export function useEngineWorker(): EngineClient {
               (err as any).code = res.errorCode;
               reject(err);
             } else if (res.type === "error") {
+              console.log("Worker error:", res.message);
               reject(new Error(res.message));
             } else {
               reject(new Error("Unexpected worker response"));
@@ -255,6 +266,19 @@ export function useEngineWorker(): EngineClient {
       send<ViewportResult & { bytes: Uint8Array }>({ type: "viewport", ...r }),
     [send]
   );
+
+  const search = useCallback(
+    (query: string, checkRecordNames = false) =>
+      send<SearchResult>({ type: "search", query, checkRecordNames }),
+    [send]
+  );
+
+  const translate = useCallback(
+    (r: { startRow: number; endRow: number; startCol: number; endCol: number; readingFrame: number }) =>
+      send<ViewportResult & { bytes: Uint8Array }>({ type: "translate", ...r }),
+    [send]
+  );
+
   const mutate = useCallback(
     (rows: number[], col: number, base: string) =>
       send<void>({ type: "mutate", rows: toRows(rows), col, base: base.charCodeAt(0) }),
@@ -298,6 +322,8 @@ export function useEngineWorker(): EngineClient {
     lastTimingRef,
     load,
     viewport,
+    search,
+    translate,
     mutate,
     insert,
     delete: del,

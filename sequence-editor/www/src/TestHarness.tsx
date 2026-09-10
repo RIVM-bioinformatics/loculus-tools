@@ -11,9 +11,12 @@ import {
   Stack,
   Divider,
   Chip,
+  MenuItem,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import { useEngineWorker } from "./engine/useEngineWorker";
-import type { ViewportResult, Meta } from "./engine/protocol";
+import type { ViewportResult, Meta, SearchResult } from "./engine/protocol";
 import BenchmarkPanel from "./BenchmarkPanel";
 import { ScrollingViewport } from "./ScrollingViewport";
 
@@ -117,11 +120,17 @@ export default function TestHarness() {
   const eng = useEngineWorker();
 
   const [fasta, setFasta] = useState(SAMPLE_FASTA);
+  const [searchQuery, setSearchQuery] = useState<string>("ATG");
   const [status, setStatus] = useState<string>("");
   const [err, setErr] = useState<string>("");
   const [meta, setMeta] = useState<Meta | null>(null);
   const [slice, setSlice] = useState<(ViewportResult & { bytes: Uint8Array }) | null>(null);
   const [sliceRows, setSliceRows] = useState<{ row: number; name: string; text: string }[]>([]);
+  const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
+  const [includeRecordNames, setIncludeRecordNames] = useState(false);
+  const [readingFrame, setReadingFrame] = useState<1 | 2 | 3>(1);
+  const [aminoAcidRows, setAminoAcidRows] = useState<{ row: number; name: string; text: string }[]>([]);
+  const [aminoAcidSlice, setAminoAcidSlice] = useState<(ViewportResult & { bytes: Uint8Array }) | null>(null);
 
   // Slice inputs
   const [r0, setR0] = useState("0");
@@ -159,6 +168,21 @@ export default function TestHarness() {
     }
   }, [eng, fasta, refreshMeta]);
 
+  const search = useCallback(async () => {
+    setErr("");
+    try {
+      // One SearchResult per matrix (nucleotide, amino acid, record names) —
+      // merge them into a single flat list for display. Each `Match` already
+      // carries `is_nucleotide`/`is_amino_acid`/`is_record_name` flags so the
+      // render below can still label which matrix each match came from.
+      const results = await eng.search(searchQuery, includeRecordNames);
+      setSearchResult(results);
+      setStatus(`Found ${results.num_matches} match(es) for "${searchQuery}"`);
+    } catch (e) {
+      setErr(String(e));
+    }
+  }, [eng, searchQuery, includeRecordNames]);
+
   const fetchSlice = useCallback(async () => {
     setErr("");
     try {
@@ -184,6 +208,32 @@ export default function TestHarness() {
       setErr(String(e));
     }
   }, [eng, r0, r1, c0, c1]);
+
+  const translateToAminoAcids = useCallback(async () => {
+    setErr("");
+    try {
+      const res = await eng.translate({
+        startRow: Number(r0),
+        endRow: Number(r1),
+        startCol: Number(c0),
+        endCol: Number(c1),
+        readingFrame: readingFrame - 1, // UI is 1/2/3, engine expects 0/1/2
+      });
+      setAminoAcidSlice(res);
+      const out: { row: number; name: string; text: string }[] = [];
+      for (let r = 0; r < res.rows; r++) {
+        const absRow = res.startRow + r;
+        const off = r * res.cols;
+        const text = new TextDecoder().decode(res.bytes.subarray(off, off + res.cols));
+        const name = await eng.name(absRow);
+        out.push({ row: absRow, name, text });
+      }
+      setAminoAcidRows(out);
+      setStatus(`Translated ${out.length} row(s) using reading frame ${readingFrame}`);
+    } catch (e) {
+      setErr(String(e));
+    }
+  }, [eng, r0, r1, c0, c1, readingFrame]);
 
   const applyEdit = useCallback(
     async (op: "mutate" | "insert" | "delete" | "deleteColumn") => {
@@ -269,6 +319,7 @@ export default function TestHarness() {
     }
   }, [eng, refreshMeta]);
 
+
   return (
     <Box>
       <AppBar position="static">
@@ -302,6 +353,42 @@ export default function TestHarness() {
             </Button>
 
             <Divider />
+            <Typography variant="subtitle2">Search</Typography>
+            <TextField
+              label="query"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              size="small"
+              sx={{ flex: 1 }}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={includeRecordNames}
+                  onChange={(e) => setIncludeRecordNames(e.target.checked)}
+                />
+              }
+              label="Include record names in search"
+            />
+            <Button variant="outlined" onClick={search} disabled={!eng.ready}>
+              search
+            </Button>
+            {searchResult && (
+              <Alert severity={searchResult.num_matches > 0 ? "success" : "info"}>
+                {searchResult.num_matches} match(es) for "{searchResult.query}"
+                {searchResult.num_matches > 0 && (
+                  <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                    {searchResult.positions.map((m, i) => (
+                      <li key={i}>
+                        [{m.matrix_type}] row {m.row}, col {m.col}
+                      </li>
+                    ))}
+                  </Box>
+                )}
+              </Alert>
+            )}
+
+            <Divider />
             <Typography variant="subtitle2">Fetch slice</Typography>
             <Stack direction="row" spacing={1}>
               <TextField label="r0" value={r0} onChange={(e) => setR0(e.target.value)} size="small" />
@@ -312,6 +399,38 @@ export default function TestHarness() {
             <Button variant="outlined" onClick={fetchSlice} disabled={!eng.ready}>
               Fetch slice
             </Button>
+
+            <Divider />
+            <Typography variant="subtitle2">Translate to Amino Acids</Typography>
+            <TextField
+              select
+              label="reading frame"
+              value={readingFrame}
+              onChange={(e) => setReadingFrame(Number(e.target.value) as 1 | 2 | 3)}
+              size="small"
+              sx={{ flex: 1 }}
+            >
+              <MenuItem value={1}>1</MenuItem>
+              <MenuItem value={2}>2</MenuItem>
+              <MenuItem value={3}>3</MenuItem>
+            </TextField>
+            <Button
+              variant="outlined"
+              onClick={translateToAminoAcids}
+              disabled={!eng.ready}
+            >
+              Translate to Amino Acids
+            </Button>
+            {aminoAcidRows.length > 0 && (
+              <Box sx={{ fontFamily: "monospace", fontSize: 13, overflowX: "auto" }}>
+                {aminoAcidRows.map((r) => (
+                  <div key={r.row}>
+                    {String(r.row).padStart(3, "0")} {r.name}: {r.text}
+                  </div>
+                ))}
+              </Box>
+            )}
+
 
             <Divider />
             <Typography variant="subtitle2">Edit</Typography>
@@ -436,6 +555,15 @@ export default function TestHarness() {
             <SliceCanvas slice={slice} names={sliceRows.map((r) => r.name)} />
           ) : (
             <Alert severity="info">Load FASTA and fetch a slice to see results.</Alert>
+          )}
+          {aminoAcidSlice && (
+            <>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle2" gutterBottom>
+                Amino acid translation (reading frame {readingFrame})
+              </Typography>
+              <SliceCanvas slice={aminoAcidSlice} names={aminoAcidRows.map((r) => r.name)} />
+            </>
           )}
         </Paper>
       </Stack>

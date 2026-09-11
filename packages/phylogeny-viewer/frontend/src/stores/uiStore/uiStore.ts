@@ -147,7 +147,10 @@ export const uiStore = createStore<UiStore>((set, get) => ({
   },
 
   setMatchKeyField: (field: null | string) => {
+    const { setColorByField, setSearchQuery } = get();
     set({ matchKeyField: field });
+    setSearchQuery(null);
+    setColorByField(null);
   },
 
   setMetadataContent: (tsv: string) => {
@@ -184,6 +187,10 @@ export const uiStore = createStore<UiStore>((set, get) => ({
   },
 
   setSearchQuery: (query: string) => {
+    if (query === null) {
+      set({ highlightedIds: [], searchQuery: null });
+      return;
+    }
     const allSequenceIds = (get().parsedFasta?.sequences ?? []).map((sequence) => sequence.id);
     const records = get().parsedMetadata?.records ?? [];
     const highlightedIds = MetaDataUtil.getHighlightedIds(query, allSequenceIds, records);

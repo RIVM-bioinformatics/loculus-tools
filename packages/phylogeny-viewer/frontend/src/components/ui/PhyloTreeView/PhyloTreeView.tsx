@@ -22,6 +22,7 @@ import { uiStore } from '../../../stores/uiStore';
 import {
   MISSING_COLOR,
   TREE_ANCESTOR_DOT_RADIUS,
+  TREE_FONT_FAMILY,
   TREE_HEADER_HEIGHT,
   TREE_ITEM_HEIGHT,
   TREE_LEAF_DOT_RADIUS,
@@ -199,7 +200,7 @@ export const PhyloTreeView = ({ newick }: PhyloTreeViewProps) => {
         ariaLabel={'Phylogenetic tree visualization'}
         backgroundColor={'#FFFFFF'}
         dimFn={dimColor}
-        fontFamily={'Noto Sans, sans-serif'}
+        fontFamily={TREE_FONT_FAMILY}
         getLeafLabel={getLeafLabel}
         headerHeight={showScaleBar ? TREE_HEADER_HEIGHT : 0}
         highlightedNodeNamesSubject={highlightedNodeNamesSubject}

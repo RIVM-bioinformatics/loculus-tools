@@ -16,3 +16,4 @@ export const TREE_SCALE_INCREMENTS = [1, 2, 5, 10, 20, 50];
 export const TREE_PADDING = 20;
 export const TREE_ITEM_HEIGHT = 28;
 export const MISSING_COLOR = '#f00';
+export const TREE_FONT_FAMILY = 'Roboto Flex';

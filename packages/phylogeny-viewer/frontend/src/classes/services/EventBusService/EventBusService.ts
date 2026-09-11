@@ -1,7 +1,10 @@
 import { EventBusAbstract } from '@gen-epix/ui-core/classes/abstracts/EventBusAbstract';
 import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 
+import type { TREE_DOWNLOAD_TYPE } from '../../../models/tree';
+
 export type Event = {
+  onDownloadCanvas: TREE_DOWNLOAD_TYPE;
   onShowAlignmentErrorDialog: void;
   onShowImportDialog: string | undefined;
   onToggleDrawer: boolean;

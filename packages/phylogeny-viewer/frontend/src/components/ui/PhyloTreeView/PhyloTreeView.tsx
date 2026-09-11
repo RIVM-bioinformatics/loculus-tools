@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import { lighten } from '@mui/material/styles';
 import { Box } from '@mui/material';
@@ -39,6 +40,9 @@ import {
   TREE_REGULAR_FILL_COLOR_SUPPORT_LINE,
   TREE_SCALE_INCREMENTS,
 } from '../../../constants/tree';
+import { EventBusService } from '../../../classes/services/EventBusService';
+import { TREE_DOWNLOAD_TYPE } from '../../../models/tree';
+import { ExportUtil } from '../../../utils/ExportUtil';
 
 import { PhyloTreeViewDraggableNodeTooltip } from './PhyloTreeViewDraggableNodeTooltip';
 
@@ -49,16 +53,17 @@ export type PhyloTreeViewProps = {
 };
 
 export const PhyloTreeView = ({ newick }: PhyloTreeViewProps) => {
+  const colorByField = useStore(uiStore, (state) => state.colorByField);
+  const colorMap = useStore(uiStore, (state) => state.colorMap);
+  const matchKeyField = useStore(uiStore, (state) => state.matchKeyField);
+  const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
+  const selectedLabelFields = useStore(uiStore, (state) => state.selectedLabelFields);
+  const setTooltip = useStore(uiStore, (state) => state.setTooltip);
   const showBranchLengths = useStore(uiStore, (state) => state.showBranchLengths);
   const showLeafLabels = useStore(uiStore, (state) => state.showLeafLabels);
   const showScaleBar = useStore(uiStore, (state) => state.showScaleBar);
-  const setTooltip = useStore(uiStore, (state) => state.setTooltip);
 
-  const colorByField = useStore(uiStore, (state) => state.colorByField);
-  const colorMap = useStore(uiStore, (state) => state.colorMap);
-  const selectedLabelFields = useStore(uiStore, (state) => state.selectedLabelFields);
-  const matchKeyField = useStore(uiStore, (state) => state.matchKeyField);
-  const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
+  const [treeCanvas, setTreeCanvas] = useState<HTMLCanvasElement>();
 
   const treeRef = useRef<PhylogeneticTreeRef>(null);
 
@@ -180,10 +185,32 @@ export const PhyloTreeView = ({ newick }: PhyloTreeViewProps) => {
     [setTooltip],
   );
 
-  // Expose canvas for export
   const onCanvasChangeTree = useCallback((canvas?: HTMLCanvasElement) => {
-    window.phyloTreeCanvas = canvas ?? null;
+    setTreeCanvas(canvas ?? null);
   }, []);
+
+  useEffect(() => {
+    const eventBusService = EventBusService.getInstance();
+    // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+    const remover = eventBusService.addEventListener('onDownloadCanvas', (type?: TREE_DOWNLOAD_TYPE) => {
+      switch (type) {
+        case TREE_DOWNLOAD_TYPE.JPEG:
+          ExportUtil.downloadCanvasAsImage(treeCanvas, 'jpeg', 'phylogenetic_tree');
+          break;
+        case TREE_DOWNLOAD_TYPE.PNG:
+          ExportUtil.downloadCanvasAsImage(treeCanvas, 'png', 'phylogenetic_tree');
+          break;
+        case TREE_DOWNLOAD_TYPE.SVG:
+          ExportUtil.downloadCanvasAsSvg(treeCanvas, 'phylogenetic_tree.svg');
+          break;
+        default:
+          break;
+      }
+    });
+    return () => {
+      remover();
+    };
+  }, [treeCanvas]);
 
   return (
     <Box

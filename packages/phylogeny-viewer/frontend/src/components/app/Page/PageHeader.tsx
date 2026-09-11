@@ -33,6 +33,7 @@ import { calculationStore } from '../../../stores/calculationStore';
 import { ExportUtil } from '../../../utils/ExportUtil';
 import { EventBusService } from '../../../classes/services/EventBusService';
 import { UrlUtil } from '../../../utils/UrlUtil';
+import { TREE_DOWNLOAD_TYPE } from '../../../models/tree';
 
 export type PageHeaderProps = {
   readonly drawerOpen: boolean;
@@ -69,29 +70,17 @@ export const PageHeader = ({ drawerOpen, noInteraction }: PageHeaderProps) => {
   }, [newick, onCloseExportMenu]);
 
   const onClickExportPng = useCallback(() => {
-    const canvas = window.phyloTreeCanvas;
-    if (!canvas) {
-      return;
-    }
-    ExportUtil.downloadCanvasAsImage(canvas, 'png', 'phylogenetic_tree');
+    EventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.PNG);
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 
   const onClickExportJpeg = useCallback(() => {
-    const canvas = window.phyloTreeCanvas;
-    if (!canvas) {
-      return;
-    }
-    ExportUtil.downloadCanvasAsImage(canvas, 'jpeg', 'phylogenetic_tree');
+    EventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.JPEG);
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 
   const onClickExportSvg = useCallback(() => {
-    const canvas = window.phyloTreeCanvas;
-    if (!canvas) {
-      return;
-    }
-    ExportUtil.downloadCanvasAsSvg(canvas, 'phylogenetic_tree.svg');
+    EventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.SVG);
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 

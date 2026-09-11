@@ -5,6 +5,7 @@
   "private": true,
   "packageManager": "pnpm@12.3.4",
   "scripts": {
+    "prepare": "husky",
     "start": "pnpm --filter @rivm-loculus-tools/phylogeny-viewer start",
     "start-phylogeny-viewer": "pnpm --filter @rivm-loculus-tools/phylogeny-viewer start",
     "update-exports": "lerna run update-exports",

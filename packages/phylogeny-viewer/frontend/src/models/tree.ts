@@ -10,9 +10,3 @@ export interface NodeTooltipInfo {
   x: number;
   y: number;
 }
-
-export interface TreeViewState {
-  horizontalScrollPosition: number;
-  verticalScrollPosition: number;
-  zoomLevel: number;
-}

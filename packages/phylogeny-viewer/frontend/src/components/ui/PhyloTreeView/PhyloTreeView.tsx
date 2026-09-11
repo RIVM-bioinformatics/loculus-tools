@@ -5,13 +5,7 @@ import {
   useRef,
 } from 'react';
 import { lighten } from '@mui/material/styles';
-import {
-  Box,
-  Button,
-  Typography,
-} from '@mui/material';
-import ForestOutlinedIcon from '@mui/icons-material/ForestOutlined';
-import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
+import { Box } from '@mui/material';
 import type {
   PhylogeneticTreeHighlightedNodeNamesSubjectValue,
   PhylogeneticTreePathClickEvent,
@@ -24,9 +18,9 @@ import { Subject } from '@gen-epix/ui-core/classes/Subject';
 import { useStore } from 'zustand';
 
 import { MetaDataUtil } from '../../../utils/MetaDataUtil';
-import { calculationStore } from '../../../stores/calculationStore';
 import { uiStore } from '../../../stores/uiStore';
 import {
+  MISSING_COLOR,
   TREE_ANCESTOR_DOT_RADIUS,
   TREE_HEADER_HEIGHT,
   TREE_ITEM_HEIGHT,
@@ -44,15 +38,16 @@ import {
   TREE_REGULAR_FILL_COLOR_SUPPORT_LINE,
   TREE_SCALE_INCREMENTS,
 } from '../../../constants/tree';
-import { EventBusService } from '../../../classes/services/EventBusService';
 
-import { PhyloTreeViewDynamicLegend } from './PhyloTreeViewDynamicLegend';
 import { PhyloTreeViewDraggableNodeTooltip } from './PhyloTreeViewDraggableNodeTooltip';
 
 const dimColor = (color: string) => lighten(color, 0.8);
 
-export const PhyloTreeView = () => {
-  const newick = useStore(calculationStore, (state) => state.newick);
+export type PhyloTreeViewProps = {
+  newick: string;
+};
+
+export const PhyloTreeView = ({ newick }: PhyloTreeViewProps) => {
   const showBranchLengths = useStore(uiStore, (state) => state.showBranchLengths);
   const showLeafLabels = useStore(uiStore, (state) => state.showLeafLabels);
   const showScaleBar = useStore(uiStore, (state) => state.showScaleBar);
@@ -133,15 +128,17 @@ export const PhyloTreeView = () => {
       return undefined;
     }
 
-    const caseIdColors: Record<string, string> = {};
+    const leafColors: { [key: string]: string } = {};
     leafNames.forEach((name) => {
       const meta = MetaDataUtil.getRecordForSample(parsedMetadata, name, matchKeyField);
       if (meta?.[colorByField]) {
-        caseIdColors[name] = colorMap[meta[colorByField]] || '#94A3B8';
+        leafColors[name] = colorMap[meta[colorByField]]?.color || MISSING_COLOR;
+      } else {
+        leafColors[name] = MISSING_COLOR;
       }
     });
 
-    return caseIdColors;
+    return leafColors;
   }, [colorByField, colorMap, leafNames, parsedMetadata, matchKeyField]);
 
   // Node click handler
@@ -187,57 +184,9 @@ export const PhyloTreeView = () => {
     window.phyloTreeCanvas = canvas ?? null;
   }, []);
 
-  const onClickLoadData = useCallback(() => {
-    EventBusService.getInstance().emit('onShowImportDialog');
-  }, []);
-
-  if (!parsedTree || leafNames.length === 0) {
-    return (
-      <Box
-        sx={{
-          alignItems: 'center',
-          backgroundColor: '#F8FAFC',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          height: '100%',
-          justifyContent: 'center',
-          p: 3,
-          width: '100%',
-        }}
-      >
-        <ForestOutlinedIcon sx={{ color: 'text.disabled', fontSize: 72 }} />
-        <Typography
-          color={'text.secondary'}
-          sx={{ fontWeight: 600 }}
-          variant={'h6'}
-        >
-          {'No Phylogenetic Tree Loaded'}
-        </Typography>
-        <Typography
-          color={'text.secondary'}
-          sx={{ maxWidth: 450, textAlign: 'center' }}
-          variant={'body2'}
-        >
-          {'Load an aligned FASTA sequence file to automatically compute and render an interactive phylogenetic tree.'}
-        </Typography>
-        <Button
-          color={'primary'}
-          onClick={onClickLoadData}
-          startIcon={<FileUploadOutlinedIcon />}
-          sx={{ mt: 1 }}
-          variant={'contained'}
-        >
-          {'Load Data'}
-        </Button>
-      </Box>
-    );
-  }
-
   return (
     <Box
       sx={{
-        backgroundColor: '#FFFFFF',
         height: '100%',
         overflow: 'hidden',
         position: 'relative',
@@ -283,8 +232,6 @@ export const PhyloTreeView = () => {
         treeFont={'10px Noto Sans, sans-serif'}
         treePadding={TREE_PADDING}
       />
-      {/* Dynamic Metadata Legend */}
-      <PhyloTreeViewDynamicLegend />
       {/* Draggable Tooltip */}
       <PhyloTreeViewDraggableNodeTooltip />
     </Box>

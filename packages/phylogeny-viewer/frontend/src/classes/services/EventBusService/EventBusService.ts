@@ -3,7 +3,7 @@ import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 
 export type Event = {
   onShowAlignmentErrorDialog: void;
-  onShowImportDialog: void;
+  onShowImportDialog: string | undefined;
   onToggleDrawer: boolean;
 };
 

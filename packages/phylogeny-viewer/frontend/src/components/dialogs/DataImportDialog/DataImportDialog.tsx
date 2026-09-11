@@ -51,7 +51,7 @@ const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
 
 export interface DataImportDialogOpenProps {
-  //
+  initialErrorMessage?: string;
 }
 
 export interface DataImportDialogProps extends WithDialogRenderProps<DataImportDialogOpenProps> {
@@ -64,6 +64,9 @@ export const DataImportDialog = withDialog<DataImportDialogProps, DataImportDial
   {
     onActionsChange,
     onClose,
+    onDisableBackdropClickChange,
+    onNoCloseButtonChange,
+    openProps,
   }: DataImportDialogProps,
 ): ReactElement => {
   const setFastaContent = useStore(uiStore, (state) => state.setFastaContent);
@@ -85,6 +88,15 @@ export const DataImportDialog = withDialog<DataImportDialogProps, DataImportDial
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<null | string>(null);
+
+  useEffect(() => {
+    setErrorMsg(openProps?.initialErrorMessage ?? null);
+  }, [openProps]);
+
+  useEffect(() => {
+    onNoCloseButtonChange(!!openProps?.initialErrorMessage);
+    onDisableBackdropClickChange(!!openProps?.initialErrorMessage);
+  }, [onDisableBackdropClickChange, onNoCloseButtonChange, openProps?.initialErrorMessage]);
 
   const onCloseError = useCallback(() => setErrorMsg(null), []);
   const onChangeFastaTab = useCallback((_event: SyntheticEvent, value: number) => {
@@ -240,6 +252,9 @@ export const DataImportDialog = withDialog<DataImportDialogProps, DataImportDial
         <Alert
           onClose={onCloseError}
           severity={'error'}
+          sx={{
+            marginBottom: 2,
+          }}
         >
           {errorMsg}
         </Alert>

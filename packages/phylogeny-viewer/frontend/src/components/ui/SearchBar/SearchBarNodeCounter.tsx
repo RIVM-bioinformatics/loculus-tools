@@ -11,6 +11,10 @@ export const SearchBarNodeCounter = () => {
       color={highlightedIds.length > 0 ? 'primary' : 'default'}
       label={`${highlightedIds.length} node${highlightedIds.length === 1 ? '' : 's'}`}
       size={'small'}
+      sx={{
+        margin: 0,
+        padding: 0,
+      }}
     />
   );
 };

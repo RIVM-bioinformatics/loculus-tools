@@ -1,4 +1,5 @@
 import { createStore } from 'zustand';
+import uniq from 'lodash/uniq';
 
 import type { FastaParseResult } from '../../models/fasta';
 import type {
@@ -46,7 +47,6 @@ export type UiStoreState = {
   showLeafLabels: boolean;
   showScaleBar: boolean;
   tooltip: NodeTooltipInfo | null;
-  valueCounts: Record<string, number>;
 };
 
 export const uiStore = createStore<UiStore>((set, get) => ({
@@ -71,7 +71,6 @@ export const uiStore = createStore<UiStore>((set, get) => ({
       rawFasta: '',
       rawMetadata: '',
       selectedLabelFields: [],
-      valueCounts: {},
     });
   },
   resetTreeView: () => {
@@ -90,13 +89,13 @@ export const uiStore = createStore<UiStore>((set, get) => ({
 
   setColorByField: (field: string) => {
     if (!field) {
-      set({ colorByField: null, colorMap: {}, valueCounts: {} });
+      set({ colorByField: null, colorMap: {} });
       return;
     }
     const { parsedMetadata: { records = [] } = {} } = get();
 
     const values = records.map((r) => r[field] || '');
-    const uniqueValues = Array.from(new Set(values.filter(Boolean)));
+    const uniqueValues = uniq(values);
 
     const counts: Record<string, number> = {};
     values.forEach((v) => {
@@ -106,14 +105,19 @@ export const uiStore = createStore<UiStore>((set, get) => ({
     });
 
     const newMap: ColorMap = {};
-    uniqueValues.forEach((val, idx) => {
-      newMap[val] = ColorUtil.generateDeterministicColor(val, idx);
+    const gradient = ColorUtil.createGradient(uniqueValues.length);
+    console.log({ gradient });
+    uniqueValues.forEach((value, index) => {
+      newMap[value] = {
+        color: ColorUtil.getDeterministicColor(gradient, value, index),
+        count: counts[value] || 0,
+        isMissing: ColorUtil.isMissingValue(value),
+      };
     });
 
     set({
       colorByField: field,
       colorMap: newMap,
-      valueCounts: counts,
     });
   },
 

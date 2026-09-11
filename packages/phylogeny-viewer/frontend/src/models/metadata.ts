@@ -1,4 +1,10 @@
-export type ColorMap = Record<string, string>;
+export type ColorMap = {
+  [key: string]: {
+    color: string;
+    count: number;
+    isMissing: boolean;
+  };
+};
 
 export interface MetadataParseResult {
   columns: string[];

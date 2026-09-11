@@ -1,6 +1,7 @@
 import type { ChangeEvent } from 'react';
 import { useCallback } from 'react';
 import {
+  Alert,
   Box,
   Button,
   CircularProgress,
@@ -39,6 +40,7 @@ export const SideControlPanelCalculationSettings = () => {
   const fastTreeParams = useStore(calculationStore, (state) => state.fastTreeParams);
   const setFastTreeParams = useStore(calculationStore, (state) => state.setFastTreeParams);
   const status = useStore(calculationStore, (state) => state.status);
+  const calculationError = useStore(calculationStore, (state) => state.error);
   const calculateTree = useStore(calculationStore, (state) => state.calculateTree);
   const lastExecutionTimeMs = useStore(calculationStore, (state) => state.lastExecutionTimeMs);
 
@@ -241,6 +243,12 @@ export const SideControlPanelCalculationSettings = () => {
       >
         {isCalculating ? 'Computing Tree...' : 'Calculate Tree'}
       </Button>
+      {/* Calculation Error */}
+      {status === CALCULATION_STATUS.ERROR && calculationError && (
+        <Alert severity={'error'}>
+          {calculationError}
+        </Alert>
+      )}
       {/* Timing Metrics Badge */}
       {lastExecutionTimeMs !== null && (
         <StatusChip

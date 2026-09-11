@@ -8,6 +8,7 @@ import type {
 } from '../../models/calculation';
 import { FastTreeAioliService } from '../../classes/services/FastTreeAioliService';
 import { TN93AioliService } from '../../classes/services/TN93AioliService';
+import { FastaUtil } from '../../utils/FastaUtil';
 import { uiStore } from '../uiStore';
 
 interface CalculationState {
@@ -31,14 +32,16 @@ interface CalculationState {
 export const calculationStore = createStore<CalculationState>((set, get) => ({
   calculateTree: async (overrideFasta?: string) => {
     const rawFasta = overrideFasta ?? uiStore.getState().rawFasta;
-    const parsedFasta = uiStore.getState().parsedFasta;
 
     if (!rawFasta?.trim()) {
       set({ error: 'No sequence data available to calculate tree.', status: CALCULATION_STATUS.ERROR });
       return null;
     }
 
-    if (parsedFasta && !parsedFasta.isAligned) {
+    // Always re-parse the FASTA actually being used, since an override may not yet be reflected in uiStore's parsedFasta.
+    const parsedFasta = FastaUtil.parseFasta(rawFasta);
+
+    if (!parsedFasta.isAligned) {
       set({
         error: parsedFasta.error || 'The provided FASTA sequences are not aligned.',
         status: CALCULATION_STATUS.ERROR,

@@ -28,20 +28,30 @@ export const SearchBar = () => {
   }, [setSearchQuery]);
 
   return (
-    <Box
-      sx={{
-        display: 'grid',
-        gap: 1,
-        gridTemplateColumns: searchQuery ? 'auto max-content' : 'auto',
-      }}
-    >
+    <Box>
       <TextField
         aria-label={'Search'}
+        fullWidth
+        label={(
+          <Box sx={{ alignItems: 'center', display: 'flex' }}>
+            <SearchIcon
+              color={'primary'}
+              sx={{ paddingLeft: 1 }}
+            />
+            <Box
+              component={'span'}
+              sx={{
+                marginLeft: 1,
+              }}
+            >
+              {'Search'}
+            </Box>
+          </Box>
+        )}
         onChange={onChangeQuery}
-        placeholder={'Search'}
-        size={'medium'}
         slotProps={{
           input: {
+            disableUnderline: true,
             endAdornment: searchQuery ? (
               <>
                 <InputAdornment position={'end'}>
@@ -51,23 +61,14 @@ export const SearchBar = () => {
                   >
                     <ClearIcon fontSize={'small'} />
                   </IconButton>
+                  <SearchBarNodeCounter />
                 </InputAdornment>
-                <SearchBarNodeCounter />
               </>
             ) : null,
-            startAdornment: (
-              <InputAdornment position={'start'}>
-                <SearchIcon
-                  color={'action'}
-                  fontSize={'small'}
-                  sx={{ marginLeft: 1 }}
-                />
-              </InputAdornment>
-            ),
           },
         }}
         value={searchQuery}
-        variant={'standard'}
+        variant={'filled'}
       />
     </Box>
   );

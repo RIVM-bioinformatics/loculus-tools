@@ -29,8 +29,14 @@ export const useDeepLinking = () => {
           }
           const fastaText = await fastaRes.text();
 
+          if (!fastaText.trim()) {
+            setCalculationStatus(CALCULATION_STATUS.ERROR);
+            throw new Error('The input-fasta URL returned no sequence data. Check that the URL and requested accession(s) are correct.');
+          }
+
           const fastaResult = setFastaContent(fastaText);
           if (!fastaResult.isAligned) {
+            setCalculationStatus(CALCULATION_STATUS.IDLE);
             EventBusService.getInstance().emit('onShowAlignmentErrorDialog');
             return;
           }
@@ -51,7 +57,8 @@ export const useDeepLinking = () => {
           await calculateTree(fastaText);
         } catch (fastaErr) {
           console.error('[App] Failed to auto-load FASTA:', fastaErr);
-          EventBusService.getInstance().emit('onShowImportDialog');
+          const message = fastaErr instanceof Error ? fastaErr.message : 'Failed to auto-load FASTA from the provided URL.';
+          EventBusService.getInstance().emit('onShowImportDialog', message);
         }
       } else {
         // PV1-02: Show data loading modal if no data provided via URL query params

@@ -1,39 +1,30 @@
-const PALETTE = [
-  '#0284C7', // Sky Blue
-  '#16A34A', // Green
-  '#EA580C', // Orange
-  '#9333EA', // Purple
-  '#DC2626', // Red
-  '#0D9488', // Teal
-  '#CA8A04', // Amber
-  '#4F46E5', // Indigo
-  '#DB2777', // Pink
-  '#65A30D', // Lime
-  '#0891B2', // Cyan
-  '#D97706', // Yellow-Orange
-  '#7C3AED', // Violet
-  '#059669', // Emerald
-  '#E11D48', // Rose
-  '#2563EB', // Blue
-  '#84CC16', // Light Green
-  '#94A3B8', // Slate
-];
+import Color from 'colorjs.io';
 
+import { MISSING_COLOR } from '../../constants/tree';
 
 export class ColorUtil {
-  public static generateDeterministicColor(value: string, index = 0): string {
-    if (!value || value === '-' || value.toLowerCase() === 'na' || value.toLowerCase() === 'null') {
-      return '#94A3B8'; // Missing value color
+  public static createGradient(numColors: number): string[] {
+    const colors: string[] = [];
+
+    const color1 = new Color('rebeccapurple');
+    const color2 = new Color('lch', [95, 95, 95 + 720]);
+    const gradient = color1.range(color2, { hue: 'raw', outputSpace: 'srgb', space: 'lch' });
+
+    for (let i = 0; i < numColors; i++) {
+      const t = numColors === 1 ? 0 : i / (numColors - 1);
+      colors.push(gradient(t).toString({ format: 'hex' }));
     }
-    if (index < PALETTE.length) {
-      return PALETTE[index];
+    return colors;
+  }
+
+  public static getDeterministicColor(gradient: string[], value: string, index = 0): string {
+    if (ColorUtil.isMissingValue(value)) {
+      return MISSING_COLOR; // Missing value color
     }
-    // Hash-based HSL color fallback for large number of unique categories
-    let hash = 0;
-    for (let i = 0; i < value.length; i++) {
-      hash = value.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const hue = Math.abs(hash % 360);
-    return `hsl(${hue}, 70%, 45%)`;
+    return gradient[index];
+  }
+
+  public static isMissingValue(value: string): boolean {
+    return !value || value === '-' || value.toLowerCase() === 'na' || value.toLowerCase() === 'null';
   }
 }

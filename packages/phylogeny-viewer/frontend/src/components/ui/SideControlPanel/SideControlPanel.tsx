@@ -9,11 +9,9 @@ import {
   Box,
   Button,
   Drawer,
-  IconButton,
   Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
@@ -44,7 +42,6 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
       prev.includes(panel) ? prev.filter((p) => p !== panel) : [...prev, panel]);
   }, []);
 
-  const onClickCloseDrawer = useCallback(() => EventBusService.getInstance().emit('onToggleDrawer', false), []);
   const onClickLoadData = useCallback(() => EventBusService.getInstance().emit('onShowImportDialog'), []);
   const onCalculationAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.CALCULATION), [toggleAccordion]);
   const onViewAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.VIEW), [toggleAccordion]);
@@ -56,10 +53,6 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
       open={drawerOpen}
       sx={{
         '& .MuiDrawer-paper': {
-          backgroundColor: '#FFFFFF',
-          borderColor: 'divider',
-          borderRight: '1px solid',
-          boxSizing: 'border-box',
           height: 'calc(100% - 56px)',
           overflowY: 'auto',
           top: '56px',
@@ -72,22 +65,6 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
     >
       {/* Header with Close and Data Load trigger */}
       <Box sx={{ borderBottom: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 1.5, p: 2 }}>
-        <Box sx={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}>
-          <Typography
-            color={'text.primary'}
-            sx={{ fontWeight: 700 }}
-            variant={'subtitle1'}
-          >
-            {'Tree Controls'}
-          </Typography>
-          <IconButton
-            onClick={onClickCloseDrawer}
-            size={'small'}
-            title={'Collapse Side Panel'}
-          >
-            <ChevronLeftIcon />
-          </IconButton>
-        </Box>
         <Button
           color={'primary'}
           fullWidth

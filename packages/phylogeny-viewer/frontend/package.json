@@ -17,10 +17,10 @@
     "@emotion/cache": "11.14.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@gen-epix/ui-core": "3.1.0",
-    "@gen-epix/ui-core-form": "4.1.0",
-    "@gen-epix/ui-core-components": "4.1.0",
-    "@gen-epix/ui-phylogenetic-tree": "3.1.0",
+    "@gen-epix/ui-core": "3.2.0",
+    "@gen-epix/ui-core-form": "4.2.0",
+    "@gen-epix/ui-core-components": "4.2.0",
+    "@gen-epix/ui-phylogenetic-tree": "3.2.0",
     "@hookform/resolvers": "5.9.1",
     "@mui/icons-material": "9.4.0",
     "@mui/material": "9.4.0",
@@ -49,7 +49,7 @@
     "@vitejs/plugin-react": "6.1.1",
     "eslint": "10.10.0",
     "typescript": "6.0.3",
-    "vite": "8.2.2",
+    "vite": "8.3.0",
     "vite-plugin-static-copy": "4.1.1"
   }
 }

@@ -1,25 +1,27 @@
-import type { MouseEvent as ReactMouseEvent } from 'react';
 import {
   useCallback,
-  useEffect,
-  useRef,
+  useLayoutEffect,
+  useMemo,
   useState,
 } from 'react';
 import {
   Box,
   Button,
   Chip,
+  ClickAwayListener,
   Divider,
   IconButton,
   Paper,
+  Popper,
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableRow,
   Typography,
+  useTheme,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import { useStore } from 'zustand/react';
@@ -28,6 +30,7 @@ import { uiStore } from '../../../stores/uiStore';
 import { MetaDataUtil } from '../../../utils/MetaDataUtil';
 
 export const PhyloTreeViewDraggableNodeTooltip = () => {
+  const theme = useTheme();
   const tooltip = useStore(uiStore, (state) => state.tooltip);
   const setTooltip = useStore(uiStore, (state) => state.setTooltip);
   const collapsedNodeIds = useStore(uiStore, (state) => state.collapsedNodeIds);
@@ -37,69 +40,47 @@ export const PhyloTreeViewDraggableNodeTooltip = () => {
   const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
 
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef<{ posX: number; posY: number; startX: number; startY: number }>({
-    posX: 0,
-    posY: 0,
-    startX: 0,
-    startY: 0,
-  });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (tooltip) {
-      // Position within viewport boundaries
-      const initialX = Math.min(Math.max(tooltip.x + 15, 20), window.innerWidth - 360);
-      const initialY = Math.min(Math.max(tooltip.y - 40, 70), window.innerHeight - 380);
-      setPosition({ x: initialX, y: initialY });
+      // Reset the anchor position whenever a new tooltip is opened.
+      setPosition({ x: tooltip.x + 15, y: tooltip.y });
     }
   }, [tooltip]);
 
-  const onMouseDownTooltip = useCallback((e: ReactMouseEvent) => {
-    setIsDragging(true);
-    dragStartRef.current = {
-      posX: position.x,
-      posY: position.y,
-      startX: e.clientX,
-      startY: e.clientY,
-    };
-  }, [position]);
+  // A fake DOM element (VirtualElement) used by Popper as the positioning anchor.
+  // Dragging mutates its bounding rect through state updates.
+  const anchorEl = useMemo(
+    () => ({
+      getBoundingClientRect: (): DOMRect => ({
+        bottom: position.y,
+        height: 0,
+        left: position.x,
+        right: position.x,
+        toJSON: () => ({}),
+        top: position.y,
+        width: 0,
+        x: position.x,
+        y: position.y,
+      }),
+    }),
+    [position],
+  );
 
-  const onClickClose = useCallback(() => {
+  const onCloseButtonClick = useCallback(() => {
     setTooltip(null);
   }, [setTooltip]);
 
-  const onClickToggleCollapse = useCallback(() => {
+  const onClickAway = useCallback(() => {
+    setTooltip(null);
+  }, [setTooltip]);
+
+  const onToggleCollapseClick = useCallback(() => {
     if (tooltip) {
       toggleCollapseNode(tooltip.nodeName);
     }
   }, [toggleCollapseNode, tooltip]);
 
-  useEffect(() => {
-    const handleMouseMove = (e: globalThis.MouseEvent) => {
-      if (!isDragging) {
-        return;
-      }
-      const dx = e.clientX - dragStartRef.current.startX;
-      const dy = e.clientY - dragStartRef.current.startY;
-      setPosition({
-        x: Math.max(10, Math.min(window.innerWidth - 360, dragStartRef.current.posX + dx)),
-        y: Math.max(60, Math.min(window.innerHeight - 300, dragStartRef.current.posY + dy)),
-      });
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
 
   if (!tooltip) {
     return null;
@@ -113,155 +94,186 @@ export const PhyloTreeViewDraggableNodeTooltip = () => {
     : null;
 
   return (
-    <Paper
-      elevation={8}
-      sx={{
-        backgroundColor: 'background.paper',
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: 2,
-        display: 'flex',
-        flexDirection: 'column',
-        left: position.x,
-        maxHeight: 450,
-        overflow: 'hidden',
-        position: 'fixed',
-        top: position.y,
-        width: 340,
-        zIndex: 1300,
-      }}
-    >
-      {/* Draggable Header */}
-      <Box
-        onMouseDown={onMouseDownTooltip}
-        sx={{
-          alignItems: 'center',
-          backgroundColor: 'primary.main',
-          color: 'primary.contrastText',
-          cursor: isDragging ? 'grabbing' : 'grab',
-          display: 'flex',
-          justifyContent: 'space-between',
-          px: 1.5,
-          py: 1,
-          userSelect: 'none',
-        }}
+    <ClickAwayListener onClickAway={onClickAway}>
+      <Popper
+        anchorEl={anchorEl}
+        modifiers={[
+          {
+            enabled: true,
+            name: 'flip',
+            options: {
+              altBoundary: true,
+              padding: 8,
+              rootBoundary: 'document',
+            },
+          },
+          {
+            enabled: true,
+            name: 'preventOverflow',
+            options: {
+              altAxis: true,
+              altBoundary: true,
+              padding: 8,
+              rootBoundary: 'document',
+              tether: true,
+            },
+          },
+        ]}
+        open
+        placement={'bottom-start'}
+        sx={{ zIndex: theme.zIndex.modal }}
       >
-        <Box sx={{ alignItems: 'center', display: 'flex', gap: 0.5, overflow: 'hidden' }}>
-          <DragIndicatorIcon
-            fontSize={'small'}
-            sx={{ opacity: 0.8 }}
-          />
-          <Typography
-            noWrap
-            sx={{ fontWeight: 700, maxWidth: 230 }}
-            variant={'subtitle2'}
-          >
-            {tooltip.isLeaf ? tooltip.nodeName : 'Internal Clade Node'}
-          </Typography>
-        </Box>
-        <IconButton
-          onClick={onClickClose}
-          size={'small'}
-          sx={{ color: 'inherit', p: 0.5 }}
+        <Paper
+          elevation={8}
+          sx={{
+            backgroundColor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: 'min(450px, calc(100vh - 32px))',
+            maxWidth: 'calc(100vw - 32px)',
+            overflow: 'hidden',
+            width: 600,
+          }}
         >
-          <CloseIcon fontSize={'small'} />
-        </IconButton>
-      </Box>
-      {/* Content */}
-      <Box sx={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 1.5, overflowY: 'auto', p: 2 }}>
-        {tooltip.isLeaf ? (
-          <>
-            <Box sx={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}>
+          <Box
+            sx={{
+              alignItems: 'center',
+              backgroundColor: 'primary.main',
+              color: 'primary.contrastText',
+              display: 'flex',
+              justifyContent: 'space-between',
+              px: 1.5,
+              py: 1,
+              touchAction: 'none',
+              userSelect: 'none',
+            }}
+          >
+            <Box sx={{ alignItems: 'center', display: 'flex', gap: 0.5, overflow: 'hidden' }}>
               <Typography
-                color={'text.secondary'}
-                variant={'caption'}
+                noWrap
+                sx={{ color: 'inherit', fontWeight: 700, maxWidth: 230 }}
+                variant={'subtitle2'}
               >
-                {'Type'}
+                {tooltip.isLeaf ? tooltip.nodeName : 'Internal Clade Node'}
               </Typography>
-              <Chip
-                color={'primary'}
-                label={'Leaf Sample'}
-                size={'small'}
-                variant={'outlined'}
-              />
             </Box>
-            <Divider />
-            {metadata ? (
-              <Box>
-                <Typography
-                  color={'text.secondary'}
-                  sx={{ display: 'block', fontWeight: 700, mb: 0.5 }}
-                  variant={'caption'}
-                >
-                  {'Sample Metadata'}
-                </Typography>
-                <Table
-                  size={'small'}
-                  sx={{ '& td': { fontSize: '0.8rem', px: 0.5, py: 0.5 } }}
-                >
-                  <TableBody>
-                    {Object.entries(metadata).map(([key, val]) => (
-                      <TableRow key={key}>
-                        <TableCell sx={{ color: 'text.secondary', fontWeight: 600, width: '40%' }}>
-                          {key}
-                        </TableCell>
-                        <TableCell sx={{ wordBreak: 'break-word' }}>
-                          {val || '-'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Box>
+            <IconButton
+              onClick={onCloseButtonClick}
+              size={'small'}
+              sx={{ color: 'inherit', p: 0.5 }}
+            >
+              <CloseIcon fontSize={'small'} />
+            </IconButton>
+          </Box>
+          {/* Content */}
+          <Box sx={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 1.5, overflowY: 'auto', p: 2 }}>
+            {tooltip.isLeaf ? (
+              <>
+                <Box sx={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography
+                    color={'text.secondary'}
+                    variant={'caption'}
+                  >
+                    {'Type'}
+                  </Typography>
+                  <Chip
+                    color={'primary'}
+                    label={'Leaf Sample'}
+                    size={'small'}
+                    variant={'outlined'}
+                  />
+                </Box>
+                <Divider />
+                {metadata ? (
+                  <Box>
+                    <Typography
+                      color={'text.secondary'}
+                      sx={{ display: 'block', fontWeight: 700, mb: 0.5 }}
+                      variant={'caption'}
+                    >
+                      {'Sample Metadata'}
+                    </Typography>
+                    <Table
+                      size={'small'}
+                    >
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 600, width: '40%' }}>
+                            {'Key'}
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: 600, width: '60%' }}>
+                            {'Value'}
+                          </TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {Object.entries(metadata).map(([key, val]) => (
+                          <TableRow key={key}>
+                            <TableCell sx={{ color: 'text.secondary', fontWeight: 600, width: '40%' }}>
+                              {key}
+                            </TableCell>
+                            <TableCell sx={{ color: val ? 'text.primary' : 'text.secondary', width: '60%', wordBreak: 'break-word' }}>
+                              {val || '<missing>'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                ) : (
+                  <Typography
+                    color={'text.secondary'}
+                    sx={{ fontStyle: 'italic' }}
+                    variant={'body2'}
+                  >
+                    {'No TSV metadata loaded for this accession.'}
+                  </Typography>
+                )}
+              </>
             ) : (
-              <Typography
-                color={'text.secondary'}
-                sx={{ fontStyle: 'italic' }}
-                variant={'body2'}
-              >
-                {'No TSV metadata loaded for this accession.'}
-              </Typography>
+              <>
+                <Box sx={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography
+                    color={'text.secondary'}
+                    variant={'caption'}
+                  >
+                    {'Subtree Descendants'}
+                  </Typography>
+                  <Chip
+                    color={'secondary'}
+                    label={`${tooltip.descendantCount ?? tooltip.subTreeLeaveNames?.length ?? 0} leaves`}
+                    size={'small'}
+                  />
+                </Box>
+                <Divider />
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Typography
+                    color={'text.secondary'}
+                    variant={'body2'}
+                  >
+                    {'Internal ancestor node in phylogenetic topology.'}
+                  </Typography>
+                  <Button
+                    color={'secondary'}
+                    disabled
+                    fullWidth
+                    onClick={onToggleCollapseClick}
+                    size={'small'}
+                    startIcon={isCollapsed ? <UnfoldMoreIcon /> : <UnfoldLessIcon />}
+                    sx={{ mt: 1 }}
+                    variant={isCollapsed ? 'contained' : 'outlined'}
+                  >
+                    {isCollapsed ? 'Expand Subtree' : 'Collapse Subtree'}
+                  </Button>
+                </Box>
+              </>
             )}
-          </>
-        ) : (
-          <>
-            <Box sx={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}>
-              <Typography
-                color={'text.secondary'}
-                variant={'caption'}
-              >
-                {'Subtree Descendants'}
-              </Typography>
-              <Chip
-                color={'secondary'}
-                label={`${tooltip.descendantCount ?? tooltip.subTreeLeaveNames?.length ?? 0} leaves`}
-                size={'small'}
-              />
-            </Box>
-            <Divider />
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Typography
-                color={'text.secondary'}
-                variant={'body2'}
-              >
-                {'Internal ancestor node in phylogenetic topology.'}
-              </Typography>
-              <Button
-                color={'secondary'}
-                disabled
-                fullWidth
-                onClick={onClickToggleCollapse}
-                size={'small'}
-                startIcon={isCollapsed ? <UnfoldMoreIcon /> : <UnfoldLessIcon />}
-                sx={{ mt: 1 }}
-                variant={isCollapsed ? 'contained' : 'outlined'}
-              >
-                {isCollapsed ? 'Expand Subtree' : 'Collapse Subtree'}
-              </Button>
-            </Box>
-          </>
-        )}
-      </Box>
-    </Paper>
+          </Box>
+        </Paper>
+      </Popper>
+    </ClickAwayListener>
   );
 };

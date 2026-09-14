@@ -7,6 +7,14 @@ import type {
   MetadataParseResult,
 } from '../../models/metadata';
 import type { NodeTooltipInfo } from '../../models/tree';
+import type {
+  FastTreeMLParams,
+  FastTreeMode,
+  TreeEngine,
+} from '../../models/calculation';
+import { CALCULATION_STATUS } from '../../models/calculation';
+import { FastTreeAioliService } from '../../classes/services/FastTreeAioliService';
+import { TN93AioliService } from '../../classes/services/TN93AioliService';
 import { FastaUtil } from '../../utils/FastaUtil';
 import { MetaDataUtil } from '../../utils/MetaDataUtil';
 import { ColorUtil } from '../../utils/ColorUtil';
@@ -14,13 +22,20 @@ import { ColorUtil } from '../../utils/ColorUtil';
 export type UiStore = UiStoreActions & UiStoreState;
 
 export type UiStoreActions = {
+  calculateTree: (overrideFasta?: string) => Promise<null | string>;
+  resetCalculation: () => void;
   resetDataset: () => void;
   resetTreeView: () => void;
+  setCalculationStatus: (status: CALCULATION_STATUS) => void;
   setColorByField: (field: string) => void;
   setColumnMatchCounts: (counts: Record<string, number>) => void;
+  setEngine: (engine: TreeEngine) => void;
   setFastaContent: (fasta: string) => FastaParseResult;
+  setFastTreeMode: (mode: FastTreeMode) => void;
+  setFastTreeParams: (params: Partial<FastTreeMLParams>) => void;
   setMatchKeyField: (field: null | string) => void;
   setMetadataContent: (tsv: string) => MetadataParseResult;
+  setNewick: (newick: string) => void;
   setSearchQuery: (query: string) => void;
   setSelectedLabelFields: (fields: string[]) => void;
   setShowBranchLengths: (show: boolean) => void;
@@ -31,12 +46,19 @@ export type UiStoreActions = {
 };
 
 export type UiStoreState = {
+  calculationError: null | string;
+  calculationStatus: CALCULATION_STATUS;
   collapsedNodeIds: string[];
   colorByField: null | string;
   colorMap: ColorMap;
   columnMatchCounts: Record<string, number>;
+  engine: TreeEngine;
+  fastTreeMode: FastTreeMode;
+  fastTreeParams: FastTreeMLParams;
   highlightedIds: string[];
+  lastCalculationExecutionTimeMs: null | number;
   matchKeyField: null | string;
+  newick: string;
   parsedFasta: FastaParseResult | null;
   parsedMetadata: MetadataParseResult | null;
   rawFasta: string;
@@ -50,16 +72,88 @@ export type UiStoreState = {
 };
 
 export const uiStore = createStore<UiStore>((set, get) => ({
+  calculateTree: async (overrideFasta?: string) => {
+    const rawFasta = overrideFasta ?? get().rawFasta;
+
+    if (!rawFasta?.trim()) {
+      set({ calculationError: 'No sequence data available to calculate tree.', calculationStatus: CALCULATION_STATUS.ERROR });
+      return null;
+    }
+
+    // Always re-parse the FASTA actually being used, since an override may not yet be reflected in the store's parsedFasta.
+    const parsedFasta = FastaUtil.parseFasta(rawFasta);
+
+    if (!parsedFasta.isAligned) {
+      set({
+        calculationError: parsedFasta.error || 'The provided FASTA sequences are not aligned.',
+        calculationStatus: CALCULATION_STATUS.ERROR,
+      });
+      return null;
+    }
+
+    set({ calculationError: null, calculationStatus: CALCULATION_STATUS.LOADING });
+    const startTime = performance.now();
+
+    try {
+      const { engine, fastTreeMode, fastTreeParams } = get();
+      let generatedNewick = '';
+
+      if (engine === 'tn93') {
+        generatedNewick = await TN93AioliService.getInstance().getTree(rawFasta);
+      } else {
+        generatedNewick = await FastTreeAioliService.getInstance().getTree(rawFasta, fastTreeMode, fastTreeParams);
+      }
+
+      const durationMs = Math.round(performance.now() - startTime);
+
+      set({
+        calculationError: null,
+        calculationStatus: CALCULATION_STATUS.SUCCESS,
+        lastCalculationExecutionTimeMs: durationMs,
+        newick: generatedNewick,
+      });
+
+      return generatedNewick;
+    } catch (err: unknown) {
+      console.error('[UiStore] Error during tree calculation:', err);
+      const errMsg = err instanceof Error ? err.message : 'Failed to calculate phylogenetic tree.';
+      set({
+        calculationError: errMsg,
+        calculationStatus: CALCULATION_STATUS.ERROR,
+      });
+      return null;
+    }
+  },
+  calculationError: null,
+  calculationStatus: CALCULATION_STATUS.IDLE,
   collapsedNodeIds: [],
   colorByField: null,
   colorMap: {},
   columnMatchCounts: {},
+  engine: 'tn93',
+  fastTreeMode: 'noml',
+  fastTreeParams: {
+    bootstrapping: 1000,
+    gamma: true,
+    model: 'gtr',
+    spr: 4,
+  },
   highlightedIds: [],
+  lastCalculationExecutionTimeMs: null,
   matchKeyField: null,
+  newick: '',
   parsedFasta: null,
   parsedMetadata: null,
   rawFasta: '',
   rawMetadata: '',
+  resetCalculation: () => {
+    set({
+      calculationError: null,
+      calculationStatus: CALCULATION_STATUS.IDLE,
+      lastCalculationExecutionTimeMs: null,
+      newick: '',
+    });
+  },
   resetDataset: () => {
     set({
       colorByField: null,
@@ -86,6 +180,8 @@ export const uiStore = createStore<UiStore>((set, get) => ({
   },
   searchQuery: '',
   selectedLabelFields: [],
+
+  setCalculationStatus: (status: CALCULATION_STATUS) => set({ calculationStatus: status }),
 
   setColorByField: (field: string) => {
     if (!field) {
@@ -124,6 +220,8 @@ export const uiStore = createStore<UiStore>((set, get) => ({
     set({ columnMatchCounts: counts });
   },
 
+  setEngine: (engine: TreeEngine) => set({ engine }),
+
   setFastaContent: (fasta: string) => {
     const parsed = FastaUtil.parseFasta(fasta);
     set({
@@ -144,6 +242,12 @@ export const uiStore = createStore<UiStore>((set, get) => ({
     }
 
     return parsed;
+  },
+
+  setFastTreeMode: (mode: FastTreeMode) => set({ fastTreeMode: mode }),
+
+  setFastTreeParams: (params: Partial<FastTreeMLParams>) => {
+    set((state) => ({ fastTreeParams: { ...state.fastTreeParams, ...params } }));
   },
 
   setMatchKeyField: (field: null | string) => {
@@ -186,6 +290,10 @@ export const uiStore = createStore<UiStore>((set, get) => ({
     }
 
     return parsed;
+  },
+
+  setNewick: (newick: string) => {
+    set({ calculationError: null, calculationStatus: CALCULATION_STATUS.SUCCESS, newick });
   },
 
   setSearchQuery: (query: string) => {

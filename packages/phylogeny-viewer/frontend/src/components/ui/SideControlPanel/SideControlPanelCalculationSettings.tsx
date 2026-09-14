@@ -27,27 +27,26 @@ import type {
   TreeEngine,
 } from '../../../models/calculation';
 import { CALCULATION_STATUS } from '../../../models/calculation';
-import { calculationStore } from '../../../stores/calculationStore';
 import { uiStore } from '../../../stores/uiStore';
 import { StatusChip } from '../StatusChip';
 
 
 export const SideControlPanelCalculationSettings = () => {
-  const engine = useStore(calculationStore, (state) => state.engine);
-  const setEngine = useStore(calculationStore, (state) => state.setEngine);
-  const fastTreeMode = useStore(calculationStore, (state) => state.fastTreeMode);
-  const setFastTreeMode = useStore(calculationStore, (state) => state.setFastTreeMode);
-  const fastTreeParams = useStore(calculationStore, (state) => state.fastTreeParams);
-  const setFastTreeParams = useStore(calculationStore, (state) => state.setFastTreeParams);
-  const status = useStore(calculationStore, (state) => state.status);
-  const calculationError = useStore(calculationStore, (state) => state.error);
-  const calculateTree = useStore(calculationStore, (state) => state.calculateTree);
-  const lastExecutionTimeMs = useStore(calculationStore, (state) => state.lastExecutionTimeMs);
+  const engine = useStore(uiStore, (state) => state.engine);
+  const setEngine = useStore(uiStore, (state) => state.setEngine);
+  const fastTreeMode = useStore(uiStore, (state) => state.fastTreeMode);
+  const setFastTreeMode = useStore(uiStore, (state) => state.setFastTreeMode);
+  const fastTreeParams = useStore(uiStore, (state) => state.fastTreeParams);
+  const setFastTreeParams = useStore(uiStore, (state) => state.setFastTreeParams);
+  const calculationStatus = useStore(uiStore, (state) => state.calculationStatus);
+  const calculationError = useStore(uiStore, (state) => state.calculationError);
+  const calculateTree = useStore(uiStore, (state) => state.calculateTree);
+  const lastCalculationExecutionTimeMs = useStore(uiStore, (state) => state.lastCalculationExecutionTimeMs);
 
   const rawFasta = useStore(uiStore, (state) => state.rawFasta);
   const parsedFasta = useStore(uiStore, (state) => state.parsedFasta);
 
-  const isCalculating = status === CALCULATION_STATUS.LOADING;
+  const isCalculating = calculationStatus === CALCULATION_STATUS.LOADING;
   const hasValidFasta = Boolean(rawFasta && parsedFasta?.isAligned);
 
   const onChangeEngine = useCallback((event: SelectChangeEvent) => {
@@ -245,16 +244,16 @@ export const SideControlPanelCalculationSettings = () => {
         {isCalculating ? 'Computing Tree...' : 'Calculate Tree'}
       </Button>
       {/* Calculation Error */}
-      {status === CALCULATION_STATUS.ERROR && calculationError && (
+      {calculationStatus === CALCULATION_STATUS.ERROR && calculationError && (
         <Alert severity={'error'}>
           {calculationError}
         </Alert>
       )}
       {/* Timing Metrics Badge */}
-      {lastExecutionTimeMs !== null && (
+      {lastCalculationExecutionTimeMs !== null && (
         <StatusChip
-          hasWarning={lastExecutionTimeMs > 5000}
-          label={`Computed in ${lastExecutionTimeMs} ms (${engine.toUpperCase()})`}
+          hasWarning={lastCalculationExecutionTimeMs > 5000}
+          label={`Computed in ${lastCalculationExecutionTimeMs} ms (${engine.toUpperCase()})`}
         />
       )}
     </Box>

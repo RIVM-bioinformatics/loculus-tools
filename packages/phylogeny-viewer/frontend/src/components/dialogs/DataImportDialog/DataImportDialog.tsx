@@ -30,7 +30,6 @@ import type { DialogAction } from '@gen-epix/ui-core-components/components/Dialo
 import { useStore } from 'zustand';
 
 import { uiStore } from '../../../stores/uiStore';
-import { calculationStore } from '../../../stores/calculationStore';
 import { EventBusService } from '../../../classes/services/EventBusService';
 import { UrlUtil } from '../../../utils/UrlUtil';
 
@@ -71,7 +70,7 @@ export const DataImportDialog = withDialog<DataImportDialogProps, DataImportDial
 ): ReactElement => {
   const setFastaContent = useStore(uiStore, (state) => state.setFastaContent);
   const setMetadataContent = useStore(uiStore, (state) => state.setMetadataContent);
-  const calculateTree = useStore(calculationStore, (state) => state.calculateTree);
+  const calculateTree = useStore(uiStore, (state) => state.calculateTree);
   const setColorByField = useStore(uiStore, (state) => state.setColorByField);
 
   // FASTA state

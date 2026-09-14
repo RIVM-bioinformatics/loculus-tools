@@ -2,16 +2,15 @@ import { useEffect } from 'react';
 import { useStore } from 'zustand/react';
 
 import { EventBusService } from '../../classes/services/EventBusService';
-import { calculationStore } from '../../stores/calculationStore';
 import { uiStore } from '../../stores/uiStore';
 import { CALCULATION_STATUS } from '../../models/calculation';
 
 export const useDeepLinking = () => {
   const setFastaContent = useStore(uiStore, (state) => state.setFastaContent);
   const setMetadataContent = useStore(uiStore, (state) => state.setMetadataContent);
-  const calculateTree = useStore(calculationStore, (state) => state.calculateTree);
+  const calculateTree = useStore(uiStore, (state) => state.calculateTree);
   const setColorByField = useStore(uiStore, (state) => state.setColorByField);
-  const setCalculationStatus = useStore(calculationStore, (state) => state.setCalculationStatus);
+  const setCalculationStatus = useStore(uiStore, (state) => state.setCalculationStatus);
 
   useEffect(() => {
     // Scan URL parameters for deep-linking

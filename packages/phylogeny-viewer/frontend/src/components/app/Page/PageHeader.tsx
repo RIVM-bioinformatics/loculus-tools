@@ -29,7 +29,6 @@ import CodeIcon from '@mui/icons-material/Code';
 import { useStore } from 'zustand/react';
 
 import { uiStore } from '../../../stores/uiStore';
-import { calculationStore } from '../../../stores/calculationStore';
 import { ExportUtil } from '../../../utils/ExportUtil';
 import { EventBusService } from '../../../classes/services/EventBusService';
 import { UrlUtil } from '../../../utils/UrlUtil';
@@ -47,8 +46,8 @@ export const PageHeader = ({ drawerOpen, noInteraction }: PageHeaderProps) => {
   const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
   const resetDataset = useStore(uiStore, (state) => state.resetDataset);
 
-  const newick = useStore(calculationStore, (state) => state.newick);
-  const resetCalculation = useStore(calculationStore, (state) => state.resetCalculation);
+  const newick = useStore(uiStore, (state) => state.newick);
+  const resetCalculation = useStore(uiStore, (state) => state.resetCalculation);
 
   // Export Menu State
   const [exportAnchorEl, setExportAnchorEl] = useState<HTMLElement | null>(null);

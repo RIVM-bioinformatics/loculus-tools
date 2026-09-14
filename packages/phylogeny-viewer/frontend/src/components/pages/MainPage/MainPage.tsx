@@ -25,7 +25,6 @@ import {
 } from '../../../constants/view';
 import { CALCULATION_STATUS } from '../../../models/calculation';
 import { EventBusService } from '../../../classes/services/EventBusService';
-import { calculationStore } from '../../../stores/calculationStore';
 import { useDeepLinking } from '../../../hooks/useDeepLinking';
 import { SearchBar } from '../../ui/SearchBar';
 import { SideControlPanel } from '../../ui/SideControlPanel';
@@ -35,12 +34,12 @@ import { TreeNotLoaded } from '../../ui/TreeNotLoaded';
 
 
 export const MainPage = () => {
-  const newick = useStore(calculationStore, (state) => state.newick);
+  const newick = useStore(uiStore, (state) => state.newick);
   const colorByField = useStore(uiStore, (state) => state.colorByField);
   const dataImportDialogRef = useRef<DataImportDialogRefMethods>(null);
   const alignmentErrorDialogRef = useRef<AlignmentErrorDialogRefMethods>(null);
-  const calculationStatus = useStore(calculationStore, (state) => state.status);
-  const calculationEngine = useStore(calculationStore, (state) => state.engine);
+  const calculationStatus = useStore(uiStore, (state) => state.calculationStatus);
+  const calculationEngine = useStore(uiStore, (state) => state.engine);
   const theme = useTheme();
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);

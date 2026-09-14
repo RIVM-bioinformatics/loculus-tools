@@ -42,7 +42,6 @@ export const SideControlPanelMetadataStyling = () => {
   const setColorByField = useStore(uiStore, (state) => state.setColorByField);
   const selectedLabelFields = useStore(uiStore, (state) => state.selectedLabelFields);
   const setSelectedLabelFields = useStore(uiStore, (state) => state.setSelectedLabelFields);
-
   const columns = useMemo(() => parsedMetadata?.columns || [], [parsedMetadata]);
 
   const totalTaxa = parsedFasta?.sequences?.length || 0;
@@ -51,37 +50,65 @@ export const SideControlPanelMetadataStyling = () => {
     setColorByField(field);
   }, [setColorByField]);
 
-  const onChangeMatchKey = useCallback((col: string) => {
-    setMatchKeyField(col);
+  const onChangeMatchKey = useCallback((field: string) => {
+    setMatchKeyField(field);
   }, [setMatchKeyField]);
 
   const onChangeLabelField = useCallback((fields: string[]) => {
+
     setSelectedLabelFields(fields);
   }, [setSelectedLabelFields]);
 
-  const matchKeyColumnOptions = useMemo<AutoCompleteOption<string>[]>(() => columns.map(col => {
-    const count = columnMatchCounts[col];
-    const matchText =
-      totalTaxa > 0 && count !== undefined
-        ? ` (${count}/${totalTaxa} matches)`
-        : '';
+  const matchKeyColumnOptions = useMemo<AutoCompleteOption<string>[]>(() => {
+    const options: AutoCompleteOption<string>[] = [];
+    const matchCountMap = new Map<string, number>();
 
-    return {
+    columns.forEach(col => {
+      const matchCount = columnMatchCounts[col];
+      const matchText =
+        totalTaxa > 0 && matchCount !== undefined
+          ? ` (${matchCount}/${totalTaxa} matches)`
+          : '';
+      matchCountMap.set(col, matchCount);
+      const option = {
+        label: col,
+        secondaryLabel: matchText || undefined,
+        value: col,
+      };
+      options.push(option);
+    });
+    return options.sort((a, b) => {
+      const matchCountA = matchCountMap.get(a.value) || 0;
+      const matchCountB = matchCountMap.get(b.value) || 0;
+      if (matchCountA !== matchCountB) {
+        return matchCountB - matchCountA; // descending order
+      }
+      return a.label.localeCompare(b.label);
+    });
+  }, [columnMatchCounts, columns, totalTaxa]);
+
+  const colorByFieldOptions = useMemo<AutoCompleteOption<string>[]>(() => {
+    return columns.map(col => ({
       label: col,
-      secondaryLabel: matchText || undefined,
       value: col,
-    };
-  }), [columnMatchCounts, columns, totalTaxa]);
+    })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [columns]);
 
-  const colorByFieldOptions = useMemo<AutoCompleteOption<string>[]>(() => columns.map(col => ({
-    label: col,
-    value: col,
-  })), [columns]);
+  const labelFieldOptions = useMemo<AutoCompleteOption<string>[]>(() => {
+    const options: AutoCompleteOption<string>[] = columns.filter((col) => col !== matchKeyField).map(col => ({
+      label: col,
+      value: col,
+    })).sort((a, b) => a.label.localeCompare(b.label));
 
-  const labelFieldOptions = useMemo<AutoCompleteOption<string>[]>(() => columns.filter((col) => col !== matchKeyField).map(col => ({
-    label: col,
-    value: col,
-  })), [columns, matchKeyField]);
+    if (matchKeyField) {
+      options.unshift({
+        disabled: true,
+        label: matchKeyField,
+        value: matchKeyField,
+      });
+    }
+    return options;
+  }, [columns, matchKeyField]);
 
   const formFieldDefinitions = useMemo<FormFieldDefinition<FormFields>[]>(() => [
     {
@@ -105,26 +132,26 @@ export const SideControlPanelMetadataStyling = () => {
     } as const satisfies FormFieldDefinition<FormFields>,
     {
       definition: FORM_FIELD_DEFINITION_TYPE.AUTOCOMPLETE,
+      disabled: !matchKeyField || !colorByFieldOptions.length,
       label: 'Color field',
       name: 'colorByField',
       onChange: onChangeColorBy,
       options: colorByFieldOptions,
     } as const satisfies FormFieldDefinition<FormFields>,
     {
-      contentAfter: (
+      contentAfter: matchKeyField ? (
         <Typography
           color={'text.secondary'}
           variant={'caption'}
         >
           {'Format: '}
           <code>
-            {matchKeyField || 'ID'}
-            {selectedLabelFields.length > 0 ? ` | ${selectedLabelFields.join(' | ')}` : ''}
+            {selectedLabelFields.join(' | ')}
           </code>
         </Typography>
-
-      ),
+      ) : null,
       definition: FORM_FIELD_DEFINITION_TYPE.AUTOCOMPLETE,
+      disabled: !matchKeyField || !labelFieldOptions.length,
       hideSelectAll: true,
       label: 'Label fields',
       multiple: true,
@@ -137,7 +164,7 @@ export const SideControlPanelMetadataStyling = () => {
   const values = useMemo<FormFields>(() => FormUtil.createFormValues(formFieldDefinitions, {
     colorByField,
     matchKeyField,
-    selectedLabelFields,
+    selectedLabelFields: [matchKeyField, ...selectedLabelFields.filter(x => x !== matchKeyField)].filter(x => !!x),
   }), [formFieldDefinitions, matchKeyField, colorByField, selectedLabelFields]);
 
   const formMethods = useForm<FormFields>({

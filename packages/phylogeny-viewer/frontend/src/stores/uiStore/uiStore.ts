@@ -106,7 +106,6 @@ export const uiStore = createStore<UiStore>((set, get) => ({
 
     const newMap: ColorMap = {};
     const gradient = ColorUtil.createGradient(uniqueValues.length);
-    console.log({ gradient });
     uniqueValues.forEach((value, index) => {
       newMap[value] = {
         color: ColorUtil.getDeterministicColor(gradient, value, index),
@@ -140,17 +139,19 @@ export const uiStore = createStore<UiStore>((set, get) => ({
         parsedMetadata.recordsByColumn,
         fastaIds,
       );
-      set({ columnMatchCounts: matchCounts, matchKeyField: bestColumn });
+      get().setColumnMatchCounts(matchCounts);
+      get().setMatchKeyField(bestColumn);
     }
 
     return parsed;
   },
 
   setMatchKeyField: (field: null | string) => {
-    const { setColorByField, setSearchQuery } = get();
+    const { setColorByField, setSearchQuery, setSelectedLabelFields } = get();
     set({ matchKeyField: field });
     setSearchQuery(null);
     setColorByField(null);
+    setSelectedLabelFields(field ? [field] : []);
   },
 
   setMetadataContent: (tsv: string) => {
@@ -168,12 +169,13 @@ export const uiStore = createStore<UiStore>((set, get) => ({
         parsed.recordsByColumn,
         fastaIds,
       );
-      set({ columnMatchCounts: matchCounts, matchKeyField: bestColumn });
+      get().setColumnMatchCounts(matchCounts);
+      get().setMatchKeyField(bestColumn);
     } else if (parsed && parsed.columns.length > 0) {
       // Default to best candidate
       const prioritized = ['displayName', 'accessionVersion', 'accession', 'SampleID', 'id', 'strain'];
       const defaultCol = prioritized.find((p) => parsed.columns.includes(p)) || parsed.columns[0];
-      set({ matchKeyField: defaultCol });
+      get().setMatchKeyField(defaultCol);
     }
     if (parsed.columns.length > 0) {
       const preferred = parsed.columns.find((c) =>
@@ -198,7 +200,10 @@ export const uiStore = createStore<UiStore>((set, get) => ({
   },
 
   setSelectedLabelFields: (fields: string[]) => {
-    set({ selectedLabelFields: fields });
+    const { matchKeyField } = get();
+    const fieldsWithoutMatchedKeyField = fields.filter((f) => f !== matchKeyField);
+
+    set({ selectedLabelFields: [matchKeyField, ...fieldsWithoutMatchedKeyField].filter(x => !!x) });
   },
 
   setShowBranchLengths: (show: boolean) => set({ showBranchLengths: show }),

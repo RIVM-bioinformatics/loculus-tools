@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useState,
 } from 'react';
 import {
@@ -16,9 +17,11 @@ import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
+import { useStore } from 'zustand';
 
 import { DRAWER_WIDTH } from '../../../constants/view';
 import { EventBusService } from '../../../classes/services/EventBusService';
+import { uiStore } from '../../../stores/uiStore';
 
 import { SideControlPanelCalculationSettings } from './SideControlPanelCalculationSettings';
 import { SideControlPanelViewSettings } from './SideControlPanelViewSettings';
@@ -35,17 +38,28 @@ export type SideControlPanelProps = {
 };
 
 export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
-  const [expandedAccordions, setExpandedAccordions] = useState<string[]>([]);
+  const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
+  const [expandedAccordions, setExpandedAccordions] = useState<ACCORDIONS[]>([]);
 
-  const toggleAccordion = useCallback((panel: string) => {
+  const toggleAccordion = useCallback((panel: ACCORDIONS) => {
     setExpandedAccordions((prev) =>
       prev.includes(panel) ? prev.filter((p) => p !== panel) : [...prev, panel]);
+  }, []);
+
+  const collapseAccordion = useCallback((panel: ACCORDIONS) => {
+    setExpandedAccordions((prev) => prev.filter((p) => p !== panel));
   }, []);
 
   const onClickLoadData = useCallback(() => EventBusService.getInstance().emit('onShowImportDialog'), []);
   const onCalculationAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.CALCULATION), [toggleAccordion]);
   const onViewAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.VIEW), [toggleAccordion]);
   const onMetaDataAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.METADATA), [toggleAccordion]);
+
+  useEffect(() => {
+    if (!parsedMetadata) {
+      collapseAccordion(ACCORDIONS.METADATA);
+    }
+  }, [collapseAccordion, parsedMetadata]);
 
   return (
     <Drawer
@@ -132,6 +146,7 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
         </Accordion>
         {/* 3. Metadata & Styling */}
         <Accordion
+          disabled={!parsedMetadata}
           disableGutters
           elevation={0}
           expanded={expandedAccordions.includes(ACCORDIONS.METADATA)}

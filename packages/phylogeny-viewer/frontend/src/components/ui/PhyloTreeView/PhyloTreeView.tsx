@@ -103,8 +103,7 @@ export const PhyloTreeView = ({ newick }: PhyloTreeViewProps) => {
       return nodeName;
     }
 
-    const labels = [nodeName, ...selectedLabelFields.map((field) => meta?.[field] || '<missing>')];
-    return labels.join(' | ');
+    return selectedLabelFields.map((field) => meta?.[field] || '<missing>').join(' | ');
   }, [selectedLabelFields, parsedMetadata, matchKeyField]);
 
   // Parse Newick tree into TreeNode

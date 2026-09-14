@@ -86,16 +86,17 @@ export const SideControlPanelCalculationSettings = () => {
           label={'Calculation Engine'}
           labelId={'engine-select-label'}
           onChange={onChangeEngine}
+          sx={{ '& .MuiSelect-select': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
           value={engine}
         >
           <MenuItem value={'tn93'}>
-            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
+            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1, minWidth: 0, overflow: 'hidden' }}>
               <SpeedIcon
                 color={'primary'}
                 fontSize={'small'}
               />
               <Typography
-                sx={{ fontWeight: 600 }}
+                sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                 variant={'body2'}
               >
                 {'TN93 + Neighbor-Joining (Fastest)'}
@@ -103,13 +104,13 @@ export const SideControlPanelCalculationSettings = () => {
             </Box>
           </MenuItem>
           <MenuItem value={'fasttree'}>
-            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
+            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1, minWidth: 0, overflow: 'hidden' }}>
               <BiotechIcon
                 color={'primary'}
                 fontSize={'small'}
               />
               <Typography
-                sx={{ fontWeight: 600 }}
+                sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                 variant={'body2'}
               >
                 {'FastTree (Biowasm Engine)'}

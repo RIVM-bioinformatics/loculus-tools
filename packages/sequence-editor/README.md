@@ -26,18 +26,19 @@ A Rust-powered WebAssembly MSA (Multiple Sequence Alignment) engine for viral ge
 
 This package is part of the `loculus-tools` pnpm monorepo, so setup happens from the **repo root**, not from within this folder.
 
-   ```bash
+```bash
+pnpm install
+```
 
-   pnpm install
-   ```
+Run from the repo root, this installs all workspace dependencies and (via the root `postinstall` script) compiles the Rust engine to WebAssembly, outputting the compiled package to `wasm/`. The `wasm/package.json` file is checked in because pnpm must resolve the `workspace:*` dependency before `postinstall` can create the rest of the generated package. To rebuild the WASM module only, run `node scripts/buildWasm.mjs` from the repo root, or `wasm-pack build --target web --out-dir ../wasm` from the `engine/` directory directly.
 
-   Run from the repo root, this installs all workspace dependencies and (via the root `preinstall` script) compiles the Rust engine to WebAssembly, outputting the compiled package to `wasm/`. To rebuild the WASM module only, run `node scripts/buildWasm.mjs` from the repo root, or `wasm-pack build --target web --out-dir ../wasm` from the `engine/` directory directly.
 2. **Start the development server**:
 
-   ```bash
-   pnpm --filter @rivm-loculus-tools/sequence-editor dev
+```bash
+pnpm --filter @rivm-loculus-tools/sequence-editor start
+```
 
-   The app will be available at `http://localhost:5173`.
+The app will be available at `http://localhost:5173`.
 
 ### Building for Production
 

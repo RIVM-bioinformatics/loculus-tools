@@ -20,7 +20,7 @@
  *    promise rejects rather than hanging.
  */
 
-import init, { MsaEngine, MoveDirection } from "../../wasm/sequence_editor.js";
+import init, { MsaEngine, MoveDirection } from "@rivm-loculus-tools/sequence-editor-wasm";
 import type {
   EngineRequest,
   EngineResponse,

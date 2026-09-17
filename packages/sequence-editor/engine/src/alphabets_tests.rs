@@ -29,6 +29,18 @@ fn gap_contains_only_dash() {
 }
 
 #[test]
+fn amino_contains_upper_and_lower() {
+    assert!(AMINO.contains(b'A'));
+    assert!(AMINO.contains(b'a'));
+    assert!(AMINO.contains(b'B'));
+    assert!(AMINO.contains(b'b'));
+    assert!(AMINO.contains(b'*'));
+    assert!(!AMINO.contains(b' '));
+    assert!(!AMINO.contains(b'1'));
+    assert!(!AMINO.contains(b'-'));
+}
+
+#[test]
 fn is_iupac_and_is_gap_helpers() {
     assert!(is_iupac(b'A'));
     assert!(is_iupac(b'n'));
@@ -36,4 +48,6 @@ fn is_iupac_and_is_gap_helpers() {
     assert!(!is_iupac(b' '));
     assert!(is_gap(b'-'));
     assert!(!is_gap(b'A'));
+    assert!(is_amino(b'A'));
+    assert!(!is_amino(b'-'));
 }

@@ -42,4 +42,4 @@ Run from the repo root (see [package.json](package.json)):
 - `pnpm validate` — lint + type-check.
 - `pnpm update-exports` — regenerate package exports maps.
 - `pnpm clean` — remove all `node_modules` (via lerna).
-- `pnpm start-phylogeny-viewer` — start the phylogeny-viewer dev server.
+- `pnpm start-phylo` — start the phylogeny-viewer dev server.

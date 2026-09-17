@@ -1,11 +1,12 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import CssBaseline from "@mui/material/CssBaseline";
-import TestHarness from "./TestHarness";
+import { createRoot } from 'react-dom/client';
+import CssBaseline from '@mui/material/CssBaseline';
+import { StrictMode } from 'react';
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
+import { TestHarness } from './TestHarness';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
     <CssBaseline />
     <TestHarness />
-  </React.StrictMode>
+  </StrictMode>,
 );

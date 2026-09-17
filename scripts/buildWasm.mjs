@@ -2,7 +2,7 @@
 /* global console, process */
 // Builds the Rust/WASM engine for every package that has one, outputting into ../wasm
 // relative to the engine directory (e.g. packages/apps/<name>/engine -> packages/apps/<name>/wasm).
-// Run with: node scripts/buildWasm.mjs
+// Run with: node scripts/build-wasm.mjs
 
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs';
 import { spawnSync } from 'child_process';

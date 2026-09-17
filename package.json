@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "license": "EUPL-1.2",
   "private": true,
-  "packageManager": "pnpm@12.3.4",
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
     "postinstall": "pnpm run build-wasm",
-    "build-wasm": "node scripts/buildWasm.mjs",
+    "build-wasm": "node scripts/build-wasm.mjs",
     "prepare": "husky",
     "start-phylo": "pnpm --filter @rivm-loculus-tools/phylogeny-viewer start",
     "start-seq": "pnpm --filter @rivm-loculus-tools/sequence-editor start",
@@ -21,6 +21,7 @@
     "build": "lerna run build"
   },
   "devDependencies": {
+    "eslint": "10.10.0",
     "concurrently": "10.0.5",
     "husky": "9.1.7",
     "lerna": "10.0.1",

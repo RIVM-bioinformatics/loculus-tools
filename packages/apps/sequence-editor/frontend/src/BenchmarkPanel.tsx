@@ -1,62 +1,32 @@
-import { useState, useCallback } from "react";
 import {
+  useCallback,
+  useState,
+} from 'react';
+import {
+  Alert,
   Box,
   Button,
-  TextField,
-  Typography,
-  Paper,
-  Stack,
-  Alert,
   Chip,
   LinearProgress,
+  Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-} from "@mui/material";
-import { type EngineClient } from "./engine/useEngineWorker";
+  TextField,
+  Typography,
+} from '@mui/material';
 
-/** One measured sample: the bridge timing + the render-to-paint time. */
-interface Sample {
-  totalMs: number;
-  engineMs: number;
-  bridgeOutMs: number;
-  bridgeBackMs: number;
-  renderMs: number;
-  bytes: number;
-}
+import type {
+  BenchmarkPanelProps,
+  Sample,
+  Stats,
+} from './models';
+import { SeqEditorUtil } from './utils/SeqEditorUtil';
 
-interface Stats {
-  count: number;
-  min: number;
-  median: number;
-  p95: number;
-  max: number;
-  mean: number;
-}
-
-function computeStats(values: number[]): Stats {
-  if (values.length === 0) {
-    return { count: 0, min: 0, median: 0, p95: 0, max: 0, mean: 0 };
-  }
-  const sorted = [...values].sort((a, b) => a - b);
-  const sum = sorted.reduce((a, b) => a + b, 0);
-  const pick = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
-  return {
-    count: sorted.length,
-    min: sorted[0],
-    median: pick(0.5),
-    p95: pick(0.95),
-    max: sorted[sorted.length - 1],
-    mean: sum / sorted.length,
-  };
-}
-
-function fmt(ms: number): string {
-  return ms < 1 ? ms.toFixed(3) : ms.toFixed(2);
-}
 
 /**
  * Benchmark panel.
@@ -74,18 +44,18 @@ function fmt(ms: number): string {
  * the latency is dominated by the Rust engine, the postMessage bridge, or the
  * React render.
  */
-export default function BenchmarkPanel({ eng }: { eng: EngineClient }) {
-  const [iterations, setIterations] = useState("100");
+export const BenchmarkPanel = ({ eng }: BenchmarkPanelProps) => {
+  const [iterations, setIterations] = useState('100');
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [samples, setSamples] = useState<Sample[]>([]);
-  const [lastSingle, setLastSingle] = useState<Sample | null>(null);
+  const [lastSingle, setLastSingle] = useState<null | Sample>(null);
 
   // Slice to benchmark — defaults to the full sample alignment.
-  const [r0, setR0] = useState("0");
-  const [r1, setR1] = useState("2");
-  const [c0, setC0] = useState("0");
-  const [c1, setC1] = useState("11");
+  const [r0, setR0] = useState('0');
+  const [r1, setR1] = useState('2');
+  const [c0, setC0] = useState('0');
+  const [c1, setC1] = useState('11');
 
   /**
    * Fetch a viewport slice and measure the full call→paint latency.
@@ -95,15 +65,15 @@ export default function BenchmarkPanel({ eng }: { eng: EngineClient }) {
    * *after* the promise resolves. This captures the time from "data ready" to
    * "browser painted", which includes React's commit phase and the compositor.
    */
-  const measureOnce = useCallback(async (): Promise<Sample | null> => {
+  const measureOnce = useCallback(async (): Promise<null | Sample> => {
     const sentTs = performance.now();
     let res;
     try {
       res = await eng.viewport({
-        startRow: Number(r0),
+        endCol: Number(c1),
         endRow: Number(r1),
         startCol: Number(c0),
-        endCol: Number(c1),
+        startRow: Number(r0),
       });
     } catch {
       return null;
@@ -132,15 +102,18 @@ export default function BenchmarkPanel({ eng }: { eng: EngineClient }) {
     // Touch the bytes so V8 can't optimize away the transfer.
     let _ = 0;
     const byteLen = res.bytes ? res.bytes.length : 0;
-    for (let i = 0; i < byteLen; i++) _ += res.bytes[i];
+    for (let i = 0; i < byteLen; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _ += res.bytes[i];
+    }
 
     return {
-      totalMs,
-      engineMs,
-      bridgeOutMs,
       bridgeBackMs,
-      renderMs,
+      bridgeOutMs,
       bytes: byteLen,
+      engineMs,
+      renderMs,
+      totalMs,
     };
   }, [eng, r0, r1, c0, c1]);
 
@@ -172,7 +145,9 @@ export default function BenchmarkPanel({ eng }: { eng: EngineClient }) {
       const now = performance.now();
       if (now - lastProgressTs >= PROGRESS_INTERVAL_MS || i === n - 1) {
         setProgress(((i + 1) / n) * 100);
-        if (s) setLastSingle(s);
+        if (s) {
+          setLastSingle(s);
+        }
         lastProgressTs = now;
         // Yield to the event loop so the UI stays responsive and the progress
         // bar can repaint.
@@ -186,116 +161,203 @@ export default function BenchmarkPanel({ eng }: { eng: EngineClient }) {
 
   // Compute stats for each phase.
   const stats = {
-    total: computeStats(samples.map((s) => s.totalMs)),
-    engine: computeStats(samples.map((s) => s.engineMs)),
-    bridgeOut: computeStats(samples.map((s) => s.bridgeOutMs)),
-    bridgeBack: computeStats(samples.map((s) => s.bridgeBackMs)),
-    render: computeStats(samples.map((s) => s.renderMs)),
-    toPaint: computeStats(samples.map((s) => s.totalMs + s.renderMs)),
+    bridgeBack: SeqEditorUtil.computeStats(samples.map((s) => s.bridgeBackMs)),
+    bridgeOut: SeqEditorUtil.computeStats(samples.map((s) => s.bridgeOutMs)),
+    engine: SeqEditorUtil.computeStats(samples.map((s) => s.engineMs)),
+    render: SeqEditorUtil.computeStats(samples.map((s) => s.renderMs)),
+    toPaint: SeqEditorUtil.computeStats(samples.map((s) => s.totalMs + s.renderMs)),
+    total: SeqEditorUtil.computeStats(samples.map((s) => s.totalMs)),
   };
 
-  const rows: { label: string; stats: Stats; color: string }[] = [
-    { label: "Bridge out (main→worker)", stats: stats.bridgeOut, color: "#1565c0" },
-    { label: "Engine (Rust update_viewport)", stats: stats.engine, color: "#2e7d32" },
-    { label: "Bridge back (worker→main)", stats: stats.bridgeBack, color: "#ef6c00" },
-    { label: "Render (response→paint)", stats: stats.render, color: "#6a1b9a" },
-    { label: "Total call→response", stats: stats.total, color: "#000" },
-    { label: "Total call→paint", stats: stats.toPaint, color: "#c62828" },
+  const rows: { color: string; label: string; stats: Stats }[] = [
+    { color: '#1565c0', label: 'Bridge out (main→worker)', stats: stats.bridgeOut },
+    { color: '#2e7d32', label: 'Engine (Rust update_viewport)', stats: stats.engine },
+    { color: '#ef6c00', label: 'Bridge back (worker→main)', stats: stats.bridgeBack },
+    { color: '#6a1b9a', label: 'Render (response→paint)', stats: stats.render },
+    { color: '#000', label: 'Total call→response', stats: stats.total },
+    { color: '#c62828', label: 'Total call→paint', stats: stats.toPaint },
   ];
 
   return (
     <Paper sx={{ p: 2 }}>
       <Stack spacing={2}>
-        <Typography variant="subtitle2">
-          Benchmark — call→paint latency breakdown
+        <Typography variant={'subtitle2'}>
+          {'Benchmark — call→paint latency breakdown'}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Measures the full round-trip of a viewport fetch: postMessage to the
-          worker, the Rust <code>update_viewport</code> call, the transfer back,
-          and the time until the browser paints. Run N iterations for a
-          statistical distribution.
+        <Typography
+          color={'text.secondary'}
+          variant={'body2'}
+        >
+          {'Measures the full round-trip of a viewport fetch: postMessage to the'}
+          {'worker, the Rust '}
+          <code>
+            {'update_viewport'}
+          </code>
+          {' '}
+          {'call, the transfer back,'}
+          {'and the time until the browser paints. Run N iterations for a'}
+          {'statistical distribution.'}
         </Typography>
-
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack
+          direction={'row'}
+          spacing={1}
+          sx={{ alignItems: 'center' }}
+        >
           <TextField
-            label="iterations"
-            value={iterations}
+            label={'iterations'}
             onChange={(e) => setIterations(e.target.value)}
-            size="small"
+            size={'small'}
             sx={{ width: 120 }}
+            value={iterations}
           />
-          <TextField label="r0" value={r0} onChange={(e) => setR0(e.target.value)} size="small" sx={{ width: 70 }} />
-          <TextField label="r1" value={r1} onChange={(e) => setR1(e.target.value)} size="small" sx={{ width: 70 }} />
-          <TextField label="c0" value={c0} onChange={(e) => setC0(e.target.value)} size="small" sx={{ width: 70 }} />
-          <TextField label="c1" value={c1} onChange={(e) => setC1(e.target.value)} size="small" sx={{ width: 70 }} />
+          <TextField
+            label={'r0'}
+            onChange={(e) => setR0(e.target.value)}
+            size={'small'}
+            sx={{ width: 70 }}
+            value={r0}
+          />
+          <TextField
+            label={'r1'}
+            onChange={(e) => setR1(e.target.value)}
+            size={'small'}
+            sx={{ width: 70 }}
+            value={r1}
+          />
+          <TextField
+            label={'c0'}
+            onChange={(e) => setC0(e.target.value)}
+            size={'small'}
+            sx={{ width: 70 }}
+            value={c0}
+          />
+          <TextField
+            label={'c1'}
+            onChange={(e) => setC1(e.target.value)}
+            size={'small'}
+            sx={{ width: 70 }}
+            value={c1}
+          />
           <Button
-            variant="contained"
-            onClick={runBenchmark}
             disabled={running || !eng.ready}
+            onClick={runBenchmark}
+            variant={'contained'}
           >
-            {running ? "Running…" : "Run benchmark"}
+            {running ? 'Running…' : 'Run benchmark'}
           </Button>
         </Stack>
-
         {running && (
           <Box>
-            <LinearProgress variant="determinate" value={progress} />
-            <Typography variant="caption" color="text.secondary">
-              {Math.round(progress)}% — last sample: {lastSingle ? `${fmt(lastSingle.totalMs)} ms total, ${fmt(lastSingle.engineMs)} ms engine` : "…"}
+            <LinearProgress
+              value={progress}
+              variant={'determinate'}
+            />
+            <Typography
+              color={'text.secondary'}
+              variant={'caption'}
+            >
+              {Math.round(progress)}
+              {'% — last sample:'}
+              {lastSingle ? `${SeqEditorUtil.fmt(lastSingle.totalMs)} ms total, ${SeqEditorUtil.fmt(lastSingle.engineMs)} ms engine` : '…'}
             </Typography>
           </Box>
         )}
-
         {lastSingle && !running && samples.length === 0 && (
-          <Alert severity="info">
-            Last single fetch: {fmt(lastSingle.totalMs)} ms call→response,{" "}
-            {fmt(lastSingle.engineMs)} ms engine, {fmt(lastSingle.renderMs)} ms render,{" "}
-            {lastSingle.bytes} bytes
+          <Alert severity={'info'}>
+            {'Last single fetch: '}
+            {SeqEditorUtil.fmt(lastSingle.totalMs)}
+            {' '}
+            {'ms call→response,'}
+            {' '}
+            {SeqEditorUtil.fmt(lastSingle.engineMs)}
+            {' '}
+            {'ms engine,'}
+            {SeqEditorUtil.fmt(lastSingle.renderMs)}
+            {' '}
+            {'ms render,'}
+            {' '}
+            {lastSingle.bytes}
+            {' '}
+            {'bytes'}
           </Alert>
         )}
-
         {samples.length > 0 && (
           <>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Chip size="small" label={`samples: ${samples.length}`} />
-              <Chip size="small" label={`bytes/slice: ${samples[0].bytes}`} />
+            <Stack
+              direction={'row'}
+              spacing={1}
+              sx={{ flexWrap: 'wrap' }}
+            >
+              <Chip
+                label={`samples: ${samples.length}`}
+                size={'small'}
+              />
+              <Chip
+                label={`bytes/slice: ${samples[0].bytes}`}
+                size={'small'}
+              />
             </Stack>
             <TableContainer component={Box}>
-              <Table size="small">
+              <Table size={'small'}>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Phase</TableCell>
-                    <TableCell align="right">min</TableCell>
-                    <TableCell align="right">median</TableCell>
-                    <TableCell align="right">mean</TableCell>
-                    <TableCell align="right">p95</TableCell>
-                    <TableCell align="right">max</TableCell>
+                    <TableCell>
+                      {'Phase'}
+                    </TableCell>
+                    <TableCell align={'right'}>
+                      {'min'}
+                    </TableCell>
+                    <TableCell align={'right'}>
+                      {'median'}
+                    </TableCell>
+                    <TableCell align={'right'}>
+                      {'mean'}
+                    </TableCell>
+                    <TableCell align={'right'}>
+                      {'p95'}
+                    </TableCell>
+                    <TableCell align={'right'}>
+                      {'max'}
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {rows.map((r) => (
                     <TableRow key={r.label}>
-                      <TableCell sx={{ color: r.color, fontWeight: r.label.startsWith("Total") ? "bold" : "normal" }}>
+                      <TableCell sx={{ color: r.color, fontWeight: r.label.startsWith('Total') ? 'bold' : 'normal' }}>
                         {r.label}
                       </TableCell>
-                      <TableCell align="right">{fmt(r.stats.min)}</TableCell>
-                      <TableCell align="right">{fmt(r.stats.median)}</TableCell>
-                      <TableCell align="right">{fmt(r.stats.mean)}</TableCell>
-                      <TableCell align="right">{fmt(r.stats.p95)}</TableCell>
-                      <TableCell align="right">{fmt(r.stats.max)}</TableCell>
+                      <TableCell align={'right'}>
+                        {SeqEditorUtil.fmt(r.stats.min)}
+                      </TableCell>
+                      <TableCell align={'right'}>
+                        {SeqEditorUtil.fmt(r.stats.median)}
+                      </TableCell>
+                      <TableCell align={'right'}>
+                        {SeqEditorUtil.fmt(r.stats.mean)}
+                      </TableCell>
+                      <TableCell align={'right'}>
+                        {SeqEditorUtil.fmt(r.stats.p95)}
+                      </TableCell>
+                      <TableCell align={'right'}>
+                        {SeqEditorUtil.fmt(r.stats.max)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </TableContainer>
-            <Typography variant="caption" color="text.secondary">
-              All values in milliseconds. "Bridge out/back" are approximated:
-              bridge out ≈ workerMs − engineMs; bridge back ≈ totalMs − workerMs.
-              Render is measured via double-rAF after the promise resolves.
+            <Typography
+              color={'text.secondary'}
+              variant={'caption'}
+            >
+              {'All values in milliseconds. "Bridge out/back" are approximated:'}
+              {'bridge out ≈ workerMs − engineMs; bridge back ≈ totalMs − workerMs.'}
+              {'Render is measured via double-rAF after the promise resolves.'}
             </Typography>
           </>
         )}
       </Stack>
     </Paper>
   );
-}
+};

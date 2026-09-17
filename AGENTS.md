@@ -21,9 +21,9 @@ The current top-level layout is:
 │   ├── record-merger/        # Record merging tool (placeholder here)
 │   └── sequence-editor/      # React/Vite UI plus Rust/WASM MSA engine
 ├── scripts/
-│   ├── buildWasm.mjs         # Builds every discovered Rust engine
+│   ├── build-wasm.mjs         # Builds every discovered Rust engine
 │   ├── installDep.mjs        # Dependency/install helper
-│   ├── installLinked.mjs     # Linked-package install helper
+│   ├── install-linked.mjs     # Linked-package install helper
 │   └── update-exports.mjs    # Generates package export maps
 ├── .husky/                   # Git hook configuration
 └── .vscode/                  # Workspace/editor settings
@@ -158,7 +158,7 @@ validated against them.
 ### Rust/WASM build boundary
 
 Any app with an `engine/Cargo.toml` is discovered by
-`scripts/buildWasm.mjs`. The script:
+`scripts/build-wasm.mjs`. The script:
 
 1. Checks that `wasm-pack` is installed.
 2. Prefers `~/.cargo/bin` so rustup's toolchain is used.
@@ -357,7 +357,7 @@ buffer ownership, viewport dimensions, and error propagation.
   API and editing rules.
 - `packages/apps/sequence-editor/engine/engine.md`: Rust engine internals,
   memory model, viewport behavior, and WASM boundary.
-- `scripts/buildWasm.mjs`: authoritative engine discovery and generated package
+- `scripts/build-wasm.mjs`: authoritative engine discovery and generated package
   build process.
 - `scripts/update-exports.mjs`: authoritative source-to-export-map generation.
 

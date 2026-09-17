@@ -20,14 +20,18 @@
  *    promise rejects rather than hanging.
  */
 
-import init, { MsaEngine, MoveDirection } from "@rivm-loculus-tools/sequence-editor-wasm";
+import init, {
+  MoveDirection,
+  MsaEngine,
+} from '@rivm-loculus-tools/sequence-editor-wasm';
+
 import type {
   EngineRequest,
   EngineResponse,
   Meta,
   SearchResult,
   ViewportResult,
-} from "./protocol";
+} from './protocol';
 
 let engine: MsaEngine | null = null;
 let initializing = false;
@@ -37,19 +41,19 @@ let initializing = false;
  * the engine is ready, then sent to the main thread. All subsequent viewport
  * responses write into this buffer and send only a tiny control message.
  */
-let sab: SharedArrayBuffer | null = null;
-let sabView: Uint8Array | null = null;
-/** Max rows × cols we ever expect to serve in a single viewport request.  
+let sab: null | SharedArrayBuffer = null;
+let sabView: null | Uint8Array = null;
+/** Max rows × cols we ever expect to serve in a single viewport request.
  * TODO: see sequence-editor/src/lib.rs MAX_VIEWPORT_BYTES for detailed future todo comment
  */
 const SAB_MAX_BYTES = 80 * 200_000;
 
 interface ViewportShape {
-  rows: number;
   cols: number;
+  rows: number;
 }
 
-function checkedInclusiveLength(start: number, end: number): number | null {
+function checkedInclusiveLength(start: number, end: number): null | number {
   const span = end - start;
   if (!Number.isSafeInteger(span) || span >= Number.MAX_SAFE_INTEGER) {
     return null;
@@ -58,8 +62,8 @@ function checkedInclusiveLength(start: number, end: number): number | null {
 }
 
 function getViewportShape(
-  req: Extract<EngineRequest, { type: "viewport" }>
-): ViewportShape | null {
+  req: Extract<EngineRequest, { type: 'viewport' }>,
+): null | ViewportShape {
   const bounds = [req.startRow, req.endRow, req.startCol, req.endCol];
   if (!bounds.every((value) => Number.isSafeInteger(value) && value >= 0)) {
     return null;
@@ -74,18 +78,22 @@ function getViewportShape(
     return null;
   }
 
-  return { rows, cols };
+  return { cols, rows };
 }
 
 /** Pending commands issued before WASM finished initializing. */
 const queue: EngineRequest[] = [];
 
 async function ensureEngine(): Promise<void> {
-  if (engine) return;
-  if (initializing) return;
+  if (engine) {
+    return;
+  }
+  if (initializing) {
+    return;
+  }
   initializing = true;
   try {
-    await init(undefined as never);
+    await init(undefined);
     engine = new MsaEngine();
     // Create the SharedArrayBuffer and announce it to the main thread. SAB is
     // shared memory — both threads hold references to the same backing store.
@@ -93,8 +101,8 @@ async function ensureEngine(): Promise<void> {
     // ArrayBuffer; it's simply structured-cloned as a shared reference).
     sab = new SharedArrayBuffer(SAB_MAX_BYTES);
     sabView = new Uint8Array(sab);
-    post({ type: "sab", buffer: sab, capacity: SAB_MAX_BYTES });
-    post({ type: "ready" });
+    post({ buffer: sab, capacity: SAB_MAX_BYTES, type: 'sab' });
+    post({ type: 'ready' });
     // Drain any commands that arrived during initialization.
     while (queue.length > 0) {
       const next = queue.shift()!;
@@ -102,9 +110,9 @@ async function ensureEngine(): Promise<void> {
     }
   } catch (err) {
     post({
-      type: "error",
-      reqId: -1,
       message: `WASM init failed: ${err instanceof Error ? err.message : String(err)}`,
+      reqId: -1,
+      type: 'error',
     });
   } finally {
     initializing = false;
@@ -129,20 +137,195 @@ async function timedHandle(req: EngineRequest): Promise<void> {
   const engineStart = performance.now();
 
   switch (req.type) {
-    case "load": {
+    case 'delete': {
+      const errCode = e.delete_at_subset(req.rows, req.col);
+      engineMs = performance.now() - engineStart;
+      if (errCode) {
+        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
+      } else {
+        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      }
+      break;
+    }
+    case 'deleteColumn': {
+      const errCode = e.delete_column(req.col);
+      engineMs = performance.now() - engineStart;
+      if (errCode) {
+        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
+      } else {
+        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      }
+      break;
+    }
+
+    case 'insert': {
+      const errCode = e.insert_at_subset(req.rows, req.col);
+      engineMs = performance.now() - engineStart;
+      if (errCode) {
+        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
+      } else {
+        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      }
+      break;
+    }
+
+    case 'load': {
       const n = e.load_fasta(req.fasta);
       engineMs = performance.now() - engineStart;
-      post({ type: "result", reqId: req.reqId, ok: true, data: n, timing: { engineMs, workerMs: 0 } });
+      post({ data: n, ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
       console.log(`Loaded ${n} sequences`);
       break;
     }
-    case "viewport": {
+
+    case 'meta': {
+      const data: Meta = {
+        redoDepth: e.redo_depth(),
+        sequences: e.get_sequence_count(),
+        undoDepth: e.undo_depth(),
+        width: e.get_alignment_width(),
+      };
+      engineMs = performance.now() - engineStart;
+      post({ data, ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      break;
+    }
+    case 'moveHorizontal': {
+      const direction = req.direction === 'Left' ? MoveDirection.Left : MoveDirection.Right;
+      const errCode = e.move_horizontal(req.row, req.cols, direction);
+      engineMs = performance.now() - engineStart;
+      if (errCode) {
+        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
+      } else {
+        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      }
+      break;
+    }
+    case 'moveRowsDown': {
+      const errCode = e.move_rows_down(req.rows);
+      engineMs = performance.now() - engineStart;
+      if (errCode) {
+        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
+      } else {
+        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      }
+      break;
+    }
+    case 'moveRowsUp': {
+      const errCode = e.move_rows_up(req.rows);
+      engineMs = performance.now() - engineStart;
+      if (errCode) {
+        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
+      } else {
+        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      }
+      break;
+    }
+    case 'mutate': {
+      const errCode = e.mutate_base_subset(req.rows, req.col, req.base);
+      engineMs = performance.now() - engineStart;
+      if (errCode) {
+        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
+      } else {
+        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      }
+      break;
+    }
+    case 'name': {
+      const data = e.get_name(req.row);
+      engineMs = performance.now() - engineStart;
+      post({ data, ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      break;
+    }
+    case 'redo': {
+      const r = e.redo();
+      engineMs = performance.now() - engineStart;
+      post({ data: r, ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      break;
+    }
+    case 'search': {
+      // `e.search` returns one `SearchResult` per matrix (nucleotide, amino
+      // acid, record names), serialized via serde_wasm_bindgen.
+      const data: SearchResult = e.search(req.query, req.checkRecordNames);
+      console.log(`Search query: ${req.query}, checkRecordNames: ${req.checkRecordNames}, result: ${JSON.stringify(data)}`);
+      engineMs = performance.now() - engineStart;
+      const workerMs = performance.now() - workerStart;
+      post({
+        data,
+        ok: true,
+        reqId: req.reqId,
+        timing: { engineMs, workerMs },
+        type: 'result',
+      });
+      break;
+    }
+    case 'translate': {
+      // `e.translate` returns raw amino-acid bytes, padded to a fixed stride
+      // just like `update_viewport` — reuse the same SAB copy-and-describe path.
+      const view = e.translate(
+        req.startRow,
+        req.endRow,
+        req.startCol,
+        req.endCol,
+        req.readingFrame,
+      );
+      console.log(`Translated rows ${req.startRow}-${req.endRow}, cols ${req.startCol}-${req.endCol}, returned reading frame: ${req.readingFrame}`);
+      const len = view.byteLength;
+
+      if (len > SAB_MAX_BYTES) {
+        post({
+          message: `Translate result too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+          reqId: req.reqId,
+          type: 'error',
+        });
+        break;
+      }
+      if (!sabView) {
+        post({
+          message: 'SharedArrayBuffer not initialized',
+          reqId: req.reqId,
+          type: 'error',
+        });
+        break;
+      }
+      sabView.set(view, 0);
+
+      // Rust's `translate` now uses the same inclusive `[start, end]` ranges
+      // and fixed-stride row padding as `update_viewport`.
+      const reqCols = Math.max(0, req.endCol - req.startCol + 1);
+      const actualCols = reqCols > 0 ? reqCols : 0;
+      const actualRows = actualCols > 0 ? Math.floor(len / actualCols) : 0;
+
+      const data: ViewportResult = {
+        cols: actualCols,
+        rows: actualRows,
+        startCol: req.startCol,
+        startRow: req.startRow,
+      };
+      console.log(`Viewport result: ${JSON.stringify(data)}`);
+      engineMs = performance.now() - engineStart;
+      const workerMs = performance.now() - workerStart;
+      post({
+        data,
+        ok: true,
+        reqId: req.reqId,
+        sabLen: len,
+        timing: { engineMs, workerMs },
+        type: 'result',
+      });
+      break;
+    }
+    case 'undo': {
+      const r = e.undo();
+      engineMs = performance.now() - engineStart;
+      post({ data: r, ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      break;
+    }
+    case 'viewport': {
       const shape = getViewportShape(req);
       if (!shape) {
         post({
-          type: "error",
-          reqId: req.reqId,
           message: `Viewport bounds must be non-negative safe integers within ${SAB_MAX_BYTES} bytes`,
+          reqId: req.reqId,
+          type: 'error',
         });
         break;
       }
@@ -155,17 +338,17 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       // with a RangeError from sabView.set().
       if (len > SAB_MAX_BYTES) {
         post({
-          type: "error",
-          reqId: req.reqId,
           message: `Viewport too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+          reqId: req.reqId,
+          type: 'error',
         });
         break;
       }
       if (!sabView) {
         post({
-          type: "error",
+          message: 'SharedArrayBuffer not initialized',
           reqId: req.reqId,
-          message: "SharedArrayBuffer not initialized",
+          type: 'error',
         });
         break;
       }
@@ -188,196 +371,21 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       const actualRows = Math.floor(len / shape.cols);
 
       const data: ViewportResult = {
-        rows: actualRows,
         cols: shape.cols,
-        startRow: req.startRow,
-        startCol: req.startCol,
-      };
-      engineMs = performance.now() - engineStart;
-      const workerMs = performance.now() - workerStart;
-      post({
-        type: "result",
-        reqId: req.reqId,
-        ok: true,
-        data,
-        sabLen: len,
-        timing: { engineMs, workerMs },
-      });
-      break;
-    }
-
-    case "search": {
-      // `e.search` returns one `SearchResult` per matrix (nucleotide, amino
-      // acid, record names), serialized via serde_wasm_bindgen.
-      const data: SearchResult = e.search(req.query, req.checkRecordNames);
-      console.log(`Search query: ${req.query}, checkRecordNames: ${req.checkRecordNames}, result: ${JSON.stringify(data)}`);
-      engineMs = performance.now() - engineStart;
-      const workerMs = performance.now() - workerStart;
-      post({
-        type: "result",
-        reqId: req.reqId,
-        ok: true,
-        data,
-        timing: { engineMs, workerMs },
-      });
-      break;
-    }
-
-    case "translate": {
-      // `e.translate` returns raw amino-acid bytes, padded to a fixed stride
-      // just like `update_viewport` — reuse the same SAB copy-and-describe path.
-      const view = e.translate(
-        req.startRow,
-        req.endRow,
-        req.startCol,
-        req.endCol,
-        req.readingFrame
-      );
-      console.log(`Translated rows ${req.startRow}-${req.endRow}, cols ${req.startCol}-${req.endCol}, returned reading frame: ${req.readingFrame}`);
-      const len = view.byteLength;
-
-      if (len > SAB_MAX_BYTES) {
-        post({
-          type: "error",
-          reqId: req.reqId,
-          message: `Translate result too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
-        });
-        break;
-      }
-      if (!sabView) {
-        post({
-          type: "error",
-          reqId: req.reqId,
-          message: "SharedArrayBuffer not initialized",
-        });
-        break;
-      }
-      sabView.set(view, 0);
-
-      // Rust's `translate` now uses the same inclusive `[start, end]` ranges
-      // and fixed-stride row padding as `update_viewport`.
-      const reqCols = Math.max(0, req.endCol - req.startCol + 1);
-      const actualCols = reqCols > 0 ? reqCols : 0;
-      const actualRows = actualCols > 0 ? Math.floor(len / actualCols) : 0;
-
-      const data: ViewportResult = {
         rows: actualRows,
-        cols: actualCols,
-        startRow: req.startRow,
         startCol: req.startCol,
+        startRow: req.startRow,
       };
-      console.log(`Viewport result: ${JSON.stringify(data)}`);
       engineMs = performance.now() - engineStart;
       const workerMs = performance.now() - workerStart;
       post({
-        type: "result",
-        reqId: req.reqId,
-        ok: true,
         data,
+        ok: true,
+        reqId: req.reqId,
         sabLen: len,
         timing: { engineMs, workerMs },
+        type: 'result',
       });
-      break;
-    }
-
-    case "mutate": {
-      const errCode = e.mutate_base_subset(req.rows, req.col, req.base);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
-      } else {
-        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
-      }
-      break;
-    }
-    case "insert": {
-      const errCode = e.insert_at_subset(req.rows, req.col);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
-      } else {
-        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
-      }
-      break;
-    }
-    case "delete": {
-      const errCode = e.delete_at_subset(req.rows, req.col);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
-      } else {
-        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
-      }
-      break;
-    }
-    case "deleteColumn": {
-      const errCode = e.delete_column(req.col);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
-      } else {
-        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
-      }
-      break;
-    }
-    case "undo": {
-      const r = e.undo();
-      engineMs = performance.now() - engineStart;
-      post({ type: "result", reqId: req.reqId, ok: true, data: r, timing: { engineMs, workerMs: 0 } });
-      break;
-    }
-    case "redo": {
-      const r = e.redo();
-      engineMs = performance.now() - engineStart;
-      post({ type: "result", reqId: req.reqId, ok: true, data: r, timing: { engineMs, workerMs: 0 } });
-      break;
-    }
-    case "meta": {
-      const data: Meta = {
-        sequences: e.get_sequence_count(),
-        width: e.get_alignment_width(),
-        undoDepth: e.undo_depth(),
-        redoDepth: e.redo_depth(),
-      };
-      engineMs = performance.now() - engineStart;
-      post({ type: "result", reqId: req.reqId, ok: true, data, timing: { engineMs, workerMs: 0 } });
-      break;
-    }
-    case "name": {
-      const data = e.get_name(req.row);
-      engineMs = performance.now() - engineStart;
-      post({ type: "result", reqId: req.reqId, ok: true, data, timing: { engineMs, workerMs: 0 } });
-      break;
-    }
-    case "moveHorizontal": {
-      const direction = req.direction === "Left" ? MoveDirection.Left : MoveDirection.Right;
-      const errCode = e.move_horizontal(req.row, req.cols, direction);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
-      } else {
-        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
-      }
-      break;
-    }
-    case "moveRowsUp": {
-      const errCode = e.move_rows_up(req.rows);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
-      } else {
-        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
-      }
-      break;
-    }
-    case "moveRowsDown": {
-      const errCode = e.move_rows_down(req.rows);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ type: "result", reqId: req.reqId, ok: false, errorCode: errCode });
-      } else {
-        post({ type: "result", reqId: req.reqId, ok: true, timing: { engineMs, workerMs: 0 } });
-      }
       break;
     }
   }
@@ -398,9 +406,9 @@ self.onmessage = async (ev: MessageEvent<EngineRequest>) => {
     await handle(req);
   } catch (err) {
     post({
-      type: "error",
-      reqId: req.reqId,
       message: err instanceof Error ? err.message : String(err),
+      reqId: req.reqId,
+      type: 'error',
     });
   }
 };

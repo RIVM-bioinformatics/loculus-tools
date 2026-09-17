@@ -21,84 +21,87 @@
 // Shared types
 // ---------------------------------------------------------------------------
 
-export interface Meta {
-  sequences: number;
-  width: number;
-  undoDepth: number;
-  redoDepth: number;
-}
-
-/** A fetched viewport slice plus the metadata needed to interpret it. */
-export interface ViewportResult {
-  /** Number of rows actually present in `bytes`. */
-  rows: number;
-  /** Number of columns per row (may be less than requested if clamped). */
-  cols: number;
-  /** Row index of the first row in the slice. */
-  startRow: number;
-  /** Column index of the first column in the slice. */
-  startCol: number;
-}
-
 export enum MatrixType {
-  Nucleotide = "nucleotide",
-  AminoAcid = "amino_acid",
-  RecordName = "record_name",
+  AminoAcid = 'amino_acid',
+  Nucleotide = 'nucleotide',
+  RecordName = 'record_name',
 }
-
-/**The following interfaces match the Rust `search_algorithms::Match` and search_algorithms::SearchResult structures. */
-export interface SearchMatch {
-  row: number;
-  col: number;
-  matrix_type: MatrixType;
-}
-export interface SearchResult {
-  query: string;
-  num_matches: number;
-  positions: SearchMatch[];
-}
-
-// ---------------------------------------------------------------------------
-// Main → Worker requests
-// ---------------------------------------------------------------------------
 
 export type EngineRequest =
-  | { type: "load"; reqId: number; fasta: string }
+  | { base: number; col: number; reqId: number; rows: Uint32Array; type: 'mutate' }
+  | { checkRecordNames: boolean; query: string; reqId: number; type: 'search' }
+  | { col: number; reqId: number; rows: Uint32Array; type: 'delete' }
+  | { col: number; reqId: number; rows: Uint32Array; type: 'insert' }
+  | { col: number; reqId: number; type: 'deleteColumn' }
+  | { cols: Uint32Array; direction: 'Left' | 'Right'; reqId: number; row: number; type: 'moveHorizontal' }
   | {
-    type: "viewport";
-    reqId: number;
-    startRow: number;
-    endRow: number;
-    startCol: number;
     endCol: number;
-  }
-  | { type: "search"; reqId: number; query: string; checkRecordNames: boolean }
-  | {
-    type: "translate";
-    reqId: number;
-    startRow: number;
     endRow: number;
-    startCol: number;
-    endCol: number;
     /** 0-indexed reading frame (0, 1, or 2). */
     readingFrame: number;
+    reqId: number;
+    startCol: number;
+    startRow: number;
+    type: 'translate';
   }
-  | { type: "mutate"; reqId: number; rows: Uint32Array; col: number; base: number }
-  | { type: "insert"; reqId: number; rows: Uint32Array; col: number }
-  | { type: "delete"; reqId: number; rows: Uint32Array; col: number }
-  | { type: "deleteColumn"; reqId: number; col: number }
-  | { type: "undo"; reqId: number }
-  | { type: "redo"; reqId: number }
-  | { type: "meta"; reqId: number }
-  | { type: "name"; reqId: number; row: number }
-  | { type: "moveHorizontal"; reqId: number; row: number; cols: Uint32Array; direction: "Left" | "Right" }
-  | { type: "moveRowsUp"; reqId: number; rows: Uint32Array }
-  | { type: "moveRowsDown"; reqId: number; rows: Uint32Array };
+  | {
+    endCol: number;
+    endRow: number;
+    reqId: number;
+    startCol: number;
+    startRow: number;
+    type: 'viewport';
+  }
+  | { fasta: string; reqId: number; type: 'load' }
+  | { reqId: number; row: number; type: 'name' }
+  | { reqId: number; rows: Uint32Array; type: 'moveRowsDown' }
+  | { reqId: number; rows: Uint32Array; type: 'moveRowsUp' }
+  | { reqId: number; type: 'meta' }
+  | { reqId: number; type: 'redo' }
+  | { reqId: number; type: 'undo' };
 
-// ---------------------------------------------------------------------------
-// Worker → Main responses
-// ---------------------------------------------------------------------------
+export type EngineResponse =
+  | {
+    buffer: SharedArrayBuffer;
+    /** Maximum bytes the SAB can hold (rows*cols upper bound). */
+    capacity: number;
+    /**
+     * Sent once after the worker creates its SharedArrayBuffer. The main
+     * thread holds this reference and reads viewport bytes directly from it
+     * on every subsequent viewport response — no per-call transfer.
+     */
+    type: 'sab';
+  }
+  | {
+    data?: EngineResultData;
+    ok: true;
+    reqId: number;
+    /**
+     * For SAB-based viewport responses: number of bytes the worker wrote
+     * into the shared buffer. The main thread reads `sab[0..len]`.
+     */
+    sabLen?: number;
+    timing?: EngineTiming;
+    /** For viewport responses: the transferred byte buffer (row-major). */
+    transfer?: ArrayBuffer;
+    type: 'result';
+  }
+  | {
+    errorCode: string;
+    ok: false;
+    reqId: number;
+    type: 'result';
+  }
+  | { message: string; reqId: number; type: 'error' }
+  | { type: 'ready' };
 
+export type EngineResultData =
+  | boolean
+  | Meta
+  | number
+  | SearchResult
+  | string
+  | ViewportResult;
 /**
  * Timing breakdown for a single request, measured in milliseconds via
  * `performance.now()`. All fields are optional so non-instrumented responses
@@ -126,45 +129,42 @@ export interface EngineTiming {
   workerMs: number;
 }
 
-export type EngineResponse =
-  | { type: "ready" }
-  | {
-    /**
-     * Sent once after the worker creates its SharedArrayBuffer. The main
-     * thread holds this reference and reads viewport bytes directly from it
-     * on every subsequent viewport response — no per-call transfer.
-     */
-    type: "sab";
-    buffer: SharedArrayBuffer;
-    /** Maximum bytes the SAB can hold (rows*cols upper bound). */
-    capacity: number;
-  }
-  | {
-    type: "result";
-    reqId: number;
-    ok: true;
-    data?: EngineResultData;
-    /** For viewport responses: the transferred byte buffer (row-major). */
-    transfer?: ArrayBuffer;
-    /**
-     * For SAB-based viewport responses: number of bytes the worker wrote
-     * into the shared buffer. The main thread reads `sab[0..len]`.
-     */
-    sabLen?: number;
-    timing?: EngineTiming;
-  }
-  | {
-    type: "result";
-    reqId: number;
-    ok: false;
-    errorCode: string;
-  }
-  | { type: "error"; reqId: number; message: string };
+// ---------------------------------------------------------------------------
+// Main → Worker requests
+// ---------------------------------------------------------------------------
 
-export type EngineResultData =
-  | number
-  | boolean
-  | string
-  | Meta
-  | ViewportResult
-  | SearchResult
+export interface Meta {
+  redoDepth: number;
+  sequences: number;
+  undoDepth: number;
+  width: number;
+}
+
+// ---------------------------------------------------------------------------
+// Worker → Main responses
+// ---------------------------------------------------------------------------
+
+/**The following interfaces match the Rust `search_algorithms::Match` and search_algorithms::SearchResult structures. */
+export interface SearchMatch {
+  col: number;
+  matrix_type: MatrixType;
+  row: number;
+}
+
+export interface SearchResult {
+  num_matches: number;
+  positions: SearchMatch[];
+  query: string;
+}
+
+/** A fetched viewport slice plus the metadata needed to interpret it. */
+export interface ViewportResult {
+  /** Number of columns per row (may be less than requested if clamped). */
+  cols: number;
+  /** Number of rows actually present in `bytes`. */
+  rows: number;
+  /** Column index of the first column in the slice. */
+  startCol: number;
+  /** Row index of the first row in the slice. */
+  startRow: number;
+}

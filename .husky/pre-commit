@@ -13,8 +13,8 @@ fi
 if echo "$STAGED_FILES" | grep -q "pnpm-lock\.yaml$"; then
   PACKAGE_FILES_TO_CHECK="$PACKAGE_FILES_TO_CHECK pnpm-lock.yaml"
 fi
-# Check package.json files in packages/*
-for pkg_file in $(echo "$STAGED_FILES" | grep -E "^packages/.+/package\.json$"); do
+# Check package.json files in packages/apps/*
+for pkg_file in $(echo "$STAGED_FILES" | grep -E "^packages/apps/.+/package\.json$"); do
   PACKAGE_FILES_TO_CHECK="$PACKAGE_FILES_TO_CHECK $pkg_file"
 done
 
@@ -78,7 +78,7 @@ fi
 if [ -n "$EXTERNAL_LINKS" ]; then
   echo "Error: the following staged dependency link(s) point outside the monorepo:"
   printf '%s' "$EXTERNAL_LINKS"
-  echo "Please run installDep.sh to restore the dependency before committing."
+  echo "Please run installDep.mjs to restore the dependency before committing."
   exit 1
 fi
 

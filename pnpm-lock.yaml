@@ -122,7 +122,7 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
 
-  packages/phylogeny-viewer/frontend:
+  packages/apps/phylogeny-viewer/frontend:
     dependencies:
       '@biowasm/aioli':
         specifier: 3.2.3
@@ -234,7 +234,7 @@ importers:
         specifier: 4.1.1
         version: 4.1.1(vite@8.3.0(@types/node@26.4.1)(yaml@2.9.0))
 
-  packages/sequence-editor/frontend:
+  packages/apps/sequence-editor/frontend:
     dependencies:
       '@emotion/react':
         specifier: ^11.13.5
@@ -271,7 +271,7 @@ importers:
         specifier: ^6.0.7
         version: 6.4.3(@types/node@26.4.1)(lightningcss@1.33.0)(yaml@2.9.0)
 
-  packages/sequence-editor/wasm: {}
+  packages/apps/sequence-editor/wasm: {}
 
 packages:
 

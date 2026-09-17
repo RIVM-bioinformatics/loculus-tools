@@ -1,6 +1,6 @@
 packages:
-  - packages/**/frontend
-  - packages/**/wasm
+  - packages/apps/**/frontend
+  - packages/apps/**/wasm
 
 allowBuilds:
   esbuild: true

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* global console, process */
 // Builds the Rust/WASM engine for every package that has one, outputting into ../wasm
-// relative to the engine directory (e.g. packages/<name>/engine -> packages/<name>/wasm).
+// relative to the engine directory (e.g. packages/apps/<name>/engine -> packages/apps/<name>/wasm).
 // Run with: node scripts/buildWasm.mjs
 
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs';
@@ -11,7 +11,7 @@ import { join } from 'path';
 import { fileURLToPath } from 'url';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
-const packagesDir = join(repoRoot, 'packages');
+const packagesDir = join(repoRoot, 'packages', 'apps');
 
 // Prefer rustup's shims over a conflicting Homebrew rustc so the wasm32-unknown-unknown target is found.
 const cargoBinDir = join(homedir(), '.cargo', 'bin');

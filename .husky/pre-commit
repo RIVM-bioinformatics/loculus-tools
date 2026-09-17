@@ -1,0 +1,87 @@
+#!/bin/sh
+# Note: husky always runs this via `sh`, ignoring this shebang - keep the script POSIX sh only
+# (no process substitution, no bash-only quoting) or it will fail with a cryptic syntax error.
+
+# Get list of staged files
+STAGED_FILES=$(git diff --cached --name-only)
+
+# Check if any package.json or pnpm-lock.yaml are staged (root or any package)
+PACKAGE_FILES_TO_CHECK=""
+if echo "$STAGED_FILES" | grep -q "^package\.json$"; then
+  PACKAGE_FILES_TO_CHECK="$PACKAGE_FILES_TO_CHECK package.json"
+fi
+if echo "$STAGED_FILES" | grep -q "pnpm-lock\.yaml$"; then
+  PACKAGE_FILES_TO_CHECK="$PACKAGE_FILES_TO_CHECK pnpm-lock.yaml"
+fi
+# Check package.json files in packages/*
+for pkg_file in $(echo "$STAGED_FILES" | grep -E "^packages/.+/package\.json$"); do
+  PACKAGE_FILES_TO_CHECK="$PACKAGE_FILES_TO_CHECK $pkg_file"
+done
+
+# True (exit 0) if joining base_dir ($1) and link_path ($2) needs to go above base_dir's root
+path_escapes_repo() {
+  awk -v base="$1" -v link="$2" 'BEGIN {
+    n = split(base "/" link, parts, "/")
+    depth = 0
+    escapes = 0
+    for (i = 1; i <= n; i++) {
+      p = parts[i]
+      if (p == "" || p == ".") continue
+      if (p == "..") {
+        if (depth == 0) escapes = 1
+        else depth--
+      } else {
+        depth++
+      }
+    }
+    exit escapes ? 0 : 1
+  }'
+}
+
+EXTERNAL_LINKS=""
+TMP_LINKS=$(mktemp)
+trap 'rm -f "$TMP_LINKS"' EXIT
+
+# package.json: each "link:..." value is relative to the file's own directory
+for file in $PACKAGE_FILES_TO_CHECK; do
+  [ "$file" = "pnpm-lock.yaml" ] && continue
+  dir=$(dirname "$file")
+  grep -oE '"link:[^"]+"' "$file" 2>/dev/null | sed -E 's/^"link:(.*)"$/\1/' > "$TMP_LINKS"
+  while read -r linkpath; do
+    [ -z "$linkpath" ] && continue
+    if path_escapes_repo "$dir" "$linkpath"; then
+      EXTERNAL_LINKS="${EXTERNAL_LINKS}${file}: link:${linkpath}
+"
+    fi
+  done < "$TMP_LINKS"
+done
+
+# pnpm-lock.yaml: each "link:..." value is relative to its enclosing importer section
+if echo "$PACKAGE_FILES_TO_CHECK" | grep -q "pnpm-lock\.yaml"; then
+  awk '
+    /^  [^ ].*:$/ { sect=$0; sub(/^  /, "", sect); sub(/:$/, "", sect); next }
+    /link:/ {
+      if (match($0, /link:[^ ]+/)) {
+        print sect "\t" substr($0, RSTART + 5, RLENGTH - 5)
+      }
+    }
+  ' pnpm-lock.yaml > "$TMP_LINKS"
+  while IFS="$(printf '\t')" read -r section linkpath; do
+    [ -z "$linkpath" ] && continue
+    if path_escapes_repo "$section" "$linkpath"; then
+      EXTERNAL_LINKS="${EXTERNAL_LINKS}pnpm-lock.yaml (${section}): link:${linkpath}
+"
+    fi
+  done < "$TMP_LINKS"
+fi
+
+if [ -n "$EXTERNAL_LINKS" ]; then
+  echo "Error: the following staged dependency link(s) point outside the monorepo:"
+  printf '%s' "$EXTERNAL_LINKS"
+  echo "Please run installDep.sh to restore the dependency before committing."
+  exit 1
+fi
+
+# If we get here, the check passed
+exit 0
+

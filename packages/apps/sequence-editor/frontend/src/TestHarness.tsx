@@ -252,7 +252,7 @@ export const TestHarness = () => {
       <AppBar position={'static'}>
         <Toolbar>
           <Typography
-            sx={{ flexGrow: 1 }}
+            sx={{ flexGrow: 1, color: 'white' }}
             variant={'h6'}
           >
             {'MSA Engine — Test Harness'}

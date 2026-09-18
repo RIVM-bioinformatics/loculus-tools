@@ -195,6 +195,23 @@ impl MsaEngine {
         self.nucleotide_sequences.len()
     }
 
+    /// Serialize the current alignment as deterministic, unwrapped FASTA.
+    /// Each record is emitted in its current row order and ends with a newline.
+    /// An empty engine exports an empty string.
+    pub fn export_fasta(&self) -> String {
+        let mut fasta = String::new();
+
+        for (name, sequence) in self.names.iter().zip(&self.nucleotide_sequences) {
+            fasta.push('>');
+            fasta.push_str(name);
+            fasta.push('\n');
+            fasta.push_str(&String::from_utf8_lossy(sequence));
+            fasta.push('\n');
+        }
+
+        fasta
+    }
+
     /// Extract a windowed slice of the matrix into the reusable viewport buffer
     /// and return it as a `Uint8Array`.
     ///

@@ -69,6 +69,58 @@ fn empty_fasta_loads_zero() {
 }
 
 #[test]
+fn exports_loaded_alignment_as_unwrapped_fasta() {
+    let e = engine_with_sample();
+
+    assert_eq!(
+        e.export_fasta(),
+        ">seq1\nATGCATGC\n>seq2\nATGGTG-A\n>seq3\nATGCAT-C\n"
+    );
+}
+
+#[test]
+fn exports_edited_alignment() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.mutate_base_subset(&[0], 0, b'G'), "");
+
+    assert_eq!(
+        e.export_fasta(),
+        ">seq1\nGTGCATGC\n>seq2\nATGGTG-A\n>seq3\nATGCAT-C\n"
+    );
+}
+
+#[test]
+fn exports_current_row_order() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.move_rows_up(&[1]), "");
+
+    assert_eq!(
+        e.export_fasta(),
+        ">seq2\nATGGTG-A\n>seq1\nATGCATGC\n>seq3\nATGCAT-C\n"
+    );
+}
+
+#[test]
+fn exports_empty_engine_as_empty_string() {
+    let e = MsaEngine::new();
+
+    assert_eq!(e.export_fasta(), "");
+}
+
+#[test]
+fn export_tracks_undo_and_redo_state() {
+    let mut e = engine_with_sample();
+    let original = e.export_fasta();
+
+    assert_eq!(e.mutate_base_subset(&[0], 0, b'G'), "");
+    let edited = e.export_fasta();
+    assert!(e.undo());
+    assert_eq!(e.export_fasta(), original);
+    assert!(e.redo());
+    assert_eq!(e.export_fasta(), edited);
+}
+
+#[test]
 fn reload_clears_previous_state() {
     let mut e = engine_with_sample();
     assert_eq!(e.get_sequence_count(), 3);

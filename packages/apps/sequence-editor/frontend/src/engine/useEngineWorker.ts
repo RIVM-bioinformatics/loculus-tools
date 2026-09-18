@@ -61,6 +61,7 @@ export interface EngineClient {
    */
   lastTimingRef: React.MutableRefObject<CallTiming | null>;
   load: (fasta: string) => Promise<number>;
+  exportFasta: () => Promise<string>;
   viewport: (r: {
     startRow: number;
     endRow: number;
@@ -90,6 +91,12 @@ export interface EngineClient {
 }
 
 type Resolver = (res: EngineResponse) => void;
+type PendingEntry = {
+  bytes: number;
+  reject: (reason: Error) => void;
+  resolve: Resolver;
+  sentTs: number;
+};
 
 /** Distributive Omit so union members keep their discriminant. */
 type DistributiveOmit<T, K extends string | number | symbol> = T extends unknown
@@ -103,9 +110,8 @@ let reqCounter = 0;
 
 export function useEngineWorker(): EngineClient {
   const workerRef = useRef<Worker | null>(null);
-  const pending = useRef<
-    Map<number, { resolve: Resolver; sentTs: number; bytes: number }>
-  >(new Map());
+  const pending = useRef<Map<number, PendingEntry>>(new Map());
+  const workerFailedRef = useRef(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /**
@@ -122,10 +128,18 @@ export function useEngineWorker(): EngineClient {
   const sabRef = useRef<SharedArrayBuffer | null>(null);
 
   useEffect(() => {
+    workerFailedRef.current = false;
     const worker = new Worker(new URL("./engine.worker.ts", import.meta.url), {
       type: "module",
     });
     workerRef.current = worker;
+
+    const rejectPending = (reason: Error) => {
+      for (const entry of pending.current.values()) {
+        entry.reject(reason);
+      }
+      pending.current.clear();
+    };
 
     worker.onmessage = (ev: MessageEvent<EngineResponse>) => {
       const res = ev.data;
@@ -138,6 +152,14 @@ export function useEngineWorker(): EngineClient {
         return;
       }
       if (res.type === "error") {
+        if (res.reqId < 0) {
+          const error = new Error(res.message);
+          workerFailedRef.current = true;
+          setReady(false);
+          setError(res.message);
+          rejectPending(error);
+          return;
+        }
         // Resolve the matching pending promise with the error response so the
         // caller's promise rejects via the result-handler below.
         const entry = pending.current.get(res.reqId);
@@ -204,13 +226,26 @@ export function useEngineWorker(): EngineClient {
     };
 
     worker.onerror = (e) => {
-      setError(e.message || "Worker crashed");
+      const message = e.message || "Worker crashed";
+      workerFailedRef.current = true;
+      setReady(false);
+      setError(message);
+      rejectPending(new Error(message));
+    };
+
+    worker.onmessageerror = () => {
+      const message = "Engine worker communication failed";
+      workerFailedRef.current = true;
+      setReady(false);
+      setError(message);
+      rejectPending(new Error(message));
     };
 
     return () => {
+      workerFailedRef.current = true;
+      rejectPending(new Error("Engine worker stopped"));
       worker.terminate();
       workerRef.current = null;
-      pending.current.clear();
       setReady(false);
     };
   }, []);
@@ -219,8 +254,8 @@ export function useEngineWorker(): EngineClient {
     <T,>(req: EngineRequestInit): Promise<T> => {
       return new Promise<T>((resolve, reject) => {
         const worker = workerRef.current;
-        if (!worker) {
-          reject(new Error("Worker not initialized"));
+        if (!worker || workerFailedRef.current) {
+          reject(new Error(workerFailedRef.current ? "Engine worker unavailable" : "Worker not initialized"));
           return;
         }
         const reqId = ++reqCounter;
@@ -232,12 +267,13 @@ export function useEngineWorker(): EngineClient {
             ? Math.max(0, (req.endRow - req.startRow + 1) * (req.endCol - req.startCol + 1))
             : 0;
         pending.current.set(reqId, {
+          reject,
           resolve: (res) => {
             if (res.type === "result" && res.ok) {
               resolve(res.data as T);
             } else if (res.type === "result" && !res.ok) {
               const err = new Error(`Engine rejected: ${res.errorCode}`);
-              (err as any).code = res.errorCode;
+              Object.assign(err, { code: res.errorCode });
               reject(err);
             } else if (res.type === "error") {
               console.log("Worker error:", res.message);
@@ -249,7 +285,12 @@ export function useEngineWorker(): EngineClient {
           sentTs,
           bytes,
         });
-        worker.postMessage({ ...req, reqId });
+        try {
+          worker.postMessage({ ...req, reqId });
+        } catch (err) {
+          pending.current.delete(reqId);
+          reject(err instanceof Error ? err : new Error(String(err)));
+        }
       });
     },
     []
@@ -259,6 +300,10 @@ export function useEngineWorker(): EngineClient {
 
   const load = useCallback(
     (fasta: string) => send<number>({ type: "load", fasta }),
+    [send]
+  );
+  const exportFasta = useCallback(
+    () => send<string>({ type: "exportFasta" }),
     [send]
   );
   const viewport = useCallback(
@@ -321,6 +366,7 @@ export function useEngineWorker(): EngineClient {
     error,
     lastTimingRef,
     load,
+    exportFasta,
     viewport,
     search,
     translate,

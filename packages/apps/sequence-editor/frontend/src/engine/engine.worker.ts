@@ -158,6 +158,13 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       break;
     }
 
+    case 'exportFasta': {
+      const data = e.export_fasta();
+      engineMs = performance.now() - engineStart;
+      post({ data, ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      break;
+    }
+
     case 'insert': {
       const errCode = e.insert_at_subset(req.rows, req.col);
       engineMs = performance.now() - engineStart;

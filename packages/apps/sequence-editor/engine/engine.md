@@ -65,13 +65,13 @@ It is purely a synchronous in-memory data engine.
 >   sliding-window Canvas renderer viable and keeps scrolling smooth no matter
 >   the size of the alignment (with some limits of course).
 > 5. **The Web Worker model keeps the UI thread responsive.** All parsing, structural
->   edits, undo/redo snapshots, and (future) search run synchronously in the
+>   edits, undo/redo snapshots, translation, and search run synchronously in the
 >   worker, off the main thread, so a large FASTA parse or a structural insert
 >   across 80 sequences never drops a frame on the UI thread. Doing this in
 >   React would block rendering for a noticeable period.
-> 7. **Future features require speed.** Features that are not yet implemented, 
->   such as live 3-frame nucleotide→amino-acid translation, and especially searching 
->   the sequences for exact (multiple) matches of user-input are computationally expensive.
+> 7. **Translation and search require speed.** Live 3-frame nucleotide→amino-acid
+>   translation and searching the sequences for exact (multiple) matches of
+>   user-input are computationally expensive.
 >   These actions gain massively from compiled language implementation and the ability to
 >   run off the main thread.
 
@@ -81,13 +81,13 @@ It is purely a synchronous in-memory data engine.
 
 ```
 sequence-editor/
-├── Cargo.toml          # crate manifest (note: capital C)
-├── src/
-│   └── lib.rs          # the entire engine (MsaEngine + UndoCommand + tests)
-├── www/                # Vite + React + MUI test harness (consumer)
-│   ├── src/engine/     # worker bridge + RPC hook + protocol types
-│   └── wasm/           # wasm-pack build output
-└── target/             # cargo build artifacts
+├── engine/             # Rust crate (MsaEngine + UndoCommand + tests)
+│   ├── Cargo.toml
+│   ├── src/
+│   └── target/         # cargo build artifacts
+├── frontend/           # Vite + React + MUI test harness (consumer)
+│   └── src/engine/     # worker bridge + RPC hook + protocol types
+└── wasm/               # wasm-pack build output
 ```
 
 The engine is a single-file crate: all logic lives in `src/lib.rs`. The crate
@@ -126,7 +126,8 @@ The engine is a single `#[wasm_bindgen]` struct that owns all state:
 ```rust
 #[wasm_bindgen]
 pub struct MsaEngine {
-    sequences: Vec<Vec<u8>>,   // the alignment matrix, row-major
+    nucleotide_sequences: Vec<Vec<u8>>, // the nucleotide matrix, row-major
+    aminoacid_sequences: Vec<AminoacidSequence>, // cached translated sequences
     names: Vec<String>,        // one row identifier per sequence
     alignment_width: usize,    // global column count
     viewport_buffer: Vec<u8>,  // reusable slice buffer
@@ -137,7 +138,8 @@ pub struct MsaEngine {
 
 | Field | Purpose |
 |-------|---------|
-| `sequences` | The matrix. Each inner `Vec<u8>` is one sequence of ASCII bytes (`b'A'`, `b'-'`, ...). |
+| `nucleotide_sequences` | The matrix. Each inner `Vec<u8>` is one sequence of ASCII bytes (`b'A'`, `b'-'`, ...). |
+| `aminoacid_sequences` | Lazily initialized translations for the three reading frames. |
 | `names` | Row identifiers, parallel to `sequences`. |
 | `alignment_width` | The global number of columns. Set from the longest sequence at load time. |
 | `viewport_buffer` | A single reusable buffer for viewport extraction, pre-allocated to ~5000 bytes and grown on demand. |
@@ -190,6 +192,7 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 | Method | Signature (JS-facing) | Description |
 |--------|----------------------|-------------|
 | `new()` | `new MsaEngine()` | Construct an empty engine. |
+| `export_fasta` | `(): string` | Serialize the current row order, names, and nucleotide bytes as unwrapped FASTA. |
 
 ### 4.2 Loading
 
@@ -215,7 +218,13 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 > **Assumption:** The input is expected to be *pre-aligned* (as provided by
 > Loculus). The engine does not perform alignment itself.
 
-### 4.3 Viewport Extraction
+### 4.3 FASTA Export
+
+`export_fasta()` returns deterministic, unwrapped FASTA in the engine's current
+row order. Each record uses the current row name and bytes, ends with a newline,
+and is emitted without line wrapping. An empty engine returns an empty string.
+
+### 4.4 Viewport Extraction
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
@@ -521,7 +530,7 @@ assert_eq!(e.get_base(0, 0), b'A'); // unchanged
 The engine is compiled with `wasm-pack`:
 
 ```bash
-wasm-pack build --target web --release --out-dir www/wasm
+wasm-pack build --target web --release --out-dir ../wasm
 ```
 
 The generated bindings expose the methods described in [section 4](#4-the-wasm-boundary-api). Note that `&[usize]`
@@ -529,7 +538,7 @@ maps to a `Uint32Array` in the JS bindings (not a plain `number[]`).
 
 ### 7.3 From the Web Worker (the intended production path)
 
-The engine instance is owned by a Web Worker (`www/src/engine/engine.worker.ts`).
+The engine instance is owned by a Web Worker (`frontend/src/engine/engine.worker.ts`).
 The UI never calls the engine directly; it sends typed request messages over
 `postMessage` and awaits responses. The worker:
 
@@ -537,8 +546,9 @@ The UI never calls the engine directly; it sends typed request messages over
    (self-init at module load — **not** lazily on the first message, to avoid a
    chicken-and-egg problem where the UI waits for a `ready` signal that only
    fires after a command triggers init).
-2. Handles `load`, `viewport`, `mutate`, `insert`, `delete`, `undo`, `redo`,
-   and `meta` requests. Mutation handlers check the Rust return string: if
+2. Handles `load`, `exportFasta`, `viewport`, `search`, `translate`, `mutate`,
+   `insert`, `delete`, row moves, `undo`, `redo`, `meta`, and `name` requests.
+   Mutation handlers check the Rust return string: if
    non-empty (an error code), the worker posts `{ok: false, errorCode}` instead
    of `{ok: true}`, causing the client promise to reject with the error code.
 3. For viewport requests, transfers the returned `ArrayBuffer` (or writes into a
@@ -546,7 +556,9 @@ The UI never calls the engine directly; it sends typed request messages over
    second copy.
 
 The main thread uses a promise-based RPC hook (`useEngineWorker.ts`) that
-correlates responses to requests via a `reqId` counter.
+correlates responses to requests via a `reqId` counter. Pending calls are
+rejected if initialization fails, the worker crashes, its message channel fails,
+or the hook is unmounted.
 
 > **Transfer gotcha:** When transferring an `ArrayBuffer` via the `postMessage`
 > transfer list, do **not** also embed a `Uint8Array` view of it in the
@@ -556,7 +568,7 @@ correlates responses to requests via a `reqId` counter.
 
 ### 7.4 From the MUI Test Harness
 
-`www/src/TestHarness.tsx` is a throwaway MUI UI that validates the engine
+`frontend/src/TestHarness.tsx` is a throwaway MUI UI that validates the engine
 end-to-end: load a FASTA, fetch a slice, apply a mutation/insertion/delete,
 refetch, and visually confirm the bytes changed. It renders slices as plain
 colorized text (no Canvas/WebGL) — the goal is correctness, not performance.
@@ -617,26 +629,23 @@ and render.
 
 The engine currently implements the core data layer and mutation/history
 capabilities. The surrounding consumer layers (worker bridge, test harness) are
-implemented in `www/` and are described in the companion documents.
+implemented in `frontend/` and are described in the companion documents.
 
 | Area | Status |
 |------|--------|
 | Core data structures & memory layout | ✅ Done (`MsaEngine`, viewport buffer) |
-| WASM boundary API | ✅ Done (`load_fasta`, `update_viewport`, `update_viewport_into`, metadata getters) |
+| WASM boundary API | ✅ Done (`load_fasta`, `export_fasta`, viewport/translation, search, metadata getters) |
 | Mutation core | ✅ Done (`mutate_base_subset`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and error codes |
 | Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
-| Web Worker bridge | ✅ Done (in `www/`, consumes the engine) |
-| MUI test harness | ✅ Done (in `www/`, consumes the engine) |
-| Canvas renderer | ⏳ Planned (2D `<canvas>` sliding-window viewport, in `www/`) |
-| Translation layer | ⏳ Not yet implemented in the engine |
-| Sequence search | ⏳ Not yet implemented in the engine |
+| Web Worker bridge | ✅ Done (in `frontend/`, consumes the engine) |
+| MUI test harness | ✅ Done (in `frontend/`, consumes the engine) |
+| Canvas renderer | ⏳ Planned (2D `<canvas>` sliding-window viewport, in `frontend/`) |
+| Translation layer | ✅ Done (three reading-frame translated viewports) |
+| Sequence search | ✅ Done (exact nucleotide, cached amino-acid, and optional record-name hits) |
 
-The engine covers the core data, mutation, and history layers. The worker bridge
-and test harness are implemented as consumers in `www/`. The Canvas renderer,
-the dynamic 3-frame translation layer, and sequence search are future work and
-would extend the engine's API (e.g. `RenderMode`, `set_render_mode`,
-`set_reading_frame`, `get_display_width`, a codon-translating viewport path, and
-a search/hit-navigation API).
+The engine covers the core data, mutation, history, translation, search, and
+export layers. UI render-mode state, hit navigation, and the production Canvas
+renderer remain consumer-layer responsibilities.
 
 ---
 
@@ -650,14 +659,8 @@ a search/hit-navigation API).
   paints the sliding-window viewport (the same pattern demonstrated by the test
   harness), rather than a WebGL pipeline. This keeps the rendering layer simple
   and maintainable while still hitting 60 FPS for the expected dataset sizes.
-- **Translation layer:** Not yet implemented. When added, the engine will
-  translate nucleotides to amino acids on the fly for the visible viewport
-  only, keeping nucleotides as the single source of truth. Editing in amino-acid
-  mode will require validation (e.g. disallowing single-base substitutions,
-  which are ambiguous at the codon level).
-- **Sequence search:** Not yet implemented. When added, the engine will search
-  the full matrix in Rust (exact match, and gap-insensitive matching for
-  primers/motifs), cache hit coordinates internally, and expose navigation
-  (next/previous hit) so the frontend can jump between matches without ever
-  holding the full matrix. In amino-acid mode, search will switch to searching
-  translated peptide motifs.
+- **Translation and search scope:** Translation currently serves fixed-stride
+  visible ranges for one of three frames. Search currently returns exact-match
+  coordinates for nucleotide data, cached translations, and optional record
+  names; gap-insensitive matching and engine-managed hit navigation are not
+  implemented.

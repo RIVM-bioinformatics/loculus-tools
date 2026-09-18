@@ -1,0 +1,339 @@
+import { useCallback } from 'react';
+import {
+  Alert,
+  AppBar,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Drawer,
+  IconButton,
+  Stack,
+  Toolbar,
+  Tooltip,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
+import BiotechOutlinedIcon from '@mui/icons-material/BiotechOutlined';
+import CloseIcon from '@mui/icons-material/Close';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
+import RedoOutlinedIcon from '@mui/icons-material/RedoOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import UndoOutlinedIcon from '@mui/icons-material/UndoOutlined';
+
+import { useEngineWorker } from '../../engine/useEngineWorker';
+import { useSequenceEditor } from '../../hooks/useSequenceEditor';
+import { ScrollingViewport } from '../../ScrollingViewport';
+import { DataImportDialog } from '../dialogs/DataImportDialog';
+
+import { EmptyWorkspace } from './EmptyWorkspace';
+
+const DRAWER_WIDTH = 296;
+
+export const MainPage = () => {
+  const engine = useEngineWorker();
+  const editor = useSequenceEditor(engine);
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+  const { state } = editor;
+  const metadata = state.metadata;
+  const hasAlignment = Boolean(metadata && metadata.sequences > 0);
+
+  const onLoad = useCallback(async (fasta: string, label: string): Promise<boolean> => {
+    try {
+      await editor.loadFasta(fasta, label);
+      editor.setDialog('none');
+      return true;
+    } catch {
+      return false;
+    }
+  }, [editor]);
+
+  const onOpenImport = useCallback(() => {
+    editor.setDialog('import');
+  }, [editor]);
+
+  const onCloseImport = useCallback(() => {
+    editor.setDialog('none');
+  }, [editor]);
+
+  const onRetry = useCallback(() => {
+    window.location.reload();
+  }, []);
+
+  const onClickExport = useCallback(() => {
+    void editor.exportFasta();
+  }, [editor]);
+
+  const onClickUndo = useCallback(() => {
+    void editor.undo();
+  }, [editor]);
+
+  const onClickRedo = useCallback(() => {
+    void editor.redo();
+  }, [editor]);
+
+  const showSettings = state.openPanel === 'settings';
+  const onToggleSettings = useCallback(() => {
+    editor.setPanel(showSettings ? 'none' : 'settings');
+  }, [editor, showSettings]);
+
+  const onCloseSettings = useCallback(() => {
+    editor.setPanel('none');
+  }, [editor]);
+
+  const onClickCloseSettings = useCallback(() => {
+    editor.setPanel('none');
+  }, [editor]);
+
+  return (
+    <Box sx={{ bgcolor: '#f4f6f8', display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, overflow: 'hidden' }}>
+      <AppBar
+        elevation={1}
+        position={'static'}
+        sx={{ zIndex: (currentTheme) => currentTheme.zIndex.drawer + 1 }}
+      >
+        <Toolbar
+          sx={{ gap: 1, minHeight: 56, px: { sm: 2, xs: 1 } }}
+          variant={'dense'}
+        >
+          <BiotechOutlinedIcon sx={{ display: { sm: 'block', xs: 'none' } }} />
+          <Box sx={{ minWidth: 0, mr: 'auto' }}>
+            <Typography
+              noWrap
+              sx={{ color: 'inherit', fontWeight: 700, lineHeight: 1.2 }}
+              variant={'h6'}
+            >
+              {'MindTheGap'}
+            </Typography>
+            <Typography
+              noWrap
+              sx={{ color: 'rgba(255,255,255,0.78)', fontSize: '0.72rem' }}
+            >
+              {state.datasetLabel}
+              {metadata && ` · ${metadata.sequences} sequences × ${metadata.width} bases`}
+            </Typography>
+          </Box>
+          <Chip
+            color={engine.ready ? 'success' : 'warning'}
+            label={engine.ready ? 'Ready' : 'Loading'}
+            size={'small'}
+            sx={{ display: { sm: 'inline-flex', xs: 'none' } }}
+          />
+          <Button
+            color={'inherit'}
+            disabled={state.busy || !engine.ready}
+            onClick={onOpenImport}
+            size={'small'}
+            startIcon={<FileUploadOutlinedIcon />}
+            sx={{ display: { sm: 'inline-flex', xs: 'none' } }}
+            variant={'text'}
+          >
+            {'Import'}
+          </Button>
+          <Button
+            color={'inherit'}
+            disabled={state.busy || !hasAlignment}
+            onClick={onClickExport}
+            size={'small'}
+            startIcon={<FileDownloadOutlinedIcon />}
+            sx={{ display: { sm: 'inline-flex', xs: 'none' } }}
+            variant={'text'}
+          >
+            {'Export'}
+          </Button>
+          <Tooltip title={'Undo'}>
+            <span>
+              <IconButton
+                aria-label={'Undo'}
+                color={'inherit'}
+                disabled={state.busy || !hasAlignment || metadata?.undoDepth === 0}
+                onClick={onClickUndo}
+                size={'small'}
+              >
+                <UndoOutlinedIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title={'Redo'}>
+            <span>
+              <IconButton
+                aria-label={'Redo'}
+                color={'inherit'}
+                disabled={state.busy || !hasAlignment || metadata?.redoDepth === 0}
+                onClick={onClickRedo}
+                size={'small'}
+              >
+                <RedoOutlinedIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title={'Settings'}>
+            <IconButton
+              aria-label={'Settings'}
+              color={'inherit'}
+              onClick={onToggleSettings}
+              size={'small'}
+            >
+              <SettingsOutlinedIcon />
+            </IconButton>
+          </Tooltip>
+        </Toolbar>
+      </AppBar>
+      <Box sx={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
+        <Box
+          component={'main'}
+          sx={{ display: 'flex', flex: 1, flexDirection: 'column', minWidth: 0, position: 'relative' }}
+        >
+          {state.error && engine.ready && (
+            <Alert
+              onClose={editor.clearError}
+              severity={'error'}
+              sx={{ borderRadius: 0 }}
+            >
+              {state.error}
+            </Alert>
+          )}
+          {!engine.ready && !engine.error && (
+            <Box sx={{ alignItems: 'center', display: 'flex', flex: 1, flexDirection: 'column', gap: 2, justifyContent: 'center' }}>
+              <CircularProgress />
+              <Typography color={'text.secondary'}>
+                {'Initializing the alignment engine'}
+              </Typography>
+            </Box>
+          )}
+          {!engine.ready && engine.error && (
+            <Box sx={{ alignItems: 'center', display: 'flex', flex: 1, flexDirection: 'column', gap: 2, justifyContent: 'center', p: 3, textAlign: 'center' }}>
+              <Alert severity={'error'}>
+                {engine.error}
+              </Alert>
+              <Button onClick={onRetry}>
+                {' '}
+                {'Retry'}
+                {' '}
+              </Button>
+            </Box>
+          )}
+          {engine.ready && !hasAlignment && <EmptyWorkspace onImport={onOpenImport} />}
+          {engine.ready && hasAlignment && metadata && (
+            <Box sx={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0, overflow: 'hidden', p: { sm: 2, xs: 1 } }}>
+              <ScrollingViewport
+                eng={engine}
+                meta={metadata}
+              />
+            </Box>
+          )}
+          <Box
+            aria-live={'polite'}
+            sx={{
+              alignItems: 'center',
+              bgcolor: '#e8edf2',
+              borderColor: 'divider',
+              borderTop: '1px solid',
+              display: 'flex',
+              gap: 2,
+              minHeight: 30,
+              px: 1.5,
+            }}
+          >
+            <Typography
+              color={'text.secondary'}
+              noWrap
+              sx={{ flex: 1, fontSize: '0.75rem' }}
+            >
+              {state.status ?? (state.announcement || 'Ready')}
+            </Typography>
+            {state.dirty && (
+              <Chip
+                label={'Unsaved changes'}
+                size={'small'}
+              />
+            )}
+            <Typography
+              color={'text.secondary'}
+              sx={{ display: { sm: 'block', xs: 'none' }, fontSize: '0.72rem' }}
+            >
+              {engine.ready ? 'Engine ready' : 'Engine loading'}
+            </Typography>
+          </Box>
+        </Box>
+        <Drawer
+          anchor={'right'}
+          onClose={onCloseSettings}
+          open={showSettings}
+          sx={{
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              height: '100%',
+              position: 'absolute',
+              width: DRAWER_WIDTH,
+            },
+            bottom: 0,
+            position: isSmallScreen ? 'fixed' : 'absolute',
+            right: 0,
+            top: 0,
+            zIndex: theme.zIndex.drawer,
+          }}
+          variant={isSmallScreen ? 'temporary' : 'persistent'}
+        >
+          <Toolbar
+            sx={{ justifyContent: 'space-between' }}
+            variant={'dense'}
+          >
+            <Typography variant={'h6'}>
+              {'Settings'}
+            </Typography>
+            <IconButton
+              aria-label={'Close settings'}
+              onClick={onClickCloseSettings}
+              size={'small'}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Toolbar>
+          <Stack
+            spacing={2}
+            sx={{ p: 2 }}
+          >
+            <Typography variant={'subtitle2'}>
+              {'Dataset'}
+            </Typography>
+            <Typography
+              color={'text.secondary'}
+              variant={'body2'}
+            >
+              {state.datasetLabel}
+            </Typography>
+            <Typography variant={'subtitle2'}>
+              {'Alignment dimensions'}
+            </Typography>
+            <Typography
+              color={'text.secondary'}
+              variant={'body2'}
+            >
+              {metadata ? `${metadata.sequences} sequences × ${metadata.width} bases` : 'No alignment loaded'}
+            </Typography>
+            <Typography variant={'subtitle2'}>
+              {'Engine status'}
+            </Typography>
+            <Typography
+              color={'text.secondary'}
+              variant={'body2'}
+            >
+              {engine.ready ? 'Ready' : 'Initializing'}
+            </Typography>
+          </Stack>
+        </Drawer>
+      </Box>
+      <DataImportDialog
+        dirty={state.dirty}
+        error={state.error}
+        onClose={onCloseImport}
+        onLoad={onLoad}
+        open={state.openDialog === 'import'}
+      />
+    </Box>
+  );
+};

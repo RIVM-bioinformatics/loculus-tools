@@ -43,7 +43,6 @@ import {
   LABEL_W,
   OVERSCAN,
   TRIGGER_COLS,
-  VIEWPORT_H,
 } from './constants';
 
 // ---------------------------------------------------------------------------
@@ -65,6 +64,8 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
   const [names, setNames] = useState<string[]>([]);
   /** Measured from ResizeObserver; drives visibleCols. */
   const [containerW, setContainerW] = useState(900);
+  /** Measured from ResizeObserver; fills the available editor workspace. */
+  const [containerH, setContainerH] = useState(480);
   /** Monotonic tick used to schedule canvas repaints without storing chunk in state. */
   const [renderTick, setRenderTick] = useState(0);
   const [windowInfo, setWindowInfo] = useState<null | WindowInfo>(null);
@@ -103,9 +104,12 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
       return;
     }
     const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 0) {
-        setContainerW(w);
+      const { height, width } = entries[0]?.contentRect ?? {};
+      if (width && width > 0) {
+        setContainerW(width);
+      }
+      if (height && height > 0) {
+        setContainerH(height);
       }
     });
     ro.observe(el);
@@ -245,11 +249,11 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
     }
 
     canvas.width = containerW;
-    canvas.height = VIEWPORT_H;
+    canvas.height = containerH;
 
     // Background
     ctx.fillStyle = '#fafafa';
-    ctx.fillRect(0, 0, containerW, VIEWPORT_H);
+    ctx.fillRect(0, 0, containerW, containerH);
 
     if (numRows === 0) {
       ctx.fillStyle = '#aaa';
@@ -276,7 +280,7 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
     const visRowStart = Math.floor(scrollY / CELL_H);
     // +2 to avoid clipping a partially visible bottom row
     const visRowEnd = Math.min(
-      visRowStart + Math.ceil(VIEWPORT_H / CELL_H) + 2,
+      visRowStart + Math.ceil(containerH / CELL_H) + 2,
       numRows,
     );
 
@@ -313,14 +317,14 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
         y + 2,
       );
     }
-  }, [renderTick, containerW, visibleCols, totalCols, numRows, names]);
+  }, [containerH, renderTick, containerW, visibleCols, totalCols, numRows, names]);
 
   // Content dimensions for the scroll spacer
   const totalW = LABEL_W + totalCols * CELL_W;
   const totalH = Math.max(numRows * CELL_H, 1);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '100%', minHeight: 0 }}>
       {/* Window status bar */}
       <div
         style={{
@@ -373,12 +377,12 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
       {/* Viewport: canvas + transparent scroll overlay */}
       <div
         ref={containerRef}
-        style={{ height: VIEWPORT_H, position: 'relative', width: '100%' }}
+        style={{ flex: 1, minHeight: 0, position: 'relative', width: '100%' }}
       >
         {/* Paint layer */}
         <canvas
           ref={canvasRef}
-          style={{ left: 0, position: 'absolute', top: 0, zIndex: 0 }}
+          style={{ height: '100%', left: 0, position: 'absolute', top: 0, width: '100%', zIndex: 0 }}
         />
         {/*
          * Scroll layer: transparent but on top (zIndex 1) so native scrollbars

@@ -26,6 +26,3 @@ export const OVERSCAN = 100;
  * buffer boundary — 30 % of OVERSCAN.
  */
 export const TRIGGER_COLS = Math.round(OVERSCAN * 0.3); // 30
-
-
-export const VIEWPORT_H = 480; // fixed canvas height

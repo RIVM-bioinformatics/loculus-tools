@@ -226,6 +226,9 @@ importers:
       '@mui/utils':
         specifier: 9.4.0
         version: 9.4.0(@types/react@19.3.0)(react@19.3.0)
+      '@rivm-loculus-tools/frontend-common':
+        specifier: workspace:*
+        version: link:../../../common/frontend
       colorjs.io:
         specifier: 0.7.1
         version: 0.7.1
@@ -329,6 +332,9 @@ importers:
       '@mui/utils':
         specifier: 9.4.0
         version: 9.4.0(@types/react@19.3.0)(react@19.3.0)
+      '@rivm-loculus-tools/frontend-common':
+        specifier: workspace:*
+        version: link:../../../common/frontend
       '@rivm-loculus-tools/sequence-editor-wasm':
         specifier: workspace:*
         version: link:../wasm

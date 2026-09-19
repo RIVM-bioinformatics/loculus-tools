@@ -17,6 +17,11 @@ import {
 } from '@mui/material';
 import BiotechOutlinedIcon from '@mui/icons-material/BiotechOutlined';
 import CloseIcon from '@mui/icons-material/Close';
+import KeyboardArrowDownOutlinedIcon from '@mui/icons-material/KeyboardArrowDownOutlined';
+import KeyboardArrowLeftOutlinedIcon from '@mui/icons-material/KeyboardArrowLeftOutlined';
+import KeyboardArrowRightOutlinedIcon from '@mui/icons-material/KeyboardArrowRightOutlined';
+import KeyboardArrowUpOutlinedIcon from '@mui/icons-material/KeyboardArrowUpOutlined';
+import DeleteSweepOutlinedIcon from '@mui/icons-material/DeleteSweepOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import RedoOutlinedIcon from '@mui/icons-material/RedoOutlined';
@@ -25,7 +30,7 @@ import UndoOutlinedIcon from '@mui/icons-material/UndoOutlined';
 
 import { useEngineWorker } from '../../engine/useEngineWorker';
 import { useSequenceEditor } from '../../hooks/useSequenceEditor';
-import { ScrollingViewport } from '../../ScrollingViewport';
+import { AlignmentGrid } from '../editor/AlignmentGrid';
 import { DataImportDialog } from '../dialogs/DataImportDialog';
 
 import { EmptyWorkspace } from './EmptyWorkspace';
@@ -74,6 +79,42 @@ export const MainPage = () => {
   const onClickRedo = useCallback(() => {
     void editor.redo();
   }, [editor]);
+
+  const onMoveHorizontal = useCallback((direction: 'left' | 'right') => {
+    void editor.executeCommand({ direction, type: 'moveHorizontal' });
+  }, [editor]);
+
+  const onMoveHorizontalLeft = useCallback(() => {
+    onMoveHorizontal('left');
+  }, [onMoveHorizontal]);
+
+  const onMoveHorizontalRight = useCallback(() => {
+    onMoveHorizontal('right');
+  }, [onMoveHorizontal]);
+
+  const onMoveRows = useCallback((direction: 'down' | 'up') => {
+    const rows = state.selectedRows.length > 0 ? state.selectedRows : [state.activeCell.row];
+    void (direction === 'up' ? editor.moveRowsUp(rows) : editor.moveRowsDown(rows));
+  }, [editor, state.activeCell.row, state.selectedRows]);
+
+  const onMoveRowsUp = useCallback(() => {
+    onMoveRows('up');
+  }, [onMoveRows]);
+
+  const onMoveRowsDown = useCallback(() => {
+    onMoveRows('down');
+  }, [onMoveRows]);
+
+  const onGridActiveCell = useCallback((cell: { col: number; row: number }) => {
+    editor.setActiveCell(cell.row, cell.col);
+  }, [editor]);
+
+  const onDeleteColumn = useCallback(() => {
+    if (!metadata || !window.confirm(`Delete alignment column ${state.activeCell.col + 1}?`)) {
+      return;
+    }
+    void editor.deleteColumn(state.activeCell.col);
+  }, [editor, metadata, state.activeCell.col]);
 
   const showSettings = state.openPanel === 'settings';
   const onToggleSettings = useCallback(() => {
@@ -170,6 +211,32 @@ export const MainPage = () => {
               </IconButton>
             </span>
           </Tooltip>
+          <Tooltip title={'Move selected block left'}>
+            <span>
+              <IconButton
+                aria-label={'Move selected block left'}
+                color={'inherit'}
+                disabled={state.busy || !hasAlignment}
+                onClick={onMoveHorizontalLeft}
+                size={'small'}
+              >
+                <KeyboardArrowLeftOutlinedIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title={'Move selected block right'}>
+            <span>
+              <IconButton
+                aria-label={'Move selected block right'}
+                color={'inherit'}
+                disabled={state.busy || !hasAlignment}
+                onClick={onMoveHorizontalRight}
+                size={'small'}
+              >
+                <KeyboardArrowRightOutlinedIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
           <Tooltip title={'Settings'}>
             <IconButton
               aria-label={'Settings'}
@@ -219,9 +286,23 @@ export const MainPage = () => {
           {engine.ready && !hasAlignment && <EmptyWorkspace onImport={onOpenImport} />}
           {engine.ready && hasAlignment && metadata && (
             <Box sx={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0, overflow: 'hidden', p: { sm: 2, xs: 1 } }}>
-              <ScrollingViewport
+              <AlignmentGrid
+                activeCell={state.activeCell}
+                busy={state.busy}
+                currentHit={state.currentHit}
+                dataRevision={state.dataRevision}
+                datasetRevision={state.datasetRevision}
                 eng={engine}
                 meta={metadata}
+                onActiveCell={onGridActiveCell}
+                onExecuteCommand={editor.executeCommand}
+                onSelectedRows={editor.setSelectedRows}
+                onSelectionAnchorRow={editor.setSelectionAnchorRow}
+                onSelectionBlock={editor.setSelectionBlock}
+                searchResults={state.searchResults}
+                selectedRows={state.selectedRows}
+                selectionAnchorRow={state.selectionAnchorRow}
+                selectionBlock={state.selectionBlock}
               />
             </Box>
           )}
@@ -324,6 +405,50 @@ export const MainPage = () => {
             >
               {engine.ready ? 'Ready' : 'Initializing'}
             </Typography>
+            <Typography variant={'subtitle2'}>
+              {'Alignment actions'}
+            </Typography>
+            <Stack
+              direction={'row'}
+              spacing={1}
+            >
+              <Tooltip title={'Move selected rows up'}>
+                <span>
+                  <IconButton
+                    aria-label={'Move selected rows up'}
+                    disabled={state.busy || !hasAlignment}
+                    onClick={onMoveRowsUp}
+                    size={'small'}
+                  >
+                    <KeyboardArrowUpOutlinedIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={'Move selected rows down'}>
+                <span>
+                  <IconButton
+                    aria-label={'Move selected rows down'}
+                    disabled={state.busy || !hasAlignment}
+                    onClick={onMoveRowsDown}
+                    size={'small'}
+                  >
+                    <KeyboardArrowDownOutlinedIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={'Delete active alignment column'}>
+                <span>
+                  <IconButton
+                    aria-label={'Delete active alignment column'}
+                    disabled={state.busy || !hasAlignment}
+                    onClick={onDeleteColumn}
+                    size={'small'}
+                  >
+                    <DeleteSweepOutlinedIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Stack>
           </Stack>
         </Drawer>
       </Box>

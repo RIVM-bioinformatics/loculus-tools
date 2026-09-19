@@ -16,6 +16,7 @@ export interface EditorState {
   currentHit: number;
   dataRevision: number;
   datasetLabel: string;
+  datasetRevision: number;
   dirty: boolean;
   error: null | string;
   metadata: Meta | null;
@@ -24,13 +25,16 @@ export interface EditorState {
   palette: string;
   searchResults: null | SearchResult;
   selectedRows: number[];
+  selectionAnchorRow: null | number;
   selectionBlock: null | SelectionBlock;
   status: null | string;
 }
 
 export interface SelectionBlock {
   endCol: number;
+  endRow?: number;
   startCol: number;
+  startRow?: number;
 }
 
 export const initialEditorState: EditorState = {
@@ -41,6 +45,7 @@ export const initialEditorState: EditorState = {
   currentHit: 0,
   dataRevision: 0,
   datasetLabel: 'Untitled alignment',
+  datasetRevision: 0,
   dirty: false,
   error: null,
   metadata: null,
@@ -49,6 +54,7 @@ export const initialEditorState: EditorState = {
   palette: 'AliView Default',
   searchResults: null,
   selectedRows: [],
+  selectionAnchorRow: null,
   selectionBlock: null,
   status: null,
 };
@@ -69,6 +75,7 @@ export type EditorAction =
   | { type: 'setPanel'; value: 'none' | 'settings' }
   | { type: 'setSearchResults'; value: null | SearchResult }
   | { type: 'setSelectedRows'; value: number[] }
+  | { type: 'setSelectionAnchorRow'; value: null | number }
   | { type: 'setSelectionBlock'; value: null | SelectionBlock }
   | { type: 'setStatus'; value: null | string };
 
@@ -89,9 +96,11 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
         announcement: action.announcement ?? state.announcement,
         busy: false,
         busyLabel: null,
+        currentHit: action.updateRevision ? 0 : state.currentHit,
         dataRevision: action.updateRevision ? state.dataRevision + 1 : state.dataRevision,
         dirty: action.dirty,
         error: null,
+        searchResults: action.updateRevision ? null : state.searchResults,
         status: action.status ?? state.status,
       };
     case 'resetForDataset':
@@ -100,12 +109,15 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
         activeCell: { col: 0, row: 0 },
         announcement: `Loaded ${action.metadata.sequences} sequence${action.metadata.sequences === 1 ? '' : 's'}.`,
         currentHit: 0,
+        dataRevision: state.dataRevision + 1,
         datasetLabel: action.label,
+        datasetRevision: state.datasetRevision + 1,
         dirty: false,
         error: null,
         metadata: action.metadata,
         searchResults: null,
         selectedRows: [],
+        selectionAnchorRow: null,
         selectionBlock: null,
         status: `Loaded ${action.metadata.sequences} sequence${action.metadata.sequences === 1 ? '' : 's'}.`,
       };
@@ -133,6 +145,8 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
       return { ...state, currentHit: 0, searchResults: action.value };
     case 'setSelectedRows':
       return { ...state, selectedRows: action.value };
+    case 'setSelectionAnchorRow':
+      return { ...state, selectionAnchorRow: action.value };
     case 'setSelectionBlock':
       return { ...state, selectionBlock: action.value };
     case 'setStatus':

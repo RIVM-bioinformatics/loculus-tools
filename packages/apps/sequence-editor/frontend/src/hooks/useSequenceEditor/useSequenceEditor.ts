@@ -6,6 +6,7 @@ import {
 } from 'react';
 
 import type { EngineClient } from '../../engine/useEngineWorker';
+import type { Meta } from '../../engine/protocol';
 import {
   editorReducer,
   initialEditorState,
@@ -15,6 +16,12 @@ import {
   downloadText,
   preflightFasta,
 } from '../../utils/fasta';
+import type { EditorCommand } from '../../utils/keyboard';
+import {
+  columnsForBlock,
+  mutationRows,
+  selectionBlockForMove,
+} from '../../utils/selection';
 
 const ENGINE_ERROR_MESSAGES = new Map<string, string>([
   ['DeleteNotGap', 'Delete failed: the selected position is not a gap.'],
@@ -49,6 +56,11 @@ interface CommandOptions {
 export const useSequenceEditor = (engine: EngineClient) => {
   const [state, dispatch] = useReducer(editorReducer, initialEditorState);
   const commandQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const stateRef = useRef(state);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const {
     delete: deleteBases,
@@ -97,12 +109,13 @@ export const useSequenceEditor = (engine: EngineClient) => {
     [],
   );
 
-  const refreshMetadata = useCallback(async (): Promise<void> => {
+  const refreshMetadata = useCallback(async (): Promise<Meta | null> => {
     if (!ready) {
-      return;
+      return null;
     }
     const metadata = await fetchMetadata();
     dispatch({ type: 'setMetadata', value: metadata });
+    return metadata;
   }, [fetchMetadata, ready]);
 
   useEffect(() => {
@@ -221,14 +234,28 @@ export const useSequenceEditor = (engine: EngineClient) => {
   );
 
   const deleteColumn = useCallback(
-    async (col: number) => runCommand(
-      'Deleting alignment column',
-      async () => {
-        await deleteAlignmentColumn(col);
-        await refreshMetadata();
-      },
-      { dirty: true, status: 'Alignment column deleted.', updateRevision: true },
-    ),
+    async (col: number) => {
+      let nextMetadata: Meta | null = null;
+      await runCommand(
+        'Deleting alignment column',
+        async () => {
+          await deleteAlignmentColumn(col);
+          nextMetadata = await refreshMetadata();
+        },
+        { dirty: true, status: 'Alignment column deleted.', updateRevision: true },
+      );
+      const current = stateRef.current;
+      const dimensions = nextMetadata ?? current.metadata;
+      if (dimensions) {
+        dispatch({
+          type: 'setActiveCell',
+          value: {
+            col: Math.min(current.activeCell.col, Math.max(0, dimensions.width - 1)),
+            row: Math.min(current.activeCell.row, Math.max(0, dimensions.sequences - 1)),
+          },
+        });
+      }
+    },
     [deleteAlignmentColumn, refreshMetadata, runCommand],
   );
 
@@ -280,10 +307,115 @@ export const useSequenceEditor = (engine: EngineClient) => {
     [searchEngine],
   );
 
+  const executeCommand = useCallback(async (command: EditorCommand): Promise<void> => {
+    const current = stateRef.current;
+    const metadata = current.metadata;
+    if (!metadata || metadata.sequences === 0 || current.busy) {
+      return;
+    }
+
+    const active = current.activeCell;
+    const rows = mutationRows(active.row, current.selectedRows);
+    let rowDelta = 0;
+    let columnDelta = 0;
+    if (command.type === 'move') {
+      if (command.direction === 'down') {
+        rowDelta = 1;
+      } else if (command.direction === 'up') {
+        rowDelta = -1;
+      } else if (command.direction === 'right') {
+        columnDelta = 1;
+      } else if (command.direction === 'left') {
+        columnDelta = -1;
+      }
+    }
+    const boundedCell = (row: number, col: number) => ({
+      col: Math.max(0, Math.min(Math.max(0, metadata.width - 1), col)),
+      row: Math.max(0, Math.min(metadata.sequences - 1, row)),
+    });
+
+    switch (command.type) {
+      case 'backspace':
+        if (active.col === 0) {
+          dispatch({ type: 'setAnnouncement', value: 'Already at the first column.' });
+          return;
+        }
+        await deleteBasesCommand(rows, active.col - 1);
+        dispatch({ type: 'setActiveCell', value: { col: active.col - 1, row: active.row } });
+        return;
+      case 'deleteGap':
+        await mutate(rows, active.col, '-');
+        dispatch({ type: 'setActiveCell', value: boundedCell(active.row, active.col + 1) });
+        return;
+      case 'end':
+        dispatch({ type: 'setActiveCell', value: { col: Math.max(0, metadata.width - 1), row: active.row } });
+        dispatch({ type: 'setSelectionBlock', value: null });
+        return;
+      case 'home':
+        dispatch({ type: 'setActiveCell', value: { col: 0, row: active.row } });
+        dispatch({ type: 'setSelectionBlock', value: null });
+        return;
+      case 'insert':
+        await insert(rows, active.col);
+        dispatch({ type: 'setActiveCell', value: { col: active.col + 1, row: active.row } });
+        return;
+      case 'move': {
+        const next = boundedCell(active.row + rowDelta, active.col + columnDelta);
+        dispatch({ type: 'setActiveCell', value: next });
+        if (command.extend && (command.direction === 'left' || command.direction === 'right')) {
+          dispatch({
+            type: 'setSelectionBlock',
+            value: selectionBlockForMove(active.col, next.col, current.selectionBlock),
+          });
+        } else {
+          dispatch({ type: 'setSelectionBlock', value: null });
+        }
+        return;
+      }
+      case 'moveHorizontal': {
+        const cols = columnsForBlock(active, current.selectionBlock);
+        await moveHorizontal(active.row, cols, command.direction === 'left' ? 'Left' : 'Right');
+        dispatch({
+          type: 'setActiveCell',
+          value: boundedCell(active.row, active.col + (command.direction === 'left' ? -1 : 1)),
+        });
+        return;
+      }
+      case 'mutate':
+        await mutate(rows, active.col, command.base);
+        dispatch({
+          announcement: `${command.base} applied at column ${active.col + 1}.`,
+          dirty: true,
+          status: 'Edit applied.',
+          type: 'commandSucceeded',
+          updateRevision: false,
+        });
+        dispatch({ type: 'setActiveCell', value: boundedCell(active.row, active.col + 1) });
+        return;
+      case 'pageDown':
+        dispatch({ type: 'setActiveCell', value: boundedCell(active.row + 10, active.col) });
+        dispatch({ type: 'setSelectionBlock', value: null });
+        return;
+      case 'pageUp':
+        dispatch({ type: 'setActiveCell', value: boundedCell(active.row - 10, active.col) });
+        dispatch({ type: 'setSelectionBlock', value: null });
+        return;
+      case 'redo':
+        await redo();
+        return;
+      case 'undo':
+        await undo();
+        return;
+      default:
+        return;
+    }
+  }, [deleteBasesCommand, insert, moveHorizontal, mutate, redo, undo]);
+
   return {
     clearError: () => dispatch({ type: 'setError', value: null }),
     delete: deleteBasesCommand,
     deleteColumn,
+    executeCommand,
     exportFasta,
     insert,
     loadFasta,
@@ -299,6 +431,7 @@ export const useSequenceEditor = (engine: EngineClient) => {
     setDialog: (value: 'import' | 'none') => dispatch({ type: 'setDialog', value }),
     setPanel: (value: 'none' | 'settings') => dispatch({ type: 'setPanel', value }),
     setSelectedRows: (value: number[]) => dispatch({ type: 'setSelectedRows', value }),
+    setSelectionAnchorRow: (value: null | number) => dispatch({ type: 'setSelectionAnchorRow', value }),
     setSelectionBlock: (value: { endCol: number; startCol: number } | null) => dispatch({ type: 'setSelectionBlock', value }),
     state,
     undo,

@@ -236,6 +236,16 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       }
       break;
     }
+    case 'mutateRange': {
+      const errCode = e.mutate_base_range(req.rows, req.startCol, req.endCol, req.base);
+      engineMs = performance.now() - engineStart;
+      if (errCode) {
+        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
+      } else {
+        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+      }
+      break;
+    }
     case 'name': {
       const data = e.get_name(req.row);
       engineMs = performance.now() - engineStart;

@@ -20,6 +20,7 @@ import type { EditorCommand } from '../../utils/keyboard';
 import {
   columnsForBlock,
   mutationRows,
+  rowsForBlock,
   selectionBlockForMove,
 } from '../../utils/selection';
 
@@ -74,6 +75,7 @@ export const useSequenceEditor = (engine: EngineClient) => {
     moveRowsDown: moveRowsDownEngine,
     moveRowsUp: moveRowsUpEngine,
     mutate: mutateEngine,
+    mutateRange: mutateRangeEngine,
     ready,
     redo: redoEngine,
     search: searchEngine,
@@ -209,6 +211,18 @@ export const useSequenceEditor = (engine: EngineClient) => {
     [mutateEngine, refreshMetadata, runCommand],
   );
 
+  const mutateRange = useCallback(
+    async (rows: number[], startCol: number, endCol: number, base: string) => runCommand(
+      'Applying selection edit',
+      async () => {
+        await mutateRangeEngine(rows, startCol, endCol, base);
+        await refreshMetadata();
+      },
+      { dirty: true, status: 'Selection edit applied.', updateRevision: true },
+    ),
+    [mutateRangeEngine, refreshMetadata, runCommand],
+  );
+
   const insert = useCallback(
     async (rows: number[], col: number) => runCommand(
       'Inserting gaps',
@@ -316,6 +330,12 @@ export const useSequenceEditor = (engine: EngineClient) => {
 
     const active = current.activeCell;
     const rows = mutationRows(active.row, current.selectedRows);
+    const selectedColumns = columnsForBlock(active, current.selectionBlock);
+    const selectionStartCol = selectedColumns[0] ?? active.col;
+    const selectionEndCol = selectedColumns[selectedColumns.length - 1] ?? active.col;
+    const selectionRows = current.selectionBlock
+      ? rowsForBlock(active.row, current.selectionBlock, metadata.sequences)
+      : rows;
     let rowDelta = 0;
     let columnDelta = 0;
     if (command.type === 'move') {
@@ -344,8 +364,12 @@ export const useSequenceEditor = (engine: EngineClient) => {
         dispatch({ type: 'setActiveCell', value: { col: active.col - 1, row: active.row } });
         return;
       case 'deleteGap':
-        await mutate(rows, active.col, '-');
-        dispatch({ type: 'setActiveCell', value: boundedCell(active.row, active.col + 1) });
+        if (current.selectionBlock) {
+          await mutateRange(selectionRows, selectionStartCol, selectionEndCol, '-');
+        } else {
+          await mutate(rows, active.col, '-');
+          dispatch({ type: 'setActiveCell', value: boundedCell(active.row, active.col + 1) });
+        }
         return;
       case 'end':
         dispatch({ type: 'setActiveCell', value: { col: Math.max(0, metadata.width - 1), row: active.row } });
@@ -356,8 +380,21 @@ export const useSequenceEditor = (engine: EngineClient) => {
         dispatch({ type: 'setSelectionBlock', value: null });
         return;
       case 'insert':
-        await insert(rows, active.col);
-        dispatch({ type: 'setActiveCell', value: { col: active.col + 1, row: active.row } });
+        await insert(selectionRows, selectionStartCol);
+        if (current.selectionBlock) {
+          dispatch({
+            type: 'setSelectionBlock',
+            value: {
+              endCol: current.selectionBlock.endCol + 1,
+              endRow: current.selectionBlock.endRow,
+              startCol: current.selectionBlock.startCol + 1,
+              startRow: current.selectionBlock.startRow,
+            },
+          });
+          dispatch({ type: 'setActiveCell', value: boundedCell(active.row, active.col + 1) });
+        } else {
+          dispatch({ type: 'setActiveCell', value: boundedCell(active.row, selectionStartCol + 1) });
+        }
         return;
       case 'move': {
         const next = boundedCell(active.row + rowDelta, active.col + columnDelta);
@@ -382,15 +419,12 @@ export const useSequenceEditor = (engine: EngineClient) => {
         return;
       }
       case 'mutate':
-        await mutate(rows, active.col, command.base);
-        dispatch({
-          announcement: `${command.base} applied at column ${active.col + 1}.`,
-          dirty: true,
-          status: 'Edit applied.',
-          type: 'commandSucceeded',
-          updateRevision: false,
-        });
-        dispatch({ type: 'setActiveCell', value: boundedCell(active.row, active.col + 1) });
+        if (current.selectionBlock) {
+          await mutateRange(selectionRows, selectionStartCol, selectionEndCol, command.base);
+        } else {
+          await mutate(rows, active.col, command.base);
+          dispatch({ type: 'setActiveCell', value: boundedCell(active.row, active.col + 1) });
+        }
         return;
       case 'pageDown':
         dispatch({ type: 'setActiveCell', value: boundedCell(active.row + 10, active.col) });
@@ -409,7 +443,7 @@ export const useSequenceEditor = (engine: EngineClient) => {
       default:
         return;
     }
-  }, [deleteBasesCommand, insert, moveHorizontal, mutate, redo, undo]);
+  }, [deleteBasesCommand, insert, moveHorizontal, mutate, mutateRange, redo, undo]);
 
   return {
     clearError: () => dispatch({ type: 'setError', value: null }),

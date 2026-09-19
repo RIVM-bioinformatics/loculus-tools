@@ -266,6 +266,33 @@ fn mutate_base_subset_changes_only_target_rows() {
 }
 
 #[test]
+fn mutate_base_range_changes_one_rectangle_atomically() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.mutate_base_range(&[0, 1], 1, 3, b'N'), "");
+    for row in 0..=1 {
+        for col in 1..=3 {
+            assert_eq!(e.get_base(row, col), b'N');
+        }
+    }
+    assert_eq!(e.get_base(2, 1), b'T');
+    assert!(e.undo());
+    assert_eq!(e.get_base(0, 1), b'T');
+    assert_eq!(e.get_base(1, 3), b'G');
+    assert!(e.redo());
+    assert_eq!(e.get_base(0, 1), b'N');
+    assert_eq!(e.get_base(1, 3), b'N');
+}
+
+#[test]
+fn mutate_base_range_rejects_before_changing_any_position() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.mutate_base_range(&[0], 0, 7, b'X'), ERR_MUTATE_NOT_IUPAC);
+    assert_eq!(e.get_base(0, 0), b'A');
+    assert_eq!(e.get_base(0, 7), b'C');
+    assert_eq!(e.undo_depth(), 0);
+}
+
+#[test]
 fn mutate_skips_out_of_range_rows_and_cols() {
     let mut e = engine_with_sample();
     e.mutate_base_subset(&[0, 99], 3, b'T');

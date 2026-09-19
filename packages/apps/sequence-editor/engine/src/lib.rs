@@ -64,6 +64,8 @@ enum UndoCommand {
         mutated_rows: Vec<usize>,
         old_bases: Vec<u8>,
     },
+    /// Atomic character changes across a rectangular selection.
+    RangeSubstitutions { positions: Vec<(usize, usize, u8)> },
     /// Structural inserts/deletes: a lightweight clone of the full matrix.
     StructuralSnapshot {
         matrix_snapshot: Vec<Vec<u8>>,
@@ -712,6 +714,62 @@ impl MsaEngine {
         String::new()
     }
 
+    /// Atomically change every valid position in the inclusive rectangle
+    /// `[start_col, end_col]` across the supplied rows.
+    ///
+    /// The operation records one undo command and validates every targeted
+    /// existing base before changing any sequence, so a malformed character
+    /// cannot leave a partially edited selection.
+    pub fn mutate_base_range(
+        &mut self,
+        row_indices: &[usize],
+        start_col: usize,
+        end_col: usize,
+        new_base: u8,
+    ) -> String {
+        if !is_iupac(new_base) && !is_gap(new_base) {
+            return String::from(ERR_MUTATE_NOT_IUPAC);
+        }
+        if start_col > end_col {
+            return String::new();
+        }
+
+        let mut positions: Vec<(usize, usize, u8)> = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for &row in row_indices {
+            if !seen.insert(row) {
+                continue;
+            }
+            if let Some(sequence) = self.nucleotide_sequences.get(row) {
+                for col in start_col..=end_col {
+                    if let Some(&old_base) = sequence.get(col) {
+                        if !is_iupac(old_base) && !is_gap(old_base) {
+                            return String::from(ERR_MUTATE_NOT_IUPAC);
+                        }
+                        positions.push((row, col, old_base));
+                    }
+                }
+            }
+        }
+
+        if positions.is_empty() {
+            return String::new();
+        }
+
+        self.undo_stack.push(UndoCommand::RangeSubstitutions {
+            positions: positions.clone(),
+        });
+        self.redo_stack.clear();
+        for &(row, col, _) in &positions {
+            if let Some(sequence) = self.nucleotide_sequences.get_mut(row) {
+                if let Some(base) = sequence.get_mut(col) {
+                    *base = new_base;
+                }
+            }
+        }
+        String::new()
+    }
+
     /// Simultaneous gap insertion at a single column index on a subset of
     /// rows. The inserted character is always `-` (gap). Target rows receive
     /// the gap at the clamped insertion column; non-target rows have a `-`
@@ -1006,6 +1064,22 @@ impl MsaEngine {
                     });
                 }
             }
+            UndoCommand::RangeSubstitutions { positions } => {
+                let mut redo_positions = Vec::with_capacity(positions.len());
+                for (row, col, old_base) in positions {
+                    if let Some(sequence) = self.nucleotide_sequences.get_mut(row) {
+                        if let Some(base) = sequence.get_mut(col) {
+                            redo_positions.push((row, col, *base));
+                            *base = old_base;
+                        }
+                    }
+                }
+                if !redo_positions.is_empty() {
+                    self.redo_stack.push(UndoCommand::RangeSubstitutions {
+                        positions: redo_positions,
+                    });
+                }
+            }
             UndoCommand::StructuralSnapshot {
                 matrix_snapshot,
                 names_snapshot,
@@ -1058,6 +1132,22 @@ impl MsaEngine {
                         col_idx,
                         mutated_rows: undo_rows,
                         old_bases: undo_old_bases,
+                    });
+                }
+            }
+            UndoCommand::RangeSubstitutions { positions } => {
+                let mut undo_positions = Vec::with_capacity(positions.len());
+                for (row, col, new_base) in positions {
+                    if let Some(sequence) = self.nucleotide_sequences.get_mut(row) {
+                        if let Some(base) = sequence.get_mut(col) {
+                            undo_positions.push((row, col, *base));
+                            *base = new_base;
+                        }
+                    }
+                }
+                if !undo_positions.is_empty() {
+                    self.undo_stack.push(UndoCommand::RangeSubstitutions {
+                        positions: undo_positions,
                     });
                 }
             }

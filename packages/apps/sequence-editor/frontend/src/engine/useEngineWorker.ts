@@ -78,6 +78,7 @@ export interface EngineClient {
     readingFrame: number;
   }) => Promise<ViewportResult & { bytes: Uint8Array }>;
   mutate: (rows: number[], col: number, base: string) => Promise<void>;
+  mutateRange: (rows: number[], startCol: number, endCol: number, base: string) => Promise<void>;
   insert: (rows: number[], col: number) => Promise<void>;
   delete: (rows: number[], col: number) => Promise<void>;
   deleteColumn: (col: number) => Promise<void>;
@@ -329,6 +330,11 @@ export function useEngineWorker(): EngineClient {
       send<void>({ type: "mutate", rows: toRows(rows), col, base: base.charCodeAt(0) }),
     [send]
   );
+  const mutateRange = useCallback(
+    (rows: number[], startCol: number, endCol: number, base: string) =>
+      send<void>({ type: "mutateRange", rows: toRows(rows), startCol, endCol, base: base.charCodeAt(0) }),
+    [send]
+  );
   const insert = useCallback(
     (rows: number[], col: number) =>
       send<void>({ type: "insert", rows: toRows(rows), col }),
@@ -371,6 +377,7 @@ export function useEngineWorker(): EngineClient {
     search,
     translate,
     mutate,
+    mutateRange,
     insert,
     delete: del,
     deleteColumn,

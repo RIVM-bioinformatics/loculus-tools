@@ -29,6 +29,7 @@ export enum MatrixType {
 
 export type EngineRequest =
   | { base: number; col: number; reqId: number; rows: Uint32Array; type: 'mutate' }
+  | { base: number; endCol: number; reqId: number; rows: Uint32Array; startCol: number; type: 'mutateRange' }
   | { checkRecordNames: boolean; query: string; reqId: number; type: 'search' }
   | { col: number; reqId: number; rows: Uint32Array; type: 'delete' }
   | { col: number; reqId: number; rows: Uint32Array; type: 'insert' }

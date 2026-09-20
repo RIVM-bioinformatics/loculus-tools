@@ -464,6 +464,29 @@ fn redo_structural_insert_reapplies() {
 }
 
 #[test]
+fn repeated_subset_inserts_undo_and_redo_without_losing_rows() {
+    let mut e = engine_with_sample();
+    let original = e.export_fasta();
+
+    for _ in 0..100 {
+        e.insert_at_subset(&[0, 1], 2);
+    }
+    assert_eq!(e.get_alignment_width(), 108);
+    assert_eq!(e.undo_depth(), 100);
+
+    for _ in 0..100 {
+        assert!(e.undo());
+    }
+    assert_eq!(e.export_fasta(), original);
+
+    for _ in 0..100 {
+        assert!(e.redo());
+    }
+    assert_eq!(e.get_alignment_width(), 108);
+    assert_eq!(e.get_base(0, 2), b'-');
+}
+
+#[test]
 fn undo_delete_column_restores() {
     let mut e = engine_with_sample();
     e.delete_column(0);

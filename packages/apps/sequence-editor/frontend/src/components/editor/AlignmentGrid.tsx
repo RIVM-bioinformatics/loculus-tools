@@ -81,6 +81,11 @@ interface GridCache extends ViewportResult {
   startRow: number;
 }
 
+interface QueuedViewport {
+  range: GridRange;
+  revision: number;
+}
+
 const GRID_GEOMETRY = DEFAULT_GRID_GEOMETRY;
 const OVERSCAN_COLS = 128;
 const OVERSCAN_ROWS = 16;
@@ -120,10 +125,14 @@ export const AlignmentGrid = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const cacheRef = useRef<GridCache | null>(null);
+  const baseCacheRef = useRef<GridCache | null>(null);
+  const basePaletteRef = useRef<null | PaletteModel>(null);
+  const baseRenderKeyRef = useRef<null | string>(null);
   const namesRef = useRef<Map<number, string>>(new Map());
   const requestTokenRef = useRef(0);
   const nameTokenRef = useRef(0);
   const fetchingRef = useRef(false);
+  const queuedViewportRef = useRef<null | QueuedViewport>(null);
   const dragRef = useRef<DragState | null>(null);
   const resizeRef = useRef<{ startLabelWidth: number; startX: number } | null>(null);
   const scrollFrameRef = useRef<null | number>(null);
@@ -132,6 +141,7 @@ export const AlignmentGrid = ({
   const [scroll, setScroll] = useState({ left: 0, top: 0 });
   const [scrollbarSize, setScrollbarSize] = useState(0);
   const [renderVersion, setRenderVersion] = useState(0);
+  const [viewportRequestVersion, setViewportRequestVersion] = useState(0);
   const [fetching, setFetching] = useState(false);
   const [activeBase, setActiveBase] = useState<null | number>(null);
   const gridGeometry = useMemo(() => ({ ...GRID_GEOMETRY, labelWidth }), [labelWidth]);
@@ -179,7 +189,11 @@ export const AlignmentGrid = ({
   ), [containerSize.height, containerSize.width, gridGeometry, meta.width, meta.sequences, scroll.left, scroll.top]);
 
   const requestViewport = useCallback(async (range: GridRange, revision: number) => {
-    if (range.startRow >= range.endRow || range.startCol >= range.endCol || fetchingRef.current) {
+    if (range.startRow >= range.endRow || range.startCol >= range.endCol) {
+      return;
+    }
+    if (fetchingRef.current) {
+      queuedViewportRef.current = { range, revision };
       return;
     }
     fetchingRef.current = true;
@@ -192,7 +206,7 @@ export const AlignmentGrid = ({
         startCol: range.startCol,
         startRow: range.startRow,
       });
-      if (token !== requestTokenRef.current || revision !== dataRevision) {
+      if (token !== requestTokenRef.current) {
         return;
       }
       cacheRef.current = {
@@ -211,22 +225,26 @@ export const AlignmentGrid = ({
         setRenderVersion((version) => version + 1);
       }
     } finally {
-      if (token === requestTokenRef.current) {
-        fetchingRef.current = false;
+      fetchingRef.current = false;
+      const queuedViewport = queuedViewportRef.current;
+      queuedViewportRef.current = null;
+      if (queuedViewport) {
+        setViewportRequestVersion((version) => version + 1);
+      } else {
         setFetching(false);
       }
     }
-  }, [dataRevision, viewport]);
+  }, [viewport]);
 
   useEffect(() => {
     requestTokenRef.current += 1;
-    fetchingRef.current = false;
-    setFetching(false);
-    setRenderVersion((version) => version + 1);
   }, [dataRevision, meta.sequences, meta.width]);
 
   useEffect(() => {
     cacheRef.current = null;
+    baseCacheRef.current = null;
+    baseRenderKeyRef.current = null;
+    basePaletteRef.current = null;
     namesRef.current.clear();
     requestTokenRef.current += 1;
     nameTokenRef.current += 1;
@@ -259,6 +277,7 @@ export const AlignmentGrid = ({
     meta.sequences,
     meta.width,
     renderVersion,
+    viewportRequestVersion,
     requestViewport,
     visibleRanges,
   ]);
@@ -358,77 +377,78 @@ export const AlignmentGrid = ({
       return;
     }
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.max(1, Math.floor(containerSize.width * dpr));
-    canvas.height = Math.max(1, Math.floor(containerSize.height * dpr));
-    context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    context.clearRect(0, 0, containerSize.width, containerSize.height);
-
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, containerSize.width, containerSize.height);
-
     const cache = cacheRef.current;
     const visible = visibleRanges.visible;
+    const baseLayoutKey = [
+      containerSize.height,
+      containerSize.width,
+      labelWidth,
+      scroll.left,
+      scroll.top,
+    ].join('|');
+
+    const drawBaseCell = (row: number, col: number, byte: null | number) => {
+      const x = labelWidth + col * GRID_GEOMETRY.cellWidth - scroll.left;
+      const y = GRID_GEOMETRY.rulerHeight + row * GRID_GEOMETRY.cellHeight - scroll.top;
+      const character = byte === null ? '' : String.fromCharCode(byte);
+      const colors = paletteEntryFor(palette, character);
+      let cellBackground = colors.background;
+      if (byte === null) {
+        cellBackground = '#e9eef2';
+      } else if (character === ' ') {
+        cellBackground = '#f7f8f9';
+      }
+      context.fillStyle = cellBackground;
+      context.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
+      if (character && character !== ' ') {
+        context.fillStyle = colors.foreground;
+        context.fillText(character, x + 3, y + GRID_GEOMETRY.cellHeight / 2);
+      }
+    };
+
+    const baseLayoutChanged = baseRenderKeyRef.current !== baseLayoutKey || basePaletteRef.current !== palette;
+    const baseCacheChanged = baseCacheRef.current !== cache;
+    if (baseLayoutChanged) {
+      canvas.width = Math.max(1, Math.floor(containerSize.width * dpr));
+      canvas.height = Math.max(1, Math.floor(containerSize.height * dpr));
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      context.clearRect(0, 0, containerSize.width, containerSize.height);
+
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, containerSize.width, containerSize.height);
+      context.font = '14px monospace';
+      context.textBaseline = 'middle';
+
+      for (let row = visible.startRow; row < visible.endRow; row += 1) {
+        for (let col = visible.startCol; col < visible.endCol; col += 1) {
+          drawBaseCell(row, col, getByte(cache, row, col));
+        }
+      }
+    } else if (baseCacheChanged) {
+      context.font = '14px monospace';
+      context.textBaseline = 'middle';
+      for (let row = visible.startRow; row < visible.endRow; row += 1) {
+        for (let col = visible.startCol; col < visible.endCol; col += 1) {
+          const previousByte = getByte(baseCacheRef.current, row, col);
+          const nextByte = getByte(cache, row, col);
+          if (previousByte !== nextByte) {
+            drawBaseCell(row, col, nextByte);
+          }
+        }
+      }
+    }
+
+    if (baseLayoutChanged || baseCacheChanged) {
+      baseRenderKeyRef.current = baseLayoutKey;
+      baseCacheRef.current = cache;
+      basePaletteRef.current = palette;
+    }
+
     const selected = new Set(selectedRows);
     const blockStart = selectionBlock ? Math.min(selectionBlock.startCol, selectionBlock.endCol) : -1;
     const blockEnd = selectionBlock ? Math.max(selectionBlock.startCol, selectionBlock.endCol) : -1;
     const blockStartRow = selectionBlock?.startRow ?? activeCell.row;
     const blockEndRow = selectionBlock?.endRow ?? activeCell.row;
-    context.font = '14px monospace';
-    context.textBaseline = 'middle';
-
-    for (let row = visible.startRow; row < visible.endRow; row += 1) {
-      const y = GRID_GEOMETRY.rulerHeight + row * GRID_GEOMETRY.cellHeight - scroll.top;
-      const rowSelected = selected.has(row);
-
-      for (let col = visible.startCol; col < visible.endCol; col += 1) {
-        const x = labelWidth + col * GRID_GEOMETRY.cellWidth - scroll.left;
-        const byte = getByte(cache, row, col);
-        const character = byte === null ? '' : String.fromCharCode(byte);
-        const inBlock = row >= blockStartRow && row <= blockEndRow && col >= blockStart && col <= blockEnd;
-        const hitIndex = searchHitCells.get(row * meta.width + col) ?? -1;
-        const hit = hitIndex >= 0;
-        const current = hit && hitIndex === currentHit;
-        const colors = paletteEntryFor(palette, character);
-
-        let cellBackground = colors.background;
-        if (byte === null) {
-          cellBackground = '#e9eef2';
-        } else if (character === ' ') {
-          cellBackground = '#f7f8f9';
-        }
-        context.fillStyle = cellBackground;
-        context.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
-        if (hit) {
-          context.fillStyle = current ? 'rgba(255, 152, 0, 0.62)' : 'rgba(255, 193, 7, 0.28)';
-          context.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
-        }
-        if (rowSelected) {
-          context.fillStyle = 'rgba(21, 66, 115, 0.14)';
-          context.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
-        }
-        if (inBlock) {
-          context.fillStyle = 'rgba(255, 193, 7, 0.32)';
-          context.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
-        }
-        if (hit) {
-          context.strokeStyle = '#000000';
-          context.lineWidth = 1.5;
-          context.strokeRect(x + 0.75, y + 0.75, GRID_GEOMETRY.cellWidth - 1.5, GRID_GEOMETRY.cellHeight - 1.5);
-        }
-        if (character && character !== ' ') {
-          context.fillStyle = colors.foreground;
-          context.fillText(character, x + 3, y + GRID_GEOMETRY.cellHeight / 2);
-        }
-      }
-    }
-
-    if (cellFocused) {
-      const activeX = labelWidth + activeCell.col * GRID_GEOMETRY.cellWidth - scroll.left;
-      const activeY = GRID_GEOMETRY.rulerHeight + activeCell.row * GRID_GEOMETRY.cellHeight - scroll.top;
-      context.strokeStyle = '#154273';
-      context.lineWidth = 2;
-      context.strokeRect(activeX + 1, activeY + 1, GRID_GEOMETRY.cellWidth - 2, GRID_GEOMETRY.cellHeight - 2);
-    }
 
     overlayCanvas.width = Math.max(1, Math.floor(containerSize.width * dpr));
     overlayCanvas.height = Math.max(1, Math.floor(containerSize.height * dpr));
@@ -471,7 +491,43 @@ export const AlignmentGrid = ({
     overlayContext.moveTo(0, GRID_GEOMETRY.rulerHeight + 0.5);
     overlayContext.lineTo(containerSize.width, GRID_GEOMETRY.rulerHeight + 0.5);
     overlayContext.stroke();
-  }, [activeCell, cellFocused, containerSize.height, containerSize.width, currentHit, labelWidth, meta.width, palette, renderVersion, scrollbarSize, searchHitCells, scroll.left, scroll.top, selectedRows, selectionBlock, visibleRanges.visible]);
+
+    for (let row = visible.startRow; row < visible.endRow; row += 1) {
+      const y = GRID_GEOMETRY.rulerHeight + row * GRID_GEOMETRY.cellHeight - scroll.top;
+      const rowSelected = selected.has(row);
+      for (let col = visible.startCol; col < visible.endCol; col += 1) {
+        const x = labelWidth + col * GRID_GEOMETRY.cellWidth - scroll.left;
+        const hitIndex = searchHitCells.get(row * meta.width + col) ?? -1;
+        const hit = hitIndex >= 0;
+        const current = hit && hitIndex === currentHit;
+        const inBlock = row >= blockStartRow && row <= blockEndRow && col >= blockStart && col <= blockEnd;
+        if (hit) {
+          overlayContext.fillStyle = current ? 'rgba(255, 152, 0, 0.62)' : 'rgba(255, 193, 7, 0.28)';
+          overlayContext.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
+        }
+        if (rowSelected) {
+          overlayContext.fillStyle = 'rgba(21, 66, 115, 0.14)';
+          overlayContext.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
+        }
+        if (inBlock) {
+          overlayContext.fillStyle = 'rgba(255, 193, 7, 0.32)';
+          overlayContext.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
+        }
+        if (hit) {
+          overlayContext.strokeStyle = '#000000';
+          overlayContext.lineWidth = 1.5;
+          overlayContext.strokeRect(x + 0.75, y + 0.75, GRID_GEOMETRY.cellWidth - 1.5, GRID_GEOMETRY.cellHeight - 1.5);
+        }
+      }
+    }
+    if (cellFocused) {
+      const activeX = labelWidth + activeCell.col * GRID_GEOMETRY.cellWidth - scroll.left;
+      const activeY = GRID_GEOMETRY.rulerHeight + activeCell.row * GRID_GEOMETRY.cellHeight - scroll.top;
+      overlayContext.strokeStyle = '#154273';
+      overlayContext.lineWidth = 2;
+      overlayContext.strokeRect(activeX + 1, activeY + 1, GRID_GEOMETRY.cellWidth - 2, GRID_GEOMETRY.cellHeight - 2);
+    }
+  }, [activeCell, cellFocused, containerSize.height, containerSize.width, currentHit, dataRevision, labelWidth, meta.sequences, meta.width, palette, renderVersion, scrollbarSize, searchHitCells, scroll.left, scroll.top, selectedRows, selectionBlock, visibleRanges.visible]);
 
   const onScroll = useCallback(() => {
     const scroller = scrollerRef.current;

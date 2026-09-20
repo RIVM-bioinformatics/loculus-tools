@@ -66,6 +66,14 @@ enum UndoCommand {
     },
     /// Atomic character changes across a rectangular selection.
     RangeSubstitutions { positions: Vec<(usize, usize, u8)> },
+    /// A gap insertion on a row subset. Row lengths are enough to restore the
+    /// pre-edit shape because the inserted value is always `-`.
+    InsertSubset {
+        col_idx: usize,
+        row_indices: Vec<usize>,
+        row_lengths: Vec<usize>,
+        width_snapshot: usize,
+    },
     /// Structural inserts/deletes: a lightweight clone of the full matrix.
     StructuralSnapshot {
         matrix_snapshot: Vec<Vec<u8>>,
@@ -774,6 +782,28 @@ impl MsaEngine {
         String::new()
     }
 
+    fn apply_insert_at_subset(&mut self, row_indices: &[usize], insertion_col: usize) {
+        let target_rows: std::collections::HashSet<usize> = row_indices.iter().copied().collect();
+
+        for r in 0..self.nucleotide_sequences.len() {
+            let seq = &mut self.nucleotide_sequences[r];
+            while seq.len() < insertion_col {
+                seq.push(b'-');
+            }
+            if target_rows.contains(&r) {
+                seq.insert(insertion_col, b'-');
+            } else {
+                seq.push(b'-');
+            }
+        }
+        self.alignment_width = self
+            .nucleotide_sequences
+            .iter()
+            .map(Vec::len)
+            .max()
+            .unwrap_or(0);
+    }
+
     /// Simultaneous gap insertion at a single column index on a subset of
     /// rows. The inserted character is always `-` (gap). Target rows receive
     /// the gap at the clamped insertion column; non-target rows have a `-`
@@ -788,29 +818,22 @@ impl MsaEngine {
 
         // Clamp the insertion column to the current alignment width. If `col_idx` is greater than the current width, the gap will be appended to all rows.
         let insertion_col = col_idx.min(self.alignment_width);
-        self.record_structural_undo();
-
-        // Use a HashSet for O(1) lookups of target rows.
-        let target_rows: std::collections::HashSet<usize> = row_indices.iter().copied().collect();
-
-        for r in 0..self.nucleotide_sequences.len() {
-            let seq = &mut self.nucleotide_sequences[r];
-            // Pad rows that are shorter than the insertion column before inserting.
-            while seq.len() < insertion_col {
-                seq.push(b'-');
-            }
-            if target_rows.contains(&r) {
-                seq.insert(insertion_col, b'-');
-            } else {
-                seq.push(b'-'); // Balance unselected rows by appending gap at end
-            }
-        }
-        self.alignment_width = self
-            .nucleotide_sequences
+        let mut normalized_rows: Vec<usize> = row_indices
             .iter()
-            .map(Vec::len)
-            .max()
-            .unwrap_or(0);
+            .copied()
+            .filter(|row| *row < self.nucleotide_sequences.len())
+            .collect();
+        normalized_rows.sort_unstable();
+        normalized_rows.dedup();
+        self.undo_stack.push(UndoCommand::InsertSubset {
+            col_idx: insertion_col,
+            row_indices: normalized_rows.clone(),
+            row_lengths: self.nucleotide_sequences.iter().map(Vec::len).collect(),
+            width_snapshot: self.alignment_width,
+        });
+        self.redo_stack.clear();
+
+        self.apply_insert_at_subset(&normalized_rows, insertion_col);
         String::new()
     }
 
@@ -1084,6 +1107,29 @@ impl MsaEngine {
                     });
                 }
             }
+            UndoCommand::InsertSubset {
+                col_idx,
+                row_indices,
+                row_lengths,
+                width_snapshot,
+            } => {
+                let redo_command = UndoCommand::InsertSubset {
+                    col_idx,
+                    row_indices: row_indices.clone(),
+                    row_lengths: self.nucleotide_sequences.iter().map(Vec::len).collect(),
+                    width_snapshot: self.alignment_width,
+                };
+                for (row, sequence) in self.nucleotide_sequences.iter_mut().enumerate() {
+                    if row_indices.binary_search(&row).is_ok() && col_idx < sequence.len() {
+                        sequence.remove(col_idx);
+                    }
+                    if let Some(&length) = row_lengths.get(row) {
+                        sequence.truncate(length);
+                    }
+                }
+                self.alignment_width = width_snapshot;
+                self.redo_stack.push(redo_command);
+            }
             UndoCommand::StructuralSnapshot {
                 matrix_snapshot,
                 names_snapshot,
@@ -1154,6 +1200,21 @@ impl MsaEngine {
                         positions: undo_positions,
                     });
                 }
+            }
+            UndoCommand::InsertSubset {
+                col_idx,
+                row_indices,
+                row_lengths: _,
+                width_snapshot: _,
+            } => {
+                let undo_command = UndoCommand::InsertSubset {
+                    col_idx,
+                    row_indices: row_indices.clone(),
+                    row_lengths: self.nucleotide_sequences.iter().map(Vec::len).collect(),
+                    width_snapshot: self.alignment_width,
+                };
+                self.apply_insert_at_subset(&row_indices, col_idx);
+                self.undo_stack.push(undo_command);
             }
             UndoCommand::StructuralSnapshot {
                 matrix_snapshot,

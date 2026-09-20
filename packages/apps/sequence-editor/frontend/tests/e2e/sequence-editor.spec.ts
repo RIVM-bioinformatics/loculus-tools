@@ -2,6 +2,21 @@ import { readFile } from 'node:fs/promises';
 
 import { expect, test } from '@playwright/test';
 
+const remoteFastaUrl = 'https://raw.githubusercontent.com/nextstrain/nextclade_data/refs/heads/master/data_output/nextstrain/rsv/a/EPI_ISL_412866/2026-04-14--11-55-23Z/sequences.fasta';
+
+test('autoloads a remote FASTA from the input-fasta query parameter', async ({ page }) => {
+  await page.goto(`/?input-fasta=${encodeURIComponent(remoteFastaUrl)}`);
+
+  const dialog = page.getByRole('dialog', { name: 'Import FASTA' });
+  const urlField = dialog.getByRole('textbox', { name: 'Load FASTA from URL' });
+  const main = page.getByRole('main');
+  await expect(dialog).toBeVisible({ timeout: 30_000 });
+  await expect(urlField).toHaveValue(remoteFastaUrl);
+  await expect(main.getByText('Loaded 32 sequences.')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/sequences\.fasta · 32 sequences × \d+ bases/)).toBeVisible();
+  await expect(dialog).not.toBeVisible({ timeout: 30_000 });
+});
+
 test('loads, edits, searches, exports, and responds at tablet width', async ({ page }) => {
   await page.setViewportSize({ height: 900, width: 1280 });
   await page.goto('/');

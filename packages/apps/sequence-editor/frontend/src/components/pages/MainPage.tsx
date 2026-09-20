@@ -1,4 +1,8 @@
-import { useCallback } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+} from 'react';
 import {
   Alert,
   AppBar,
@@ -38,6 +42,7 @@ import { DataImportDialog } from '../dialogs/DataImportDialog';
 import { ColorSettingsPanel } from '../ui/ColorSettingsPanel';
 import { SearchBar } from '../ui/SearchBar';
 import { wrapSearchIndex } from '../../utils/search';
+import { fastaUrlFromSearch } from '../../utils/fasta';
 
 import { EmptyWorkspace } from './EmptyWorkspace';
 
@@ -51,6 +56,16 @@ export const MainPage = () => {
   const { state } = editor;
   const metadata = state.metadata;
   const hasAlignment = Boolean(metadata && metadata.sequences > 0);
+  const initialFastaUrl = fastaUrlFromSearch(window.location.search);
+  const autoLoadUrlStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (!initialFastaUrl || !engine.ready || autoLoadUrlStartedRef.current) {
+      return;
+    }
+    autoLoadUrlStartedRef.current = true;
+    editor.setDialog('import');
+  }, [editor, engine.ready, initialFastaUrl]);
 
   const onLoad = useCallback(async (fasta: string, label: string): Promise<boolean> => {
     try {
@@ -540,8 +555,10 @@ export const MainPage = () => {
         </Drawer>
       </Box>
       <DataImportDialog
+        autoLoadUrl={Boolean(initialFastaUrl)}
         dirty={state.dirty}
         error={state.error}
+        initialUrl={initialFastaUrl}
         onClose={onCloseImport}
         onLoad={onLoad}
         open={state.openDialog === 'import'}

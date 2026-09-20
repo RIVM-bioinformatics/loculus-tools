@@ -1,6 +1,8 @@
 import type { ChangeEvent } from 'react';
 import {
   useCallback,
+  useEffect,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -21,42 +23,54 @@ import FileOpenOutlinedIcon from '@mui/icons-material/FileOpenOutlined';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import { FileDropZone } from '@gen-epix/ui-core-components/components/FileDropZone';
 
+import {
+  fastaLabelFromUrl,
+  validateFastaUrl,
+} from '../../utils/fasta';
+
 export interface DataImportDialogProps {
+  autoLoadUrl?: boolean;
   dirty: boolean;
   error: null | string;
+  initialUrl?: null | string;
   onClose: () => void;
   onLoad: (fasta: string, label: string) => Promise<boolean>;
   open: boolean;
 }
 
 export const DataImportDialog = ({
+  autoLoadUrl = false,
   dirty,
   error,
+  initialUrl = null,
   onClose,
   onLoad,
   open,
 }: DataImportDialogProps) => {
   const [fastaFile, setFastaFile] = useState<FileList | null>(null);
   const [fastaText, setFastaText] = useState('');
+  const [fastaUrl, setFastaUrl] = useState(initialUrl ?? '');
   const [localError, setLocalError] = useState<null | string>(null);
   const [confirmReplace, setConfirmReplace] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
+  const [loadingSource, setLoadingSource] = useState<'demo' | 'url' | null>(null);
+  const autoLoadStartedRef = useRef(false);
 
   const reset = useCallback(() => {
     setFastaFile(null);
     setFastaText('');
+    setFastaUrl(initialUrl ?? '');
     setLocalError(null);
     setConfirmReplace(false);
-    setDemoLoading(false);
-  }, []);
+    setLoadingSource(null);
+  }, [initialUrl]);
 
   const onCloseDialog = useCallback(() => {
-    if (demoLoading) {
+    if (loadingSource) {
       return;
     }
     reset();
     onClose();
-  }, [demoLoading, onClose, reset]);
+  }, [loadingSource, onClose, reset]);
 
   const onFilesSelected = useCallback((files: FileList) => {
     setFastaFile(files);
@@ -74,6 +88,37 @@ export const DataImportDialog = ({
     setConfirmReplace(false);
     return onLoad(content, label);
   }, [confirmReplace, dirty, onLoad]);
+
+  const loadFromUrl = useCallback(async (value: string): Promise<boolean> => {
+    setLoadingSource('url');
+    setLocalError(null);
+    try {
+      const url = validateFastaUrl(value);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`FASTA URL failed to load (${response.status}).`);
+      }
+      const loaded = await loadContent(await response.text(), fastaLabelFromUrl(url));
+      if (loaded) {
+        setFastaUrl(url);
+      }
+      return loaded;
+    } catch (caught: unknown) {
+      setLocalError(caught instanceof Error ? caught.message : 'FASTA URL failed to load.');
+      return false;
+    } finally {
+      setLoadingSource(null);
+    }
+  }, [loadContent]);
+
+  useEffect(() => {
+    if (!open || !autoLoadUrl || !initialUrl || autoLoadStartedRef.current) {
+      return;
+    }
+    autoLoadStartedRef.current = true;
+    setFastaUrl(initialUrl);
+    void loadFromUrl(initialUrl);
+  }, [autoLoadUrl, initialUrl, loadFromUrl, open]);
 
   const onClickLoad = useCallback(async () => {
     setLocalError(null);
@@ -98,7 +143,7 @@ export const DataImportDialog = ({
       return;
     }
 
-    setDemoLoading(true);
+    setLoadingSource('demo');
     setLocalError(null);
     try {
       const response = await fetch('/sample-data/sarscov2_demo.fasta');
@@ -112,9 +157,18 @@ export const DataImportDialog = ({
     } catch (caught: unknown) {
       setLocalError(caught instanceof Error ? caught.message : 'Demo alignment failed to load.');
     } finally {
-      setDemoLoading(false);
+      setLoadingSource(null);
     }
   }, [confirmReplace, dirty, loadContent]);
+
+  const onChangeUrl = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setFastaUrl(event.target.value);
+    setLocalError(null);
+  }, []);
+
+  const onClickUrl = useCallback(() => {
+    void loadFromUrl(fastaUrl);
+  }, [fastaUrl, loadFromUrl]);
 
   const onChangeText = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setFastaText(event.target.value);
@@ -185,10 +239,27 @@ export const DataImportDialog = ({
           </Box>
         </Box>
         <Divider sx={{ my: 3 }} />
+        <Box sx={{ alignItems: 'flex-start', display: 'flex', gap: 1, mb: 2 }}>
+          <TextField
+            fullWidth
+            label={'Load FASTA from URL'}
+            onChange={onChangeUrl}
+            placeholder={'https://example.org/alignment.fasta'}
+            value={fastaUrl}
+          />
+          <Button
+            disabled={!fastaUrl.trim() || Boolean(loadingSource)}
+            onClick={onClickUrl}
+            sx={{ flexShrink: 0, mt: 1 }}
+            variant={'outlined'}
+          >
+            {loadingSource === 'url' ? <CircularProgress size={20} /> : 'Load from URL'}
+          </Button>
+        </Box>
         <Button
-          disabled={demoLoading}
+          disabled={Boolean(loadingSource)}
           onClick={onClickDemo}
-          startIcon={demoLoading ? (
+          startIcon={loadingSource === 'demo' ? (
             <CircularProgress
               color={'inherit'}
               size={18}
@@ -212,14 +283,14 @@ export const DataImportDialog = ({
       </DialogContent>
       <DialogActions>
         <Button
-          disabled={demoLoading}
+          disabled={Boolean(loadingSource)}
           onClick={onCloseDialog}
           variant={'text'}
         >
           {'Cancel'}
         </Button>
         <Button
-          disabled={demoLoading}
+          disabled={Boolean(loadingSource)}
           onClick={onClickLoad}
           startIcon={<FileOpenOutlinedIcon />}
           variant={'contained'}

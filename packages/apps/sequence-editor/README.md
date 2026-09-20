@@ -41,6 +41,14 @@ The runtime has four focused layers:
 
 Import accepts `.fasta`/`.fa` files, pasted FASTA, and the bundled SARS-CoV-2 demo. The UI preflights input using the engine's semantics: the first whitespace-delimited header token is the record name, sequence whitespace is removed, and bases are uppercased. Empty, malformed, and ragged alignments are rejected before loading. Loading a dirty dataset requires confirmation.
 
+A remote FASTA can be loaded through the `input-fasta` query parameter. The URL must use HTTP or HTTPS; the import dialog opens with the URL prefilled and starts loading it automatically once the WASM engine is ready. For example:
+
+```text
+http://localhost:5173/?input-fasta=https%3A%2F%2Fraw.githubusercontent.com%2Fnextstrain%2Fnextclade_data%2Frefs%2Fheads%2Fmaster%2Fdata_output%2Fnextstrain%2Frsv%2Fa%2FEPI_ISL_412866%2F2026-04-14--11-55-23Z%2Fsequences.fasta
+```
+
+The remote server must allow browser CORS requests. The dataset label is derived from the URL path, so the supplied example appears as `sequences.fasta`.
+
 Export serializes the current engine state as deterministic, unwrapped FASTA with a final newline. The browser downloads a sanitized dataset filename such as `sarscov2_demo.fasta`; the dirty flag is cleared only after the download succeeds.
 
 ## Editing

@@ -10,6 +10,37 @@ export interface FastaRecord {
   sequence: string;
 }
 
+export const fastaUrlFromSearch = (search: string): null | string => {
+  const value = new URLSearchParams(search).get('input-fasta')?.trim();
+  return value || null;
+};
+
+export const validateFastaUrl = (value: string): string => {
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    throw new Error('Enter a valid FASTA URL.');
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('FASTA URLs must use HTTP or HTTPS.');
+  }
+  return url.href;
+};
+
+export const fastaLabelFromUrl = (value: string): string => {
+  try {
+    const url = new URL(value);
+    const segment = url.pathname.split('/').filter(Boolean).pop();
+    if (segment) {
+      return decodeURIComponent(segment);
+    }
+    return `${url.hostname}.fasta`;
+  } catch {
+    return 'remote-alignment.fasta';
+  }
+};
+
 const flushRecord = (
   records: FastaRecord[],
   name: string,

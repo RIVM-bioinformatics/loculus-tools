@@ -6,11 +6,18 @@ import {
 } from 'react';
 
 import type { EngineClient } from '../../engine/useEngineWorker';
-import type { Meta } from '../../engine/protocol';
+import type {
+  Meta,
+  SearchResult,
+} from '../../engine/protocol';
 import {
   editorReducer,
   initialEditorState,
 } from '../../models/editor';
+import {
+  makeAliViewDefaultPalette,
+  type PaletteModel,
+} from '../../models/palette';
 import {
   datasetFilename,
   downloadText,
@@ -18,12 +25,20 @@ import {
 } from '../../utils/fasta';
 import type { EditorCommand } from '../../utils/keyboard';
 import {
+  filterSearchResults,
+} from '../../utils/search';
+import {
   columnsForBlock,
   moveRowSelection,
   mutationRows,
   rowsForBlock,
   selectionBlockForMove,
 } from '../../utils/selection';
+import {
+  loadPalette,
+  sanitizePalette,
+  savePalette,
+} from '../../utils/palette';
 
 const ENGINE_ERROR_MESSAGES = new Map<string, string>([
   ['DeleteNotGap', 'Delete failed: the selected position is not a gap.'],
@@ -56,7 +71,11 @@ interface CommandOptions {
 }
 
 export const useSequenceEditor = (engine: EngineClient) => {
-  const [state, dispatch] = useReducer(editorReducer, initialEditorState);
+  const [state, dispatch] = useReducer(
+    editorReducer,
+    initialEditorState,
+    (initialState) => ({ ...initialState, palette: loadPalette() }),
+  );
   const commandQueueRef = useRef<Promise<void>>(Promise.resolve());
   const stateRef = useRef(state);
 
@@ -341,16 +360,44 @@ export const useSequenceEditor = (engine: EngineClient) => {
   );
 
   const search = useCallback(
-    async (query: string, includeRecordNames: boolean): Promise<void> => {
+    async (query: string, includeRecordNames: boolean): Promise<null | SearchResult> => {
+      if (!query.trim()) {
+        dispatch({ type: 'setSearchResults', value: null });
+        dispatch({ type: 'setStatus', value: 'Search cleared.' });
+        return null;
+      }
       try {
-        const results = await searchEngine(query, includeRecordNames);
+        const results = filterSearchResults(
+          await searchEngine(query, includeRecordNames),
+          includeRecordNames,
+        );
         dispatch({ type: 'setSearchResults', value: results });
+        dispatch({
+          type: 'setStatus',
+          value: results.num_matches === 0
+            ? `No matches for "${query}".`
+            : `${results.num_matches}${results.truncated ? '+' : ''} match${results.num_matches === 1 ? '' : 'es'} for "${query}"${results.truncated ? ' (showing the first results).' : '.'}`,
+        });
+        return results;
       } catch (error: unknown) {
         dispatch({ message: getErrorMessage(error), type: 'commandFailed' });
+        return null;
       }
     },
     [searchEngine],
   );
+
+  const setPalette = useCallback((palette: PaletteModel): void => {
+    const normalized = sanitizePalette(palette);
+    savePalette(normalized);
+    dispatch({ type: 'setPalette', value: normalized });
+  }, []);
+
+  const resetPalette = useCallback((): void => {
+    const defaultPalette = makeAliViewDefaultPalette();
+    savePalette(defaultPalette);
+    dispatch({ type: 'setPalette', value: defaultPalette });
+  }, []);
 
   const executeCommand = useCallback(async (command: EditorCommand): Promise<void> => {
     const current = stateRef.current;
@@ -517,9 +564,13 @@ export const useSequenceEditor = (engine: EngineClient) => {
     setDatasetLabel: (value: string) => dispatch({ type: 'setDatasetLabel', value }),
     setDialog: (value: 'import' | 'none') => dispatch({ type: 'setDialog', value }),
     setPanel: (value: 'none' | 'settings') => dispatch({ type: 'setPanel', value }),
+    setPalette,
+    resetPalette,
     setSelectedRows: (value: number[]) => dispatch({ type: 'setSelectedRows', value }),
     setSelectionAnchorRow: (value: null | number) => dispatch({ type: 'setSelectionAnchorRow', value }),
     setSelectionBlock: (value: { endCol: number; startCol: number } | null) => dispatch({ type: 'setSelectionBlock', value }),
+    setCurrentHit: (value: number) => dispatch({ type: 'setCurrentHit', value }),
+    setStatus: (value: null | string) => dispatch({ type: 'setStatus', value }),
     state,
     undo,
   };

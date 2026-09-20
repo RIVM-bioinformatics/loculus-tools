@@ -262,7 +262,6 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       // `e.search` returns one `SearchResult` per matrix (nucleotide, amino
       // acid, record names), serialized via serde_wasm_bindgen.
       const data: SearchResult = e.search(req.query, req.checkRecordNames);
-      console.log(`Search query: ${req.query}, checkRecordNames: ${req.checkRecordNames}, result: ${JSON.stringify(data)}`);
       engineMs = performance.now() - engineStart;
       const workerMs = performance.now() - workerStart;
       post({

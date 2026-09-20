@@ -9,9 +9,11 @@ import type {
   KeyboardEvent,
   PointerEvent,
 } from 'react';
-import { Box } from '@mui/material';
+import {
+  Box,
+  LinearProgress,
+} from '@mui/material';
 
-import { BASE_COLORS } from '../../constants';
 import { MatrixType } from '../../engine/protocol';
 import type {
   Meta,
@@ -21,6 +23,7 @@ import type {
 import type { EngineClient } from '../../engine/useEngineWorker';
 import type {
   ActiveCell,
+  PaletteModel,
   SelectionBlock,
 } from '../../models';
 import {
@@ -40,6 +43,7 @@ import {
   rowsForBlock,
   selectionBlockForRange,
 } from '../../utils/selection';
+import { paletteEntryFor } from '../../utils/palette';
 
 interface AlignmentGridProps {
   activeCell: ActiveCell;
@@ -56,6 +60,7 @@ interface AlignmentGridProps {
   onSelectedRows: (rows: number[]) => void;
   onSelectionAnchorRow: (row: null | number) => void;
   onSelectionBlock: (block: null | SelectionBlock) => void;
+  palette: PaletteModel;
   searchResults: null | SearchResult;
   selectedRows: number[];
   selectionAnchorRow: null | number;
@@ -89,14 +94,6 @@ const getByte = (cache: GridCache | null, row: number, col: number): null | numb
   return cache.bytes[(row - cache.startRow) * cache.cols + col - cache.startCol] ?? null;
 };
 
-const isNucleotideHit = (result: SearchResult, row: number, col: number): boolean => (
-  result.positions.some((position) => (
-    position.matrix_type === MatrixType.Nucleotide
-    && position.row === row
-    && position.col === col
-  ))
-);
-
 export const AlignmentGrid = ({
   activeCell,
   busy,
@@ -112,6 +109,7 @@ export const AlignmentGrid = ({
   onSelectedRows,
   onSelectionAnchorRow,
   onSelectionBlock,
+  palette,
   searchResults,
   selectedRows,
   selectionAnchorRow,
@@ -137,6 +135,33 @@ export const AlignmentGrid = ({
   const [fetching, setFetching] = useState(false);
   const [activeBase, setActiveBase] = useState<null | number>(null);
   const gridGeometry = useMemo(() => ({ ...GRID_GEOMETRY, labelWidth }), [labelWidth]);
+  const searchHitCells = useMemo(() => {
+    const cells = new Map<number, number>();
+    if (!searchResults) {
+      return cells;
+    }
+    const span = Math.max(1, searchResults.query.length);
+    searchResults.positions.forEach((position, index) => {
+      if (position.matrix_type !== MatrixType.Nucleotide) {
+        return;
+      }
+      for (let offset = 0; offset < span; offset += 1) {
+        cells.set(position.row * meta.width + position.col + offset, index);
+      }
+    });
+    return cells;
+  }, [meta.width, searchResults]);
+  const searchScrollTarget = useMemo<ActiveCell | null>(() => {
+    const hit = searchResults?.positions[currentHit];
+    if (hit?.matrix_type !== MatrixType.Nucleotide) {
+      return null;
+    }
+    const lastHitColumn = hit.col + Math.max(1, searchResults?.query.length ?? 1) - 1;
+    return {
+      col: Math.min(Math.max(0, meta.width - 1), lastHitColumn + 10),
+      row: hit.row,
+    };
+  }, [currentHit, meta.width, searchResults]);
   const viewport = eng.viewport;
   const fetchName = eng.name;
   const ready = eng.ready;
@@ -194,6 +219,13 @@ export const AlignmentGrid = ({
   }, [dataRevision, viewport]);
 
   useEffect(() => {
+    requestTokenRef.current += 1;
+    fetchingRef.current = false;
+    setFetching(false);
+    setRenderVersion((version) => version + 1);
+  }, [dataRevision, meta.sequences, meta.width]);
+
+  useEffect(() => {
     cacheRef.current = null;
     namesRef.current.clear();
     requestTokenRef.current += 1;
@@ -201,7 +233,7 @@ export const AlignmentGrid = ({
     fetchingRef.current = false;
     setFetching(false);
     setRenderVersion((version) => version + 1);
-  }, [dataRevision, meta.sequences, meta.width]);
+  }, [datasetRevision]);
 
   useEffect(() => {
     const scroller = scrollerRef.current;
@@ -285,25 +317,30 @@ export const AlignmentGrid = ({
     }).catch(() => undefined);
   }, [dataRevision, fetchName, meta.sequences, ready, visibleRanges.cache.endRow, visibleRanges.cache.startRow]);
 
-  useEffect(() => {
+  const scrollCellIntoView = useCallback((cell: ActiveCell) => {
     const scroller = scrollerRef.current;
-    if (!scroller || !cellFocused) {
+    if (!scroller) {
       return;
     }
-    const next = scrollPositionForCell(
-      activeCell,
-      scroller.scrollLeft,
-      scroller.scrollTop,
-      containerSize.width,
-      containerSize.height,
-      gridGeometry,
-    );
+    const next = scrollPositionForCell(cell, scroller.scrollLeft, scroller.scrollTop, scroller.clientWidth, scroller.clientHeight, gridGeometry);
     if (next.left !== scroller.scrollLeft || next.top !== scroller.scrollTop) {
       scroller.scrollLeft = next.left;
       scroller.scrollTop = next.top;
       setScroll(next);
     }
-  }, [activeCell, cellFocused, containerSize.height, containerSize.width, gridGeometry]);
+  }, [gridGeometry]);
+
+  useEffect(() => {
+    if (cellFocused) {
+      scrollCellIntoView(activeCell);
+    }
+  }, [activeCell, cellFocused, scrollCellIntoView]);
+
+  useEffect(() => {
+    if (cellFocused && searchScrollTarget) {
+      scrollCellIntoView(searchScrollTarget);
+    }
+  }, [cellFocused, scrollCellIntoView, searchScrollTarget]);
 
   useEffect(() => {
     setActiveBase(getByte(cacheRef.current, activeCell.row, activeCell.col));
@@ -348,10 +385,12 @@ export const AlignmentGrid = ({
         const byte = getByte(cache, row, col);
         const character = byte === null ? '' : String.fromCharCode(byte);
         const inBlock = row >= blockStartRow && row <= blockEndRow && col >= blockStart && col <= blockEnd;
-        const hit = searchResults && isNucleotideHit(searchResults, row, col);
-        const current = hit && searchResults.positions[currentHit]?.row === row && searchResults.positions[currentHit]?.col === col;
+        const hitIndex = searchHitCells.get(row * meta.width + col) ?? -1;
+        const hit = hitIndex >= 0;
+        const current = hit && hitIndex === currentHit;
+        const colors = paletteEntryFor(palette, character);
 
-        let cellBackground = '#ffffff';
+        let cellBackground = colors.background;
         if (byte === null) {
           cellBackground = '#e9eef2';
         } else if (character === ' ') {
@@ -359,6 +398,10 @@ export const AlignmentGrid = ({
         }
         context.fillStyle = cellBackground;
         context.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
+        if (hit) {
+          context.fillStyle = current ? 'rgba(255, 152, 0, 0.62)' : 'rgba(255, 193, 7, 0.28)';
+          context.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
+        }
         if (rowSelected) {
           context.fillStyle = 'rgba(21, 66, 115, 0.14)';
           context.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
@@ -368,11 +411,12 @@ export const AlignmentGrid = ({
           context.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
         }
         if (hit) {
-          context.fillStyle = current ? 'rgba(255, 152, 0, 0.62)' : 'rgba(255, 193, 7, 0.28)';
-          context.fillRect(x, y, GRID_GEOMETRY.cellWidth, GRID_GEOMETRY.cellHeight);
+          context.strokeStyle = '#000000';
+          context.lineWidth = 1.5;
+          context.strokeRect(x + 0.75, y + 0.75, GRID_GEOMETRY.cellWidth - 1.5, GRID_GEOMETRY.cellHeight - 1.5);
         }
         if (character && character !== ' ') {
-          context.fillStyle = BASE_COLORS[character] ?? '#1f2933';
+          context.fillStyle = colors.foreground;
           context.fillText(character, x + 3, y + GRID_GEOMETRY.cellHeight / 2);
         }
       }
@@ -427,7 +471,7 @@ export const AlignmentGrid = ({
     overlayContext.moveTo(0, GRID_GEOMETRY.rulerHeight + 0.5);
     overlayContext.lineTo(containerSize.width, GRID_GEOMETRY.rulerHeight + 0.5);
     overlayContext.stroke();
-  }, [activeCell, cellFocused, containerSize.height, containerSize.width, currentHit, labelWidth, renderVersion, scrollbarSize, searchResults, scroll.left, scroll.top, selectedRows, selectionBlock, visibleRanges.visible]);
+  }, [activeCell, cellFocused, containerSize.height, containerSize.width, currentHit, labelWidth, meta.width, palette, renderVersion, scrollbarSize, searchHitCells, scroll.left, scroll.top, selectedRows, selectionBlock, visibleRanges.visible]);
 
   const onScroll = useCallback(() => {
     const scroller = scrollerRef.current;
@@ -567,6 +611,7 @@ export const AlignmentGrid = ({
   const selectedCount = selectedRows.length > 0 ? selectedRows.length : 1;
   return (
     <Box
+      aria-busy={busy}
       aria-colcount={meta.width}
       aria-label={'Nucleotide alignment grid'}
       aria-rowcount={meta.sequences}
@@ -583,6 +628,15 @@ export const AlignmentGrid = ({
       }}
       tabIndex={0}
     >
+      {busy && (
+        <Box
+          sx={{ inset: 0, pointerEvents: 'auto', position: 'absolute', zIndex: 4 }}
+        >
+          <LinearProgress
+            sx={{ left: 0, position: 'absolute', right: 0, top: 0 }}
+          />
+        </Box>
+      )}
       <canvas
         ref={canvasRef}
         style={{ height: '100%', left: 0, position: 'absolute', top: 0, width: '100%' }}

@@ -8,6 +8,7 @@ import {
   CircularProgress,
   Drawer,
   IconButton,
+  Snackbar,
   Stack,
   Toolbar,
   Tooltip,
@@ -28,10 +29,15 @@ import RedoOutlinedIcon from '@mui/icons-material/RedoOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import UndoOutlinedIcon from '@mui/icons-material/UndoOutlined';
 
+import { MatrixType } from '../../engine/protocol';
+import type { SearchMatch } from '../../engine/protocol';
 import { useEngineWorker } from '../../engine/useEngineWorker';
 import { useSequenceEditor } from '../../hooks/useSequenceEditor';
 import { AlignmentGrid } from '../editor/AlignmentGrid';
 import { DataImportDialog } from '../dialogs/DataImportDialog';
+import { ColorSettingsPanel } from '../ui/ColorSettingsPanel';
+import { SearchBar } from '../ui/SearchBar';
+import { wrapSearchIndex } from '../../utils/search';
 
 import { EmptyWorkspace } from './EmptyWorkspace';
 
@@ -79,6 +85,36 @@ export const MainPage = () => {
   const onClickRedo = useCallback(() => {
     void editor.redo();
   }, [editor]);
+
+  const focusSearchHit = useCallback((hit: SearchMatch) => {
+    const isRecordName = hit.matrix_type === MatrixType.RecordName;
+    editor.setActiveCell(hit.row, isRecordName ? 0 : hit.col);
+    editor.setSelectionBlock(null);
+    editor.setSelectionAnchorRow(hit.row);
+    editor.setSelectedRows(isRecordName ? [hit.row] : []);
+  }, [editor]);
+
+  const onSearch = useCallback(async (query: string, includeRecordNames: boolean) => {
+    const results = await editor.search(query, includeRecordNames);
+    const firstHit = results?.positions[0];
+    if (firstHit) {
+      focusSearchHit(firstHit);
+    }
+    return results;
+  }, [editor, focusSearchHit]);
+
+  const onNavigateSearch = useCallback((change: number) => {
+    const results = state.searchResults;
+    if (!results || results.positions.length === 0) {
+      return;
+    }
+    const nextHit = wrapSearchIndex(state.currentHit, change, results.positions.length);
+    const hit = results.positions[nextHit];
+    editor.setCurrentHit(nextHit);
+    if (hit) {
+      focusSearchHit(hit);
+    }
+  }, [editor, focusSearchHit, state.currentHit, state.searchResults]);
 
   const onMoveHorizontal = useCallback((direction: 'left' | 'right') => {
     void editor.executeCommand({ direction, type: 'moveHorizontal' });
@@ -129,6 +165,10 @@ export const MainPage = () => {
     editor.setPanel('none');
   }, [editor]);
 
+  const onCloseStatus = useCallback(() => {
+    editor.setStatus(null);
+  }, [editor]);
+
   return (
     <Box sx={{ bgcolor: '#f4f6f8', display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, overflow: 'hidden' }}>
       <AppBar
@@ -174,6 +214,20 @@ export const MainPage = () => {
           >
             {'Import'}
           </Button>
+          <Tooltip title={'Import FASTA'}>
+            <span>
+              <IconButton
+                aria-label={'Import FASTA'}
+                color={'inherit'}
+                disabled={state.busy || !engine.ready}
+                onClick={onOpenImport}
+                size={'small'}
+                sx={{ display: { sm: 'none', xs: 'inline-flex' } }}
+              >
+                <FileUploadOutlinedIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
           <Button
             color={'inherit'}
             disabled={state.busy || !hasAlignment}
@@ -185,6 +239,20 @@ export const MainPage = () => {
           >
             {'Export'}
           </Button>
+          <Tooltip title={'Export FASTA'}>
+            <span>
+              <IconButton
+                aria-label={'Export FASTA'}
+                color={'inherit'}
+                disabled={state.busy || !hasAlignment}
+                onClick={onClickExport}
+                size={'small'}
+                sx={{ display: { sm: 'none', xs: 'inline-flex' } }}
+              >
+                <FileDownloadOutlinedIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
           <Tooltip title={'Undo'}>
             <span>
               <IconButton
@@ -249,6 +317,17 @@ export const MainPage = () => {
           </Tooltip>
         </Toolbar>
       </AppBar>
+      <Box
+        sx={{ bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider', px: { sm: 2, xs: 1 }, py: 0.75 }}
+      >
+        <SearchBar
+          currentHit={state.currentHit}
+          disabled={state.busy || !engine.ready || !hasAlignment}
+          onNavigate={onNavigateSearch}
+          onSearch={onSearch}
+          results={state.searchResults}
+        />
+      </Box>
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
         <Box
           component={'main'}
@@ -301,6 +380,7 @@ export const MainPage = () => {
                 onSelectedRows={editor.setSelectedRows}
                 onSelectionAnchorRow={editor.setSelectionAnchorRow}
                 onSelectionBlock={editor.setSelectionBlock}
+                palette={state.palette}
                 searchResults={state.searchResults}
                 selectedRows={state.selectedRows}
                 selectionAnchorRow={state.selectionAnchorRow}
@@ -451,6 +531,11 @@ export const MainPage = () => {
                 </span>
               </Tooltip>
             </Stack>
+            <ColorSettingsPanel
+              onChange={editor.setPalette}
+              onReset={editor.resetPalette}
+              palette={state.palette}
+            />
           </Stack>
         </Drawer>
       </Box>
@@ -460,6 +545,12 @@ export const MainPage = () => {
         onClose={onCloseImport}
         onLoad={onLoad}
         open={state.openDialog === 'import'}
+      />
+      <Snackbar
+        autoHideDuration={3500}
+        message={state.status ?? ''}
+        onClose={onCloseStatus}
+        open={Boolean(state.status)}
       />
     </Box>
   );

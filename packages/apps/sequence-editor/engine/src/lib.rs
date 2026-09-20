@@ -10,7 +10,7 @@ mod alphabets;
 mod search_algorithms;
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
-use search_algorithms::{run_search, Match, MatrixType, SearchAlgorithm, SearchResult};
+use search_algorithms::{naive_search, Match, MatrixType, SearchResult, MAX_SEARCH_RESULTS};
 use wasm_bindgen::prelude::*;
 
 // Bound to the JS `console.log`, so this works in both the main thread and
@@ -410,12 +410,7 @@ impl MsaEngine {
         if self.nucleotide_sequences.is_empty() || !self.is_valid_nucleotide_query(query) {
             SearchResult::empty(query)
         } else {
-            run_search(
-                &SearchAlgorithm::FmIndex,
-                &self.nucleotide_sequences,
-                query,
-                MatrixType::Nucleotide,
-            )
+            naive_search(&self.nucleotide_sequences, query, MatrixType::Nucleotide)
         }
     }
 
@@ -434,12 +429,7 @@ impl MsaEngine {
             })
             .collect();
 
-        run_search(
-            &SearchAlgorithm::FmIndex,
-            &amino_acid_bytes,
-            query,
-            MatrixType::AminoAcid,
-        )
+        naive_search(&amino_acid_bytes, query, MatrixType::AminoAcid)
     }
 
     fn search_record_names(&self, query: &str) -> SearchResult {
@@ -465,6 +455,7 @@ impl MsaEngine {
             SearchResult {
                 query: query.to_string(),
                 num_matches: positions.len(),
+                truncated: false,
                 positions,
             }
         }
@@ -486,17 +477,30 @@ impl MsaEngine {
             SearchResult::empty(&query)
         };
 
+        let mut truncated = nucleotide_result.truncated;
         let mut all_positions = nucleotide_result.positions;
+        truncated = truncated || amino_acid_result.truncated || record_names_result.truncated;
         all_positions.extend(amino_acid_result.positions);
         all_positions.extend(record_names_result.positions);
+        if all_positions.len() > MAX_SEARCH_RESULTS {
+            all_positions.truncate(MAX_SEARCH_RESULTS);
+            truncated = true;
+        }
 
         let combined_result = SearchResult {
             query: query.to_string(),
             num_matches: all_positions.len(),
+            truncated,
             positions: all_positions,
         };
 
-        console_log!("Number of matches: {}", combined_result.num_matches);
+        console_log!(
+            "Search query: {}, checkRecordNames: {}, returned: {}, truncated: {}",
+            query,
+            check_record_names,
+            combined_result.num_matches,
+            combined_result.truncated
+        );
 
         serde_wasm_bindgen::to_value(&combined_result)
             .map_err(|e| JsValue::from_str(&e.to_string()))

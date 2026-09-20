@@ -157,6 +157,7 @@ export interface SearchResult {
   num_matches: number;
   positions: SearchMatch[];
   query: string;
+  truncated: boolean;
 }
 
 /** A fetched viewport slice plus the metadata needed to interpret it. */

@@ -44,6 +44,7 @@ import {
 interface AlignmentGridProps {
   activeCell: ActiveCell;
   busy: boolean;
+  cellFocused: boolean;
   currentHit: number;
   dataRevision: number;
   datasetRevision: number;
@@ -98,6 +99,7 @@ const isNucleotideHit = (result: SearchResult, row: number, col: number): boolea
 export const AlignmentGrid = ({
   activeCell,
   busy,
+  cellFocused,
   currentHit,
   dataRevision,
   datasetRevision,
@@ -283,7 +285,7 @@ export const AlignmentGrid = ({
 
   useEffect(() => {
     const scroller = scrollerRef.current;
-    if (!scroller) {
+    if (!scroller || !cellFocused) {
       return;
     }
     const next = scrollPositionForCell(
@@ -299,7 +301,7 @@ export const AlignmentGrid = ({
       scroller.scrollTop = next.top;
       setScroll(next);
     }
-  }, [activeCell, containerSize.height, containerSize.width, gridGeometry]);
+  }, [activeCell, cellFocused, containerSize.height, containerSize.width, gridGeometry]);
 
   useEffect(() => {
     setActiveBase(getByte(cacheRef.current, activeCell.row, activeCell.col));
@@ -374,11 +376,13 @@ export const AlignmentGrid = ({
       }
     }
 
-    const activeX = labelWidth + activeCell.col * GRID_GEOMETRY.cellWidth - scroll.left;
-    const activeY = GRID_GEOMETRY.rulerHeight + activeCell.row * GRID_GEOMETRY.cellHeight - scroll.top;
-    context.strokeStyle = '#154273';
-    context.lineWidth = 2;
-    context.strokeRect(activeX + 1, activeY + 1, GRID_GEOMETRY.cellWidth - 2, GRID_GEOMETRY.cellHeight - 2);
+    if (cellFocused) {
+      const activeX = labelWidth + activeCell.col * GRID_GEOMETRY.cellWidth - scroll.left;
+      const activeY = GRID_GEOMETRY.rulerHeight + activeCell.row * GRID_GEOMETRY.cellHeight - scroll.top;
+      context.strokeStyle = '#154273';
+      context.lineWidth = 2;
+      context.strokeRect(activeX + 1, activeY + 1, GRID_GEOMETRY.cellWidth - 2, GRID_GEOMETRY.cellHeight - 2);
+    }
 
     overlayCanvas.width = Math.max(1, Math.floor(containerSize.width * dpr));
     overlayCanvas.height = Math.max(1, Math.floor(containerSize.height * dpr));
@@ -421,7 +425,7 @@ export const AlignmentGrid = ({
     overlayContext.moveTo(0, GRID_GEOMETRY.rulerHeight + 0.5);
     overlayContext.lineTo(containerSize.width, GRID_GEOMETRY.rulerHeight + 0.5);
     overlayContext.stroke();
-  }, [activeCell, containerSize.height, containerSize.width, currentHit, labelWidth, renderVersion, scrollbarSize, searchResults, scroll.left, scroll.top, selectedRows, selectionBlock, visibleRanges.visible]);
+  }, [activeCell, cellFocused, containerSize.height, containerSize.width, currentHit, labelWidth, renderVersion, scrollbarSize, searchResults, scroll.left, scroll.top, selectedRows, selectionBlock, visibleRanges.visible]);
 
   const onScroll = useCallback(() => {
     const scroller = scrollerRef.current;
@@ -502,7 +506,6 @@ export const AlignmentGrid = ({
       });
       onSelectedRows(selection.rows);
       onSelectionAnchorRow(selection.anchorRow);
-      onActiveCell({ col: activeCell.col, row: point.row });
       onSelectionBlock(null);
       return;
     }

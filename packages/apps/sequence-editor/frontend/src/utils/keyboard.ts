@@ -1,6 +1,7 @@
 export type EditorCommand =
   | { base: string; type: 'mutate' }
   | { direction: 'down' | 'left' | 'right' | 'up'; extend: boolean; type: 'move' }
+  | { direction: 'down' | 'up'; type: 'moveRows' }
   | { direction: 'left' | 'right'; type: 'moveHorizontal' }
   | { type: 'backspace' }
   | { type: 'deleteGap' }
@@ -29,6 +30,12 @@ export const keyToEditorCommand = (event: Pick<KeyboardEvent, 'altKey' | 'ctrlKe
   }
   if (modifier && event.key.toLowerCase() === 'y') {
     return { type: 'redo' };
+  }
+  if (modifier && event.key === 'ArrowDown') {
+    return { direction: 'down', type: 'moveRows' };
+  }
+  if (modifier && event.key === 'ArrowUp') {
+    return { direction: 'up', type: 'moveRows' };
   }
   if (event.altKey && event.key === 'ArrowLeft') {
     return { direction: 'left', type: 'moveHorizontal' };

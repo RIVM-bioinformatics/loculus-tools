@@ -13,6 +13,7 @@ export interface EditorState {
   announcement: string;
   busy: boolean;
   busyLabel: null | string;
+  cellFocused: boolean;
   currentHit: number;
   dataRevision: number;
   datasetLabel: string;
@@ -42,6 +43,7 @@ export const initialEditorState: EditorState = {
   announcement: '',
   busy: false,
   busyLabel: null,
+  cellFocused: false,
   currentHit: 0,
   dataRevision: 0,
   datasetLabel: 'Untitled alignment',
@@ -66,6 +68,7 @@ export type EditorAction =
   | { message: string; type: 'commandFailed' }
   | { type: 'setActiveCell'; value: ActiveCell }
   | { type: 'setAnnouncement'; value: string }
+  | { type: 'setCellFocused'; value: boolean }
   | { type: 'setCurrentHit'; value: number }
   | { type: 'setDatasetLabel'; value: string }
   | { type: 'setDialog'; value: 'import' | 'none' }
@@ -87,6 +90,7 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
         announcement: action.message,
         busy: false,
         busyLabel: null,
+        cellFocused: false,
         error: action.message,
         status: null,
       };
@@ -127,6 +131,8 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
       return { ...state, announcement: action.value };
     case 'setBusy':
       return { ...state, busy: true, busyLabel: action.label, error: null };
+    case 'setCellFocused':
+      return { ...state, cellFocused: action.value };
     case 'setCurrentHit':
       return { ...state, currentHit: action.value };
     case 'setDatasetLabel':

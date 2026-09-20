@@ -19,6 +19,7 @@ import {
 import type { EditorCommand } from '../../utils/keyboard';
 import {
   columnsForBlock,
+  moveRowSelection,
   mutationRows,
   rowsForBlock,
   selectionBlockForMove,
@@ -286,26 +287,56 @@ export const useSequenceEditor = (engine: EngineClient) => {
   );
 
   const moveRowsUp = useCallback(
-    async (rows: number[]) => runCommand(
-      'Moving rows',
-      async () => {
-        await moveRowsUpEngine(rows);
-        await refreshMetadata();
-      },
-      { dirty: true, status: 'Rows moved.', updateRevision: true },
-    ),
+    async (rows: number[]) => {
+      await runCommand(
+        'Moving rows',
+        async () => {
+          await moveRowsUpEngine(rows);
+          await refreshMetadata();
+        },
+        { dirty: true, status: 'Rows moved.', updateRevision: true },
+      );
+      const current = stateRef.current;
+      const moved = moveRowSelection({
+        activeRow: current.activeCell.row,
+        anchorRow: current.selectionAnchorRow,
+        block: current.selectionBlock,
+        direction: 'up',
+        rowCount: current.metadata?.sequences ?? 0,
+        rows,
+      });
+      dispatch({ type: 'setActiveCell', value: { col: current.activeCell.col, row: moved.activeRow } });
+      dispatch({ type: 'setSelectedRows', value: moved.rows });
+      dispatch({ type: 'setSelectionAnchorRow', value: moved.anchorRow });
+      dispatch({ type: 'setSelectionBlock', value: moved.block });
+    },
     [moveRowsUpEngine, refreshMetadata, runCommand],
   );
 
   const moveRowsDown = useCallback(
-    async (rows: number[]) => runCommand(
-      'Moving rows',
-      async () => {
-        await moveRowsDownEngine(rows);
-        await refreshMetadata();
-      },
-      { dirty: true, status: 'Rows moved.', updateRevision: true },
-    ),
+    async (rows: number[]) => {
+      await runCommand(
+        'Moving rows',
+        async () => {
+          await moveRowsDownEngine(rows);
+          await refreshMetadata();
+        },
+        { dirty: true, status: 'Rows moved.', updateRevision: true },
+      );
+      const current = stateRef.current;
+      const moved = moveRowSelection({
+        activeRow: current.activeCell.row,
+        anchorRow: current.selectionAnchorRow,
+        block: current.selectionBlock,
+        direction: 'down',
+        rowCount: current.metadata?.sequences ?? 0,
+        rows,
+      });
+      dispatch({ type: 'setActiveCell', value: { col: current.activeCell.col, row: moved.activeRow } });
+      dispatch({ type: 'setSelectedRows', value: moved.rows });
+      dispatch({ type: 'setSelectionAnchorRow', value: moved.anchorRow });
+      dispatch({ type: 'setSelectionBlock', value: moved.block });
+    },
     [moveRowsDownEngine, refreshMetadata, runCommand],
   );
 
@@ -326,6 +357,10 @@ export const useSequenceEditor = (engine: EngineClient) => {
     const metadata = current.metadata;
     if (!metadata || metadata.sequences === 0 || current.busy) {
       return;
+    }
+
+    if (command.type !== 'moveRows' && command.type !== 'redo' && command.type !== 'undo') {
+      dispatch({ type: 'setCellFocused', value: true });
     }
 
     const active = current.activeCell;
@@ -418,6 +453,16 @@ export const useSequenceEditor = (engine: EngineClient) => {
         });
         return;
       }
+      case 'moveRows':
+        if (current.selectionBlock || current.selectedRows.length > 0) {
+          const targetRows = current.selectedRows.length > 0
+            ? current.selectedRows
+            : selectionRows;
+          await (command.direction === 'up' ? moveRowsUp(targetRows) : moveRowsDown(targetRows));
+        } else {
+          await (command.direction === 'up' ? moveRowsUp([active.row]) : moveRowsDown([active.row]));
+        }
+        return;
       case 'mutate':
         if (current.selectionBlock) {
           await mutateRange(selectionRows, selectionStartCol, selectionEndCol, command.base);
@@ -443,7 +488,7 @@ export const useSequenceEditor = (engine: EngineClient) => {
       default:
         return;
     }
-  }, [deleteBasesCommand, insert, moveHorizontal, mutate, mutateRange, redo, undo]);
+  }, [deleteBasesCommand, insert, moveHorizontal, moveRowsDown, moveRowsUp, mutate, mutateRange, redo, undo]);
 
   return {
     clearError: () => dispatch({ type: 'setError', value: null }),
@@ -460,7 +505,10 @@ export const useSequenceEditor = (engine: EngineClient) => {
     redo,
     refreshMetadata,
     search,
-    setActiveCell: (row: number, col: number) => dispatch({ type: 'setActiveCell', value: { col, row } }),
+    setActiveCell: (row: number, col: number) => {
+      dispatch({ type: 'setActiveCell', value: { col, row } });
+      dispatch({ type: 'setCellFocused', value: true });
+    },
     setDatasetLabel: (value: string) => dispatch({ type: 'setDatasetLabel', value }),
     setDialog: (value: 'import' | 'none') => dispatch({ type: 'setDialog', value }),
     setPanel: (value: 'none' | 'settings') => dispatch({ type: 'setPanel', value }),

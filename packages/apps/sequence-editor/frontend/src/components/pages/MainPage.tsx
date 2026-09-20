@@ -289,6 +289,7 @@ export const MainPage = () => {
               <AlignmentGrid
                 activeCell={state.activeCell}
                 busy={state.busy}
+                cellFocused={state.cellFocused}
                 currentHit={state.currentHit}
                 dataRevision={state.dataRevision}
                 datasetRevision={state.datasetRevision}

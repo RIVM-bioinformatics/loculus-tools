@@ -359,6 +359,10 @@ export const useSequenceEditor = (engine: EngineClient) => {
       return;
     }
 
+    if (!current.cellFocused && command.type !== 'moveRows' && command.type !== 'redo' && command.type !== 'undo') {
+      return;
+    }
+
     if (command.type !== 'moveRows' && command.type !== 'redo' && command.type !== 'undo') {
       dispatch({ type: 'setCellFocused', value: true });
     }
@@ -509,6 +513,7 @@ export const useSequenceEditor = (engine: EngineClient) => {
       dispatch({ type: 'setActiveCell', value: { col, row } });
       dispatch({ type: 'setCellFocused', value: true });
     },
+    setCellFocused: (value: boolean) => dispatch({ type: 'setCellFocused', value }),
     setDatasetLabel: (value: string) => dispatch({ type: 'setDatasetLabel', value }),
     setDialog: (value: 'import' | 'none') => dispatch({ type: 'setDialog', value }),
     setPanel: (value: 'none' | 'settings') => dispatch({ type: 'setPanel', value }),

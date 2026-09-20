@@ -51,6 +51,7 @@ interface AlignmentGridProps {
   eng: EngineClient;
   meta: Meta;
   onActiveCell: (cell: ActiveCell) => void;
+  onCellFocused: (focused: boolean) => void;
   onExecuteCommand: (command: ReturnType<typeof keyToEditorCommand> extends infer T ? Exclude<T, null> : never) => Promise<void>;
   onSelectedRows: (rows: number[]) => void;
   onSelectionAnchorRow: (row: null | number) => void;
@@ -106,6 +107,7 @@ export const AlignmentGrid = ({
   eng,
   meta,
   onActiveCell,
+  onCellFocused,
   onExecuteCommand,
   onSelectedRows,
   onSelectionAnchorRow,
@@ -507,6 +509,7 @@ export const AlignmentGrid = ({
       onSelectedRows(selection.rows);
       onSelectionAnchorRow(selection.anchorRow);
       onSelectionBlock(null);
+      onCellFocused(false);
       return;
     }
     if (point.surface !== 'cell' || point.col >= meta.width) {
@@ -526,7 +529,7 @@ export const AlignmentGrid = ({
     }
     dragRef.current = { startCol: point.col, startRow: point.row };
     scroller.setPointerCapture(event.pointerId);
-  }, [activeCell.col, activeCell.row, gridGeometry, meta.sequences, meta.width, onActiveCell, onSelectedRows, onSelectionAnchorRow, onSelectionBlock, selectedRows, selectionAnchorRow]);
+  }, [activeCell.col, activeCell.row, gridGeometry, meta.sequences, meta.width, onActiveCell, onCellFocused, onSelectedRows, onSelectionAnchorRow, onSelectionBlock, selectedRows, selectionAnchorRow]);
 
   const onPointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;

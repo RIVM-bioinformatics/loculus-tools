@@ -296,6 +296,7 @@ export const MainPage = () => {
                 eng={engine}
                 meta={metadata}
                 onActiveCell={onGridActiveCell}
+                onCellFocused={editor.setCellFocused}
                 onExecuteCommand={editor.executeCommand}
                 onSelectedRows={editor.setSelectedRows}
                 onSelectionAnchorRow={editor.setSelectionAnchorRow}

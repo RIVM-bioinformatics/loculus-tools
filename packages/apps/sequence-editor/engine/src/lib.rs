@@ -603,9 +603,7 @@ impl MsaEngine {
                 viewport.extend_from_slice(&frame[start_col..start_col + frame_cols]);
             }
             // Pad the remainder of the row with spaces, same as `update_viewport`.
-            for _ in frame_cols..cols {
-                viewport.push(b' ');
-            }
+            viewport.extend(std::iter::repeat_n(b' ', cols - frame_cols));
         }
 
         js_sys::Uint8Array::from(&viewport[..])
@@ -860,12 +858,9 @@ impl MsaEngine {
 
         for r in 0..self.nucleotide_sequences.len() {
             let seq = &mut self.nucleotide_sequences[r];
-            if col_idx < seq.len() {
-                if target_rows.contains(&r) {
-                    seq.remove(col_idx);
-                    seq.push(b'-'); // Pad at end to keep width unchanged
-                }
-                // Non-target rows: completely untouched
+            if col_idx < seq.len() && target_rows.contains(&r) {
+                seq.remove(col_idx);
+                seq.push(b'-'); // Pad at end to keep width unchanged
             }
         }
         // Width unchanged
@@ -1074,7 +1069,7 @@ impl MsaEngine {
                 let paired_len = mutated_rows.len().min(old_bases.len());
                 let mut redo_rows: Vec<usize> = Vec::with_capacity(paired_len);
                 let mut redo_old_bases: Vec<u8> = Vec::with_capacity(paired_len);
-                for (r, old_base) in mutated_rows.into_iter().zip(old_bases.into_iter()) {
+                for (r, old_base) in mutated_rows.into_iter().zip(old_bases) {
                     if let Some(seq) = self.nucleotide_sequences.get_mut(r) {
                         if col_idx < seq.len() {
                             redo_rows.push(r);
@@ -1168,7 +1163,7 @@ impl MsaEngine {
                 let paired_len = mutated_rows.len().min(old_bases.len());
                 let mut undo_rows: Vec<usize> = Vec::with_capacity(paired_len);
                 let mut undo_old_bases: Vec<u8> = Vec::with_capacity(paired_len);
-                for (r, old_base) in mutated_rows.into_iter().zip(old_bases.into_iter()) {
+                for (r, old_base) in mutated_rows.into_iter().zip(old_bases) {
                     if let Some(seq) = self.nucleotide_sequences.get_mut(r) {
                         if col_idx < seq.len() {
                             undo_rows.push(r);

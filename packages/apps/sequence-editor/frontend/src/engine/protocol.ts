@@ -54,10 +54,10 @@ export type EngineRequest =
     type: 'viewport';
   }
   | { fasta: string; reqId: number; type: 'load' }
-  | { reqId: number; type: 'exportFasta' }
   | { reqId: number; row: number; type: 'name' }
   | { reqId: number; rows: Uint32Array; type: 'moveRowsDown' }
   | { reqId: number; rows: Uint32Array; type: 'moveRowsUp' }
+  | { reqId: number; type: 'exportFasta' }
   | { reqId: number; type: 'meta' }
   | { reqId: number; type: 'redo' }
   | { reqId: number; type: 'undo' };

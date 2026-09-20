@@ -2,10 +2,9 @@ import type {
   Meta,
   SearchResult,
 } from '../engine/protocol';
-import {
-  makeAliViewDefaultPalette,
-  type PaletteModel,
-} from './palette';
+
+import { makeAliViewDefaultPalette } from './palette';
+import type { PaletteModel } from './palette';
 
 export interface ActiveCell {
   col: number;
@@ -79,8 +78,8 @@ export type EditorAction =
   | { type: 'setDirty'; value: boolean }
   | { type: 'setError'; value: null | string }
   | { type: 'setMetadata'; value: Meta | null }
-  | { type: 'setPanel'; value: 'none' | 'settings' }
   | { type: 'setPalette'; value: PaletteModel }
+  | { type: 'setPanel'; value: 'none' | 'settings' }
   | { type: 'setSearchResults'; value: null | SearchResult }
   | { type: 'setSelectedRows'; value: number[] }
   | { type: 'setSelectionAnchorRow'; value: null | number }
@@ -95,7 +94,6 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
         announcement: action.message,
         busy: false,
         busyLabel: null,
-        cellFocused: false,
         error: action.message,
         status: null,
       };
@@ -150,10 +148,10 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
       return { ...state, error: action.value };
     case 'setMetadata':
       return { ...state, metadata: action.value };
-    case 'setPanel':
-      return { ...state, openPanel: action.value };
     case 'setPalette':
       return { ...state, palette: action.value };
+    case 'setPanel':
+      return { ...state, openPanel: action.value };
     case 'setSearchResults':
       return { ...state, currentHit: 0, searchResults: action.value };
     case 'setSelectedRows':

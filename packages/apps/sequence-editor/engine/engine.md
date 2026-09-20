@@ -566,14 +566,16 @@ or the hook is unmounted.
 > metadata in `data`, the raw buffer in `transfer`, and reassemble on the main
 > thread.
 
-### 7.4 From the MUI Test Harness
+### 7.4 From the production React editor
 
-`frontend/src/TestHarness.tsx` is a throwaway MUI UI that validates the engine
-end-to-end: load a FASTA, fetch a slice, apply a mutation/insertion/delete,
-refetch, and visually confirm the bytes changed. It renders slices as plain
-colorized text (no Canvas/WebGL) — the goal is correctness, not performance.
-The sliding-window viewport rendering it demonstrates is the pattern the
-production Canvas renderer will build on.
+`frontend/src/components/pages/MainPage.tsx` is the user-facing shell. It owns
+the worker hook, the reducer-backed `useSequenceEditor` controller, import and
+export dialogs, search, palette settings, and status announcements.
+`frontend/src/components/editor/AlignmentGrid.tsx` requests an overscanned
+viewport rectangle, renders visible cells with ordered canvas layers, and
+forwards pointer and keyboard commands to the controller. `TestHarness.tsx`,
+`BenchmarkPanel.tsx`, and `SliceCanvas.tsx` remain developer diagnostics and are
+not mounted by `main.tsx`.
 
 ---
 
@@ -589,7 +591,7 @@ production Canvas renderer will build on.
                           [ SharedArrayBuffer / Uint8Array ]
                                   │
                                   ▼
-                          [ Canvas Render Loop (rAF) ]
+                          [ AlignmentGrid Canvas Layers ]
 ```
 
 - **Rust/WASM (the engine)** — the brain: matrix, mutation math, parsing,
@@ -598,11 +600,10 @@ production Canvas renderer will build on.
   off the main thread so parsing/mutation/viewport extraction never block the UI
   or the render loop.
 - **React (the shell)** — high-level UI state; never touches WASM directly.
-- **Canvas (the viewport)** — a 2D `<canvas>` renderer that reads raw bytes
-  produced by the engine (relayed through the worker) and paints the visible
-  window each frame. This mirrors the sliding-window viewport approach used in
-  the test harness and is deliberately preferred over a WebGL pipeline for
-  long-term maintainability.
+- **Canvas (the viewport)** — `AlignmentGrid` reads visible bytes produced by
+  the engine (relayed through the worker) and paints base, search, selection,
+  cursor, ruler, and gutter layers. It keeps names in a visible-row cache and
+  discards stale viewport responses by dataset and edit revision.
 
 The engine is deliberately decoupled from all of this. It exposes a synchronous,
 windowed, mutation-oriented API; the worker and UI layers decide how to schedule
@@ -627,8 +628,8 @@ and render.
 
 ## 10. Current Status & Roadmap
 
-The engine currently implements the core data layer and mutation/history
-capabilities. The surrounding consumer layers (worker bridge, test harness) are
+The engine implements the core data, mutation/history, search, translation, and
+export capabilities. The worker bridge and production React consumer are
 implemented in `frontend/` and are described in the companion documents.
 
 | Area | Status |
@@ -638,14 +639,14 @@ implemented in `frontend/` and are described in the companion documents.
 | Mutation core | ✅ Done (`mutate_base_subset`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and error codes |
 | Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
 | Web Worker bridge | ✅ Done (in `frontend/`, consumes the engine) |
-| MUI test harness | ✅ Done (in `frontend/`, consumes the engine) |
-| Canvas renderer | ⏳ Planned (2D `<canvas>` sliding-window viewport, in `frontend/`) |
+| Production React editor | ✅ Done (`MainPage`, controller, import/export, search, palette, status UI) |
+| Virtualized canvas renderer | ✅ Done (`AlignmentGrid`, overscanned 2D viewport, DPR canvas layers) |
 | Translation layer | ✅ Done (three reading-frame translated viewports) |
 | Sequence search | ✅ Done (exact nucleotide, cached amino-acid, and optional record-name hits) |
 
 The engine covers the core data, mutation, history, translation, search, and
-export layers. UI render-mode state, hit navigation, and the production Canvas
-renderer remain consumer-layer responsibilities.
+export layers. UI render-mode state, hit navigation, selection, and palette
+state remain consumer-layer responsibilities.
 
 ---
 
@@ -655,10 +656,9 @@ renderer remain consumer-layer responsibilities.
   caller must detect and handle raggedness via `get_row_length`.
 - **Structural snapshot cost:** Full-matrix snapshots are fine at ~16MB but
   would need revisiting for much larger alignments.
-- **Canvas renderer:** The production renderer will be a 2D `<canvas>` that
-  paints the sliding-window viewport (the same pattern demonstrated by the test
-  harness), rather than a WebGL pipeline. This keeps the rendering layer simple
-  and maintainable while still hitting 60 FPS for the expected dataset sizes.
+- **Rendering limits:** The production renderer is a 2D canvas with an
+  overscanned viewport rather than WebGL. Very large alignments may still need
+  further profiling and tuning as interaction requirements grow.
 - **Translation and search scope:** Translation currently serves fixed-stride
   visible ranges for one of three frames. Search currently returns exact-match
   coordinates for nucleotide data, cached translations, and optional record

@@ -1,4 +1,3 @@
-import type { ChangeEvent } from 'react';
 import { useCallback } from 'react';
 import {
   Accordion,
@@ -16,86 +15,21 @@ import RestartAltOutlinedIcon from '@mui/icons-material/RestartAltOutlined';
 import {
   AMINO_ACID_SYMBOLS,
   NUCLEOTIDE_SYMBOLS,
-  type AminoAcidSymbol,
-  type NucleotideSymbol,
-  type PaletteEntry,
-  type PaletteModel,
 } from '../../models';
+import type {
+  AminoAcidSymbol,
+  NucleotideSymbol,
+  PaletteEntry,
+  PaletteModel,
+} from '../../models';
+
+import { ColorRow } from './ColorRow';
 
 interface ColorSettingsPanelProps {
   onChange: (palette: PaletteModel) => void;
   onReset: () => void;
   palette: PaletteModel;
 }
-
-const ColorInput = ({
-  label,
-  onChange,
-  value,
-}: {
-  label: string;
-  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  value: string;
-}) => (
-  <Box
-    component={'label'}
-    sx={{ alignItems: 'center', display: 'flex', gap: 0.75 }}
-  >
-    <Box
-      aria-label={label}
-      component={'input'}
-      onChange={onChange}
-      sx={{
-        border: '1px solid',
-        borderColor: 'divider',
-        cursor: 'pointer',
-        height: 28,
-        p: 0.25,
-        width: 40,
-      }}
-      type={'color'}
-      value={value}
-    />
-    <Typography
-      color={'text.secondary'}
-      component={'span'}
-      sx={{ fontSize: '0.72rem' }}
-    >
-      {label}
-    </Typography>
-  </Box>
-);
-
-const ColorRow = ({
-  entry,
-  onChange,
-  symbol,
-}: {
-  entry: PaletteEntry;
-  onChange: (field: keyof PaletteEntry, value: string) => void;
-  symbol: string;
-}) => (
-  <Box
-    sx={{ alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', gap: 1, justifyContent: 'space-between', py: 0.75 }}
-  >
-    <Typography
-      component={'span'}
-      sx={{ fontFamily: 'monospace', fontWeight: 700, minWidth: 20 }}
-    >
-      {symbol}
-    </Typography>
-    <ColorInput
-      label={'Foreground'}
-      onChange={(event) => onChange('foreground', event.target.value)}
-      value={entry.foreground}
-    />
-    <ColorInput
-      label={'Background'}
-      onChange={(event) => onChange('background', event.target.value)}
-      value={entry.background}
-    />
-  </Box>
-);
 
 export const ColorSettingsPanel = ({
   onChange,
@@ -122,6 +56,14 @@ export const ColorSettingsPanel = ({
     });
   }, [onChange, palette]);
 
+  const onNucleotideChange = useCallback((symbol: string, field: keyof PaletteEntry, value: string) => {
+    updateNucleotide(symbol as NucleotideSymbol, field, value);
+  }, [updateNucleotide]);
+
+  const onAminoAcidChange = useCallback((symbol: string, field: keyof PaletteEntry, value: string) => {
+    updateAminoAcid(symbol as AminoAcidSymbol, field, value);
+  }, [updateAminoAcid]);
+
   return (
     <Stack spacing={1.5}>
       <Box>
@@ -140,8 +82,8 @@ export const ColorSettingsPanel = ({
           <ColorRow
             entry={palette.nucleotide[symbol]}
             key={symbol}
-            onChange={(field, value) => updateNucleotide(symbol, field, value)}
-            symbol={symbol === '-' ? 'gap' : symbol}
+            onChange={onNucleotideChange}
+            symbol={symbol}
           />
         ))}
       </Stack>
@@ -164,8 +106,8 @@ export const ColorSettingsPanel = ({
             <ColorRow
               entry={palette.aminoAcid[symbol]}
               key={symbol}
-              onChange={(field, value) => updateAminoAcid(symbol, field, value)}
-              symbol={symbol === '-' ? 'gap' : symbol}
+              onChange={onAminoAcidChange}
+              symbol={symbol}
             />
           ))}
         </AccordionDetails>

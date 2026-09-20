@@ -1,7 +1,7 @@
-import {
-  makeAliViewDefaultPalette,
-  type PaletteEntry,
-  type PaletteModel,
+import { makeAliViewDefaultPalette } from '../models/palette';
+import type {
+  PaletteEntry,
+  PaletteModel,
 } from '../models/palette';
 
 export const PALETTE_STORAGE_KEY = 'sequence-editor.palette.v1';
@@ -39,9 +39,9 @@ export const sanitizePalette = (value: unknown): PaletteModel => {
     return fallback;
   }
   return {
-    aminoAcid: mergeEntries(value.aminoAcid, fallback.aminoAcid) as PaletteModel['aminoAcid'],
+    aminoAcid: mergeEntries(value.aminoAcid, fallback.aminoAcid),
     name: typeof value.name === 'string' && value.name.trim() ? value.name : fallback.name,
-    nucleotide: mergeEntries(value.nucleotide, fallback.nucleotide) as PaletteModel['nucleotide'],
+    nucleotide: mergeEntries(value.nucleotide, fallback.nucleotide),
     version: 1,
   };
 };

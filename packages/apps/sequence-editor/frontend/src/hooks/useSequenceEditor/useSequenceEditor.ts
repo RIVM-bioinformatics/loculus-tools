@@ -14,19 +14,15 @@ import {
   editorReducer,
   initialEditorState,
 } from '../../models/editor';
-import {
-  makeAliViewDefaultPalette,
-  type PaletteModel,
-} from '../../models/palette';
+import { makeAliViewDefaultPalette } from '../../models/palette';
+import type { PaletteModel } from '../../models/palette';
 import {
   datasetFilename,
   downloadText,
   preflightFasta,
 } from '../../utils/fasta';
 import type { EditorCommand } from '../../utils/keyboard';
-import {
-  filterSearchResults,
-} from '../../utils/search';
+import { filterSearchResults } from '../../utils/search';
 import {
   columnsForBlock,
   moveRowSelection,
@@ -39,30 +35,7 @@ import {
   sanitizePalette,
   savePalette,
 } from '../../utils/palette';
-
-const ENGINE_ERROR_MESSAGES = new Map<string, string>([
-  ['DeleteNotGap', 'Delete failed: the selected position is not a gap.'],
-  ['MoveNoGapTarget', 'Move failed: the target position must be a gap.'],
-  ['MoveNotIupac', 'Move failed: only nucleotide or gap characters can move.'],
-  ['MutateNotIupac', 'Edit failed: use a nucleotide, IUPAC ambiguity code, or gap.'],
-]);
-
-const getErrorCode = (error: unknown): null | string => {
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    const code = (error as { code?: unknown }).code;
-    return typeof code === 'string' ? code : null;
-  }
-  return null;
-};
-
-const getErrorMessage = (error: unknown): string => {
-  const code = getErrorCode(error);
-  const mappedMessage = code ? ENGINE_ERROR_MESSAGES.get(code) : undefined;
-  if (mappedMessage) {
-    return mappedMessage;
-  }
-  return error instanceof Error ? error.message : 'The sequence-editor command failed.';
-};
+import { getEngineErrorMessage } from '../../utils/engineErrors';
 
 interface CommandOptions {
   dirty: boolean;
@@ -116,7 +89,7 @@ export const useSequenceEditor = (engine: EngineClient) => {
           });
           return result;
         } catch (error: unknown) {
-          dispatch({ message: getErrorMessage(error), type: 'commandFailed' });
+          dispatch({ message: getEngineErrorMessage(error), type: 'commandFailed' });
           throw error;
         }
       };
@@ -143,7 +116,7 @@ export const useSequenceEditor = (engine: EngineClient) => {
   useEffect(() => {
     if (ready) {
       void refreshMetadata().catch((error: unknown) => {
-        dispatch({ message: getErrorMessage(error), type: 'commandFailed' });
+        dispatch({ message: getEngineErrorMessage(error), type: 'commandFailed' });
       });
     }
   }, [ready, refreshMetadata]);
@@ -160,7 +133,7 @@ export const useSequenceEditor = (engine: EngineClient) => {
       try {
         preflight = preflightFasta(fasta);
       } catch (error: unknown) {
-        const message = getErrorMessage(error);
+        const message = getEngineErrorMessage(error);
         dispatch({ message, type: 'commandFailed' });
         throw error;
       }
@@ -380,7 +353,7 @@ export const useSequenceEditor = (engine: EngineClient) => {
         });
         return results;
       } catch (error: unknown) {
-        dispatch({ message: getErrorMessage(error), type: 'commandFailed' });
+        dispatch({ message: getEngineErrorMessage(error), type: 'commandFailed' });
         return null;
       }
     },
@@ -555,21 +528,21 @@ export const useSequenceEditor = (engine: EngineClient) => {
     mutate,
     redo,
     refreshMetadata,
+    resetPalette,
     search,
     setActiveCell: (row: number, col: number) => {
       dispatch({ type: 'setActiveCell', value: { col, row } });
       dispatch({ type: 'setCellFocused', value: true });
     },
     setCellFocused: (value: boolean) => dispatch({ type: 'setCellFocused', value }),
+    setCurrentHit: (value: number) => dispatch({ type: 'setCurrentHit', value }),
     setDatasetLabel: (value: string) => dispatch({ type: 'setDatasetLabel', value }),
     setDialog: (value: 'import' | 'none') => dispatch({ type: 'setDialog', value }),
-    setPanel: (value: 'none' | 'settings') => dispatch({ type: 'setPanel', value }),
     setPalette,
-    resetPalette,
+    setPanel: (value: 'none' | 'settings') => dispatch({ type: 'setPanel', value }),
     setSelectedRows: (value: number[]) => dispatch({ type: 'setSelectedRows', value }),
     setSelectionAnchorRow: (value: null | number) => dispatch({ type: 'setSelectionAnchorRow', value }),
     setSelectionBlock: (value: { endCol: number; startCol: number } | null) => dispatch({ type: 'setSelectionBlock', value }),
-    setCurrentHit: (value: number) => dispatch({ type: 'setCurrentHit', value }),
     setStatus: (value: null | string) => dispatch({ type: 'setStatus', value }),
     state,
     undo,

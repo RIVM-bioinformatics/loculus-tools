@@ -574,7 +574,7 @@ export const AlignmentGrid = ({
       return;
     }
     event.preventDefault();
-    void onExecuteCommand(command);
+    void onExecuteCommand(command).catch(() => undefined);
   }, [busy, onExecuteCommand]);
 
   const onPointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {

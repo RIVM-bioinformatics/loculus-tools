@@ -80,12 +80,12 @@ const makeEntries = <T extends readonly string[]>(
 ) as Record<T[number], PaletteEntry>;
 
 const aliViewNucleotideColors: Record<string, PaletteEntry> = {
+  '-': entry('#808080', '#FAFAFA'),
   A: entry('#018001', '#5ADC5A'),
   C: entry('#0101FF', '#6464FA'),
   G: entry('#000000', '#5A5A5A'),
   T: entry('#FF0101', '#F58282'),
   U: entry('#FF0101', '#F58282'),
-  '-': entry('#808080', '#FAFAFA'),
   X: entry('#00FFFF', '#FFFFFF'),
 };
 

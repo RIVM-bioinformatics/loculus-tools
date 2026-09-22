@@ -29,3 +29,5 @@ export const TRIGGER_COLS = Math.round(OVERSCAN * 0.3); // 30
 
 
 export const VIEWPORT_H = 480; // fixed canvas height
+
+export const SAB_MAX_BYTES = 80 * 200_000;

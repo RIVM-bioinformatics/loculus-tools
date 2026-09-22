@@ -4,20 +4,20 @@ import {
   useRef,
 } from 'react';
 
-import type { ViewportResult } from './engine/protocol';
 import {
   CELL_H,
   CELL_W,
   LABEL_W,
-} from './constants';
-import { SeqEditorUtil } from './utils/SeqEditorUtil';
+} from '../../constants';
+import { SeqEditorUtil } from '../../utils/SeqEditorUtil';
+import type { EngineViewportResult } from '../../models';
 
 export const SliceCanvas = ({
   names,
   slice,
 }: {
   names: string[];
-  slice: { bytes: Uint8Array } & ViewportResult;
+  slice: { bytes: Uint8Array } & EngineViewportResult;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 

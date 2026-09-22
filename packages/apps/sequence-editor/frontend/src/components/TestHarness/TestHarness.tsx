@@ -1,7 +1,10 @@
 import {
   useCallback,
+  useEffect,
+  useMemo,
   useState,
 } from 'react';
+import type { ChangeEvent } from 'react';
 import {
   Alert,
   AppBar,
@@ -19,17 +22,27 @@ import {
   Typography,
 } from '@mui/material';
 
-import { useEngineWorker } from './engine/useEngineWorker';
+import { ScrollingViewport } from '../ScrollingViewport';
+import { SliceCanvas } from '../SliceCanvas';
+import { SAMPLE_FASTA } from '../../constants';
+import { SeqEditorUtil } from '../../utils/SeqEditorUtil';
+import { createEngineWorker } from '../../workers';
 import type {
-  Meta,
-  SearchResult,
-  ViewportResult,
-} from './engine/protocol';
-import { BenchmarkPanel } from './BenchmarkPanel';
-import { ScrollingViewport } from './ScrollingViewport';
-import { SliceCanvas } from './SliceCanvas';
-import { SAMPLE_FASTA } from './constants';
-import { SeqEditorUtil } from './utils/SeqEditorUtil';
+  EngineMeta,
+  EngineSearchResult,
+  EngineViewportResult,
+} from '../../models';
+
+const formatError = (error: unknown): string => {
+  if (typeof error === 'object' && error !== null) {
+    const code = 'code' in error ? error.code : undefined;
+    const message = 'message' in error ? error.message : undefined;
+    if (typeof code === 'string' && typeof message === 'string') {
+      return `${code}: ${message}`;
+    }
+  }
+  return String(error);
+};
 
 
 /**
@@ -44,20 +57,40 @@ import { SeqEditorUtil } from './utils/SeqEditorUtil';
 
 
 export const TestHarness = () => {
-  const eng = useEngineWorker();
+  const engine = useMemo(() => createEngineWorker(), []);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void engine
+      .initialize()
+      .then(() => {
+        if (!cancelled) {
+          setReady(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setReady(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [engine]);
 
   const [fasta, setFasta] = useState(SAMPLE_FASTA);
   const [searchQuery, setSearchQuery] = useState<string>('ATG');
   const [status, setStatus] = useState<string>('');
   const [err, setErr] = useState<string>('');
-  const [meta, setMeta] = useState<Meta | null>(null);
-  const [slice, setSlice] = useState<({ bytes: Uint8Array } & ViewportResult) | null>(null);
+  const [meta, setMeta] = useState<EngineMeta | null>(null);
+  const [slice, setSlice] = useState<({ bytes: Uint8Array } & EngineViewportResult) | null>(null);
   const [sliceRows, setSliceRows] = useState<{ name: string; row: number; text: string }[]>([]);
-  const [searchResult, setSearchResult] = useState<null | SearchResult>(null);
+  const [searchResult, setSearchResult] = useState<EngineSearchResult | null>(null);
   const [includeRecordNames, setIncludeRecordNames] = useState(false);
   const [readingFrame, setReadingFrame] = useState<1 | 2 | 3>(1);
   const [aminoAcidRows, setAminoAcidRows] = useState<{ name: string; row: number; text: string }[]>([]);
-  const [aminoAcidSlice, setAminoAcidSlice] = useState<({ bytes: Uint8Array } & ViewportResult) | null>(null);
+  const [aminoAcidSlice, setAminoAcidSlice] = useState<({ bytes: Uint8Array } & EngineViewportResult) | null>(null);
 
   // Slice inputs
   const [r0, setR0] = useState('0');
@@ -75,17 +108,17 @@ export const TestHarness = () => {
 
   const refreshMeta = useCallback(async () => {
     try {
-      const m = await eng.meta();
+      const m = await engine.meta();
       setMeta(m);
     } catch (e) {
       setErr(String(e));
     }
-  }, [eng]);
+  }, [engine]);
 
-  const load = useCallback(async () => {
+  const onClickLoad = useCallback(async () => {
     setErr('');
     try {
-      const n = await eng.load(fasta);
+      const n = await engine.load(fasta);
       setStatus(`Loaded ${n} sequences`);
       await refreshMeta();
       setSlice(null);
@@ -93,27 +126,27 @@ export const TestHarness = () => {
     } catch (e) {
       setErr(String(e));
     }
-  }, [eng, fasta, refreshMeta]);
+  }, [engine, fasta, refreshMeta]);
 
-  const search = useCallback(async () => {
+  const onClickSearch = useCallback(async () => {
     setErr('');
     try {
       // One SearchResult per matrix (nucleotide, amino acid, record names) —
       // merge them into a single flat list for display. Each `Match` already
       // carries `is_nucleotide`/`is_amino_acid`/`is_record_name` flags so the
       // render below can still label which matrix each match came from.
-      const results = await eng.search(searchQuery, includeRecordNames);
+      const results = await engine.search(searchQuery, includeRecordNames);
       setSearchResult(results);
       setStatus(`Found ${results.num_matches} match(es) for "${searchQuery}"`);
     } catch (e) {
       setErr(String(e));
     }
-  }, [eng, searchQuery, includeRecordNames]);
+  }, [engine, searchQuery, includeRecordNames]);
 
-  const fetchSlice = useCallback(async () => {
+  const onClickFetchSlice = useCallback(async () => {
     setErr('');
     try {
-      const res = await eng.viewport({
+      const res = await engine.viewport({
         endCol: Number(c1),
         endRow: Number(r1),
         startCol: Number(c0),
@@ -126,7 +159,7 @@ export const TestHarness = () => {
         const absRow = res.startRow + r;
         const off = r * res.cols;
         const text = new TextDecoder().decode(res.bytes.subarray(off, off + res.cols));
-        const name = await eng.name(absRow);
+        const name = await engine.name(absRow);
         out.push({ name, row: absRow, text });
       }
       setSliceRows(out);
@@ -134,25 +167,24 @@ export const TestHarness = () => {
     } catch (e) {
       setErr(String(e));
     }
-  }, [eng, r0, r1, c0, c1]);
+  }, [engine, r0, r1, c0, c1]);
 
-  const translateToAminoAcids = useCallback(async () => {
+  const onClickTranslateToAminoAcids = useCallback(async () => {
     setErr('');
     try {
-      const res = await eng.translate({
+      const res = await engine.translate({
         endCol: Number(c1),
         endRow: Number(r1),
-        readingFrame: readingFrame - 1, // UI is 1/2/3, engine expects 0/1/2
         startCol: Number(c0),
         startRow: Number(r0),
-      });
+      }, readingFrame - 1); // UI is 1/2/3, engine expects 0/1/2
       setAminoAcidSlice(res);
       const out: { name: string; row: number; text: string }[] = [];
       for (let r = 0; r < res.rows; r++) {
         const absRow = res.startRow + r;
         const off = r * res.cols;
         const text = new TextDecoder().decode(res.bytes.subarray(off, off + res.cols));
-        const name = await eng.name(absRow);
+        const name = await engine.name(absRow);
         out.push({ name, row: absRow, text });
       }
       setAminoAcidRows(out);
@@ -160,7 +192,7 @@ export const TestHarness = () => {
     } catch (e) {
       setErr(String(e));
     }
-  }, [eng, r0, r1, c0, c1, readingFrame]);
+  }, [engine, r0, r1, c0, c1, readingFrame]);
 
   const applyEdit = useCallback(
     async (op: 'delete' | 'deleteColumn' | 'insert' | 'mutate') => {
@@ -169,22 +201,21 @@ export const TestHarness = () => {
         const colNum = Number(col);
         const rows = SeqEditorUtil.parseRows(rowsCsv);
         if (op === 'mutate') {
-          await eng.mutate(rows, colNum, base);
+          await engine.mutate(rows, colNum, base);
         } else if (op === 'insert') {
-          await eng.insert(rows, colNum);
+          await engine.insert(rows, colNum);
         } else if (op === 'delete') {
-          await eng.delete(rows, colNum);
+          await engine.delete(rows, colNum);
         } else {
-          await eng.deleteColumn(colNum);
+          await engine.deleteColumn(colNum);
         }
         setStatus(`${op} applied — refetch slice to verify`);
         await refreshMeta();
-      } catch (e: any) {
-        const msg = e.code ? `${e.code}: ${e.message}` : String(e);
-        setErr(msg);
+      } catch (e) {
+        setErr(formatError(e));
       }
     },
-    [eng, rowsCsv, col, base, refreshMeta],
+    [engine, rowsCsv, col, base, refreshMeta],
   );
 
   const applyMove = useCallback(
@@ -193,15 +224,14 @@ export const TestHarness = () => {
       try {
         const rowNum = Number(moveRow);
         const cols = SeqEditorUtil.parseRows(moveColsCsv);
-        await eng.moveHorizontal(rowNum, cols, direction);
+        await engine.moveHorizontal(rowNum, cols, direction);
         setStatus(`Moved ${direction} — refetch slice to verify`);
         await refreshMeta();
-      } catch (e: any) {
-        const msg = e.code ? `${e.code}: ${e.message}` : String(e);
-        setErr(msg);
+      } catch (e) {
+        setErr(formatError(e));
       }
     },
-    [eng, moveRow, moveColsCsv, refreshMeta],
+    [engine, moveRow, moveColsCsv, refreshMeta],
   );
 
   const applyReorder = useCallback(
@@ -210,41 +240,107 @@ export const TestHarness = () => {
       try {
         const rows = SeqEditorUtil.parseRows(rowsCsv);
         if (dir === 'up') {
-          await eng.moveRowsUp(rows);
+          await engine.moveRowsUp(rows);
         } else {
-          await eng.moveRowsDown(rows);
+          await engine.moveRowsDown(rows);
         }
         setStatus(`Rows moved ${dir} — refetch slice to verify`);
         await refreshMeta();
-      } catch (e: any) {
-        const msg = e.code ? `${e.code}: ${e.message}` : String(e);
-        setErr(msg);
+      } catch (e) {
+        setErr(formatError(e));
       }
     },
-    [eng, rowsCsv, refreshMeta],
+    [engine, rowsCsv, refreshMeta],
   );
 
-  const doUndo = useCallback(async () => {
+  const onClickUndo = useCallback(async () => {
     setErr('');
     try {
-      const ok = await eng.undo();
+      const ok = await engine.undo();
       setStatus(ok ? 'Undone' : 'Undo stack empty');
       await refreshMeta();
     } catch (e) {
       setErr(String(e));
     }
-  }, [eng, refreshMeta]);
+  }, [engine, refreshMeta]);
 
-  const doRedo = useCallback(async () => {
+  const onClickRedo = useCallback(async () => {
     setErr('');
     try {
-      const ok = await eng.redo();
+      const ok = await engine.redo();
       setStatus(ok ? 'Redone' : 'Redo stack empty');
       await refreshMeta();
     } catch (e) {
       setErr(String(e));
     }
-  }, [eng, refreshMeta]);
+  }, [engine, refreshMeta]);
+
+  const onChangeFasta = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setFasta(event.target.value);
+  }, []);
+  const onChangeSearchQuery = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(event.target.value);
+  }, []);
+  const onChangeIncludeRecordNames = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setIncludeRecordNames(event.target.checked);
+  }, []);
+  const onChangeR0 = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setR0(event.target.value);
+  }, []);
+  const onChangeR1 = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setR1(event.target.value);
+  }, []);
+  const onChangeC0 = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setC0(event.target.value);
+  }, []);
+  const onChangeC1 = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setC1(event.target.value);
+  }, []);
+  const onChangeReadingFrame = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setReadingFrame(Number(event.target.value) as 1 | 2 | 3);
+  }, []);
+  const onChangeRowsCsv = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setRowsCsv(event.target.value);
+  }, []);
+  const onChangeCol = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setCol(event.target.value);
+  }, []);
+  const onChangeBase = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setBase(event.target.value.slice(0, 1).toUpperCase());
+  }, []);
+  const onChangeMoveRow = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setMoveRow(event.target.value);
+  }, []);
+  const onChangeMoveColsCsv = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setMoveColsCsv(event.target.value);
+  }, []);
+  const onClickApplyMutate = useCallback(() => {
+    void applyEdit('mutate');
+  }, [applyEdit]);
+  const onClickApplyInsert = useCallback(() => {
+    void applyEdit('insert');
+  }, [applyEdit]);
+  const onClickApplyDelete = useCallback(() => {
+    void applyEdit('delete');
+  }, [applyEdit]);
+  const onClickApplyDeleteColumn = useCallback(() => {
+    void applyEdit('deleteColumn');
+  }, [applyEdit]);
+  const onClickMoveLeft = useCallback(() => {
+    void applyMove('Left');
+  }, [applyMove]);
+  const onClickMoveRight = useCallback(() => {
+    void applyMove('Right');
+  }, [applyMove]);
+  const onClickMoveUp = useCallback(() => {
+    void applyReorder('up');
+  }, [applyReorder]);
+  const onClickMoveDown = useCallback(() => {
+    void applyReorder('down');
+  }, [applyReorder]);
+  const onClickRefreshMeta = useCallback(() => {
+    void refreshMeta();
+  }, [refreshMeta]);
 
 
   return (
@@ -258,8 +354,8 @@ export const TestHarness = () => {
             {'MSA Engine — Test Harness'}
           </Typography>
           <Chip
-            color={eng.ready ? 'success' : 'warning'}
-            label={eng.ready ? 'engine ready' : 'loading wasm…'}
+            color={ready ? 'success' : 'warning'}
+            label={ready ? 'engine ready' : 'loading wasm…'}
             size={'small'}
           />
         </Toolbar>
@@ -279,13 +375,13 @@ export const TestHarness = () => {
               label={'FASTA'}
               minRows={5}
               multiline
-              onChange={(e) => setFasta(e.target.value)}
+              onChange={onChangeFasta}
               sx={{ fontFamily: 'monospace' }}
               value={fasta}
             />
             <Button
-              disabled={!eng.ready}
-              onClick={load}
+              disabled={!ready}
+              onClick={onClickLoad}
               variant={'contained'}
             >
               {'Load'}
@@ -296,7 +392,7 @@ export const TestHarness = () => {
             </Typography>
             <TextField
               label={'query'}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={onChangeSearchQuery}
               size={'small'}
               sx={{ flex: 1 }}
               value={searchQuery}
@@ -305,14 +401,14 @@ export const TestHarness = () => {
               control={(
                 <Checkbox
                   checked={includeRecordNames}
-                  onChange={(e) => setIncludeRecordNames(e.target.checked)}
+                  onChange={onChangeIncludeRecordNames}
                 />
               )}
               label={'Include record names in search'}
             />
             <Button
-              disabled={!eng.ready}
-              onClick={search}
+              disabled={!ready}
+              onClick={onClickSearch}
               variant={'outlined'}
             >
               {'search'}
@@ -329,8 +425,8 @@ export const TestHarness = () => {
                     component={'ul'}
                     sx={{ m: 0, pl: 2 }}
                   >
-                    {searchResult.positions.map((m, i) => (
-                      <li key={i}>
+                    {searchResult.positions.map((m) => (
+                      <li key={`${m.matrix_type}-${m.row}-${m.col}`}>
                         {'['}
                         {m.matrix_type}
                         {'] row'}
@@ -353,32 +449,32 @@ export const TestHarness = () => {
             >
               <TextField
                 label={'r0'}
-                onChange={(e) => setR0(e.target.value)}
+                onChange={onChangeR0}
                 size={'small'}
                 value={r0}
               />
               <TextField
                 label={'r1'}
-                onChange={(e) => setR1(e.target.value)}
+                onChange={onChangeR1}
                 size={'small'}
                 value={r1}
               />
               <TextField
                 label={'c0'}
-                onChange={(e) => setC0(e.target.value)}
+                onChange={onChangeC0}
                 size={'small'}
                 value={c0}
               />
               <TextField
                 label={'c1'}
-                onChange={(e) => setC1(e.target.value)}
+                onChange={onChangeC1}
                 size={'small'}
                 value={c1}
               />
             </Stack>
             <Button
-              disabled={!eng.ready}
-              onClick={fetchSlice}
+              disabled={!ready}
+              onClick={onClickFetchSlice}
               variant={'outlined'}
             >
               {'Fetch slice'}
@@ -389,7 +485,7 @@ export const TestHarness = () => {
             </Typography>
             <TextField
               label={'reading frame'}
-              onChange={(e) => setReadingFrame(Number(e.target.value) as 1 | 2 | 3)}
+              onChange={onChangeReadingFrame}
               select
               size={'small'}
               sx={{ flex: 1 }}
@@ -406,8 +502,8 @@ export const TestHarness = () => {
               </MenuItem>
             </TextField>
             <Button
-              disabled={!eng.ready}
-              onClick={translateToAminoAcids}
+              disabled={!ready}
+              onClick={onClickTranslateToAminoAcids}
               variant={'outlined'}
             >
               {'Translate to Amino Acids'}
@@ -436,21 +532,21 @@ export const TestHarness = () => {
             >
               <TextField
                 label={'rows (csv)'}
-                onChange={(e) => setRowsCsv(e.target.value)}
+                onChange={onChangeRowsCsv}
                 size={'small'}
                 sx={{ flex: 2 }}
                 value={rowsCsv}
               />
               <TextField
                 label={'col'}
-                onChange={(e) => setCol(e.target.value)}
+                onChange={onChangeCol}
                 size={'small'}
                 sx={{ flex: 1 }}
                 value={col}
               />
               <TextField
                 label={'base (mutate only)'}
-                onChange={(e) => setBase(e.target.value.slice(0, 1).toUpperCase())}
+                onChange={onChangeBase}
                 size={'small'}
                 sx={{ flex: 1 }}
                 value={base}
@@ -462,21 +558,21 @@ export const TestHarness = () => {
             >
               <Button
                 color={'primary'}
-                onClick={async () => applyEdit('mutate')}
+                onClick={onClickApplyMutate}
                 variant={'contained'}
               >
                 {'Mutate'}
               </Button>
               <Button
                 color={'secondary'}
-                onClick={async () => applyEdit('insert')}
+                onClick={onClickApplyInsert}
                 variant={'contained'}
               >
                 {"Insert '-'"}
               </Button>
               <Button
                 color={'error'}
-                onClick={async () => applyEdit('delete')}
+                onClick={onClickApplyDelete}
                 variant={'contained'}
               >
                 {'Delete'}
@@ -484,7 +580,7 @@ export const TestHarness = () => {
             </Stack>
             <Button
               color={'error'}
-              onClick={async () => applyEdit('deleteColumn')}
+              onClick={onClickApplyDeleteColumn}
               variant={'outlined'}
             >
               {'Delete column (all rows)'}
@@ -499,14 +595,14 @@ export const TestHarness = () => {
             >
               <TextField
                 label={'row'}
-                onChange={(e) => setMoveRow(e.target.value)}
+                onChange={onChangeMoveRow}
                 size={'small'}
                 sx={{ flex: 1 }}
                 value={moveRow}
               />
               <TextField
                 label={'cols (csv)'}
-                onChange={(e) => setMoveColsCsv(e.target.value)}
+                onChange={onChangeMoveColsCsv}
                 size={'small'}
                 sx={{ flex: 2 }}
                 value={moveColsCsv}
@@ -517,15 +613,15 @@ export const TestHarness = () => {
               spacing={1}
             >
               <Button
-                disabled={!eng.ready}
-                onClick={async () => applyMove('Left')}
+                disabled={!ready}
+                onClick={onClickMoveLeft}
                 variant={'outlined'}
               >
                 {'← Move left'}
               </Button>
               <Button
-                disabled={!eng.ready}
-                onClick={async () => applyMove('Right')}
+                disabled={!ready}
+                onClick={onClickMoveRight}
                 variant={'outlined'}
               >
                 {'Move right →'}
@@ -541,7 +637,7 @@ export const TestHarness = () => {
             >
               <TextField
                 label={'rows (csv)'}
-                onChange={(e) => setRowsCsv(e.target.value)}
+                onChange={onChangeRowsCsv}
                 size={'small'}
                 sx={{ flex: 1 }}
                 value={rowsCsv}
@@ -552,15 +648,15 @@ export const TestHarness = () => {
               spacing={1}
             >
               <Button
-                disabled={!eng.ready}
-                onClick={async () => applyReorder('up')}
+                disabled={!ready}
+                onClick={onClickMoveUp}
                 variant={'outlined'}
               >
                 {'↑ Move row(s) up'}
               </Button>
               <Button
-                disabled={!eng.ready}
-                onClick={async () => applyReorder('down')}
+                disabled={!ready}
+                onClick={onClickMoveDown}
                 variant={'outlined'}
               >
                 {'Move row(s) down ↓'}
@@ -572,22 +668,22 @@ export const TestHarness = () => {
               spacing={1}
             >
               <Button
-                disabled={!eng.ready}
-                onClick={doUndo}
+                disabled={!ready}
+                onClick={onClickUndo}
                 variant={'outlined'}
               >
                 {'Undo'}
               </Button>
               <Button
-                disabled={!eng.ready}
-                onClick={doRedo}
+                disabled={!ready}
+                onClick={onClickRedo}
                 variant={'outlined'}
               >
                 {'Redo'}
               </Button>
               <Button
-                disabled={!eng.ready}
-                onClick={refreshMeta}
+                disabled={!ready}
+                onClick={onClickRefreshMeta}
                 variant={'text'}
               >
                 {'Refresh meta'}
@@ -679,8 +775,9 @@ export const TestHarness = () => {
           </Typography>
           {meta ? (
             <ScrollingViewport
-              eng={eng}
+              engine={engine}
               meta={meta}
+              ready={ready}
             />
           ) : (
             <Alert severity={'info'}>
@@ -688,10 +785,6 @@ export const TestHarness = () => {
             </Alert>
           )}
         </Paper>
-      </Box>
-      {/* ----------------------------- Benchmark ----------------------------- */}
-      <Box sx={{ p: 2, pt: 0 }}>
-        <BenchmarkPanel eng={eng} />
       </Box>
     </Box>
   );

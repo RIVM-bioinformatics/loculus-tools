@@ -1,14 +1,10 @@
-import type { Meta } from '../engine/protocol';
-import type { EngineClient } from '../engine/useEngineWorker';
+export enum MATRIX_TYPE {
+  AMINO_ACID = 'amino_acid',
+  NUCLEOTIDE = 'nucleotide',
+  RECORD_NAME = 'record_name',
+}
 
-export type BenchmarkPanelProps = {
-  eng: EngineClient;
-};
-
-// ---------------------------------------------------------------------------
-// ChunkStore — the in-memory sliding window buffer
-// ---------------------------------------------------------------------------
-
+/** Sliding-window byte buffer used by the scrolling viewport. */
 export interface ChunkStore {
   /** Exclusive right column index (alignment-space). */
   colEnd: number;
@@ -21,21 +17,77 @@ export interface ChunkStore {
   numRows: number;
 }
 
-/** One measured sample: the bridge timing + the render-to-paint time. */
-export interface Sample {
-  bridgeBackMs: number;
-  bridgeOutMs: number;
-  bytes: number;
-  engineMs: number;
-  renderMs: number;
-  totalMs: number;
+/** Metadata describing the currently loaded alignment. */
+export interface EngineMeta {
+  redoDepth: number;
+  sequences: number;
+  undoDepth: number;
+  width: number;
 }
+
+/** A single search match, matching the Rust `search_algorithms::Match`. */
+export interface EngineSearchMatch {
+  col: number;
+  matrix_type: MATRIX_TYPE;
+  row: number;
+}
+
+/** Search results, matching the Rust `search_algorithms::SearchResult`. */
+export interface EngineSearchResult {
+  num_matches: number;
+  positions: EngineSearchMatch[];
+  query: string;
+}
+
+/** A fetched viewport or translation slice plus the metadata to interpret it. */
+export interface EngineViewportResult {
+  /** Row-major bytes, transferred from the worker via comlink. */
+  bytes: Uint8Array;
+  /** Number of columns per row (may be less than requested if clamped). */
+  cols: number;
+  /** Number of rows actually present in `bytes`. */
+  rows: number;
+  /** Column index of the first column in the slice. */
+  startCol: number;
+  /** Row index of the first row in the slice. */
+  startRow: number;
+}
+
+/**
+ * Contract implemented by the `EngineWorker` class and exposed to the main
+ * thread through comlink. Every method is asynchronous so comlink can proxy it
+ * across the worker boundary.
+ */
+export interface EngineWorkerApi {
+  delete: (rows: number[], column: number) => Promise<void>;
+  deleteColumn: (column: number) => Promise<void>;
+  /** Idempotently initializes the WASM engine; resolves once it is ready. */
+  initialize: () => Promise<void>;
+  insert: (rows: number[], column: number) => Promise<void>;
+  load: (fastaContent: string) => Promise<number>;
+  meta: () => Promise<EngineMeta>;
+  moveHorizontal: (row: number, columns: number[], direction: MoveDirection) => Promise<void>;
+  moveRowsDown: (rows: number[]) => Promise<void>;
+  moveRowsUp: (rows: number[]) => Promise<void>;
+  mutate: (rows: number[], column: number, base: string) => Promise<void>;
+  name: (row: number) => Promise<string>;
+  redo: () => Promise<boolean>;
+  search: (query: string, checkRecordNames: boolean) => Promise<EngineSearchResult>;
+  translate: (bounds: ViewportBounds, readingFrame: number) => Promise<EngineViewportResult>;
+  undo: () => Promise<boolean>;
+  viewport: (bounds: ViewportBounds) => Promise<EngineViewportResult>;
+}
+
+/** Horizontal move direction understood by the engine. */
+export type MoveDirection = 'Left' | 'Right';
 
 export interface ScrollingViewportProps {
-  eng: EngineClient;
-  meta: Meta;
+  engine: EngineWorkerApi;
+  meta: EngineMeta;
+  ready: boolean;
 }
 
+/** Summary statistics for a set of measured values. */
 export interface Stats {
   count: number;
   max: number;
@@ -45,7 +97,15 @@ export interface Stats {
   p95: number;
 }
 
-/** Debug info exposed to a sibling status bar. */
+/** Inclusive column/row bounds for a viewport or translation request. */
+export interface ViewportBounds {
+  endCol: number;
+  endRow: number;
+  startCol: number;
+  startRow: number;
+}
+
+/** Debug info exposed to the scrolling viewport status bar. */
 export interface WindowInfo {
   bufBytes: number;
   bufEnd: number;

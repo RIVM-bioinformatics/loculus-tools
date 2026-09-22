@@ -31,12 +31,12 @@ import {
   useState,
 } from 'react';
 
-import { SeqEditorUtil } from './utils/SeqEditorUtil';
+import { SeqEditorUtil } from '../../utils/SeqEditorUtil';
 import type {
   ChunkStore,
   ScrollingViewportProps,
   WindowInfo,
-} from './models';
+} from '../../models';
 import {
   CELL_H,
   CELL_W,
@@ -44,14 +44,14 @@ import {
   OVERSCAN,
   TRIGGER_COLS,
   VIEWPORT_H,
-} from './constants';
+} from '../../constants';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 
-export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
+export const ScrollingViewport = ({ engine, meta, ready }: ScrollingViewportProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   /** Transparent overflow:scroll layer — hosts the native scrollbar. */
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -75,17 +75,17 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
   // ---- Fetch sequence names whenever the alignment changes ----
   useEffect(() => {
     setNames([]);
-    if (!eng.ready || numRows === 0) {
+    if (!ready || numRows === 0) {
       return;
     }
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const ns: string[] = [];
       for (let i = 0; i < numRows; i++) {
         if (cancelled) {
           return;
         }
-        ns.push(await eng.name(i));
+        ns.push(await engine.name(i));
       }
       if (!cancelled) {
         setNames(ns);
@@ -94,7 +94,7 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
     return () => {
       cancelled = true;
     };
-  }, [eng, numRows, meta]);
+  }, [engine, ready, numRows, meta]);
 
   // ---- Track container width for responsive visible-column count ----
   useEffect(() => {
@@ -123,13 +123,13 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
       if (fetchColStart >= fetchColEnd) {
         return;
       }
-      if (fetchingRef.current || numRows === 0) {
+      if (!ready || fetchingRef.current || numRows === 0) {
         return;
       }
       fetchingRef.current = true;
       setWindowInfo((w) => (w ? { ...w, fetching: true } : null));
       try {
-        const res = await eng.viewport({
+        const res = await engine.viewport({
           endCol: fetchColEnd,
           endRow: numRows - 1,
           startCol: fetchColStart,
@@ -165,12 +165,12 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
         fetchingRef.current = false;
       }
     },
-    [eng, numRows, visibleCols, totalCols],
+    [engine, ready, numRows, visibleCols, totalCols],
   );
 
   // ---- Sliding-window trigger logic ----
   const checkAndFetch = useCallback(() => {
-    if (!eng.ready || fetchingRef.current || numRows === 0) {
+    if (!ready || fetchingRef.current || numRows === 0) {
       return;
     }
     const el = scrollerRef.current;
@@ -188,7 +188,7 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
 
     if (!buf) {
       // No data yet — fetch the initial window.
-      doFetch(keepStart, keepEnd, keepStart, keepEnd);
+      void doFetch(keepStart, keepEnd, keepStart, keepEnd);
       return;
     }
 
@@ -199,14 +199,14 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
       // Visible area is within TRIGGER_COLS of the left buffer boundary.
       // Fetch the missing left strip; trim any excess from the right.
       const fetchStart = Math.max(0, visColStart - OVERSCAN);
-      doFetch(fetchStart, buf.colStart, keepStart, keepEnd);
+      void doFetch(fetchStart, buf.colStart, keepStart, keepEnd);
     } else if (rightMargin < TRIGGER_COLS && buf.colEnd < totalCols) {
       // Visible area is within TRIGGER_COLS of the right buffer boundary.
       // Fetch the missing right strip; trim any excess from the left.
       const fetchEnd = Math.min(totalCols, visColEnd + OVERSCAN);
-      doFetch(buf.colEnd, fetchEnd, keepStart, keepEnd);
+      void doFetch(buf.colEnd, fetchEnd, keepStart, keepEnd);
     }
-  }, [eng.ready, numRows, visibleCols, totalCols, doFetch]);
+  }, [ready, numRows, visibleCols, totalCols, doFetch]);
 
   // ---- Reset and initial fetch when a new FASTA is loaded ----
   useEffect(() => {
@@ -218,13 +218,13 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
       el.scrollTop = 0;
     }
     setRenderTick((t) => t + 1);
-    if (eng.ready && numRows > 0) {
+    if (ready && numRows > 0) {
       checkAndFetch();
     }
     // checkAndFetch is excluded from deps intentionally:
     // we only want to re-run this when meta (the loaded alignment) changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meta, eng.ready]);
+  }, [meta, ready]);
 
   // ---- Scroll handler ----
   const onScroll = useCallback(() => {
@@ -333,7 +333,7 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
           padding: '2px 4px',
         }}
       >
-        {windowInfo ? (
+        {windowInfo && (
           <>
             <span style={{ color: windowInfo.fetching ? '#c66' : '#080' }}>
               {windowInfo.fetching ? 'fetching…' : 'idle'}
@@ -364,9 +364,11 @@ export const ScrollingViewport = ({ eng, meta }: ScrollingViewportProps) => {
             {'R='}
             {windowInfo.bufEnd - windowInfo.visEnd}
           </>
-        ) : numRows === 0 ? (
+        )}
+        {!windowInfo && numRows === 0 && (
           'no alignment loaded'
-        ) : (
+        )}
+        {!windowInfo && numRows !== 0 && (
           'initialising…'
         )}
       </div>

@@ -19,7 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 
-import { EngineEditError, useEngineWorker } from './engine/useEngineWorker';
+import { EngineStructuredError, useEngineWorker } from './engine/useEngineWorker';
 import type {
   Meta,
   SearchResult,
@@ -158,7 +158,9 @@ export const TestHarness = () => {
       setAminoAcidRows(out);
       setStatus(`Translated ${out.length} row(s) using reading frame ${readingFrame}`);
     } catch (e) {
-      setErr(String(e));
+      setErr(e instanceof EngineStructuredError
+        ? `${e.code}: ${e.message}${e.context ? ` (${JSON.stringify(e.context)})` : ''}`
+        : String(e));
     }
   }, [eng, r0, r1, c0, c1, readingFrame]);
 
@@ -180,7 +182,9 @@ export const TestHarness = () => {
         setStatus(`${op} applied — refetch slice to verify`);
         await refreshMeta();
       } catch (e: unknown) {
-        const msg = e instanceof EngineEditError ? `${e.code}: ${e.message}` : String(e);
+        const msg = e instanceof EngineStructuredError
+          ? `${e.message}${e.context ? ` (${JSON.stringify(e.context)})` : ''}`
+          : String(e);
         setErr(msg);
       }
     },
@@ -197,7 +201,9 @@ export const TestHarness = () => {
         setStatus(`Moved ${direction} — refetch slice to verify`);
         await refreshMeta();
       } catch (e: unknown) {
-        const msg = e instanceof EngineEditError ? `${e.code}: ${e.message}` : String(e);
+        const msg = e instanceof EngineStructuredError
+          ? `${e.message}${e.context ? ` (${JSON.stringify(e.context)})` : ''}`
+          : String(e);
         setErr(msg);
       }
     },
@@ -217,7 +223,9 @@ export const TestHarness = () => {
         setStatus(`Rows moved ${dir} — refetch slice to verify`);
         await refreshMeta();
       } catch (e: unknown) {
-        const msg = e instanceof EngineEditError ? `${e.code}: ${e.message}` : String(e);
+        const msg = e instanceof EngineStructuredError
+          ? `${e.message}${e.context ? ` (${JSON.stringify(e.context)})` : ''}`
+          : String(e);
         setErr(msg);
       }
     },

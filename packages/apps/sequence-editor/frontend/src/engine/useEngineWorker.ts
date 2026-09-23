@@ -17,8 +17,10 @@ import type {
   EngineRequest,
   EngineResponse,
   EditErrorCode,
+  ErrorContext,
   Meta,
   SearchResult,
+  StructuredEngineError,
   ViewportResult,
 } from "./protocol";
 
@@ -57,6 +59,18 @@ export class EngineEditError extends Error {
     super(`Engine rejected: ${code}`);
     this.name = "EngineEditError";
     this.code = code;
+  }
+}
+
+export class EngineStructuredError extends Error {
+  readonly code: string;
+  readonly context?: ErrorContext;
+
+  constructor(payload: StructuredEngineError) {
+    super(payload.message);
+    this.name = "EngineStructuredError";
+    this.code = payload.code;
+    this.context = payload.context;
   }
 }
 
@@ -167,9 +181,7 @@ export function useEngineWorker(): EngineClient {
       // res.type === "result"
       const entry = pending.current.get(res.reqId);
       if (entry) {
-        // The `ok: false` variant carries only `errorCode`; all the data-bearing
-        // fields (sabLen, data, timing, transfer) only exist on the `ok: true`
-        // variant. Narrow the union before touching them.
+        // All data-bearing fields only exist on the `ok: true` variant.
         if (res.ok) {
           // For SAB-based viewport responses, read bytes directly from the
           // shared buffer using the reported length. No transfer reassembly.
@@ -247,7 +259,7 @@ export function useEngineWorker(): EngineClient {
             if (res.type === "result" && res.ok) {
               resolve(res.data as T);
             } else if (res.type === "result" && !res.ok) {
-              reject(new EngineEditError(res.errorCode));
+              reject(new EngineStructuredError(res.error));
             } else if (res.type === "error") {
               console.log("Worker error:", res.message);
               reject(new Error(res.message));

@@ -450,25 +450,28 @@ The `error` field on the client also reflects the last worker error.
 
 ### Error codes
 
-Mutation methods that fail validation reject the promise with an
-`EngineEditError`, whose `.code` is an `EditErrorCode`. You can inspect the
-typed code to show a user-friendly message:
+Edit methods that fail validation reject with an `EngineStructuredError`.
+It carries a stable `.code`, readable `.message`, and optional `.context` with
+offending coordinates, base, movement direction, or reading frame:
 
 ```ts
-import { EngineEditError } from "./engine/useEngineWorker";
+import { EngineStructuredError } from "./engine/useEngineWorker";
 
 try {
   await engine.delete([0], 3); // col 3 is 'A', not '-'
 } catch (err: unknown) {
-  if (err instanceof EngineEditError && err.code === "DeleteNotGap") {
+  if (err instanceof EngineStructuredError && err.code === "DeleteNotGap") {
+    console.log(err.message, err.context?.row, err.context?.col, err.context?.base);
     showToast("Mutate the character to '-' first, then delete.");
   }
 }
 ```
 
-`EditErrorCode` is the union of `"DeleteNotGap"`, `"MutateNotIupac"`,
-`"MoveNotIupac"`, and `"MoveNoGapTarget"`. Non-edit worker failures reject
-with ordinary `Error` instances.
+`EditErrorCode` includes `"DeleteNotGap"`, `"MutateNotIupac"`,
+`"MoveNotIupac"`, and `"MoveNoGapTarget"`. Translation additionally rejects
+invalid frames with `InvalidReadingFrame` and `{ frame }` context. Unrecognized
+exceptions use `UnexpectedRuntimeError`; transport and initialization failures
+remain worker errors.
 
 | Error code | Triggered by | Meaning |
 | ------------ | ------------- | --------- |

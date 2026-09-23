@@ -281,8 +281,9 @@ sends a command and awaits an acknowledgment.
 
 The mutation core is governed by a fixed set of editing constraints. These
 constraints define exactly which combinations of actions are allowed and which
-are rejected. Every mutation method below enforces them and returns a typed
-`EditError` (see [section 5.7](#57-edit-errors)) when a constraint is violated, leaving the matrix **unchanged**
+are rejected. Every mutation method below enforces them and returns a
+`StructuredEngineError` (see [section 5.7](#57-structured-errors)) when a
+constraint is violated, leaving the matrix **unchanged**
 (all-or-nothing).
 
 1. **Delete only gaps.** It is only possible to delete an item in the matrix if
@@ -425,19 +426,48 @@ Reorder rows by swapping each specified row with its immediate neighbour.
   as well, so undo/redo of row reorder correctly restores names).
 - Returns `Ok(())`.
 
-### 5.7 Edit errors
+### 5.7 Structured errors
 
-Mutation methods return `Result<(), EditError>`. Internal validation enums
-retain granular causes; `From` implementations map them to the stable public
-categories. The Web Worker catches wasm-bindgen's thrown enum value and posts
-`{ok: false, errorCode}`; the client rejects with `EngineEditError`.
+WASM-facing edit methods return `Result<(), StructuredEngineError>`. The
+private `MutateError`, `DeleteError`, and `MoveError` variants preserve the
+failing coordinates, base, and direction. Their conversions create a stable
+error code, readable message, and optional `ErrorContext` fields. The
+`translate` method similarly returns `InvalidReadingFrame` with the invalid
+frame in context instead of silently selecting frame 0.
 
-| `EditError` variant | Code | Meaning |
+```rust
+pub struct StructuredEngineError {
+  pub code: String,
+  pub message: String,
+  pub context: Option<ErrorContext>,
+}
+
+pub struct ErrorContext {
+  pub row: Option<usize>,
+  pub col: Option<usize>,
+  pub base: Option<String>,
+  pub frame: Option<u8>,
+  pub mode: Option<String>,
+  pub direction: Option<String>,
+}
+```
+
+The types derive `serde::Serialize`; `From<StructuredEngineError> for JsValue`
+uses `serde_wasm_bindgen` so wasm-bindgen throws the structured object. Optional
+context fields are omitted when absent. The worker normalizes that thrown value
+and posts `{ ok: false, error }`; unexpected exceptions use code
+`UnexpectedRuntimeError`. Invalid or oversized viewport requests use
+`InvalidViewport` with the available starting row/column.
+
+| Code | Meaning | Context |
 |----------|-------|---------|
-| `EditError::DeleteNotGap` | `"DeleteNotGap"` | Attempted to delete a non-`-` character (rule 1, [section 5](#50-editing-constraints-the-ruleset)). Mutate it to `-` first. |
-| `EditError::MutateNotIupac` | `"MutateNotIupac"` | Attempted to mutate a character that is not IUPAC or `-`, or to write a base that is not IUPAC or `-` (rule 3, [section 5](#50-editing-constraints-the-ruleset)). |
-| `EditError::MoveNotIupac` | `"MoveNotIupac"` | Attempted to move a block containing non-IUPAC characters (rule 4, [section 5](#50-editing-constraints-the-ruleset)). |
-| `EditError::MoveNoGapTarget` | `"MoveNoGapTarget"` | No gap adjacent to the block in the move direction (rule 4, [section 5](#50-editing-constraints-the-ruleset)). |
+| `DeleteNotGap` | Attempted to delete a non-`-` character. | `row`, `col`, `base` |
+| `MutateNotIupac` | Target or replacement character is not IUPAC or `-`. | `row`, `col`, and/or `base` |
+| `MoveNotIupac` | Selected block contains a non-IUPAC character. | `row`, `col`, `base` |
+| `MoveNoGapTarget` | No adjacent gap or alignment boundary reached. | `row`, `col`, `direction`, and optional `base` |
+| `InvalidReadingFrame` | Translation requested a frame outside 0, 1, or 2. | `frame` |
+| `InvalidViewport` | Viewport bounds are invalid or exceed worker capacity. | `row`, `col` |
+| `UnexpectedRuntimeError` | Unrecognized runtime failure. | None unless available |
 
 ---
 
@@ -503,15 +533,17 @@ e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGGTG-A");
 assert_eq!(e.get_sequence_count(), 2);
 assert_eq!(e.get_alignment_width(), 8);
 
-// Mutation methods return Result<(), EditError>.
+// Mutation methods return Result<(), StructuredEngineError>.
 assert_eq!(e.mutate_base_subset(&[0], 3, b'G'), Ok(()));
 assert_eq!(e.get_base(0, 3), b'G');
 assert!(e.undo());
 assert_eq!(e.get_base(0, 3), b'C');
 
-// Attempting to delete a non-gap returns a typed error.
+// Attempting to delete a non-gap returns a structured error.
 let err = e.delete_at_subset(&[0], 0); // col 0 is 'A', not '-'
-assert_eq!(err, Err(EditError::DeleteNotGap));
+let err = err.unwrap_err();
+assert_eq!(err.code, "DeleteNotGap");
+assert_eq!(err.context.unwrap().base.as_deref(), Some("A"));
 assert_eq!(e.get_base(0, 0), b'A'); // unchanged
 ```
 
@@ -537,8 +569,9 @@ The UI never calls the engine directly; it sends typed request messages over
    chicken-and-egg problem where the UI waits for a `ready` signal that only
    fires after a command triggers init).
 2. Handles `load`, `viewport`, `mutate`, `insert`, `delete`, `undo`, `redo`,
-   and `meta` requests. Edit handlers catch the wasm-bindgen `EditError` value
-   and post `{ok: false, errorCode}`; successful calls post `{ok: true}`.
+   and `meta` requests. Edit and translation failures are normalized to
+   `{ok: false, error: {code, message, context?}}`; successful calls post
+   `{ok: true}`. Unknown exceptions use `UnexpectedRuntimeError`.
 3. For viewport requests, transfers the returned `ArrayBuffer` (or writes into a
    shared `SharedArrayBuffer`) so binary data crosses the boundary without a
    second copy.

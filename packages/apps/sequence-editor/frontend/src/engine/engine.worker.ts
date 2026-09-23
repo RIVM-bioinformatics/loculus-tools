@@ -30,8 +30,10 @@ import type {
   EngineRequest,
   EngineResponse,
   EditErrorCode,
+  ErrorContext,
   Meta,
   SearchResult,
+  StructuredEngineError,
   ViewportResult,
 } from './protocol';
 
@@ -83,6 +85,34 @@ function getViewportShape(
   return { cols, rows };
 }
 
+function normalizeError(err: unknown): StructuredEngineError {
+  if (typeof err === 'object' && err !== null) {
+    const candidate = err as {
+      code?: unknown;
+      context?: unknown;
+      message?: unknown;
+    };
+    if (typeof candidate.code === 'string' && typeof candidate.message === 'string') {
+      const structured: StructuredEngineError = {
+        code: candidate.code,
+        message: candidate.message,
+      };
+      if (typeof candidate.context === 'object' && candidate.context !== null) {
+        structured.context = candidate.context as ErrorContext;
+      }
+      return structured;
+    }
+  }
+  if (typeof err === 'number' && err in EditError) {
+    const code = EditError[err as EditError] as EditErrorCode;
+    return { code, message: `Engine rejected: ${code}` };
+  }
+  return {
+    code: 'UnexpectedRuntimeError',
+    message: err instanceof Error ? err.message : String(err),
+  };
+}
+
 /** Pending commands issued before WASM finished initializing. */
 const queue: EngineRequest[] = [];
 
@@ -108,7 +138,11 @@ async function ensureEngine(): Promise<void> {
     // Drain any commands that arrived during initialization.
     while (queue.length > 0) {
       const next = queue.shift()!;
-      await handle(next);
+      try {
+        await handle(next);
+      } catch (err: unknown) {
+        post({ error: normalizeError(err), ok: false, reqId: next.reqId, type: 'result' });
+      }
     }
   } catch (err) {
     post({
@@ -131,15 +165,13 @@ function handleEdit(reqId: number, fn: () => void, engineStart: number) {
     const engineMs = performance.now() - engineStart;
     post({ ok: true, reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
   } catch (err: unknown) {
-    if (typeof err === 'number' && err in EditError) {
-      const errorCode = EditError[err as EditError] as EditErrorCode;
-      post({ errorCode, ok: false, reqId, type: 'result' });
-      return;
-    }
+    const engineMs = performance.now() - engineStart;
     post({
-      message: err instanceof Error ? err.message : String(err),
+      error: normalizeError(err),
+      ok: false,
       reqId,
-      type: 'error',
+      timing: { engineMs, workerMs: 0 },
+      type: 'result',
     });
   }
 }
@@ -244,17 +276,23 @@ async function timedHandle(req: EngineRequest): Promise<void> {
 
       if (len > SAB_MAX_BYTES) {
         post({
-          message: `Translate result too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+          error: {
+            code: 'InvalidViewport',
+            context: { frame: req.readingFrame, row: req.startRow, col: req.startCol },
+            message: `Translate result too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+          },
+          ok: false,
           reqId: req.reqId,
-          type: 'error',
+          type: 'result',
         });
         break;
       }
       if (!sabView) {
         post({
-          message: 'SharedArrayBuffer not initialized',
+          error: { code: 'UnexpectedRuntimeError', message: 'SharedArrayBuffer not initialized' },
+          ok: false,
           reqId: req.reqId,
-          type: 'error',
+          type: 'result',
         });
         break;
       }
@@ -295,9 +333,14 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       const shape = getViewportShape(req);
       if (!shape) {
         post({
-          message: `Viewport bounds must be non-negative safe integers within ${SAB_MAX_BYTES} bytes`,
+          error: {
+            code: 'InvalidViewport',
+            context: { row: req.startRow, col: req.startCol },
+            message: `Viewport bounds must be non-negative safe integers within ${SAB_MAX_BYTES} bytes`,
+          },
+          ok: false,
           reqId: req.reqId,
-          type: 'error',
+          type: 'result',
         });
         break;
       }
@@ -310,17 +353,23 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       // with a RangeError from sabView.set().
       if (len > SAB_MAX_BYTES) {
         post({
-          message: `Viewport too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+          error: {
+            code: 'InvalidViewport',
+            context: { row: req.startRow, col: req.startCol },
+            message: `Viewport too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+          },
+          ok: false,
           reqId: req.reqId,
-          type: 'error',
+          type: 'result',
         });
         break;
       }
       if (!sabView) {
         post({
-          message: 'SharedArrayBuffer not initialized',
+          error: { code: 'UnexpectedRuntimeError', message: 'SharedArrayBuffer not initialized' },
+          ok: false,
           reqId: req.reqId,
-          type: 'error',
+          type: 'result',
         });
         break;
       }
@@ -376,11 +425,12 @@ self.onmessage = async (ev: MessageEvent<EngineRequest>) => {
   }
   try {
     await handle(req);
-  } catch (err) {
+  } catch (err: unknown) {
     post({
-      message: err instanceof Error ? err.message : String(err),
+      error: normalizeError(err),
+      ok: false,
       reqId: req.reqId,
-      type: 'error',
+      type: 'result',
     });
   }
 };

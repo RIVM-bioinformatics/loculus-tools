@@ -11,6 +11,7 @@ mod search_algorithms;
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
 use search_algorithms::{Match, MatrixType, SearchAlgorithm, SearchResult, run_search};
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 // Bound to the JS `console.log`, so this works in both the main thread and
@@ -55,6 +56,55 @@ impl std::fmt::Display for EditError {
 
 impl std::error::Error for EditError {}
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct ErrorContext {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub row: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub col: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frame: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub direction: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct StructuredEngineError {
+    pub code: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<ErrorContext>,
+}
+
+impl std::fmt::Display for StructuredEngineError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}: {}", self.code, self.message)
+    }
+}
+
+impl std::error::Error for StructuredEngineError {}
+
+impl From<StructuredEngineError> for JsValue {
+    fn from(error: StructuredEngineError) -> Self {
+        serde_wasm_bindgen::to_value(&error)
+            .unwrap_or_else(|_| JsValue::from_str(&error.to_string()))
+    }
+}
+
+impl StructuredEngineError {
+    fn new(code: EditError, message: String, context: Option<ErrorContext>) -> Self {
+        Self {
+            code: code.as_str().to_owned(),
+            message,
+            context,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum MutateError {
     NewBaseNotIupac { base: u8 },
@@ -67,6 +117,37 @@ impl From<MutateError> for EditError {
     }
 }
 
+impl From<MutateError> for StructuredEngineError {
+    fn from(error: MutateError) -> Self {
+        match error {
+            MutateError::NewBaseNotIupac { base } => Self::new(
+                error.into(),
+                format!(
+                    "Invalid replacement character '{}' (0x{base:02X}); must be an IUPAC nucleotide or '-'",
+                    base as char
+                ),
+                Some(ErrorContext {
+                    base: Some((base as char).to_string()),
+                    ..ErrorContext::default()
+                }),
+            ),
+            MutateError::TargetNotIupac { row, col, base } => Self::new(
+                error.into(),
+                format!(
+                    "Target base '{}' at row {row}, column {col} is not an IUPAC nucleotide or '-'",
+                    base as char
+                ),
+                Some(ErrorContext {
+                    row: Some(row),
+                    col: Some(col),
+                    base: Some((base as char).to_string()),
+                    ..ErrorContext::default()
+                }),
+            ),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DeleteError {
     TargetNotGap { row: usize, col: usize, base: u8 },
@@ -75,6 +156,26 @@ enum DeleteError {
 impl From<DeleteError> for EditError {
     fn from(_: DeleteError) -> Self {
         Self::DeleteNotGap
+    }
+}
+
+impl From<DeleteError> for StructuredEngineError {
+    fn from(error: DeleteError) -> Self {
+        match error {
+            DeleteError::TargetNotGap { row, col, base } => Self::new(
+                error.into(),
+                format!(
+                    "Cannot delete non-gap character '{}' at row {row}, column {col}. Mutate it to '-' first.",
+                    base as char
+                ),
+                Some(ErrorContext {
+                    row: Some(row),
+                    col: Some(col),
+                    base: Some((base as char).to_string()),
+                    ..ErrorContext::default()
+                }),
+            ),
+        }
     }
 }
 
@@ -105,6 +206,79 @@ impl From<MoveError> for EditError {
             MoveError::TargetNotGap { .. } | MoveError::BoundaryReached { .. } => {
                 Self::MoveNoGapTarget
             }
+        }
+    }
+}
+
+impl From<MoveError> for StructuredEngineError {
+    fn from(error: MoveError) -> Self {
+        match error {
+            MoveError::BlockNotIupac { row, col, base } => Self::new(
+                EditError::MoveNotIupac,
+                format!(
+                    "Selected block contains non-IUPAC character '{}' at row {row}, column {col}",
+                    base as char
+                ),
+                Some(ErrorContext {
+                    row: Some(row),
+                    col: Some(col),
+                    base: Some((base as char).to_string()),
+                    ..ErrorContext::default()
+                }),
+            ),
+            MoveError::TargetNotGap {
+                row,
+                col,
+                base,
+                direction,
+            } => Self::new(
+                EditError::MoveNoGapTarget,
+                format!(
+                    "Destination column {col} in row {row} is occupied by '{}'; moving {direction:?} requires an adjacent '-' gap",
+                    base as char
+                ),
+                Some(ErrorContext {
+                    row: Some(row),
+                    col: Some(col),
+                    base: Some((base as char).to_string()),
+                    direction: Some(format!("{direction:?}")),
+                    ..ErrorContext::default()
+                }),
+            ),
+            MoveError::BoundaryReached {
+                row,
+                col,
+                direction,
+            } => Self::new(
+                EditError::MoveNoGapTarget,
+                format!("Cannot move {direction:?} from row {row}, column {col}; alignment boundary reached"),
+                Some(ErrorContext {
+                    row: Some(row),
+                    col: Some(col),
+                    direction: Some(format!("{direction:?}")),
+                    ..ErrorContext::default()
+                }),
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TranslateError {
+    InvalidReadingFrame { frame: u8 },
+}
+
+impl From<TranslateError> for StructuredEngineError {
+    fn from(error: TranslateError) -> Self {
+        match error {
+            TranslateError::InvalidReadingFrame { frame } => Self {
+                code: "InvalidReadingFrame".to_owned(),
+                message: format!("Invalid reading frame {frame}; expected frame 0, 1, or 2"),
+                context: Some(ErrorContext {
+                    frame: Some(frame),
+                    ..ErrorContext::default()
+                }),
+            },
         }
     }
 }
@@ -607,7 +781,14 @@ impl MsaEngine {
         start_col: usize,
         end_col: usize,
         reading_frame: u8,
-    ) -> js_sys::Uint8Array {
+    ) -> Result<js_sys::Uint8Array, StructuredEngineError> {
+        if reading_frame > 2 {
+            return Err(TranslateError::InvalidReadingFrame {
+                frame: reading_frame,
+            }
+            .into());
+        }
+
         if self.aminoacid_sequences.is_empty() {
             for seq in &self.nucleotide_sequences {
                 self.aminoacid_sequences.push(Self::translate_sequence(seq));
@@ -615,11 +796,11 @@ impl MsaEngine {
         }
 
         if self.aminoacid_sequences.is_empty() {
-            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+            return Ok(js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0)));
         }
         let row_end = end_row.min(self.aminoacid_sequences.len() - 1);
         if start_row > row_end || start_col > end_col {
-            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+            return Ok(js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0)));
         }
 
         let cols = end_col - start_col + 1;
@@ -631,8 +812,7 @@ impl MsaEngine {
                 0 => &seq.frame_1,
                 1 => &seq.frame_2,
                 2 => &seq.frame_3,
-                // Out-of-range frame: fall back to frame 1 instead of panicking.
-                _ => &seq.frame_1,
+                _ => unreachable!("reading frame validated before translation"),
             };
             let frame_cols = if start_col < frame.len() {
                 (end_col + 1).min(frame.len()) - start_col
@@ -648,7 +828,7 @@ impl MsaEngine {
             }
         }
 
-        js_sys::Uint8Array::from(&viewport[..])
+        Ok(js_sys::Uint8Array::from(&viewport[..]))
     }
 
     pub fn get_aminoacid_view(&self, row: usize) -> js_sys::Uint8Array {
@@ -717,7 +897,7 @@ impl MsaEngine {
         row_indices: &[usize],
         col_idx: usize,
         new_base: u8,
-    ) -> Result<(), EditError> {
+    ) -> Result<(), StructuredEngineError> {
         // Validate the destination base: it must be an IUPAC nucleotide or '-'
         // (Rule 3). Mutating to any other character is not allowed.
         if !is_iupac(new_base) && !is_gap(new_base) {
@@ -780,7 +960,7 @@ impl MsaEngine {
         &mut self,
         row_indices: &[usize],
         col_idx: usize,
-    ) -> Result<(), EditError> {
+    ) -> Result<(), StructuredEngineError> {
         if self.nucleotide_sequences.is_empty() {
             return Ok(());
         }
@@ -824,7 +1004,7 @@ impl MsaEngine {
         &mut self,
         row_indices: &[usize],
         col_idx: usize,
-    ) -> Result<(), EditError> {
+    ) -> Result<(), StructuredEngineError> {
         // Validate: all target positions must be '-'.
         for &r in row_indices {
             if let Some(seq) = self.nucleotide_sequences.get(r) {
@@ -860,7 +1040,7 @@ impl MsaEngine {
     /// Delete a column from every row, shrinking `alignment_width` by 1.
     /// This is the width-preserving inverse of a full-column insert.
     /// Returns success.
-    pub fn delete_column(&mut self, col_idx: usize) -> Result<(), EditError> {
+    pub fn delete_column(&mut self, col_idx: usize) -> Result<(), StructuredEngineError> {
         // If the column is out of range for every row, nothing is removed and
         // the width must not change, otherwise `alignment_width` would
         // desynchronize from the actual row lengths.
@@ -898,7 +1078,7 @@ impl MsaEngine {
         row: usize,
         col_indices: &[usize],
         direction: MoveDirection,
-    ) -> Result<(), EditError> {
+    ) -> Result<(), StructuredEngineError> {
         let seq = match self.nucleotide_sequences.get(row) {
             Some(s) => s,
             None => return Ok(()), // out-of-range row is a no-op
@@ -995,7 +1175,10 @@ impl MsaEngine {
     /// the row immediately above it. Rows already at the top (index 0) are
     /// silently skipped. Multiple rows may be moved simultaneously.
     /// Returns success.
-    pub fn move_rows_up(&mut self, row_indices: &[usize]) -> Result<(), EditError> {
+    pub fn move_rows_up(
+        &mut self,
+        row_indices: &[usize],
+    ) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || self.nucleotide_sequences.len() < 2 {
             return Ok(());
         }
@@ -1022,7 +1205,10 @@ impl MsaEngine {
     /// with the row immediately below it. Rows already at the bottom are
     /// silently skipped. Multiple rows may be moved simultaneously.
     /// Returns success.
-    pub fn move_rows_down(&mut self, row_indices: &[usize]) -> Result<(), EditError> {
+    pub fn move_rows_down(
+        &mut self,
+        row_indices: &[usize],
+    ) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || self.nucleotide_sequences.len() < 2 {
             return Ok(());
         }

@@ -473,8 +473,12 @@ fn undo_redo_substitution_handles_mismatched_history_vectors() {
 fn delete_non_gap_returns_error() {
     let mut e = engine_with_sample();
     // Row 0 col 0 is 'A' (IUPAC), not '-'. Delete must be rejected.
-    let err = e.delete_at_subset(&[0], 0);
-    assert_eq!(err, Err(EditError::DeleteNotGap));
+    let err = e.delete_at_subset(&[0], 0).unwrap_err();
+    assert_eq!(err.code, "DeleteNotGap");
+    let context = err.context.unwrap();
+    assert_eq!(context.row, Some(0));
+    assert_eq!(context.col, Some(0));
+    assert_eq!(context.base.as_deref(), Some("A"));
     // Matrix must be completely unchanged.
     assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.get_row_length(0), 8);
@@ -497,15 +501,20 @@ fn mutate_non_iupac_returns_error() {
     let mut e = engine_with_sample();
 
     // Mutating TO a non-IUPAC, non-gap character must be rejected (Rule 3).
-    let err = e.mutate_base_subset(&[0], 6, b'X');
-    assert_eq!(err, Err(EditError::MutateNotIupac));
+    let err = e.mutate_base_subset(&[0], 6, b'X').unwrap_err();
+    assert_eq!(err.code, "MutateNotIupac");
+    assert_eq!(err.context.unwrap().base.as_deref(), Some("X"));
     assert_eq!(e.get_base(0, 6), b'G'); // unchanged
 
     // Directly corrupt a cell to a non-IUPAC, non-gap character (a space),
     // then attempt to mutate it — must be rejected (source validation).
     e.nucleotide_sequences[1][6] = b' ';
-    let err = e.mutate_base_subset(&[1], 6, b'T');
-    assert_eq!(err, Err(EditError::MutateNotIupac));
+    let err = e.mutate_base_subset(&[1], 6, b'T').unwrap_err();
+    assert_eq!(err.code, "MutateNotIupac");
+    let context = err.context.unwrap();
+    assert_eq!(context.row, Some(1));
+    assert_eq!(context.col, Some(6));
+    assert_eq!(context.base.as_deref(), Some(" "));
     assert_eq!(e.get_base(1, 6), b' '); // unchanged
 }
 
@@ -624,20 +633,62 @@ fn move_horizontal_right_succeeds() {
 fn move_horizontal_no_gap_target_returns_error() {
     let mut e = engine_with_sample();
     // Row 0: "ATGCATGC". Try to move "ATGC" (cols 0..=3) left — no space to left.
-    let err = e.move_horizontal(0, &[0, 1, 2, 3], MoveDirection::Left);
-    assert_eq!(err, Err(EditError::MoveNoGapTarget));
+    let err = e
+        .move_horizontal(0, &[0, 1, 2, 3], MoveDirection::Left)
+        .unwrap_err();
+    assert_eq!(err.code, "MoveNoGapTarget");
+    let context = err.context.unwrap();
+    assert_eq!(context.row, Some(0));
+    assert_eq!(context.col, Some(0));
+    assert_eq!(context.direction.as_deref(), Some("Left"));
     // Row 0: "ATGCATGC". Try to move "CATG" (cols 4..=7) right — no space to right.
-    let err = e.move_horizontal(0, &[4, 5, 6, 7], MoveDirection::Right);
-    assert_eq!(err, Err(EditError::MoveNoGapTarget));
+    let err = e
+        .move_horizontal(0, &[4, 5, 6, 7], MoveDirection::Right)
+        .unwrap_err();
+    assert_eq!(err.code, "MoveNoGapTarget");
+    assert_eq!(err.context.unwrap().direction.as_deref(), Some("Right"));
 }
 
 #[test]
 fn move_horizontal_not_iupac_returns_error() {
     let mut e = engine_with_sample();
     // Row 1 col 6 is '-'. Try to move a block that includes '-'.
-    let err = e.move_horizontal(1, &[5, 6], MoveDirection::Left);
+    let err = e
+        .move_horizontal(1, &[5, 6], MoveDirection::Left)
+        .unwrap_err();
     // col 5 is 'G' (IUPAC), col 6 is '-' (not IUPAC) — should fail.
-    assert_eq!(err, Err(EditError::MoveNotIupac));
+    assert_eq!(err.code, "MoveNotIupac");
+    let context = err.context.unwrap();
+    assert_eq!(context.row, Some(1));
+    assert_eq!(context.col, Some(6));
+    assert_eq!(context.base.as_deref(), Some("-"));
+}
+
+#[test]
+fn translate_rejects_invalid_reading_frame_with_context() {
+    let mut e = engine_with_sample();
+    let err = e.translate(0, 0, 0, 0, 5).unwrap_err();
+    assert_eq!(err.code, "InvalidReadingFrame");
+    assert_eq!(err.context.unwrap().frame, Some(5));
+}
+
+#[test]
+fn structured_error_serializes_code_message_and_optional_context() {
+    let error = StructuredEngineError::from(DeleteError::TargetNotGap {
+        row: 2,
+        col: 4,
+        base: b'G',
+    });
+    assert_eq!(error.code, "DeleteNotGap");
+    assert_eq!(
+        error.message,
+        "Cannot delete non-gap character 'G' at row 2, column 4. Mutate it to '-' first."
+    );
+    let context = error.context.unwrap();
+    assert_eq!(context.row, Some(2));
+    assert_eq!(context.col, Some(4));
+    assert_eq!(context.base.as_deref(), Some("G"));
+    assert_eq!(context.frame, None);
 }
 
 #[test]

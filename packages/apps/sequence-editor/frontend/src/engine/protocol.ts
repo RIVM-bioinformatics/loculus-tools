@@ -33,6 +33,21 @@ export type EditErrorCode =
   | 'MoveNoGapTarget'
   | 'MoveNotIupac';
 
+export interface ErrorContext {
+  base?: string;
+  col?: number;
+  direction?: 'Left' | 'Right';
+  frame?: number;
+  mode?: string;
+  row?: number;
+}
+
+export interface StructuredEngineError {
+  code: string;
+  context?: ErrorContext;
+  message: string;
+}
+
 export type EngineRequest =
   | { base: number; col: number; reqId: number; rows: Uint32Array; type: 'mutate' }
   | { checkRecordNames: boolean; query: string; reqId: number; type: 'search' }
@@ -93,9 +108,10 @@ export type EngineResponse =
     type: 'result';
   }
   | {
-    errorCode: EditErrorCode;
+    error: StructuredEngineError;
     ok: false;
     reqId: number;
+    timing?: EngineTiming;
     type: 'result';
   }
   | { message: string; reqId: number; type: 'error' }

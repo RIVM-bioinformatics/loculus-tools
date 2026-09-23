@@ -27,6 +27,12 @@ export enum MatrixType {
   RecordName = 'record_name',
 }
 
+export type EditErrorCode =
+  | 'DeleteNotGap'
+  | 'MutateNotIupac'
+  | 'MoveNoGapTarget'
+  | 'MoveNotIupac';
+
 export type EngineRequest =
   | { base: number; col: number; reqId: number; rows: Uint32Array; type: 'mutate' }
   | { checkRecordNames: boolean; query: string; reqId: number; type: 'search' }
@@ -87,7 +93,7 @@ export type EngineResponse =
     type: 'result';
   }
   | {
-    errorCode: string;
+    errorCode: EditErrorCode;
     ok: false;
     reqId: number;
     type: 'result';

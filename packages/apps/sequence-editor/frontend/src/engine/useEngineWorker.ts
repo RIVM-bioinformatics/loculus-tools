@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   EngineRequest,
   EngineResponse,
+  EditErrorCode,
   Meta,
   SearchResult,
   ViewportResult,
@@ -47,6 +48,16 @@ export interface CallTiming {
   bridgeBackMs: number;
   /** Number of bytes transferred (for viewport responses), else 0. */
   bytes: number;
+}
+
+export class EngineEditError extends Error {
+  readonly code: EditErrorCode;
+
+  constructor(code: EditErrorCode) {
+    super(`Engine rejected: ${code}`);
+    this.name = "EngineEditError";
+    this.code = code;
+  }
 }
 
 export interface EngineClient {
@@ -236,9 +247,7 @@ export function useEngineWorker(): EngineClient {
             if (res.type === "result" && res.ok) {
               resolve(res.data as T);
             } else if (res.type === "result" && !res.ok) {
-              const err = new Error(`Engine rejected: ${res.errorCode}`);
-              (err as any).code = res.errorCode;
-              reject(err);
+              reject(new EngineEditError(res.errorCode));
             } else if (res.type === "error") {
               console.log("Worker error:", res.message);
               reject(new Error(res.message));

@@ -19,7 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 
-import { useEngineWorker } from './engine/useEngineWorker';
+import { EngineEditError, useEngineWorker } from './engine/useEngineWorker';
 import type {
   Meta,
   SearchResult,
@@ -179,8 +179,8 @@ export const TestHarness = () => {
         }
         setStatus(`${op} applied — refetch slice to verify`);
         await refreshMeta();
-      } catch (e: any) {
-        const msg = e.code ? `${e.code}: ${e.message}` : String(e);
+      } catch (e: unknown) {
+        const msg = e instanceof EngineEditError ? `${e.code}: ${e.message}` : String(e);
         setErr(msg);
       }
     },
@@ -196,8 +196,8 @@ export const TestHarness = () => {
         await eng.moveHorizontal(rowNum, cols, direction);
         setStatus(`Moved ${direction} — refetch slice to verify`);
         await refreshMeta();
-      } catch (e: any) {
-        const msg = e.code ? `${e.code}: ${e.message}` : String(e);
+      } catch (e: unknown) {
+        const msg = e instanceof EngineEditError ? `${e.code}: ${e.message}` : String(e);
         setErr(msg);
       }
     },
@@ -216,8 +216,8 @@ export const TestHarness = () => {
         }
         setStatus(`Rows moved ${dir} — refetch slice to verify`);
         await refreshMeta();
-      } catch (e: any) {
-        const msg = e.code ? `${e.code}: ${e.message}` : String(e);
+      } catch (e: unknown) {
+        const msg = e instanceof EngineEditError ? `${e.code}: ${e.message}` : String(e);
         setErr(msg);
       }
     },

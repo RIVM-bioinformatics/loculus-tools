@@ -450,19 +450,25 @@ The `error` field on the client also reflects the last worker error.
 
 ### Error codes
 
-Mutation methods that fail validation reject the promise with an `Error` that
-has a `.code` property containing a string error code. You can inspect it to
-show a user-friendly message:
+Mutation methods that fail validation reject the promise with an
+`EngineEditError`, whose `.code` is an `EditErrorCode`. You can inspect the
+typed code to show a user-friendly message:
 
 ```ts
+import { EngineEditError } from "./engine/useEngineWorker";
+
 try {
   await engine.delete([0], 3); // col 3 is 'A', not '-'
-} catch (err: any) {
-  if (err.code === "DeleteNotGap") {
+} catch (err: unknown) {
+  if (err instanceof EngineEditError && err.code === "DeleteNotGap") {
     showToast("Mutate the character to '-' first, then delete.");
   }
 }
 ```
+
+`EditErrorCode` is the union of `"DeleteNotGap"`, `"MutateNotIupac"`,
+`"MoveNotIupac"`, and `"MoveNoGapTarget"`. Non-edit worker failures reject
+with ordinary `Error` instances.
 
 | Error code | Triggered by | Meaning |
 | ------------ | ------------- | --------- |

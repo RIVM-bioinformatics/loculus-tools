@@ -21,6 +21,7 @@
  */
 
 import init, {
+  EditError,
   MoveDirection,
   MsaEngine,
 } from '@rivm-loculus-tools/sequence-editor-wasm';
@@ -28,6 +29,7 @@ import init, {
 import type {
   EngineRequest,
   EngineResponse,
+  EditErrorCode,
   Meta,
   SearchResult,
   ViewportResult,
@@ -123,6 +125,25 @@ function post(msg: EngineResponse, transfer?: Transferable[]) {
   (self as unknown as Worker).postMessage(msg, transfer ?? []);
 }
 
+function handleEdit(reqId: number, fn: () => void, engineStart: number) {
+  try {
+    fn();
+    const engineMs = performance.now() - engineStart;
+    post({ ok: true, reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+  } catch (err: unknown) {
+    if (typeof err === 'number' && err in EditError) {
+      const errorCode = EditError[err as EditError] as EditErrorCode;
+      post({ errorCode, ok: false, reqId, type: 'result' });
+      return;
+    }
+    post({
+      message: err instanceof Error ? err.message : String(err),
+      reqId,
+      type: 'error',
+    });
+  }
+}
+
 /**
  * Wrap a handler that produces a response, measuring:
  *  - `engineMs`: time inside the handler (Rust call + buffer prep)
@@ -137,37 +158,15 @@ async function timedHandle(req: EngineRequest): Promise<void> {
   const engineStart = performance.now();
 
   switch (req.type) {
-    case 'delete': {
-      const errCode = e.delete_at_subset(req.rows, req.col);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'delete':
+      handleEdit(req.reqId, () => e.delete_at_subset(req.rows, req.col), engineStart);
       break;
-    }
-    case 'deleteColumn': {
-      const errCode = e.delete_column(req.col);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'deleteColumn':
+      handleEdit(req.reqId, () => e.delete_column(req.col), engineStart);
       break;
-    }
-
-    case 'insert': {
-      const errCode = e.insert_at_subset(req.rows, req.col);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'insert':
+      handleEdit(req.reqId, () => e.insert_at_subset(req.rows, req.col), engineStart);
       break;
-    }
 
     case 'load': {
       const n = e.load_fasta(req.fasta);
@@ -190,45 +189,18 @@ async function timedHandle(req: EngineRequest): Promise<void> {
     }
     case 'moveHorizontal': {
       const direction = req.direction === 'Left' ? MoveDirection.Left : MoveDirection.Right;
-      const errCode = e.move_horizontal(req.row, req.cols, direction);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+      handleEdit(req.reqId, () => e.move_horizontal(req.row, req.cols, direction), engineStart);
       break;
     }
-    case 'moveRowsDown': {
-      const errCode = e.move_rows_down(req.rows);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'moveRowsDown':
+      handleEdit(req.reqId, () => e.move_rows_down(req.rows), engineStart);
       break;
-    }
-    case 'moveRowsUp': {
-      const errCode = e.move_rows_up(req.rows);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'moveRowsUp':
+      handleEdit(req.reqId, () => e.move_rows_up(req.rows), engineStart);
       break;
-    }
-    case 'mutate': {
-      const errCode = e.mutate_base_subset(req.rows, req.col, req.base);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'mutate':
+      handleEdit(req.reqId, () => e.mutate_base_subset(req.rows, req.col, req.base), engineStart);
       break;
-    }
     case 'name': {
       const data = e.get_name(req.row);
       engineMs = performance.now() - engineStart;

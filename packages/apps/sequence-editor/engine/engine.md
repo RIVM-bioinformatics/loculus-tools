@@ -157,7 +157,7 @@ enum UndoCommand {
         old_bases: Vec<u8>,
     },
     /// Structural inserts/deletes: a lightweight clone of the full matrix.
-      e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGGTG-A").unwrap();
+StructuralSnapshot {
         matrix_snapshot: Vec<Vec<u8>>,
         names_snapshot: Vec<String>,
         width_snapshot: usize,

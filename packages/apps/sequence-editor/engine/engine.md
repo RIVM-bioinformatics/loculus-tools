@@ -157,7 +157,7 @@ enum UndoCommand {
         old_bases: Vec<u8>,
     },
     /// Structural inserts/deletes: a lightweight clone of the full matrix.
-    StructuralSnapshot {
+      e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGGTG-A").unwrap();
         matrix_snapshot: Vec<Vec<u8>>,
         names_snapshot: Vec<String>,
         width_snapshot: usize,
@@ -195,16 +195,26 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `load_fasta` | `load_fasta(fasta: string): number` | Parse FASTA content, populate the matrix, return the number of sequences loaded. |
+| `load_fasta` | `load_fasta(fasta: string): number` | Validate and parse FASTA atomically; throw a structured error on invalid input. |
 
 `load_fasta` behavior:
 
-- Clears all previous state (sequences, names, width, undo/redo stacks).
+- Parses into temporary sequence/name buffers first. Only after the complete
+  input is valid does it replace existing data and clear undo/redo history;
+  invalid input leaves the current engine state intact.
 - Scans line by line. A line starting with `>` begins a new record; the first
   whitespace-delimited token after `>` becomes the row name (common FASTA
   convention).
 - Sequence lines are appended as **uppercased** ASCII bytes; internal whitespace
   is skipped. Sequences may span multiple lines.
+- Sequence bodies accept only IUPAC nucleotide characters
+  (`ACGTURYSWKMBDHVN`, either case) and `-`. Other characters, including
+  non-ASCII characters, reject with `StructuredEngineError` code
+  `InvalidAlphabet`. The `invalidCharacters` context array lists every
+  occurrence across all records, with its sequence ID, invalid character,
+  1-based sequence position, and 1-based input line. Scalar context fields
+  mirror the first occurrence.
+- Sequence data before the first header rejects with `InvalidFastaFormat`.
 - The **longest** sequence sets `alignment_width` (not the first). Subsequent
   sequences are loaded as-is even if they differ in length — the engine does
   **not** enforce uniform length. The caller can detect ragged alignments via
@@ -428,7 +438,8 @@ Reorder rows by swapping each specified row with its immediate neighbour.
 
 ### 5.7 Structured errors
 
-WASM-facing edit methods return `Result<(), StructuredEngineError>`. The
+WASM-facing edit methods and `load_fasta` return
+`Result<_, StructuredEngineError>`. The
 private `MutateError`, `DeleteError`, and `MoveError` variants preserve the
 failing coordinates, base, and direction. Their conversions create a stable
 error code, readable message, and optional `ErrorContext` fields. The
@@ -449,15 +460,30 @@ pub struct ErrorContext {
   pub frame: Option<u8>,
   pub mode: Option<String>,
   pub direction: Option<String>,
+  pub sequence_id: Option<String>,
+  pub position: Option<usize>,
+  pub line: Option<usize>,
+  pub invalid_char: Option<String>,
+  pub byte: Option<u8>,
+  pub invalid_characters: Option<Vec<InvalidCharacterContext>>,
+}
+
+pub struct InvalidCharacterContext {
+  pub sequence_id: String,
+  pub position: usize,
+  pub line: usize,
+  pub invalid_char: String,
+  pub byte: Option<u8>,
 }
 ```
 
 The types derive `serde::Serialize`; `From<StructuredEngineError> for JsValue`
 uses `serde_wasm_bindgen` so wasm-bindgen throws the structured object. Optional
 context fields are omitted when absent. The worker normalizes that thrown value
-and posts `{ ok: false, error }`; unexpected exceptions use code
-`UnexpectedRuntimeError`. Invalid or oversized viewport requests use
-`InvalidViewport` with the available starting row/column.
+and posts `{ ok: false, error }` for edit, load, translation, and viewport
+failures; unexpected exceptions use code `UnexpectedRuntimeError`. Invalid or
+oversized viewport requests use `InvalidViewport` with the available starting
+row/column.
 Direct Rust/WASM translation calls also check inclusive dimensions and their
 product against `MAX_VIEWPORT_BYTES` before reserving viewport memory. Overflow,
 oversized results, or reservation failures return `InvalidViewport` with
@@ -472,6 +498,8 @@ oversized results, or reservation failures return `InvalidViewport` with
 | `InvalidReadingFrame` | Translation requested a frame outside 0, 1, or 2. | `frame` |
 | `InvalidViewport` | Viewport bounds overflow, exceed capacity, or translation memory cannot be reserved. | `row`, `col`, and `frame` for translation |
 | `UnexpectedRuntimeError` | Unrecognized runtime failure. | None unless available |
+| `InvalidAlphabet` | Sequence contains characters outside IUPAC nucleotides and `-`. | `invalidCharacters` lists every occurrence; scalar fields mirror the first |
+| `InvalidFastaFormat` | Sequence data appears before a FASTA header. | `line` |
 
 ---
 
@@ -533,7 +561,7 @@ A minimal native usage:
 
 ```rust
 let mut e = MsaEngine::new();
-e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGGTG-A");
+e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGGTG-A").unwrap();
 assert_eq!(e.get_sequence_count(), 2);
 assert_eq!(e.get_alignment_width(), 8);
 

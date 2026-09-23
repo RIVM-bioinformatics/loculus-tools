@@ -10,7 +10,7 @@ mod alphabets;
 mod search_algorithms;
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
-use search_algorithms::{Match, MatrixType, SearchAlgorithm, SearchResult, run_search};
+use search_algorithms::{run_search, Match, MatrixType, SearchAlgorithm, SearchResult};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
@@ -56,6 +56,18 @@ impl std::fmt::Display for EditError {
 
 impl std::error::Error for EditError {}
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct InvalidCharacterContext {
+    #[serde(rename = "sequenceId")]
+    pub sequence_id: String,
+    pub position: usize,
+    pub line: usize,
+    #[serde(rename = "invalidChar")]
+    pub invalid_char: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub byte: Option<u8>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct ErrorContext {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -70,6 +82,18 @@ pub struct ErrorContext {
     pub mode: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub direction: Option<String>,
+    #[serde(rename = "sequenceId", skip_serializing_if = "Option::is_none")]
+    pub sequence_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub position: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
+    #[serde(rename = "invalidChar", skip_serializing_if = "Option::is_none")]
+    pub invalid_char: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub byte: Option<u8>,
+    #[serde(rename = "invalidCharacters", skip_serializing_if = "Option::is_none")]
+    pub invalid_characters: Option<Vec<InvalidCharacterContext>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -97,8 +121,12 @@ impl From<StructuredEngineError> for JsValue {
 
 impl StructuredEngineError {
     fn new(code: EditError, message: String, context: Option<ErrorContext>) -> Self {
+        Self::with_code(code.as_str(), message, context)
+    }
+
+    fn with_code(code: impl Into<String>, message: String, context: Option<ErrorContext>) -> Self {
         Self {
-            code: code.as_str().to_owned(),
+            code: code.into(),
             message,
             context,
         }
@@ -373,37 +401,31 @@ impl MsaEngine {
     /// sequence. Shorter sequences are NOT automatically padded.
     /// Callers can detect ragged alignments via `get_row_length`.
     ///
-    /// Returns the number of sequences parsed after successful engine population.
-    pub fn load_fasta(&mut self, fasta_content: &str) -> usize {
-        self.nucleotide_sequences.clear();
-        self.aminoacid_sequences.clear();
-        self.names.clear();
-        self.alignment_width = 0;
-        self.undo_stack.clear();
-        self.redo_stack.clear();
-
+    /// Returns the sequence count on success. Invalid sequence characters
+    /// reject the load without changing the current engine state.
+    pub fn load_fasta(&mut self, fasta_content: &str) -> Result<usize, StructuredEngineError> {
+        let mut staged_sequences = Vec::new();
+        let mut staged_names = Vec::new();
         let mut current_name: Option<String> = None;
         let mut current_seq: Vec<u8> = Vec::new();
+        let mut current_position = 0;
+        let mut invalid_characters = Vec::new();
 
-        for raw_line in fasta_content.lines() {
+        for (line_index, raw_line) in fasta_content.lines().enumerate() {
+            let line_number = line_index + 1;
             let line = raw_line.trim();
             if line.is_empty() {
                 continue;
             }
             if let Some(header) = line.strip_prefix('>') {
-                // Flush the previous record before starting a new one.
-                if let Some(n) = current_name.take() {
+                if let Some(name) = current_name.take() {
                     if !current_seq.is_empty() {
-                        if self.alignment_width == 0 {
-                            self.alignment_width = current_seq.len();
-                        }
-                        self.names.push(n);
-                        self.nucleotide_sequences
-                            .push(std::mem::take(&mut current_seq));
+                        staged_names.push(name);
+                        staged_sequences.push(std::mem::take(&mut current_seq));
                     }
                 }
-                // Header text is everything after '>'; take the first token as
-                // the ID (matching common FASTA convention).
+                current_position = 0;
+                //todo: see issue #27, to be fixed in separate pr.
                 let header_text = header.trim();
                 let id = header_text
                     .split_whitespace()
@@ -412,32 +434,90 @@ impl MsaEngine {
                     .to_string();
                 current_name = Some(id);
             } else {
-                // Sequence data: append uppercase bytes, skipping internal whitespace.
-                for b in line.bytes() {
-                    if !b.is_ascii_whitespace() {
-                        current_seq.push(b.to_ascii_uppercase());
+                let Some(sequence_id) = current_name.as_deref() else {
+                    return Err(StructuredEngineError::with_code(
+                        "InvalidFastaFormat",
+                        format!(
+                            "Sequence data appears before a FASTA header on line {line_number}"
+                        ),
+                        Some(ErrorContext {
+                            line: Some(line_number),
+                            ..ErrorContext::default()
+                        }),
+                    ));
+                };
+
+                for character in line.chars() {
+                    if character.is_ascii_whitespace() {
+                        continue;
                     }
+                    current_position += 1;
+                    let uppercase = character.to_ascii_uppercase();
+                    if !uppercase.is_ascii()
+                        || (!is_iupac(uppercase as u8) && !is_gap(uppercase as u8))
+                    {
+                        invalid_characters.push(InvalidCharacterContext {
+                            sequence_id: sequence_id.to_owned(),
+                            position: current_position,
+                            line: line_number,
+                            invalid_char: character.to_string(),
+                            byte: character.is_ascii().then_some(character as u8),
+                        });
+                        continue;
+                    }
+                    current_seq.push(uppercase as u8);
                 }
             }
         }
-        // Flush the final record.
-        if let Some(n) = current_name.take() {
+
+        if let Some(first) = invalid_characters.first() {
+            let byte_description = first
+                .byte
+                .map(|byte| format!(" (0x{byte:02X})"))
+                .unwrap_or_default();
+            let message = format!(
+                "Found {} invalid FASTA character(s). First: '{}'{} in sequence {:?} at position {}, line {}; see context.invalidCharacters for all occurrences. Expected an IUPAC nucleotide or '-'",
+                invalid_characters.len(),
+                first.invalid_char,
+                byte_description,
+                first.sequence_id,
+                first.position,
+                first.line
+            );
+            return Err(StructuredEngineError::with_code(
+                "InvalidAlphabet",
+                message,
+                Some(ErrorContext {
+                    sequence_id: Some(first.sequence_id.clone()),
+                    position: Some(first.position),
+                    line: Some(first.line),
+                    invalid_char: Some(first.invalid_char.clone()),
+                    byte: first.byte,
+                    invalid_characters: Some(invalid_characters),
+                    ..ErrorContext::default()
+                }),
+            ));
+        }
+
+        if let Some(name) = current_name {
             if !current_seq.is_empty() {
-                self.names.push(n);
-                self.nucleotide_sequences
-                    .push(std::mem::take(&mut current_seq));
+                staged_names.push(name);
+                staged_sequences.push(current_seq);
             }
         }
 
-        // alignment_width is the length of the longest sequence (Rule 8).
-        self.alignment_width = self
-            .nucleotide_sequences
-            .iter()
-            .map(|s| s.len())
-            .max()
-            .unwrap_or(0);
+        let alignment_width = staged_sequences.iter().map(Vec::len).max().unwrap_or(0);
+        let sequence_count = staged_sequences.len();
 
-        self.nucleotide_sequences.len()
+        self.nucleotide_sequences = staged_sequences;
+        self.names = staged_names;
+        self.aminoacid_sequences.clear();
+        self.alignment_width = alignment_width;
+        self.viewport_buffer.clear();
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+
+        Ok(sequence_count)
     }
 
     /// Extract a windowed slice of the matrix into the reusable viewport buffer
@@ -1195,10 +1275,7 @@ impl MsaEngine {
     /// the row immediately above it. Rows already at the top (index 0) are
     /// silently skipped. Multiple rows may be moved simultaneously.
     /// Returns success.
-    pub fn move_rows_up(
-        &mut self,
-        row_indices: &[usize],
-    ) -> Result<(), StructuredEngineError> {
+    pub fn move_rows_up(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || self.nucleotide_sequences.len() < 2 {
             return Ok(());
         }
@@ -1225,10 +1302,7 @@ impl MsaEngine {
     /// with the row immediately below it. Rows already at the bottom are
     /// silently skipped. Multiple rows may be moved simultaneously.
     /// Returns success.
-    pub fn move_rows_down(
-        &mut self,
-        row_indices: &[usize],
-    ) -> Result<(), StructuredEngineError> {
+    pub fn move_rows_down(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || self.nucleotide_sequences.len() < 2 {
             return Ok(());
         }

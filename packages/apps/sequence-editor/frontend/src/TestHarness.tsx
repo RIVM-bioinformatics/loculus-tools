@@ -42,6 +42,26 @@ import { SeqEditorUtil } from './utils/SeqEditorUtil';
  * contaminating the benchmark's double-rAF "renderMs" measurement.
  */
 
+const formatEngineError = (error: unknown): string => {
+  if (!(error instanceof EngineStructuredError)) {
+    return String(error);
+  }
+
+  const invalidCharacters = error.context?.invalidCharacters;
+  if (error.code === 'InvalidAlphabet' && invalidCharacters?.length) {
+    console.log(error.context?.invalidCharacters)
+    const heading = `${invalidCharacters.length} invalid character${invalidCharacters.length === 1 ? '' : 's'} found.`;
+    const occurrences = invalidCharacters.map((occurrence) => {
+      const byte = occurrence.byte === undefined
+        ? ''
+        : ` [0x${occurrence.byte.toString(16).toUpperCase().padStart(2, '0')}]`;
+      return `${occurrence.sequenceId}: '${occurrence.invalidChar}' at position ${occurrence.position} (line ${occurrence.line})${byte}`;
+    });
+    return `Invalid FASTA alphabet: ${heading}\n${occurrences.join('\n')}`;
+  }
+
+  return `${error.code}: ${error.message}`;
+};
 
 export const TestHarness = () => {
   const eng = useEngineWorker();
@@ -91,7 +111,7 @@ export const TestHarness = () => {
       setSlice(null);
       setSliceRows([]);
     } catch (e) {
-      setErr(String(e));
+      setErr(formatEngineError(e));
     }
   }, [eng, fasta, refreshMeta]);
 
@@ -158,9 +178,7 @@ export const TestHarness = () => {
       setAminoAcidRows(out);
       setStatus(`Translated ${out.length} row(s) using reading frame ${readingFrame}`);
     } catch (e) {
-      setErr(e instanceof EngineStructuredError
-        ? `${e.code}: ${e.message}${e.context ? ` (${JSON.stringify(e.context)})` : ''}`
-        : String(e));
+      setErr(formatEngineError(e));
     }
   }, [eng, r0, r1, c0, c1, readingFrame]);
 
@@ -182,10 +200,7 @@ export const TestHarness = () => {
         setStatus(`${op} applied — refetch slice to verify`);
         await refreshMeta();
       } catch (e: unknown) {
-        const msg = e instanceof EngineStructuredError
-          ? `${e.message}${e.context ? ` (${JSON.stringify(e.context)})` : ''}`
-          : String(e);
-        setErr(msg);
+        setErr(formatEngineError(e));
       }
     },
     [eng, rowsCsv, col, base, refreshMeta],
@@ -201,10 +216,7 @@ export const TestHarness = () => {
         setStatus(`Moved ${direction} — refetch slice to verify`);
         await refreshMeta();
       } catch (e: unknown) {
-        const msg = e instanceof EngineStructuredError
-          ? `${e.message}${e.context ? ` (${JSON.stringify(e.context)})` : ''}`
-          : String(e);
-        setErr(msg);
+        setErr(formatEngineError(e));
       }
     },
     [eng, moveRow, moveColsCsv, refreshMeta],
@@ -223,10 +235,7 @@ export const TestHarness = () => {
         setStatus(`Rows moved ${dir} — refetch slice to verify`);
         await refreshMeta();
       } catch (e: unknown) {
-        const msg = e instanceof EngineStructuredError
-          ? `${e.message}${e.context ? ` (${JSON.stringify(e.context)})` : ''}`
-          : String(e);
-        setErr(msg);
+        setErr(formatEngineError(e));
       }
     },
     [eng, rowsCsv, refreshMeta],
@@ -628,7 +637,7 @@ export const TestHarness = () => {
               </Stack>
             )}
             {err && (
-              <Alert severity={'error'}>
+              <Alert severity={'error'} sx={{ whiteSpace: 'pre-line' }}>
                 {err}
               </Alert>
             )}

@@ -39,13 +39,27 @@ export type EngineErrorCode =
   | 'UnexpectedRuntimeError'
   | EditErrorCode;
 
+export interface InvalidCharacterContext {
+  byte?: number;
+  invalidChar: string;
+  line: number;
+  position: number;
+  sequenceId: string;
+}
+
 export interface ErrorContext {
   base?: string;
+  byte?: number;
   col?: number;
   direction?: 'Left' | 'Right';
   frame?: number;
+  invalidChar?: string;
+  invalidCharacters?: InvalidCharacterContext[];
+  line?: number;
   mode?: string;
+  position?: number;
   row?: number;
+  sequenceId?: string;
 }
 
 export interface StructuredEngineError {

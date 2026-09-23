@@ -10,7 +10,8 @@ use super::*;
 
 fn engine_with_sample() -> MsaEngine {
     let mut e = MsaEngine::new();
-    e.load_fasta(">seq1 first record\nATGCATGC\n>seq2\nATGGTG-A\n>seq3 third record\nATGCAT-C");
+    e.load_fasta(">seq1 first record\nATGCATGC\n>seq2\nATGGTG-A\n>seq3 third record\nATGCAT-C")
+        .expect("valid sample FASTA");
     e
 }
 
@@ -27,7 +28,8 @@ fn loads_three_sequences() {
 #[test]
 fn handles_multiline_sequences() {
     let mut e = MsaEngine::new();
-    e.load_fasta(">x\nATGC\nATGC\n>y\nTTTT\nGGGG");
+    e.load_fasta(">x\nATGC\nATGC\n>y\nTTTT\nGGGG")
+        .expect("valid multiline FASTA");
     assert_eq!(e.get_sequence_count(), 2);
     // alignment_width = longest sequence length = 8 (ATGCATGC / TTTTGGGG)
     assert_eq!(e.get_alignment_width(), 8);
@@ -63,7 +65,7 @@ fn out_of_range_base_returns_zero() {
 #[test]
 fn empty_fasta_loads_zero() {
     let mut e = MsaEngine::new();
-    e.load_fasta("");
+    assert_eq!(e.load_fasta("").unwrap(), 0);
     assert_eq!(e.get_sequence_count(), 0);
     assert_eq!(e.get_alignment_width(), 0);
 }
@@ -72,10 +74,126 @@ fn empty_fasta_loads_zero() {
 fn reload_clears_previous_state() {
     let mut e = engine_with_sample();
     assert_eq!(e.get_sequence_count(), 3);
-    e.load_fasta(">only\nAT");
+    e.load_fasta(">only\nAT").expect("valid replacement FASTA");
     assert_eq!(e.get_sequence_count(), 1);
     assert_eq!(e.get_alignment_width(), 2);
     assert_eq!(e.get_name(0), "only");
+}
+
+#[test]
+fn load_fasta_accepts_iupac_symbols_lowercase_and_gaps() {
+    let mut e = MsaEngine::new();
+    let count = e
+        .load_fasta(">upper\nACGTURYSWKMBDHVN-\n>lower\nacgturyswkmbdhvn-")
+        .unwrap();
+
+    assert_eq!(count, 2);
+    assert_eq!(e.get_alignment_width(), 17);
+    assert_eq!(e.get_base(1, 0), b'A');
+    assert_eq!(e.get_base(1, 16), b'-');
+}
+
+#[test]
+fn load_fasta_rejects_invalid_alphabet_with_record_and_position_context() {
+    let mut e = MsaEngine::new();
+    let error = e
+        .load_fasta(">first record\nACGT\n>bad record\nACZGT")
+        .unwrap_err();
+
+    assert_eq!(error.code, "InvalidAlphabet");
+    assert!(error.message.contains("'Z' (0x5A)"));
+    assert!(error
+        .message
+        .contains("sequence \"bad\" at position 3, line 4"));
+    let context = error.context.unwrap();
+    assert_eq!(context.sequence_id.as_deref(), Some("bad"));
+    assert_eq!(context.position, Some(3));
+    assert_eq!(context.line, Some(4));
+    assert_eq!(context.invalid_char.as_deref(), Some("Z"));
+    assert_eq!(context.byte, Some(b'Z'));
+    assert_eq!(context.invalid_characters.unwrap().len(), 1);
+}
+
+#[test]
+fn load_fasta_reports_invalid_characters_across_all_records() {
+    let mut e = MsaEngine::new();
+    let error = e
+        .load_fasta(
+            ">seq1 first record\nATGCATGCATGC?\n>seq2\nATGGTGCAT-TC?\n>seq3 third record\nATGCAT-CATGC?",
+        )
+        .unwrap_err();
+
+    assert_eq!(error.code, "InvalidAlphabet");
+    assert!(error.message.contains("Found 3 invalid FASTA character(s)"));
+    let occurrences = error.context.unwrap().invalid_characters.unwrap();
+    assert_eq!(occurrences.len(), 3);
+    assert_eq!(occurrences[0].sequence_id, "seq1");
+    assert_eq!(occurrences[0].position, 13);
+    assert_eq!(occurrences[0].line, 2);
+    assert_eq!(occurrences[0].invalid_char, "?");
+    assert_eq!(occurrences[0].byte, Some(b'?'));
+    assert_eq!(occurrences[1].sequence_id, "seq2");
+    assert_eq!(occurrences[1].position, 13);
+    assert_eq!(occurrences[1].line, 4);
+    assert_eq!(occurrences[2].sequence_id, "seq3");
+    assert_eq!(occurrences[2].position, 13);
+    assert_eq!(occurrences[2].line, 6);
+}
+
+#[test]
+fn load_fasta_rejects_digits_punctuation_and_non_ascii() {
+    for invalid in [">seq\nAC1T", ">seq\nAC.T", ">seq\nAC?T", ">seq\nACéT"] {
+        let mut e = MsaEngine::new();
+        let error = e.load_fasta(invalid).unwrap_err();
+        assert_eq!(error.code, "InvalidAlphabet", "input: {invalid}");
+        assert!(error.context.unwrap().invalid_char.is_some());
+    }
+}
+
+#[test]
+fn load_fasta_allows_punctuation_and_numbers_in_headers() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq-1 description with 123 & symbols\nACGT-N")
+        .unwrap();
+
+    assert_eq!(e.get_name(0), "seq-1");
+    assert_eq!(e.get_alignment_width(), 6);
+}
+
+#[test]
+fn load_fasta_invalid_input_preserves_engine_data_and_history() {
+    let mut e = engine_with_sample();
+    e.mutate_base_subset(&[0], 0, b'T').unwrap();
+    e.mutate_base_subset(&[0], 1, b'A').unwrap();
+    assert!(e.undo());
+
+    let error = e
+        .load_fasta(">replacement\nACGT\n>invalid\nACG?T")
+        .unwrap_err();
+
+    assert_eq!(error.code, "InvalidAlphabet");
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 8);
+    assert_eq!(e.get_name(0), "seq1");
+    assert_eq!(e.get_base(0, 0), b'T');
+    assert_eq!(e.get_base(0, 1), b'T');
+    assert_eq!(e.undo_depth(), 1);
+    assert_eq!(e.redo_depth(), 1);
+
+    assert!(e.redo());
+    assert_eq!(e.get_base(0, 1), b'A');
+    assert!(e.undo());
+    assert_eq!(e.get_base(0, 1), b'T');
+}
+
+#[test]
+fn load_fasta_rejects_sequence_data_before_header() {
+    let mut e = MsaEngine::new();
+    let error = e.load_fasta("ACGT\n>seq\nACGT").unwrap_err();
+
+    assert_eq!(error.code, "InvalidFastaFormat");
+    assert_eq!(error.context.unwrap().line, Some(1));
+    assert_eq!(e.get_sequence_count(), 0);
 }
 
 #[test]
@@ -278,7 +396,8 @@ fn insert_at_subset_clamps_columns_beyond_alignment_width() {
 #[test]
 fn insert_at_subset_preserves_ragged_row_behavior() {
     let mut e = MsaEngine::new();
-    e.load_fasta(">short\nATGC\n>long\nATGCATGC\n>middle\nATGCAT");
+    e.load_fasta(">short\nATGC\n>long\nATGCATGC\n>middle\nATGCAT")
+        .unwrap();
 
     assert_eq!(e.insert_at_subset(&[0], 6), Ok(()));
     assert_eq!(e.get_row_length(0), 7);
@@ -434,7 +553,7 @@ fn multi_step_undo_redo_sequence() {
     assert!(e.undo()); // undo substitute
     assert_eq!(e.get_base(0, 0), b'A');
     assert!(!e.undo()); // stack empty
-    // Redo all three.
+                        // Redo all three.
     assert!(e.redo());
     assert_eq!(e.get_base(0, 0), b'T');
     assert!(e.redo());
@@ -551,7 +670,8 @@ fn delete_at_subset_non_targets_untouched() {
 #[test]
 fn alignment_width_from_longest_sequence() {
     let mut e = MsaEngine::new();
-    e.load_fasta(">seq1\nATGC\n>seq2\nATGCATGC\n>seq3\nATGCAT");
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGCATGC\n>seq3\nATGCAT")
+        .unwrap();
     // Longest sequence is seq2 with length 8.
     assert_eq!(e.get_alignment_width(), 8);
     assert_eq!(e.get_row_length(0), 4);
@@ -882,12 +1002,10 @@ fn search_record_names_matches_substring_in_every_name() {
     assert_eq!(result.positions[0].row, 0);
     assert_eq!(result.positions[1].row, 1);
     assert_eq!(result.positions[2].row, 2);
-    assert!(
-        result
-            .positions
-            .iter()
-            .all(|m| m.matrix_type == MatrixType::RecordName)
-    );
+    assert!(result
+        .positions
+        .iter()
+        .all(|m| m.matrix_type == MatrixType::RecordName));
 }
 
 #[test]

@@ -39,7 +39,7 @@ export const TestPage = () => {
 
   const updateScrollbars = useCallback(() => {
     const horizontalSize = geometry.labelWidth + metaSubject.data!.alignmentWidth * geometry.cellWidth;
-    const verticalSize = metaSubject.data!.sequenceCount * geometry.cellHeight;
+    const verticalSize = geometry.rulerHeight + metaSubject.data!.sequenceCount * geometry.cellHeight;
     setHorizontalScrollBarSize(horizontalSize);
     setVerticalScrollBarSize(verticalSize);
   }, [geometry, metaSubject]);

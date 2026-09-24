@@ -9,6 +9,7 @@ import {
 import { Box } from '@mui/material';
 import { Subject } from '@gen-epix/ui-core/classes/Subject';
 import { useDebouncedCallback } from 'use-debounce';
+import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/DevicePixelRatioService';
 
 import { EditorWorkerService } from '../../classes/services/EditorWorkerService/EditorWorkerService';
 import type {
@@ -28,6 +29,7 @@ export const TestPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState<{ height: number; width: number }>({ height: 0, width: 0 });
+  const [devicePixelRatio, setDevicePixelRatio] = useState(() => DevicePixelRatioService.getInstance().data);
   const [verticalScrollBarSize, setVerticalScrollBarSize] = useState(0);
   const [horizontalScrollBarSize, setHorizontalScrollBarSize] = useState(0);
   const scrollSubject = useMemo(() => new Subject<{ scrollLeft: number; scrollTop: number }>({ scrollLeft: 0, scrollTop: 0 }), []);
@@ -36,9 +38,12 @@ export const TestPage = () => {
   const [palette, setPalette] = useState<null | PaletteModel>();
   const visibleRangeSubject = useMemo(() => new Subject<null | VisibleGridRangeWithArguments>(null), []);
   const cachedGridRangeWithViewPortResultRef = useRef<GridRangeWithViewportResults | null>(null);
-  const [geometry, setGeometry] = useState<GridGeometry>(null);
+  const [geometry, setGeometry] = useState<GridGeometry | null>(null);
 
   const updateScrollbars = useCallback(() => {
+    if (!geometry) {
+      return;
+    }
     const horizontalSize = geometry.labelWidth + geometry.cellWidth + metaSubject.data!.alignmentWidth * geometry.cellWidth;
     const verticalSize = geometry.rulerHeight + metaSubject.data!.sequenceCount * geometry.cellHeight;
     setHorizontalScrollBarSize(horizontalSize);
@@ -47,12 +52,11 @@ export const TestPage = () => {
 
   const updateMeta = useCallback(async () => {
     const meta = await EditorWorkerService.getInstance().getMetaData();
-    console.log({ meta });
     metaSubject.next(meta);
   }, [metaSubject]);
 
   const updateVisibleRange = useCallback(() => {
-    if (!metaSubject.data) {
+    if (!metaSubject.data || !geometry) {
       return;
     }
     const { scrollLeft, scrollTop } = scrollSubject.data;
@@ -134,41 +138,44 @@ export const TestPage = () => {
 
   useEffect(() => {
     let animationFrame: null | number = null;
+
     const unsubscribeItems = [
-      visibleRangeSubject.subscribe(async (visibleRangeSubjectData) => {
-        if (!visibleRangeSubjectData?.visibleGridRange?.visible || !visibleRangeSubjectData?.visibleGridRange?.cache) {
+      visibleRangeSubject.subscribe(async (visibleGridRangeWithArguments) => {
+        if (!visibleGridRangeWithArguments) {
           return;
         }
 
-        if (!cachedGridRangeWithViewPortResultRef.current || !EditorUtil.isWithinGridRange({ cachedGridRange: cachedGridRangeWithViewPortResultRef.current.range, visibleGridRange: visibleRangeSubjectData?.visibleGridRange?.visible })) {
-          console.log('Loading new viewport');
+        if (!cachedGridRangeWithViewPortResultRef.current || !EditorUtil.isWithinGridRange({
+          cachedGridRange: cachedGridRangeWithViewPortResultRef.current.range,
+          visibleGridRange: visibleGridRangeWithArguments?.visibleGridRange?.visible,
+        })) {
           const viewportResult = await EditorWorkerService.getInstance().viewport({
-            endCol: visibleRangeSubjectData.visibleGridRange.cache.endCol,
-            endRow: visibleRangeSubjectData.visibleGridRange.cache.endRow,
-            startCol: visibleRangeSubjectData.visibleGridRange.cache.startCol,
-            startRow: visibleRangeSubjectData.visibleGridRange.cache.startRow,
+            endCol: visibleGridRangeWithArguments.visibleGridRange.cache.endCol,
+            endRow: visibleGridRangeWithArguments.visibleGridRange.cache.endRow,
+            startCol: visibleGridRangeWithArguments.visibleGridRange.cache.startCol,
+            startRow: visibleGridRangeWithArguments.visibleGridRange.cache.startRow,
           });
           cachedGridRangeWithViewPortResultRef.current = {
-            range: visibleRangeSubjectData.visibleGridRange.cache,
+            range: visibleGridRangeWithArguments.visibleGridRange.cache,
             viewportResult,
           };
         }
 
         animationFrame = requestAnimationFrame(() => {
-          if (!canvasRef.current || !palette || !cachedGridRangeWithViewPortResultRef.current || !metaSubject.data) {
+          if (!canvasRef.current || !palette || !cachedGridRangeWithViewPortResultRef.current || !metaSubject.data || !visibleGridRangeWithArguments) {
             return;
           }
-
           EditorUtil.drawCanvas({
             canvasElement: canvasRef.current,
-            geometry: visibleRangeSubjectData.geometry,
+            devicePixelRatio,
+            geometry: visibleGridRangeWithArguments.geometry,
             meta: metaSubject.data,
             palette,
-            scrollLeft: visibleRangeSubjectData.scrollLeft,
-            scrollTop: visibleRangeSubjectData.scrollTop,
+            scrollLeft: visibleGridRangeWithArguments.scrollLeft,
+            scrollTop: visibleGridRangeWithArguments.scrollTop,
             viewport: cachedGridRangeWithViewPortResultRef.current.viewportResult,
-            viewportHeight: visibleRangeSubjectData.viewportHeight,
-            viewportWidth: visibleRangeSubjectData.viewportWidth,
+            viewportHeight: visibleGridRangeWithArguments.viewportHeight,
+            viewportWidth: visibleGridRangeWithArguments.viewportWidth,
           });
         });
       }),
@@ -179,7 +186,7 @@ export const TestPage = () => {
       }
       unsubscribeItems.forEach(unsubscribe => unsubscribe());
     };
-  }, [metaSubject, palette, visibleRangeSubject]);
+  }, [devicePixelRatio, metaSubject, palette, visibleRangeSubject]);
 
   useEffect(() => {
     const unsubscribeItems = [
@@ -189,6 +196,11 @@ export const TestPage = () => {
           updateScrollbars();
           updateVisibleRange();
         }
+      }),
+      DevicePixelRatioService.getInstance().subscribe((data) => {
+        setDevicePixelRatio(data);
+        updateScrollbars();
+        updateVisibleRange();
       }),
     ];
     return () => {
@@ -207,6 +219,9 @@ export const TestPage = () => {
       scrollTop: target.scrollTop,
     });
   }, [scrollSubject]);
+
+  const canvasWidth = Math.max(1, Math.floor(containerDimensions.width * devicePixelRatio));
+  const canvasHeight = Math.max(1, Math.floor(containerDimensions.height * devicePixelRatio));
 
   return (
     <Box
@@ -239,7 +254,7 @@ export const TestPage = () => {
       </Box>
       <Box
         component={'canvas'}
-        height={containerDimensions.height}
+        height={canvasHeight}
         ref={canvasRef}
         sx={{
           display: 'block',
@@ -251,7 +266,7 @@ export const TestPage = () => {
           width: `${containerDimensions.width}px`,
           zIndex: 0,
         }}
-        width={containerDimensions.width}
+        width={canvasWidth}
       />
     </Box>
   );

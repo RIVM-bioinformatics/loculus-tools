@@ -10,7 +10,7 @@ mod alphabets;
 mod search_algorithms;
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
-use search_algorithms::{run_search, Match, MatrixType, SearchAlgorithm, SearchResult};
+use search_algorithms::{naive_search, Match, MatrixType, SearchResult, MAX_SEARCH_RESULTS};
 use wasm_bindgen::prelude::*;
 
 // Bound to the JS `console.log`, so this works in both the main thread and
@@ -63,6 +63,16 @@ enum UndoCommand {
         col_idx: usize,
         mutated_rows: Vec<usize>,
         old_bases: Vec<u8>,
+    },
+    /// Atomic character changes across a rectangular selection.
+    RangeSubstitutions { positions: Vec<(usize, usize, u8)> },
+    /// A gap insertion on a row subset. Row lengths are enough to restore the
+    /// pre-edit shape because the inserted value is always `-`.
+    InsertSubset {
+        col_idx: usize,
+        row_indices: Vec<usize>,
+        row_lengths: Vec<usize>,
+        width_snapshot: usize,
     },
     /// Structural inserts/deletes: a lightweight clone of the full matrix.
     StructuralSnapshot {
@@ -193,6 +203,23 @@ impl MsaEngine {
             .unwrap_or(0);
 
         self.nucleotide_sequences.len()
+    }
+
+    /// Serialize the current alignment as deterministic, unwrapped FASTA.
+    /// Each record is emitted in its current row order and ends with a newline.
+    /// An empty engine exports an empty string.
+    pub fn export_fasta(&self) -> String {
+        let mut fasta = String::new();
+
+        for (name, sequence) in self.names.iter().zip(&self.nucleotide_sequences) {
+            fasta.push('>');
+            fasta.push_str(name);
+            fasta.push('\n');
+            fasta.push_str(&String::from_utf8_lossy(sequence));
+            fasta.push('\n');
+        }
+
+        fasta
     }
 
     /// Extract a windowed slice of the matrix into the reusable viewport buffer
@@ -391,12 +418,7 @@ impl MsaEngine {
         if self.nucleotide_sequences.is_empty() || !self.is_valid_nucleotide_query(query) {
             SearchResult::empty(query)
         } else {
-            run_search(
-                &SearchAlgorithm::FmIndex,
-                &self.nucleotide_sequences,
-                query,
-                MatrixType::Nucleotide,
-            )
+            naive_search(&self.nucleotide_sequences, query, MatrixType::Nucleotide)
         }
     }
 
@@ -415,12 +437,7 @@ impl MsaEngine {
             })
             .collect();
 
-        run_search(
-            &SearchAlgorithm::FmIndex,
-            &amino_acid_bytes,
-            query,
-            MatrixType::AminoAcid,
-        )
+        naive_search(&amino_acid_bytes, query, MatrixType::AminoAcid)
     }
 
     fn search_record_names(&self, query: &str) -> SearchResult {
@@ -446,6 +463,7 @@ impl MsaEngine {
             SearchResult {
                 query: query.to_string(),
                 num_matches: positions.len(),
+                truncated: false,
                 positions,
             }
         }
@@ -467,17 +485,30 @@ impl MsaEngine {
             SearchResult::empty(&query)
         };
 
+        let mut truncated = nucleotide_result.truncated;
         let mut all_positions = nucleotide_result.positions;
+        truncated = truncated || amino_acid_result.truncated || record_names_result.truncated;
         all_positions.extend(amino_acid_result.positions);
         all_positions.extend(record_names_result.positions);
+        if all_positions.len() > MAX_SEARCH_RESULTS {
+            all_positions.truncate(MAX_SEARCH_RESULTS);
+            truncated = true;
+        }
 
         let combined_result = SearchResult {
             query: query.to_string(),
             num_matches: all_positions.len(),
+            truncated,
             positions: all_positions,
         };
 
-        console_log!("Number of matches: {}", combined_result.num_matches);
+        console_log!(
+            "Search query: {}, checkRecordNames: {}, returned: {}, truncated: {}",
+            query,
+            check_record_names,
+            combined_result.num_matches,
+            combined_result.truncated
+        );
 
         serde_wasm_bindgen::to_value(&combined_result)
             .map_err(|e| JsValue::from_str(&e.to_string()))
@@ -572,9 +603,7 @@ impl MsaEngine {
                 viewport.extend_from_slice(&frame[start_col..start_col + frame_cols]);
             }
             // Pad the remainder of the row with spaces, same as `update_viewport`.
-            for _ in frame_cols..cols {
-                viewport.push(b' ');
-            }
+            viewport.extend(std::iter::repeat_n(b' ', cols - frame_cols));
         }
 
         js_sys::Uint8Array::from(&viewport[..])
@@ -695,6 +724,84 @@ impl MsaEngine {
         String::new()
     }
 
+    /// Atomically change every valid position in the inclusive rectangle
+    /// `[start_col, end_col]` across the supplied rows.
+    ///
+    /// The operation records one undo command and validates every targeted
+    /// existing base before changing any sequence, so a malformed character
+    /// cannot leave a partially edited selection.
+    pub fn mutate_base_range(
+        &mut self,
+        row_indices: &[usize],
+        start_col: usize,
+        end_col: usize,
+        new_base: u8,
+    ) -> String {
+        if !is_iupac(new_base) && !is_gap(new_base) {
+            return String::from(ERR_MUTATE_NOT_IUPAC);
+        }
+        if start_col > end_col {
+            return String::new();
+        }
+
+        let mut positions: Vec<(usize, usize, u8)> = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for &row in row_indices {
+            if !seen.insert(row) {
+                continue;
+            }
+            if let Some(sequence) = self.nucleotide_sequences.get(row) {
+                for col in start_col..=end_col {
+                    if let Some(&old_base) = sequence.get(col) {
+                        if !is_iupac(old_base) && !is_gap(old_base) {
+                            return String::from(ERR_MUTATE_NOT_IUPAC);
+                        }
+                        positions.push((row, col, old_base));
+                    }
+                }
+            }
+        }
+
+        if positions.is_empty() {
+            return String::new();
+        }
+
+        self.undo_stack.push(UndoCommand::RangeSubstitutions {
+            positions: positions.clone(),
+        });
+        self.redo_stack.clear();
+        for &(row, col, _) in &positions {
+            if let Some(sequence) = self.nucleotide_sequences.get_mut(row) {
+                if let Some(base) = sequence.get_mut(col) {
+                    *base = new_base;
+                }
+            }
+        }
+        String::new()
+    }
+
+    fn apply_insert_at_subset(&mut self, row_indices: &[usize], insertion_col: usize) {
+        let target_rows: std::collections::HashSet<usize> = row_indices.iter().copied().collect();
+
+        for r in 0..self.nucleotide_sequences.len() {
+            let seq = &mut self.nucleotide_sequences[r];
+            while seq.len() < insertion_col {
+                seq.push(b'-');
+            }
+            if target_rows.contains(&r) {
+                seq.insert(insertion_col, b'-');
+            } else {
+                seq.push(b'-');
+            }
+        }
+        self.alignment_width = self
+            .nucleotide_sequences
+            .iter()
+            .map(Vec::len)
+            .max()
+            .unwrap_or(0);
+    }
+
     /// Simultaneous gap insertion at a single column index on a subset of
     /// rows. The inserted character is always `-` (gap). Target rows receive
     /// the gap at the clamped insertion column; non-target rows have a `-`
@@ -709,29 +816,22 @@ impl MsaEngine {
 
         // Clamp the insertion column to the current alignment width. If `col_idx` is greater than the current width, the gap will be appended to all rows.
         let insertion_col = col_idx.min(self.alignment_width);
-        self.record_structural_undo();
-
-        // Use a HashSet for O(1) lookups of target rows.
-        let target_rows: std::collections::HashSet<usize> = row_indices.iter().copied().collect();
-
-        for r in 0..self.nucleotide_sequences.len() {
-            let seq = &mut self.nucleotide_sequences[r];
-            // Pad rows that are shorter than the insertion column before inserting.
-            while seq.len() < insertion_col {
-                seq.push(b'-');
-            }
-            if target_rows.contains(&r) {
-                seq.insert(insertion_col, b'-');
-            } else {
-                seq.push(b'-'); // Balance unselected rows by appending gap at end
-            }
-        }
-        self.alignment_width = self
-            .nucleotide_sequences
+        let mut normalized_rows: Vec<usize> = row_indices
             .iter()
-            .map(Vec::len)
-            .max()
-            .unwrap_or(0);
+            .copied()
+            .filter(|row| *row < self.nucleotide_sequences.len())
+            .collect();
+        normalized_rows.sort_unstable();
+        normalized_rows.dedup();
+        self.undo_stack.push(UndoCommand::InsertSubset {
+            col_idx: insertion_col,
+            row_indices: normalized_rows.clone(),
+            row_lengths: self.nucleotide_sequences.iter().map(Vec::len).collect(),
+            width_snapshot: self.alignment_width,
+        });
+        self.redo_stack.clear();
+
+        self.apply_insert_at_subset(&normalized_rows, insertion_col);
         String::new()
     }
 
@@ -758,12 +858,9 @@ impl MsaEngine {
 
         for r in 0..self.nucleotide_sequences.len() {
             let seq = &mut self.nucleotide_sequences[r];
-            if col_idx < seq.len() {
-                if target_rows.contains(&r) {
-                    seq.remove(col_idx);
-                    seq.push(b'-'); // Pad at end to keep width unchanged
-                }
-                // Non-target rows: completely untouched
+            if col_idx < seq.len() && target_rows.contains(&r) {
+                seq.remove(col_idx);
+                seq.push(b'-'); // Pad at end to keep width unchanged
             }
         }
         // Width unchanged
@@ -972,7 +1069,7 @@ impl MsaEngine {
                 let paired_len = mutated_rows.len().min(old_bases.len());
                 let mut redo_rows: Vec<usize> = Vec::with_capacity(paired_len);
                 let mut redo_old_bases: Vec<u8> = Vec::with_capacity(paired_len);
-                for (r, old_base) in mutated_rows.into_iter().zip(old_bases.into_iter()) {
+                for (r, old_base) in mutated_rows.into_iter().zip(old_bases) {
                     if let Some(seq) = self.nucleotide_sequences.get_mut(r) {
                         if col_idx < seq.len() {
                             redo_rows.push(r);
@@ -988,6 +1085,45 @@ impl MsaEngine {
                         old_bases: redo_old_bases,
                     });
                 }
+            }
+            UndoCommand::RangeSubstitutions { positions } => {
+                let mut redo_positions = Vec::with_capacity(positions.len());
+                for (row, col, old_base) in positions {
+                    if let Some(sequence) = self.nucleotide_sequences.get_mut(row) {
+                        if let Some(base) = sequence.get_mut(col) {
+                            redo_positions.push((row, col, *base));
+                            *base = old_base;
+                        }
+                    }
+                }
+                if !redo_positions.is_empty() {
+                    self.redo_stack.push(UndoCommand::RangeSubstitutions {
+                        positions: redo_positions,
+                    });
+                }
+            }
+            UndoCommand::InsertSubset {
+                col_idx,
+                row_indices,
+                row_lengths,
+                width_snapshot,
+            } => {
+                let redo_command = UndoCommand::InsertSubset {
+                    col_idx,
+                    row_indices: row_indices.clone(),
+                    row_lengths: self.nucleotide_sequences.iter().map(Vec::len).collect(),
+                    width_snapshot: self.alignment_width,
+                };
+                for (row, sequence) in self.nucleotide_sequences.iter_mut().enumerate() {
+                    if row_indices.binary_search(&row).is_ok() && col_idx < sequence.len() {
+                        sequence.remove(col_idx);
+                    }
+                    if let Some(&length) = row_lengths.get(row) {
+                        sequence.truncate(length);
+                    }
+                }
+                self.alignment_width = width_snapshot;
+                self.redo_stack.push(redo_command);
             }
             UndoCommand::StructuralSnapshot {
                 matrix_snapshot,
@@ -1027,7 +1163,7 @@ impl MsaEngine {
                 let paired_len = mutated_rows.len().min(old_bases.len());
                 let mut undo_rows: Vec<usize> = Vec::with_capacity(paired_len);
                 let mut undo_old_bases: Vec<u8> = Vec::with_capacity(paired_len);
-                for (r, old_base) in mutated_rows.into_iter().zip(old_bases.into_iter()) {
+                for (r, old_base) in mutated_rows.into_iter().zip(old_bases) {
                     if let Some(seq) = self.nucleotide_sequences.get_mut(r) {
                         if col_idx < seq.len() {
                             undo_rows.push(r);
@@ -1043,6 +1179,37 @@ impl MsaEngine {
                         old_bases: undo_old_bases,
                     });
                 }
+            }
+            UndoCommand::RangeSubstitutions { positions } => {
+                let mut undo_positions = Vec::with_capacity(positions.len());
+                for (row, col, new_base) in positions {
+                    if let Some(sequence) = self.nucleotide_sequences.get_mut(row) {
+                        if let Some(base) = sequence.get_mut(col) {
+                            undo_positions.push((row, col, *base));
+                            *base = new_base;
+                        }
+                    }
+                }
+                if !undo_positions.is_empty() {
+                    self.undo_stack.push(UndoCommand::RangeSubstitutions {
+                        positions: undo_positions,
+                    });
+                }
+            }
+            UndoCommand::InsertSubset {
+                col_idx,
+                row_indices,
+                row_lengths: _,
+                width_snapshot: _,
+            } => {
+                let undo_command = UndoCommand::InsertSubset {
+                    col_idx,
+                    row_indices: row_indices.clone(),
+                    row_lengths: self.nucleotide_sequences.iter().map(Vec::len).collect(),
+                    width_snapshot: self.alignment_width,
+                };
+                self.apply_insert_at_subset(&row_indices, col_idx);
+                self.undo_stack.push(undo_command);
             }
             UndoCommand::StructuralSnapshot {
                 matrix_snapshot,

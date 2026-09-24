@@ -17,6 +17,8 @@ logs/
 *.log
 coverage/
 *.lcov
+test-results/
+playwright-report/
 
 # Tool caches
 .eslintcache

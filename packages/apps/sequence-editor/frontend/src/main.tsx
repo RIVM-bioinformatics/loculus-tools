@@ -1,12 +1,15 @@
 import { createRoot } from 'react-dom/client';
-import CssBaseline from '@mui/material/CssBaseline';
 import { StrictMode } from 'react';
 
-import { TestHarness } from './components/TestHarness';
+import { App } from './components/app/App';
 
-createRoot(document.getElementById('root')!).render(
+const container = document.getElementById('root');
+if (!container) {
+  throw new Error('Root container not found in document.');
+}
+
+createRoot(container).render(
   <StrictMode>
-    <CssBaseline />
-    <TestHarness />
+    <App />
   </StrictMode>,
 );

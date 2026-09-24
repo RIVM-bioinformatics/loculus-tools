@@ -45,3 +45,4 @@ minimumReleaseAgeExclude:
   - eslint-plugin-react-web-api@5.20.4
   - eslint-plugin-react-x@5.20.4
   - react-error-boundary@6.1.6
+  - react-i18next@17.0.15

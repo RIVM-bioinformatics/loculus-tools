@@ -2,10 +2,10 @@ import {
   CssBaseline,
   ThemeProvider,
 } from '@mui/material';
+import { theme } from '@rivm-loculus-tools/frontend-common/theme';
 import { ErrorBoundary } from 'react-error-boundary';
+import { I18nWrapper } from '@rivm-loculus-tools/frontend-common/components/I18nWrapper';
 
-import { theme } from '../../../theme/theme';
-import { I18nWrapper } from '../../ui/I18nWrapper';
 import { ErrorPage } from '../../pages/ErrorPage';
 import { MainPage } from '../../pages/MainPage';
 

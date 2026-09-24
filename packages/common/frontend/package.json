@@ -57,7 +57,7 @@
     "react-dom": "19.3.0",
     "react-error-boundary": "6.1.6",
     "react-hook-form": "7.88.0",
-    "react-i18next": "17.0.14",
+    "react-i18next": "17.0.15",
     "react": "19.3.0",
     "typescript": "6.0.3",
     "vite-plugin-dts": "5.1.1",
@@ -65,16 +65,24 @@
     "vite": "8.3.0"
   },
   "exports": {
-    "./components/Mock": {
-      "types": "./src/components/Mock/index.ts",
-      "import": "./src/components/Mock/index.ts"
+    "./components/I18nWrapper": {
+      "types": "./src/components/I18nWrapper/index.ts",
+      "import": "./src/components/I18nWrapper/index.ts"
+    },
+    "./theme": {
+      "types": "./src/theme/index.ts",
+      "import": "./src/theme/index.ts"
     }
   },
   "publishConfig": {
     "exports": {
-      "./components/Mock": {
-        "types": "./dist/components/Mock/index.d.ts",
-        "import": "./dist/components/Mock/index.js"
+      "./components/I18nWrapper": {
+        "types": "./dist/components/I18nWrapper/index.d.ts",
+        "import": "./dist/components/I18nWrapper/index.js"
+      },
+      "./theme": {
+        "types": "./dist/theme/index.d.ts",
+        "import": "./dist/theme/index.js"
       }
     }
   }

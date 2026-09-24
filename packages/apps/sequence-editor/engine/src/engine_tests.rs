@@ -679,16 +679,24 @@ fn structured_error_serializes_code_message_and_optional_context() {
         col: 4,
         base: b'G',
     });
-    assert_eq!(error.code, "DeleteNotGap");
     assert_eq!(
-        error.message,
-        "Cannot delete non-gap character 'G' at row 2, column 4. Mutate it to '-' first."
+        serde_json::to_value(&error).unwrap(),
+        serde_json::json!({
+            "code": "DeleteNotGap",
+            "message": "Cannot delete non-gap character 'G' at row 2, column 4. Mutate it to '-' first.",
+            "context": { "row": 2, "col": 4, "base": "G" },
+        })
     );
-    let context = error.context.unwrap();
-    assert_eq!(context.row, Some(2));
-    assert_eq!(context.col, Some(4));
-    assert_eq!(context.base.as_deref(), Some("G"));
-    assert_eq!(context.frame, None);
+
+    let without_context = StructuredEngineError {
+        code: "UnexpectedRuntimeError".into(),
+        message: "Failed".into(),
+        context: None,
+    };
+    assert_eq!(
+        serde_json::to_value(&without_context).unwrap(),
+        serde_json::json!({ "code": "UnexpectedRuntimeError", "message": "Failed" })
+    );
 }
 
 #[test]

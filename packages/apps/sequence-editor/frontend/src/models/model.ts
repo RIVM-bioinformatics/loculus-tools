@@ -5,7 +5,7 @@ export enum MATRIX_TYPE {
 }
 
 /** Sliding-window byte buffer used by the scrolling viewport. */
-export interface ChunkStore {
+export type ChunkStore = {
   /** Exclusive right column index (alignment-space). */
   colEnd: number;
   /** = colEnd − colStart */
@@ -15,15 +15,15 @@ export interface ChunkStore {
   /** Row-major byte array: index = row * cols + (col − colStart). */
   data: Uint8Array;
   numRows: number;
-}
+};
 
 /** Metadata describing the currently loaded alignment. */
-export interface EngineMeta {
+export type EngineMeta = {
   alignmentWidth: number;
   redoDepth: number;
   sequenceCount: number;
   undoDepth: number;
-}
+};
 
 export type EngineRequest =
   | { base: number; col: number; reqId: number; rows: Uint32Array; type: 'mutate' }
@@ -104,19 +104,19 @@ export type EngineResultData =
   | ViewportResult;
 
 /** A single search match, matching the Rust `search_algorithms::Match`. */
-export interface EngineSearchMatch {
+export type EngineSearchMatch = {
   col: number;
   matrix_type: MATRIX_TYPE;
   row: number;
-}
+};
 
 /** Search results, matching the Rust `search_algorithms::SearchResult`. */
-export interface EngineSearchResult {
+export type EngineSearchResult = {
   num_matches: number;
   positions: EngineSearchMatch[];
   query: string;
   truncated: boolean;
-}
+};
 
 /**
  * Timing breakdown for a single request, measured in milliseconds via
@@ -138,15 +138,15 @@ export interface EngineSearchResult {
  *   - `renderMs`    : time from promise resolution to browser paint (measured
  *                     with `requestAnimationFrame` in the harness)
  */
-export interface EngineTiming {
+export type EngineTiming = {
   /** Time inside the Rust engine call (ms). */
   engineMs: number;
   /** Total time the worker held the request (ms): from receive to postMessage. */
   workerMs: number;
-}
+};
 
 /** A fetched viewport or translation slice plus the metadata to interpret it. */
-export interface EngineViewportResult {
+export type EngineViewportResult = {
   /** Row-major bytes, transferred from the worker via comlink. */
   bytes: Uint8Array;
   /** Number of columns per row (may be less than requested if clamped). */
@@ -157,7 +157,7 @@ export interface EngineViewportResult {
   startCol: number;
   /** Row index of the first row in the slice. */
   startRow: number;
-}
+};
 
 /**
  * Contract implemented by the `EngineWorker` class and exposed to the main
@@ -210,73 +210,79 @@ export interface EngineWorkerApi {
 // Shared types
 // ---------------------------------------------------------------------------
 
-export interface GridGeometry {
+export type GridGeometry = {
   cellHeight: number;
   cellWidth: number;
   labelWidth: number;
   rulerHeight: number;
-}
+};
 
-export interface GridPoint {
+export type GridPoint = {
   col: number;
   row: number;
   surface: 'cell' | 'gutter' | 'ruler';
-}
+};
 
-export interface GridRange {
+export type GridRange = {
   endCol: number;
   endRow: number;
   startCol: number;
   startRow: number;
-}
+};
 
-export interface Meta {
-  redoDepth: number;
-  sequences: number;
-  undoDepth: number;
-  width: number;
-}
-/** Horizontal move direction understood by the engine. */
-export type MoveDirection = 'Left' | 'Right';
+export type GridRangeWithViewportResults = {
+  range: GridRange;
+  viewportResult: EngineViewportResult;
+};
 
 // ---------------------------------------------------------------------------
 // Main → Worker requests
 // ---------------------------------------------------------------------------
 
-/**The following interfaces match the Rust `search_algorithms::Match` and search_algorithms::SearchResult structures. */
-export interface SearchMatch {
-  col: number;
-  matrix_type: MATRIX_TYPE;
-  row: number;
-}
+export type Meta = {
+  redoDepth: number;
+  sequences: number;
+  undoDepth: number;
+  width: number;
+};
 
 // ---------------------------------------------------------------------------
 // Worker → Main responses
 // ---------------------------------------------------------------------------
 
+/** Horizontal move direction understood by the engine. */
+export type MoveDirection = 'Left' | 'Right';
+
+
+/**The following types match the Rust `search_algorithms::Match` and search_algorithms::SearchResult structures. */
+export type SearchMatch = {
+  col: number;
+  matrix_type: MATRIX_TYPE;
+  row: number;
+};
+
 export type SearchResult = EngineSearchResult;
 
-
 /** Summary statistics for a set of measured values. */
-export interface Stats {
+export type Stats = {
   count: number;
   max: number;
   mean: number;
   median: number;
   min: number;
   p95: number;
-}
+};
 
 /** Inclusive column/row bounds for a viewport or translation request. */
-export interface ViewportBounds {
+export type ViewportBounds = {
   endCol: number;
   endRow: number;
   startCol: number;
   startRow: number;
-}
+};
 
 /** A fetched viewport slice plus the metadata needed to interpret it. */
-export interface ViewportResult {
+export type ViewportResult = {
   /** Number of columns per row (may be less than requested if clamped). */
   cols: number;
   /** Number of rows actually present in `bytes`. */
@@ -285,19 +291,28 @@ export interface ViewportResult {
   startCol: number;
   /** Row index of the first row in the slice. */
   startRow: number;
-}
+};
 
-export interface VisibleGridRange {
+export type VisibleGridRange = {
   cache: GridRange;
   visible: GridRange;
-}
+};
+
+export type VisibleGridRangeWithArguments = {
+  geometry: GridGeometry;
+  scrollLeft: number;
+  scrollTop: number;
+  viewportHeight: number;
+  viewportWidth: number;
+  visibleGridRange: VisibleGridRange;
+};
 
 /** Debug info exposed to the scrolling viewport status bar. */
-export interface WindowInfo {
+export type WindowInfo = {
   bufBytes: number;
   bufEnd: number;
   bufStart: number;
   fetching: boolean;
   visEnd: number;
   visStart: number;
-}
+};

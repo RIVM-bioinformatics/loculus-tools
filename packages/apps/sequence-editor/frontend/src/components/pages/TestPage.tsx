@@ -13,6 +13,7 @@ import { useDebouncedCallback } from 'use-debounce';
 import { EditorWorkerService } from '../../classes/services/EditorWorkerService/EditorWorkerService';
 import type {
   EngineMeta,
+  GridGeometry,
   GridRangeWithViewportResults,
   PaletteModel,
   VisibleGridRangeWithArguments,
@@ -35,10 +36,10 @@ export const TestPage = () => {
   const [palette, setPalette] = useState<null | PaletteModel>();
   const visibleRangeSubject = useMemo(() => new Subject<null | VisibleGridRangeWithArguments>(null), []);
   const cachedGridRangeWithViewPortResultRef = useRef<GridRangeWithViewportResults | null>(null);
-  const [geometry, setGeometry] = useState(DEFAULT_GRID_GEOMETRY);
+  const [geometry, setGeometry] = useState<GridGeometry>(null);
 
   const updateScrollbars = useCallback(() => {
-    const horizontalSize = geometry.labelWidth + metaSubject.data!.alignmentWidth * geometry.cellWidth;
+    const horizontalSize = geometry.labelWidth + geometry.cellWidth + metaSubject.data!.alignmentWidth * geometry.cellWidth;
     const verticalSize = geometry.rulerHeight + metaSubject.data!.sequenceCount * geometry.cellHeight;
     setHorizontalScrollBarSize(horizontalSize);
     setVerticalScrollBarSize(verticalSize);
@@ -79,6 +80,10 @@ export const TestPage = () => {
 
   useEffect(() => {
     setPalette(loadPalette());
+  }, []);
+
+  useEffect(() => {
+    setGeometry(DEFAULT_GRID_GEOMETRY);
   }, []);
 
   const updateDimensionsDebounced = useDebouncedCallback((width: number, height: number) => {

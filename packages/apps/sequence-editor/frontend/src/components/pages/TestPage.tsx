@@ -35,17 +35,20 @@ export const TestPage = () => {
   const [palette, setPalette] = useState<null | PaletteModel>();
   const visibleRangeSubject = useMemo(() => new Subject<null | VisibleGridRangeWithArguments>(null), []);
   const cachedGridRangeWithViewPortResultRef = useRef<GridRangeWithViewportResults | null>(null);
+  const [geometry, setGeometry] = useState(DEFAULT_GRID_GEOMETRY);
 
-  const updateScrollbars = useCallback((meta: EngineMeta) => {
-    const horizontalSize = meta.alignmentWidth * DEFAULT_GRID_GEOMETRY.cellWidth;
-    const verticalSize = meta.sequenceCount * DEFAULT_GRID_GEOMETRY.cellHeight;
+  const updateScrollbars = useCallback(() => {
+    const horizontalSize = geometry.labelWidth + metaSubject.data!.alignmentWidth * geometry.cellWidth;
+    const verticalSize = metaSubject.data!.sequenceCount * geometry.cellHeight;
     setHorizontalScrollBarSize(horizontalSize);
     setVerticalScrollBarSize(verticalSize);
-  }, []);
+  }, [geometry, metaSubject]);
 
-  useEffect(() => {
-    setPalette(loadPalette());
-  }, []);
+  const updateMeta = useCallback(async () => {
+    const meta = await EditorWorkerService.getInstance().getMetaData();
+    console.log({ meta });
+    metaSubject.next(meta);
+  }, [metaSubject]);
 
   const updateVisibleRange = useCallback(() => {
     if (!metaSubject.data) {
@@ -54,7 +57,7 @@ export const TestPage = () => {
     const { scrollLeft, scrollTop } = scrollSubject.data;
     const { height, width } = containerDimensionsRef.current;
     const visibleRange = EditorUtil.getVisibleGridRange({
-      geometry: DEFAULT_GRID_GEOMETRY,
+      geometry,
       numCols: metaSubject.data.alignmentWidth,
       numOverscanCols: 20,
       numOverscanRows: 10,
@@ -65,19 +68,18 @@ export const TestPage = () => {
       viewportWidth: width,
     });
     visibleRangeSubject.next({
-      geometry: DEFAULT_GRID_GEOMETRY,
+      geometry,
       scrollLeft,
       scrollTop,
       viewportHeight: height,
       viewportWidth: width,
       visibleGridRange: visibleRange,
     });
-  }, [metaSubject, scrollSubject, visibleRangeSubject]);
+  }, [geometry, metaSubject.data, scrollSubject.data, visibleRangeSubject]);
 
-  const updateMeta = useCallback(async () => {
-    const meta = await EditorWorkerService.getInstance().getMetaData();
-    metaSubject.next(meta);
-  }, [metaSubject]);
+  useEffect(() => {
+    setPalette(loadPalette());
+  }, []);
 
   const updateDimensionsDebounced = useDebouncedCallback((width: number, height: number) => {
     setContainerDimensions({ height, width });
@@ -179,7 +181,7 @@ export const TestPage = () => {
       scrollSubject.subscribe(() => updateVisibleRange()),
       metaSubject.subscribe((data) => {
         if (data) {
-          updateScrollbars(data);
+          updateScrollbars();
           updateVisibleRange();
         }
       }),

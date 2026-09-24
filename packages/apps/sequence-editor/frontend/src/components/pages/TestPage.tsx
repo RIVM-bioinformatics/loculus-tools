@@ -1,4 +1,7 @@
-import type { UIEvent } from 'react';
+import type {
+  MouseEvent as ReactMouseEvent,
+  UIEvent,
+} from 'react';
 import {
   useCallback,
   useEffect,
@@ -12,6 +15,7 @@ import { useDebouncedCallback } from 'use-debounce';
 import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/DevicePixelRatioService';
 
 import { EditorWorkerService } from '../../classes/services/EditorWorkerService/EditorWorkerService';
+import type { EditorAssembly } from '../../utils/EditorUtil';
 import type {
   EngineMeta,
   GridGeometry,
@@ -28,6 +32,7 @@ import { loadPalette } from '../../utils/palette';
 export const TestPage = () => {
   const editorService = useMemo(() => EditorWorkerService.getInstance(), []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const editorAssemblyRef = useRef<EditorAssembly | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState<{ height: number; width: number }>({ height: 0, width: 0 });
   const [devicePixelRatio, setDevicePixelRatio] = useState(() => DevicePixelRatioService.getInstance().data);
@@ -66,8 +71,6 @@ export const TestPage = () => {
     const visibleRange = EditorUtil.getVisibleGridRange({
       geometry,
       numCols: metaSubject.data.alignmentWidth,
-      numOverscanCols: 20,
-      numOverscanRows: 10,
       numRows: metaSubject.data.sequenceCount,
       scrollLeft,
       scrollTop,
@@ -182,7 +185,7 @@ export const TestPage = () => {
           if (!canvasRef.current || !palette || !cachedGridRangeWithViewPortResultRef.current || !metaSubject.data || !visibleGridRangeWithArguments || !cachedGridRangeWithRowNamesRef.current) {
             return;
           }
-          EditorUtil.drawCanvas({
+          editorAssemblyRef.current = EditorUtil.drawCanvas({
             canvasElement: canvasRef.current,
             devicePixelRatio,
             geometry: visibleGridRangeWithArguments.geometry,
@@ -238,6 +241,21 @@ export const TestPage = () => {
     });
   }, [scrollSubject]);
 
+  const onClickCanvas = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+    const canvas = canvasRef.current;
+    const editorAssembly = editorAssemblyRef.current;
+    if (!canvas || !editorAssembly) {
+      return;
+    }
+
+    console.log(EditorUtil.getPathPropertiesFromCanvas({
+      canvas,
+      devicePixelRatio,
+      editorAssembly,
+      event: event.nativeEvent,
+    }));
+  }, [devicePixelRatio]);
+
   const canvasWidth = Math.max(1, Math.floor(containerDimensions.width * devicePixelRatio));
   const canvasHeight = Math.max(1, Math.floor(containerDimensions.height * devicePixelRatio));
 
@@ -253,6 +271,7 @@ export const TestPage = () => {
       }}
     >
       <Box
+        onClick={onClickCanvas}
         onScroll={onScrollContainerScroll}
         sx={{
           height: `${containerDimensions.height}px`,
@@ -272,13 +291,14 @@ export const TestPage = () => {
       </Box>
       <canvas
         height={canvasHeight}
+        onClick={onClickCanvas}
         ref={canvasRef}
         style={{
           display: 'block',
           height: `${containerDimensions.height}px`,
           imageRendering: 'pixelated',
           left: 0,
-          pointerEvents: 'none',
+          pointerEvents: 'auto',
           position: 'absolute',
           top: 0,
           width: `${containerDimensions.width}px`,

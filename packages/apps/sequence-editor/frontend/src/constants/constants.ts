@@ -1,9 +1,5 @@
 import type { GridGeometry } from '../models';
 
-export const OVERSCAN_COLS = 128;
-export const OVERSCAN_ROWS = 16;
-
-
 export const SAB_MAX_BYTES = 80 * 200_000;
 
 export const DEFAULT_GRID_GEOMETRY: GridGeometry = {
@@ -11,5 +7,7 @@ export const DEFAULT_GRID_GEOMETRY: GridGeometry = {
   cellWidth: 18,
   dividerWidth: 4,
   labelWidth: 300,
+  numOverscanCols: 128,
+  numOverscanRows: 16,
   rulerHeight: 26,
 };

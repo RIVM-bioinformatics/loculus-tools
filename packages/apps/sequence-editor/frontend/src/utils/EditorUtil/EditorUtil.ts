@@ -4,25 +4,48 @@ import type {
   EngineMeta,
   EngineViewportResult,
   GridGeometry,
-  PaletteModel,
-} from '../../models';
-import type {
   GridRange,
+  PaletteModel,
   VisibleGridRange,
-} from '../grid';
+} from '../../models';
 import { paletteEntryFor } from '../palette';
 import { DEFAULT_GRID_GEOMETRY } from '../../constants';
 
 export type EditorAssembly = {
-  foo: 'bar';
+  cells: EditorAssemblyCells;
+  divider: EditorAssemblyDivider;
+  labels: EditorAssemblyLabels;
+  ruler: EditorAssemblyRuler;
 };
 
 export type EditorAssemblyCells = {
-  foo: 'bar';
+  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
+};
+
+export type EditorAssemblyDivider = {
+  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
+};
+
+export type EditorAssemblyLabels = {
+  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
+};
+
+export type EditorAssemblyRuler = {
+  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
 };
 
 export type EditorPathProperties = {
-  foo: 'bar';
+  col: number;
+  row: number;
+  type: 'cell';
+} | {
+  col: number;
+  type: 'ruler';
+} | {
+  row: number;
+  type: 'label';
+} | {
+  type: 'divider';
 };
 
 
@@ -51,13 +74,28 @@ export class EditorUtil {
     viewport: EngineViewportResult;
     viewportHeight: number;
     viewportWidth: number;
-  }): void {
+  }): EditorAssembly {
+    const editorAssembly: EditorAssembly = {
+      cells: {
+        pathPropertiesMap: new Map(),
+      },
+      divider: {
+        pathPropertiesMap: new Map(),
+      },
+      labels: {
+        pathPropertiesMap: new Map(),
+      },
+      ruler: {
+        pathPropertiesMap: new Map(),
+      },
+    };
+
     if (!canvasElement) {
-      return;
+      return editorAssembly;
     }
     const context = canvasElement.getContext('2d');
     if (!context) {
-      return;
+      return editorAssembly;
     }
 
     const labelStringLength = meta.sequenceCount.toString().length;
@@ -97,6 +135,11 @@ export class EditorUtil {
           const rectanglePath = new Path2D();
           rectanglePath.rect(x, y, cellWidth, cellHeight);
           rectanglePath.closePath();
+          editorAssembly.cells.pathPropertiesMap.set(rectanglePath, {
+            col: startCol + col,
+            row: startRow + row,
+            type: 'cell',
+          });
           // draw path on canvas
           context.fillStyle = cellBackground;
           context.fill(rectanglePath);
@@ -120,7 +163,15 @@ export class EditorUtil {
         if (isMajorTick) {
           tickCols.push(col);
         }
-        const x = (startCol + col) * cellWidth + gridStart - scrollLeft + 0.5;
+        const rulerX = (startCol + col) * cellWidth + gridStart - scrollLeft;
+        const rulerPath = new Path2D();
+        rulerPath.rect(rulerX, 0, cellWidth, rulerHeight);
+        rulerPath.closePath();
+        editorAssembly.ruler.pathPropertiesMap.set(rulerPath, {
+          col: startCol + col,
+          type: 'ruler',
+        });
+        const x = rulerX + 0.5;
         const tickHeight = isMajorTick ? 8 : 4;
         context.moveTo(x, rulerHeight);
         context.lineTo(x, rulerHeight - tickHeight);
@@ -155,6 +206,12 @@ export class EditorUtil {
       context.fillRect(0, 0, gridStart, rulerHeight);
       context.fillStyle = '#d9e2ec';
       context.fillRect(labelWidth, 0, dividerWidth, viewportHeight);
+      const dividerPath = new Path2D();
+      dividerPath.rect(labelWidth, 0, dividerWidth, viewportHeight);
+      dividerPath.closePath();
+      editorAssembly.divider.pathPropertiesMap.set(dividerPath, {
+        type: 'divider',
+      });
 
       // Render labels
       context.fillStyle = '#f8fafb';
@@ -171,12 +228,19 @@ export class EditorUtil {
         if (y + cellHeight < rulerHeight || y > viewportHeight) {
           continue;
         }
+        const labelPath = new Path2D();
+        labelPath.rect(0, y, labelWidth, cellHeight);
+        labelPath.closePath();
+        editorAssembly.labels.pathPropertiesMap.set(labelPath, {
+          row: startRow + row,
+          type: 'label',
+        });
         context.fillText(`${padStart(String(startRow + row + 1), labelStringLength, '0')}: ${rowNames[row]}`, 8, y + cellHeight / 2);
       }
       context.restore();
     });
 
-
+    return editorAssembly;
   }
 
   /**
@@ -191,57 +255,46 @@ export class EditorUtil {
    * @param params.event - The mouse event providing cursor coordinates.
    * @param params.treeAssembly - The assembly containing path maps to hit-test against.
    * @param params.devicePixelRatio - Screen DPR for correct coordinate scaling.
-   * @returns The {@link TreePathProperties} of the hit shape, or `undefined` if nothing was hit.
+   * @returns The {@link EditorPathProperties} of the hit cell, or `undefined` if nothing was hit.
    */
-  public static getPathPropertiesFromCanvas(params: { canvas: HTMLCanvasElement; devicePixelRatio: number; editorAssembly: EditorAssembly; event: MouseEvent }): EditorPathProperties {
+  public static getPathPropertiesFromCanvas(params: { canvas: HTMLCanvasElement; devicePixelRatio: number; editorAssembly: EditorAssembly; event: MouseEvent }): EditorPathProperties | undefined {
     const { canvas, devicePixelRatio, editorAssembly, event } = params;
 
     const ctx = EditorUtil.getCanvasContext(canvas);
-    const rect = (event.target as HTMLCanvasElement).getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
     const canvasX = (event.clientX - rect.left) * devicePixelRatio;
     const canvasY = (event.clientY - rect.top) * devicePixelRatio;
 
-    // for (const path of treeAssembly.nodePathPropertiesMap.keys()) {
-    //   if (ctx.isPointInPath(path, canvasX, canvasY)) {
-    //     return treeAssembly.nodePathPropertiesMap.get(path);
-    //   }
-    // }
+    for (const [path, pathProperties] of editorAssembly.cells.pathPropertiesMap) {
+      if (ctx.isPointInPath(path, canvasX, canvasY)) {
+        return pathProperties;
+      }
+    }
 
-    // // Allow for a 1px vertical margin around the mouse position to allow for easier clicking
-    // const canvasYs = [
-    //   ((event.clientY - 1) - rect.top) * devicePixelRatio,
-    //   canvasY,
-    //   ((event.clientY + 1) - rect.top) * devicePixelRatio,
-    // ];
+    for (const [path, pathProperties] of editorAssembly.ruler.pathPropertiesMap) {
+      if (ctx.isPointInPath(path, canvasX, canvasY)) {
+        return pathProperties;
+      }
+    }
 
-    // for (const path of treeAssembly.horizontalLinePathPropertiesMap.keys()) {
-    //   for (const y of canvasYs) {
-    //     if (ctx.isPointInStroke(path, canvasX, y)) {
-    //       return treeAssembly.horizontalLinePathPropertiesMap.get(path);
-    //     }
-    //   }
-    // }
+    for (const [path, pathProperties] of editorAssembly.labels.pathPropertiesMap) {
+      if (ctx.isPointInPath(path, canvasX, canvasY)) {
+        return pathProperties;
+      }
+    }
 
-    // // Allow for a 1px horizontal margin around the mouse position to allow for easier clicking
-    // const canvasXs = [
-    //   ((event.clientX - 1) - rect.left) * devicePixelRatio,
-    //   canvasX,
-    //   ((event.clientX + 1) - rect.left) * devicePixelRatio,
-    // ];
-    // for (const path of treeAssembly.verticalLinePathPropertiesMap.keys()) {
-    //   for (const x of canvasXs) {
-    //     if (ctx.isPointInStroke(path, x, canvasY)) {
-    //       return treeAssembly.verticalLinePathPropertiesMap.get(path);
-    //     }
-    //   }
-    // }
+    for (const [path, pathProperties] of editorAssembly.divider.pathPropertiesMap) {
+      if (ctx.isPointInPath(path, canvasX, canvasY)) {
+        return pathProperties;
+      }
+    }
+
+    return undefined;
   }
 
   public static getVisibleGridRange(params: {
     geometry?: GridGeometry;
     numCols: number;
-    numOverscanCols?: number;
-    numOverscanRows?: number;
     numRows: number;
     scrollLeft: number;
     scrollTop: number;
@@ -251,8 +304,6 @@ export class EditorUtil {
     const {
       geometry = DEFAULT_GRID_GEOMETRY,
       numCols,
-      numOverscanCols = 0,
-      numOverscanRows = 0,
       numRows,
       scrollLeft,
       scrollTop,
@@ -273,10 +324,10 @@ export class EditorUtil {
 
     return {
       cache: {
-        endCol: Math.min(numCols, visibleEndCol + numOverscanCols),
-        endRow: Math.min(numRows, visibleEndRow + numOverscanRows),
-        startCol: Math.max(0, visibleStartCol - numOverscanCols),
-        startRow: Math.max(0, visibleStartRow - numOverscanRows),
+        endCol: Math.min(numCols, visibleEndCol + geometry.numOverscanCols),
+        endRow: Math.min(numRows, visibleEndRow + geometry.numOverscanRows),
+        startCol: Math.max(0, visibleStartCol - geometry.numOverscanCols),
+        startRow: Math.max(0, visibleStartRow - geometry.numOverscanRows),
       },
       visible: {
         endCol: visibleEndCol,

@@ -215,6 +215,8 @@ export type GridGeometry = {
   cellWidth: number;
   dividerWidth: number;
   labelWidth: number;
+  numOverscanCols: number;
+  numOverscanRows: number;
   rulerHeight: number;
 };
 

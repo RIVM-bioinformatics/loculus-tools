@@ -1,9 +1,5 @@
-export interface GridGeometry {
-  cellHeight: number;
-  cellWidth: number;
-  labelWidth: number;
-  rulerHeight: number;
-}
+import { DEFAULT_GRID_GEOMETRY } from '../constants';
+import type { GridGeometry } from '../models';
 
 export interface GridPoint {
   col: number;
@@ -22,13 +18,6 @@ export interface VisibleGridRange {
   cache: GridRange;
   visible: GridRange;
 }
-
-export const DEFAULT_GRID_GEOMETRY: GridGeometry = {
-  cellHeight: 22,
-  cellWidth: 18,
-  labelWidth: 190,
-  rulerHeight: 26,
-};
 
 export const getVisibleGridRange = (
   scrollLeft: number,

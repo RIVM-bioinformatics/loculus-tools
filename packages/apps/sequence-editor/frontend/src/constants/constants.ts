@@ -9,6 +9,7 @@ export const SAB_MAX_BYTES = 80 * 200_000;
 export const DEFAULT_GRID_GEOMETRY: GridGeometry = {
   cellHeight: 22,
   cellWidth: 18,
-  labelWidth: 190,
+  dividerWidth: 4,
+  labelWidth: 300,
   rulerHeight: 26,
 };

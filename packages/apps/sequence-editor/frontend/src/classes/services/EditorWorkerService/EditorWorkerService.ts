@@ -105,9 +105,9 @@ export class EditorWorkerService {
     });
   }
 
-  public async name(row: number): Promise<void> {
+  public async name(row: number): Promise<string> {
     return await this.runCommand(async () => {
-      await this.engineWorkerProxy.name(row);
+      return await this.engineWorkerProxy.name(row);
     });
   }
 

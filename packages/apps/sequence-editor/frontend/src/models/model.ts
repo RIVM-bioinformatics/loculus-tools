@@ -213,6 +213,7 @@ export interface EngineWorkerApi {
 export type GridGeometry = {
   cellHeight: number;
   cellWidth: number;
+  dividerWidth: number;
   labelWidth: number;
   rulerHeight: number;
 };
@@ -228,6 +229,11 @@ export type GridRange = {
   endRow: number;
   startCol: number;
   startRow: number;
+};
+
+export type GridRangeWithRowNames = {
+  range: GridRange;
+  rowNames: string[];
 };
 
 export type GridRangeWithViewportResults = {

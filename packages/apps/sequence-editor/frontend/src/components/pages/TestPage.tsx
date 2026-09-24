@@ -15,6 +15,7 @@ import { EditorWorkerService } from '../../classes/services/EditorWorkerService/
 import type {
   EngineMeta,
   GridGeometry,
+  GridRangeWithRowNames,
   GridRangeWithViewportResults,
   PaletteModel,
   VisibleGridRangeWithArguments,
@@ -38,6 +39,7 @@ export const TestPage = () => {
   const [palette, setPalette] = useState<null | PaletteModel>();
   const visibleRangeSubject = useMemo(() => new Subject<null | VisibleGridRangeWithArguments>(null), []);
   const cachedGridRangeWithViewPortResultRef = useRef<GridRangeWithViewportResults | null>(null);
+  const cachedGridRangeWithRowNamesRef = useRef<GridRangeWithRowNames | null>(null);
   const [geometry, setGeometry] = useState<GridGeometry | null>(null);
 
   const updateScrollbars = useCallback(() => {
@@ -145,6 +147,21 @@ export const TestPage = () => {
           return;
         }
 
+        if (!cachedGridRangeWithRowNamesRef.current || !EditorUtil.isWithinGridRange({
+          cachedGridRange: cachedGridRangeWithRowNamesRef.current.range,
+          visibleGridRange: visibleGridRangeWithArguments?.visibleGridRange?.visible,
+        })) {
+          const rowNames: string[] = [];
+          for (let i = visibleGridRangeWithArguments.visibleGridRange.cache.startRow; i <= visibleGridRangeWithArguments.visibleGridRange.cache.endRow; i++) {
+            rowNames.push(await editorService.name(i));
+          }
+
+          cachedGridRangeWithRowNamesRef.current = {
+            range: visibleGridRangeWithArguments.visibleGridRange.cache,
+            rowNames,
+          };
+        }
+
         if (!cachedGridRangeWithViewPortResultRef.current || !EditorUtil.isWithinGridRange({
           cachedGridRange: cachedGridRangeWithViewPortResultRef.current.range,
           visibleGridRange: visibleGridRangeWithArguments?.visibleGridRange?.visible,
@@ -162,7 +179,7 @@ export const TestPage = () => {
         }
 
         animationFrame = requestAnimationFrame(() => {
-          if (!canvasRef.current || !palette || !cachedGridRangeWithViewPortResultRef.current || !metaSubject.data || !visibleGridRangeWithArguments) {
+          if (!canvasRef.current || !palette || !cachedGridRangeWithViewPortResultRef.current || !metaSubject.data || !visibleGridRangeWithArguments || !cachedGridRangeWithRowNamesRef.current) {
             return;
           }
           EditorUtil.drawCanvas({
@@ -171,6 +188,7 @@ export const TestPage = () => {
             geometry: visibleGridRangeWithArguments.geometry,
             meta: metaSubject.data,
             palette,
+            rowNames: cachedGridRangeWithRowNamesRef.current.rowNames,
             scrollLeft: visibleGridRangeWithArguments.scrollLeft,
             scrollTop: visibleGridRangeWithArguments.scrollTop,
             viewport: cachedGridRangeWithViewPortResultRef.current.viewportResult,
@@ -186,7 +204,7 @@ export const TestPage = () => {
       }
       unsubscribeItems.forEach(unsubscribe => unsubscribe());
     };
-  }, [devicePixelRatio, metaSubject, palette, visibleRangeSubject]);
+  }, [devicePixelRatio, editorService, metaSubject, palette, visibleRangeSubject]);
 
   useEffect(() => {
     const unsubscribeItems = [
@@ -252,13 +270,13 @@ export const TestPage = () => {
           }}
         />
       </Box>
-      <Box
-        component={'canvas'}
+      <canvas
         height={canvasHeight}
         ref={canvasRef}
-        sx={{
+        style={{
           display: 'block',
           height: `${containerDimensions.height}px`,
+          imageRendering: 'pixelated',
           left: 0,
           pointerEvents: 'none',
           position: 'absolute',

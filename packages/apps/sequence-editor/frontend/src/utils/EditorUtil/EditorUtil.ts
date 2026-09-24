@@ -1,15 +1,17 @@
+import padStart from 'lodash/padStart';
+
 import type {
   EngineMeta,
   EngineViewportResult,
+  GridGeometry,
   PaletteModel,
 } from '../../models';
 import type {
-  GridGeometry,
   GridRange,
   VisibleGridRange,
 } from '../grid';
-import { DEFAULT_GRID_GEOMETRY } from '../grid';
 import { paletteEntryFor } from '../palette';
+import { DEFAULT_GRID_GEOMETRY } from '../../constants';
 
 export type EditorAssembly = {
   foo: 'bar';
@@ -25,72 +27,13 @@ export type EditorPathProperties = {
 
 
 export class EditorUtil {
-  // public static assembleEditor({
-  //   canvasElement,
-  //   geometry,
-  //   meta,
-  //   palette,
-  //   scrollLeft,
-  //   scrollTop,
-  //   viewport,
-  //   viewportHeight,
-  //   viewportWidth,
-  // }: {
-  //   canvasElement: HTMLCanvasElement;
-  //   geometry: GridGeometry;
-  //   meta: EngineMeta;
-  //   palette: PaletteModel;
-  //   scrollLeft: number;
-  //   scrollTop: number;
-  //   viewport: EngineViewportResult;
-  //   viewportHeight: number;
-  //   viewportWidth: number;
-  // }): EditorAssembly {
-  //   const { cellHeight, cellWidth, labelWidth, rulerHeight } = geometry;
-  //   context.textAlign = 'center';
-  //   context.textBaseline = 'middle';
-  //   const { bytes, cols, rows, startCol, startRow } = viewport;
-  //   for (let row = 0; row < rows; row++) {
-  //     // cell position on screen, offset by the viewport's grid origin and current scroll
-  //     const y = (startRow + row) * cellHeight + rulerHeight - scrollTop;
-  //     if (y + cellHeight < rulerHeight || y > viewportHeight) {
-  //       continue;
-  //     }
-  //     for (let col = 0; col < cols; col++) {
-  //       const x = (startCol + col) * cellWidth + labelWidth - scrollLeft;
-  //       if (x + cellWidth < labelWidth || x > viewportWidth) {
-  //         continue;
-  //       }
-  //       const byte = bytes[row * cols + col];
-  //       const charCode = byte ?? '';
-  //       const label = String.fromCharCode(charCode);
-  //       const colors = paletteEntryFor(palette, label);
-  //       let cellBackground = colors.background;
-  //       if (byte === null) {
-  //         cellBackground = '#e9eef2';
-  //       } else if (label === ' ') {
-  //         cellBackground = '#f7f8f9';
-  //       }
-  //       const rectanglePath = new Path2D();
-  //       rectanglePath.rect(x, y, cellWidth, cellHeight);
-  //       rectanglePath.closePath();
-  //       // draw path on canvas
-  //       context.fillStyle = cellBackground;
-  //       context.fill(rectanglePath);
-  //       context.fillStyle = colors.foreground;
-  //       context.fillText(label, x + cellWidth / 2, y + cellHeight / 2);
-  //     }
-  //   }
-
-
-  // }
-
   public static drawCanvas({
     canvasElement,
     devicePixelRatio,
     geometry,
     meta,
     palette,
+    rowNames,
     scrollLeft,
     scrollTop,
     viewport,
@@ -102,6 +45,7 @@ export class EditorUtil {
     geometry: GridGeometry;
     meta: EngineMeta;
     palette: PaletteModel;
+    rowNames: string[];
     scrollLeft: number;
     scrollTop: number;
     viewport: EngineViewportResult;
@@ -116,15 +60,19 @@ export class EditorUtil {
       return;
     }
 
+    const labelStringLength = meta.sequenceCount.toString().length;
+
     EditorUtil.draw(canvasElement, devicePixelRatio, () => {
       context.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-      const { cellHeight, cellWidth, labelWidth, rulerHeight } = geometry;
+      const { cellHeight, cellWidth, dividerWidth, labelWidth, rulerHeight } = geometry;
+      const gridStart = labelWidth + dividerWidth;
+
+      const { bytes, cols, rows, startCol, startRow } = viewport;
 
       // Render cells
       context.textAlign = 'center';
       context.textBaseline = 'middle';
-      const { bytes, cols, rows, startCol, startRow } = viewport;
       for (let row = 0; row < rows; row++) {
         // cell position on screen, offset by the viewport's grid origin and current scroll
         const y = (startRow + row) * cellHeight + rulerHeight - scrollTop;
@@ -132,8 +80,8 @@ export class EditorUtil {
           continue;
         }
         for (let col = 0; col < cols; col++) {
-          const x = (startCol + col) * cellWidth + labelWidth - scrollLeft;
-          if (x + cellWidth < labelWidth || x > viewportWidth) {
+          const x = (startCol + col) * cellWidth + gridStart - scrollLeft;
+          if (x + cellWidth < gridStart || x > viewportWidth) {
             continue;
           }
           const byte = bytes[row * cols + col];
@@ -172,7 +120,7 @@ export class EditorUtil {
         if (isMajorTick) {
           tickCols.push(col);
         }
-        const x = (startCol + col) * cellWidth + labelWidth - scrollLeft + 0.5;
+        const x = (startCol + col) * cellWidth + gridStart - scrollLeft + 0.5;
         const tickHeight = isMajorTick ? 8 : 4;
         context.moveTo(x, rulerHeight);
         context.lineTo(x, rulerHeight - tickHeight);
@@ -182,11 +130,11 @@ export class EditorUtil {
       context.fillStyle = '#486581';
       context.textAlign = 'center';
       tickCols.forEach((col) => {
-        const x = (startCol + col) * cellWidth + labelWidth - scrollLeft;
+        const x = (startCol + col) * cellWidth + gridStart - scrollLeft;
         const label = String(startCol + col + 1);
         const textWidth = context.measureText(label).width;
         // skip labels that would be clipped by the gutter or the canvas edge
-        if (x - textWidth / 2 < labelWidth || x + textWidth / 2 > viewportWidth) {
+        if (x - textWidth / 2 < gridStart || x + textWidth / 2 > viewportWidth) {
           return;
         }
         context.fillText(label, x, rulerHeight / 2);
@@ -196,30 +144,38 @@ export class EditorUtil {
       context.strokeStyle = '#bcccdc';
       context.lineWidth = 1;
       context.beginPath();
-      context.moveTo(labelWidth + 0.5, 0);
-      context.lineTo(labelWidth + 0.5, viewportHeight);
+      context.moveTo(gridStart + 0.5, 0);
+      context.lineTo(gridStart + 0.5, viewportHeight);
       context.moveTo(0, rulerHeight + 0.5);
       context.lineTo(viewportWidth, rulerHeight + 0.5);
       context.stroke();
 
       // Corner stays fixed above the label gutter; ruler marks scroll underneath it
       context.fillStyle = '#edf2f6';
-      context.fillRect(0, 0, labelWidth, rulerHeight);
+      context.fillRect(0, 0, gridStart, rulerHeight);
+      context.fillStyle = '#d9e2ec';
+      context.fillRect(labelWidth, 0, dividerWidth, viewportHeight);
 
       // Render labels
       context.fillStyle = '#f8fafb';
       context.fillRect(0, rulerHeight, labelWidth, viewportHeight - rulerHeight);
-      context.font = '14px monospace';
+      context.font = '12px monospace';
       context.textBaseline = 'middle';
       context.fillStyle = '#334e68';
+      context.save();
+      context.beginPath();
+      context.rect(0, rulerHeight, labelWidth, viewportHeight - rulerHeight);
+      context.clip();
       for (let row = 0; row < rows; row++) {
         const y = (startRow + row) * cellHeight + rulerHeight - scrollTop;
         if (y + cellHeight < rulerHeight || y > viewportHeight) {
           continue;
         }
-        context.fillText(String(startRow + row + 1), 8, y + cellHeight / 2);
+        context.fillText(`${padStart(String(startRow + row + 1), labelStringLength, '0')}: ${rowNames[row]}`, 8, y + cellHeight / 2);
       }
+      context.restore();
     });
+
 
   }
 
@@ -303,10 +259,11 @@ export class EditorUtil {
       viewportHeight,
       viewportWidth,
     } = params;
+    const gridStart = geometry.labelWidth + geometry.dividerWidth;
     const visibleStartCol = Math.max(0, Math.floor(scrollLeft / geometry.cellWidth));
     const visibleEndCol = Math.min(
       numCols,
-      visibleStartCol + Math.max(1, Math.ceil((viewportWidth - geometry.labelWidth) / geometry.cellWidth) + 1),
+      visibleStartCol + Math.max(1, Math.ceil((viewportWidth - gridStart) / geometry.cellWidth) + 1),
     );
     const visibleStartRow = Math.max(0, Math.floor(Math.max(0, scrollTop - geometry.rulerHeight) / geometry.cellHeight));
     const visibleEndRow = Math.min(
@@ -342,8 +299,8 @@ export class EditorUtil {
   }
 
   /**
-   * Helper that wraps a canvas drawing callback with a DPR-aware scale/translate
-   * transform, then restores the context to its pre-call state.
+  * Helper that wraps a canvas drawing callback with a DPR-aware transform, then
+  * restores the context to its pre-call state.
    *
    * @param canvas - The canvas element whose 2D context to use.
    * @param devicePixelRatio - Screen DPR to scale up for HiDPI rendering.
@@ -351,11 +308,9 @@ export class EditorUtil {
    */
   private static draw(canvas: HTMLCanvasElement, devicePixelRatio: number, callback: (ctx: CanvasRenderingContext2D) => void): void {
     const ctx = EditorUtil.getCanvasContext(canvas);
-    ctx.scale(devicePixelRatio, devicePixelRatio);
-    ctx.translate(0.5, 0.5);
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     callback(ctx);
-    ctx.translate(-0.5, -0.5);
-    ctx.scale(1 / devicePixelRatio, 1 / devicePixelRatio);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   private static getCanvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {

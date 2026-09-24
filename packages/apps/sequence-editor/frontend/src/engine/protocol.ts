@@ -29,9 +29,15 @@ export enum MatrixType {
 
 export type EditErrorCode =
   | 'DeleteNotGap'
-  | 'MutateNotIupac'
   | 'MoveNoGapTarget'
-  | 'MoveNotIupac';
+  | 'MoveNotIupac'
+  | 'MutateNotIupac';
+
+export type EngineErrorCode =
+  | 'InvalidReadingFrame'
+  | 'InvalidViewport'
+  | 'UnexpectedRuntimeError'
+  | EditErrorCode;
 
 export interface ErrorContext {
   base?: string;
@@ -43,7 +49,7 @@ export interface ErrorContext {
 }
 
 export interface StructuredEngineError {
-  code: string;
+  code: EngineErrorCode;
   context?: ErrorContext;
   message: string;
 }

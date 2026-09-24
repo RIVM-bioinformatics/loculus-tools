@@ -467,11 +467,8 @@ try {
 }
 ```
 
-`EditErrorCode` includes `"DeleteNotGap"`, `"MutateNotIupac"`,
-`"MoveNotIupac"`, and `"MoveNoGapTarget"`. Translation additionally rejects
-invalid frames with `InvalidReadingFrame` and `{ frame }` context. Unrecognized
-exceptions use `UnexpectedRuntimeError`; transport and initialization failures
-remain worker errors.
+`EngineErrorCode` covers all the stable codes below; `EditErrorCode` is its
+edit-only subset. Transport and initialization failures remain worker errors.
 
 | Error code | Triggered by | Meaning |
 | ------------ | ------------- | --------- |
@@ -479,6 +476,9 @@ remain worker errors.
 | `"MutateNotIupac"` | `mutate()` | Attempted to mutate a character that is not IUPAC or `-`, or to write a base that is not IUPAC or `-`. |
 | `"MoveNotIupac"` | `moveHorizontal()` | Attempted to move a block containing non-IUPAC characters. |
 | `"MoveNoGapTarget"` | `moveHorizontal()` | No gap adjacent to the block in the move direction. |
+| `"InvalidReadingFrame"` | `translate()` | Reading frame is not 0, 1, or 2; context includes `frame`. |
+| `"InvalidViewport"` | `viewport()`, `translate()` | Bounds are invalid or the requested/resulting slice exceeds the shared buffer capacity; context includes `row` and `col` (and `frame` for translation). |
+| `"UnexpectedRuntimeError"` | Worker request handling | An unrecognized engine or runtime exception occurred; the message describes the failure. |
 
 ---
 

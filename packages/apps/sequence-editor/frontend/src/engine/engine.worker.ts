@@ -27,9 +27,10 @@ import init, {
 } from '@rivm-loculus-tools/sequence-editor-wasm';
 
 import type {
+  EditErrorCode,
+  EngineErrorCode,
   EngineRequest,
   EngineResponse,
-  EditErrorCode,
   ErrorContext,
   Meta,
   SearchResult,
@@ -57,6 +58,16 @@ interface ViewportShape {
   rows: number;
 }
 
+const engineErrorCodes: ReadonlySet<string> = new Set<EngineErrorCode>([
+  'DeleteNotGap',
+  'InvalidReadingFrame',
+  'InvalidViewport',
+  'MoveNoGapTarget',
+  'MoveNotIupac',
+  'MutateNotIupac',
+  'UnexpectedRuntimeError',
+]);
+
 function checkedInclusiveLength(start: number, end: number): null | number {
   const span = end - start;
   if (!Number.isSafeInteger(span) || span >= Number.MAX_SAFE_INTEGER) {
@@ -66,7 +77,7 @@ function checkedInclusiveLength(start: number, end: number): null | number {
 }
 
 function getViewportShape(
-  req: Extract<EngineRequest, { type: 'viewport' }>,
+  req: Pick<Extract<EngineRequest, { type: 'viewport' }>, 'endCol' | 'endRow' | 'startCol' | 'startRow'>,
 ): null | ViewportShape {
   const bounds = [req.startRow, req.endRow, req.startCol, req.endCol];
   if (!bounds.every((value) => Number.isSafeInteger(value) && value >= 0)) {
@@ -93,8 +104,11 @@ function normalizeError(err: unknown): StructuredEngineError {
       message?: unknown;
     };
     if (typeof candidate.code === 'string' && typeof candidate.message === 'string') {
+      if (!engineErrorCodes.has(candidate.code)) {
+        return { code: 'UnexpectedRuntimeError', message: candidate.message };
+      }
       const structured: StructuredEngineError = {
-        code: candidate.code,
+        code: candidate.code as EngineErrorCode,
         message: candidate.message,
       };
       if (typeof candidate.context === 'object' && candidate.context !== null) {
@@ -262,6 +276,20 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       break;
     }
     case 'translate': {
+      const shape = getViewportShape(req);
+      if (!shape) {
+        post({
+          error: {
+            code: 'InvalidViewport',
+            context: { col: req.startCol, frame: req.readingFrame, row: req.startRow },
+            message: `Translate bounds must be non-negative safe integers within ${SAB_MAX_BYTES} bytes`,
+          },
+          ok: false,
+          reqId: req.reqId,
+          type: 'result',
+        });
+        break;
+      }
       // `e.translate` returns raw amino-acid bytes, padded to a fixed stride
       // just like `update_viewport` — reuse the same SAB copy-and-describe path.
       const view = e.translate(
@@ -278,7 +306,7 @@ async function timedHandle(req: EngineRequest): Promise<void> {
         post({
           error: {
             code: 'InvalidViewport',
-            context: { frame: req.readingFrame, row: req.startRow, col: req.startCol },
+            context: { col: req.startCol, frame: req.readingFrame, row: req.startRow },
             message: `Translate result too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
           },
           ok: false,
@@ -300,12 +328,10 @@ async function timedHandle(req: EngineRequest): Promise<void> {
 
       // Rust's `translate` now uses the same inclusive `[start, end]` ranges
       // and fixed-stride row padding as `update_viewport`.
-      const reqCols = Math.max(0, req.endCol - req.startCol + 1);
-      const actualCols = reqCols > 0 ? reqCols : 0;
-      const actualRows = actualCols > 0 ? Math.floor(len / actualCols) : 0;
+      const actualRows = Math.floor(len / shape.cols);
 
       const data: ViewportResult = {
-        cols: actualCols,
+        cols: shape.cols,
         rows: actualRows,
         startCol: req.startCol,
         startRow: req.startRow,

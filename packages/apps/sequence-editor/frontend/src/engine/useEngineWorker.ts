@@ -17,6 +17,7 @@ import type {
   EngineRequest,
   EngineResponse,
   EditErrorCode,
+  EngineErrorCode,
   ErrorContext,
   Meta,
   SearchResult,
@@ -63,7 +64,7 @@ export class EngineEditError extends Error {
 }
 
 export class EngineStructuredError extends Error {
-  readonly code: string;
+  readonly code: EngineErrorCode;
   readonly context?: ErrorContext;
 
   constructor(payload: StructuredEngineError) {
@@ -179,6 +180,9 @@ export function useEngineWorker(): EngineClient {
         return;
       }
       // res.type === "result"
+      if (!res.ok) {
+        setError(res.error.message);
+      }
       const entry = pending.current.get(res.reqId);
       if (entry) {
         // All data-bearing fields only exist on the `ok: true` variant.

@@ -21,12 +21,9 @@ import type {
   EditorSelection,
   EngineMeta,
   GridGeometry,
-  GridRangeWithRowNames,
-  GridRangeWithViewportResults,
   PaletteModel,
   VisibleGridRangeWithArguments,
 } from '../../models';
-import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
 import {
   DEFAULT_GRID_GEOMETRY,
   MIN_LABEL_WIDTH,
@@ -50,13 +47,8 @@ export const TestPage = () => {
   const metaSubject = useMemo(() => new Subject<EngineMeta | null>(null), []);
   const [palette, setPalette] = useState<null | PaletteModel>();
   const visibleRangeSubject = useMemo(() => new Subject<null | VisibleGridRangeWithArguments>(null), []);
-  const cachedGridRangeWithViewPortResultRef = useRef<GridRangeWithViewportResults | null>(null);
-  const cachedGridRangeWithRowNamesRef = useRef<GridRangeWithRowNames | null>(null);
   const geometrySubject = useMemo(() => new Subject<GridGeometry>(DEFAULT_GRID_GEOMETRY), []);
   const selectionSubject = useMemo(() => new Subject<EditorSelection | null>(null), []);
-  const visibleRangeRequestRef = useRef(0);
-  const pendingVisibleRangeRef = useRef<null | VisibleGridRangeWithArguments>(null);
-  const processingVisibleRangeRef = useRef(false);
 
   const updateScrollbars = useCallback(() => {
     const geometry = geometrySubject.data;
@@ -168,113 +160,27 @@ export const TestPage = () => {
   }, [editorService, updateMeta]);
 
   useEffect(() => {
-    let animationFrame: null | number = null;
-    let isActive = true;
-
-    const processVisibleRange = async (): Promise<void> => {
-      if (!isActive || processingVisibleRangeRef.current) {
-        return;
-      }
-      processingVisibleRangeRef.current = true;
-
-      try {
-        while (isActive && pendingVisibleRangeRef.current) {
-          const visibleGridRangeWithArguments = pendingVisibleRangeRef.current;
-          pendingVisibleRangeRef.current = null;
-          const requestId = visibleRangeRequestRef.current;
-
-          if (!cachedGridRangeWithRowNamesRef.current || !EditorUtil.isWithinGridRange({
-            cachedGridRange: cachedGridRangeWithRowNamesRef.current.range,
-            visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
-          })) {
-            const rowNames: string[] = [];
-            for (let i = visibleGridRangeWithArguments.visibleGridRange.cache.startRow; i <= visibleGridRangeWithArguments.visibleGridRange.cache.endRow; i++) {
-              rowNames.push(await editorService.name(i));
-            }
-
-            if (!isActive) {
-              return;
-            }
-            cachedGridRangeWithRowNamesRef.current = {
-              range: visibleGridRangeWithArguments.visibleGridRange.cache,
-              rowNames,
-            };
-          }
-
-          if (!cachedGridRangeWithViewPortResultRef.current || !EditorUtil.isWithinGridRange({
-            cachedGridRange: cachedGridRangeWithViewPortResultRef.current.range,
-            visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
-          })) {
-            const viewportResult = await EditorWorkerService.getInstance().viewport({
-              endCol: visibleGridRangeWithArguments.visibleGridRange.cache.endCol,
-              endRow: visibleGridRangeWithArguments.visibleGridRange.cache.endRow,
-              startCol: visibleGridRangeWithArguments.visibleGridRange.cache.startCol,
-              startRow: visibleGridRangeWithArguments.visibleGridRange.cache.startRow,
-            });
-            if (!isActive) {
-              return;
-            }
-            cachedGridRangeWithViewPortResultRef.current = {
-              range: visibleGridRangeWithArguments.visibleGridRange.cache,
-              viewportResult,
-            };
-          }
-
-          if (requestId !== visibleRangeRequestRef.current) {
-            continue;
-          }
-          if (animationFrame !== null) {
-            cancelAnimationFrame(animationFrame);
-          }
-          animationFrame = requestAnimationFrame(() => {
-            if (!isActive || requestId !== visibleRangeRequestRef.current) {
-              return;
-            }
-            if (!canvasRef.current || !palette || !cachedGridRangeWithViewPortResultRef.current || !metaSubject.data || !cachedGridRangeWithRowNamesRef.current) {
-              return;
-            }
-            editorAssemblyRef.current = EditorUtil.drawCanvas({
-              canvasElement: canvasRef.current,
-              devicePixelRatio,
-              geometry: visibleGridRangeWithArguments.geometry,
-              meta: metaSubject.data,
-              palette,
-              rowNames: cachedGridRangeWithRowNamesRef.current.rowNames,
-              rowNamesStartRow: cachedGridRangeWithRowNamesRef.current.range.startRow,
-              scrollLeft: visibleGridRangeWithArguments.scrollLeft,
-              scrollTop: visibleGridRangeWithArguments.scrollTop,
-              selection: selectionSubject.data,
-              viewport: cachedGridRangeWithViewPortResultRef.current.viewportResult,
-              viewportHeight: visibleGridRangeWithArguments.viewportHeight,
-              viewportWidth: visibleGridRangeWithArguments.viewportWidth,
-            });
-          });
-        }
-      } finally {
-        processingVisibleRangeRef.current = false;
-        if (isActive && pendingVisibleRangeRef.current) {
-          void processVisibleRange();
-        }
-      }
-    };
-
+    const visibleRangeProcessor = EditorUtil.createVisibleRangeProcessor({
+      canvas: () => canvasRef.current,
+      devicePixelRatio,
+      editorService,
+      getMeta: () => metaSubject.data,
+      getSelection: () => selectionSubject.data,
+      onEditorAssembly: (editorAssembly) => {
+        editorAssemblyRef.current = editorAssembly;
+      },
+      palette,
+    });
     const unsubscribeItems = [
       visibleRangeSubject.subscribe((visibleGridRangeWithArguments) => {
         if (!visibleGridRangeWithArguments) {
           return;
         }
-        pendingVisibleRangeRef.current = visibleGridRangeWithArguments;
-        visibleRangeRequestRef.current += 1;
-        void processVisibleRange();
+        visibleRangeProcessor.enqueue(visibleGridRangeWithArguments);
       }),
     ];
     return () => {
-      isActive = false;
-      pendingVisibleRangeRef.current = null;
-      if (animationFrame !== null) {
-        cancelAnimationFrame(animationFrame);
-      }
-      visibleRangeRequestRef.current += 1;
+      visibleRangeProcessor.dispose();
       unsubscribeItems.forEach(unsubscribe => unsubscribe());
     };
   }, [editorService, metaSubject, palette, selectionSubject, visibleRangeSubject]);
@@ -316,139 +222,73 @@ export const TestPage = () => {
   }, [scrollSubject]);
 
   const onScrollContainerMouseDown = useCallback((event: ReactMouseEvent<HTMLElement>) => {
-    const scrollContainer = event.currentTarget;
-
-    // Determine if the mouse event occurred on the scrollbars (allow the user to maintain the selection while interacting with the scrollbars)
-    const scrollContainerRect = scrollContainer.getBoundingClientRect();
-    const isVerticalScrollbar = event.clientX >= scrollContainerRect.left + scrollContainer.clientWidth;
-    const isHorizontalScrollbar = event.clientY >= scrollContainerRect.top + scrollContainer.clientHeight;
-    if (isVerticalScrollbar || isHorizontalScrollbar) {
-      return;
-    }
-
     const canvas = canvasRef.current;
     const editorAssembly = editorAssemblyRef.current;
-    const devicePixelRatio = DevicePixelRatioService.getInstance().data;
     if (!canvas || !editorAssembly) {
       return;
     }
 
-    const path = EditorUtil.getPathPropertiesFromCanvas({
+    const action = EditorUtil.getScrollContainerMouseDownAction({
       canvas,
-      devicePixelRatio,
       editorAssembly,
       event: event.nativeEvent,
+      geometry: geometrySubject.data,
+      scrollContainer: event.currentTarget,
+      selection: selectionSubject.data,
     });
-    if (!path) {
+    if (action.type === 'none') {
       return;
     }
-    if (path.type !== EDITOR_PATH_PROPERTIES_TYPE.DIVIDER) {
-      if (path.type === EDITOR_PATH_PROPERTIES_TYPE.LABEL && (event.metaKey || event.ctrlKey)) {
-        const selectedRows = selectionSubject.data?.rows ?? [];
-        const nextSelectedRows = selectedRows.includes(path.row)
-          ? selectedRows.filter(row => row !== path.row)
-          : [...selectedRows, path.row].sort((firstRow, secondRow) => firstRow - secondRow);
-
-        event.preventDefault();
-        selectionDragRef.current = null;
-        if (nextSelectedRows.length === 0) {
-          selectionSubject.next(null);
-          return;
-        }
-        selectionSubject.next({
-          rows: nextSelectedRows,
-        } as EditorSelection);
-        return;
-      }
-
-      const selection = EditorUtil.getSelectionFromPathProperties({
-        endPath: path,
-        startPath: path,
-      });
-      if (!selection) {
-        return;
-      }
-      event.preventDefault();
-      selectionDragRef.current = path;
-      selectionSubject.next(selection);
-      return;
-    }
-
     event.preventDefault();
+    if (action.type === 'toggle-row') {
+      selectionDragRef.current = null;
+      selectionSubject.next(action.selection);
+      return;
+    }
+    if (action.type === 'select') {
+      selectionDragRef.current = action.selectionDrag;
+      selectionSubject.next(action.selection);
+      return;
+    }
+
     selectionDragRef.current = null;
     labelResizeRef.current = {
-      startLabelWidth: geometrySubject.data.labelWidth,
-      startX: event.clientX,
+      startLabelWidth: action.startLabelWidth,
+      startX: action.startX,
     };
   }, [geometrySubject, selectionSubject]);
 
   const onScrollContainerMouseMove = useCallback((event: ReactMouseEvent<HTMLElement>) => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    const devicePixelRatio = DevicePixelRatioService.getInstance().data;
-    const resize = labelResizeRef.current;
     if (!container || !canvas) {
       return;
     }
 
-    if (resize) {
-      const labelWidth = Math.min(maxLabelWidth, Math.max(MIN_LABEL_WIDTH, resize.startLabelWidth + event.clientX - resize.startX));
+    const action = EditorUtil.getScrollContainerMouseMoveAction({
+      canvas,
+      editorAssembly: editorAssemblyRef.current,
+      event: event.nativeEvent,
+      maxLabelWidth,
+      resize: labelResizeRef.current,
+      selectionStart: selectionDragRef.current,
+    });
+    if (action.type === 'resize') {
       geometrySubject.next({
         ...geometrySubject.data,
-        labelWidth,
+        labelWidth: action.labelWidth,
       });
-      container.style.cursor = 'col-resize';
+      container.style.cursor = action.cursor;
       return;
     }
-
-    const selectionStart = selectionDragRef.current;
-    if (selectionStart) {
-      const editorAssembly = editorAssemblyRef.current;
-      if (!editorAssembly) {
-        return;
-      }
-
-      const path = EditorUtil.getPathPropertiesFromCanvas({
-        canvas,
-        devicePixelRatio,
-        editorAssembly,
-        event: event.nativeEvent,
-      });
-      if (!path) {
-        return;
-      }
-
-      const selection = EditorUtil.getSelectionFromPathProperties({
-        endPath: path,
-        startPath: selectionStart,
-      });
-      if (selection) {
-        selectionSubject.next(selection);
-      }
+    if (action.type === 'select') {
+      selectionSubject.next(action.selection);
       return;
     }
-
-    const editorAssembly = editorAssemblyRef.current;
-    if (!editorAssembly) {
+    if (action.type === 'none') {
       return;
     }
-
-    const path = EditorUtil.getPathPropertiesFromCanvas({
-      canvas,
-      devicePixelRatio,
-      editorAssembly,
-      event: event.nativeEvent,
-    });
-    if (!path) {
-      container.style.cursor = 'default';
-      return;
-    }
-
-    if (path.type === EDITOR_PATH_PROPERTIES_TYPE.DIVIDER) {
-      container.style.cursor = 'col-resize';
-    } else {
-      container.style.cursor = 'default';
-    }
+    container.style.cursor = action.cursor;
   }, [geometrySubject, maxLabelWidth, selectionSubject]);
 
   const onContainerMouseUp = useCallback(() => {

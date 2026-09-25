@@ -1,6 +1,9 @@
 import padStart from 'lodash/padStart';
 
 import type {
+  EditorAssembly,
+  EditorPathProperties,
+  EditorSelection,
   EngineMeta,
   EngineViewportResult,
   GridGeometry,
@@ -8,45 +11,9 @@ import type {
   PaletteModel,
   VisibleGridRange,
 } from '../../models';
+import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
 import { paletteEntryFor } from '../palette';
 import { DEFAULT_GRID_GEOMETRY } from '../../constants';
-
-export type EditorAssembly = {
-  cells: EditorAssemblyCells;
-  divider: EditorAssemblyDivider;
-  labels: EditorAssemblyLabels;
-  ruler: EditorAssemblyRuler;
-};
-
-export type EditorAssemblyCells = {
-  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
-};
-
-export type EditorAssemblyDivider = {
-  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
-};
-
-export type EditorAssemblyLabels = {
-  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
-};
-
-export type EditorAssemblyRuler = {
-  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
-};
-
-export type EditorPathProperties = {
-  col: number;
-  row: number;
-  type: 'cell';
-} | {
-  col: number;
-  type: 'ruler';
-} | {
-  row: number;
-  type: 'label';
-} | {
-  type: 'divider';
-};
 
 
 export class EditorUtil {
@@ -57,8 +24,10 @@ export class EditorUtil {
     meta,
     palette,
     rowNames,
+    rowNamesStartRow,
     scrollLeft,
     scrollTop,
+    selection,
     viewport,
     viewportHeight,
     viewportWidth,
@@ -69,8 +38,10 @@ export class EditorUtil {
     meta: EngineMeta;
     palette: PaletteModel;
     rowNames: string[];
+    rowNamesStartRow: number;
     scrollLeft: number;
     scrollTop: number;
+    selection: EditorSelection | null;
     viewport: EngineViewportResult;
     viewportHeight: number;
     viewportWidth: number;
@@ -123,6 +94,8 @@ export class EditorUtil {
             continue;
           }
           const byte = bytes[row * cols + col];
+          const cellCol = startCol + col;
+          const cellRow = startRow + row;
           const charCode = byte ?? '';
           const label = String.fromCharCode(charCode);
           const colors = paletteEntryFor(palette, label);
@@ -132,18 +105,37 @@ export class EditorUtil {
           } else if (label === ' ') {
             cellBackground = '#f7f8f9';
           }
+          let cellForeground = colors.foreground;
+          const isCellSelected = Boolean(
+            selection?.cells &&
+            cellCol >= selection.cells.startCol &&
+            cellCol <= selection.cells.endCol &&
+            cellRow >= selection.cells.startRow &&
+            cellRow <= selection.cells.endRow,
+          ) || Boolean(
+            selection?.cols &&
+            cellCol >= selection.cols.start &&
+            cellCol <= selection.cols.end,
+          ) || Boolean(
+            selection?.rows &&
+            cellRow >= selection.rows.start &&
+            cellRow <= selection.rows.end,
+          );
+          if (isCellSelected) {
+            [cellBackground, cellForeground] = [cellForeground, cellBackground];
+          }
           const rectanglePath = new Path2D();
           rectanglePath.rect(x, y, cellWidth, cellHeight);
           rectanglePath.closePath();
           editorAssembly.cells.pathPropertiesMap.set(rectanglePath, {
-            col: startCol + col,
-            row: startRow + row,
-            type: 'cell',
+            col: cellCol,
+            row: cellRow,
+            type: EDITOR_PATH_PROPERTIES_TYPE.CELL,
           });
           // draw path on canvas
           context.fillStyle = cellBackground;
           context.fill(rectanglePath);
-          context.fillStyle = colors.foreground;
+          context.fillStyle = cellForeground;
           context.fillText(label, x + cellWidth / 2, y + cellHeight / 2);
         }
       }
@@ -169,7 +161,7 @@ export class EditorUtil {
         rulerPath.closePath();
         editorAssembly.ruler.pathPropertiesMap.set(rulerPath, {
           col: startCol + col,
-          type: 'ruler',
+          type: EDITOR_PATH_PROPERTIES_TYPE.RULER,
         });
         const x = rulerX + 0.5;
         const tickHeight = isMajorTick ? 8 : 4;
@@ -210,7 +202,7 @@ export class EditorUtil {
       dividerPath.rect(labelWidth, 0, dividerWidth, viewportHeight);
       dividerPath.closePath();
       editorAssembly.divider.pathPropertiesMap.set(dividerPath, {
-        type: 'divider',
+        type: EDITOR_PATH_PROPERTIES_TYPE.DIVIDER,
       });
 
       // Render labels
@@ -218,7 +210,6 @@ export class EditorUtil {
       context.fillRect(0, rulerHeight, labelWidth, viewportHeight - rulerHeight);
       context.font = '12px monospace';
       context.textBaseline = 'middle';
-      context.fillStyle = '#334e68';
       context.save();
       context.beginPath();
       context.rect(0, rulerHeight, labelWidth, viewportHeight - rulerHeight);
@@ -233,9 +224,23 @@ export class EditorUtil {
         labelPath.closePath();
         editorAssembly.labels.pathPropertiesMap.set(labelPath, {
           row: startRow + row,
-          type: 'label',
+          type: EDITOR_PATH_PROPERTIES_TYPE.LABEL,
         });
-        context.fillText(`${padStart(String(startRow + row + 1), labelStringLength, '0')}: ${rowNames[row]}`, 8, y + cellHeight / 2);
+        const rowNameIndex = startRow + row - rowNamesStartRow;
+        const labelRow = startRow + row;
+        const isLabelSelected = Boolean(selection?.cols) || Boolean(
+          selection?.cells &&
+          labelRow >= selection.cells.startRow &&
+          labelRow <= selection.cells.endRow,
+        ) || Boolean(
+          selection?.rows &&
+          labelRow >= selection.rows.start &&
+          labelRow <= selection.rows.end,
+        );
+        context.fillStyle = isLabelSelected ? '#1565c0' : '#f8fafb';
+        context.fillRect(0, y, labelWidth, cellHeight);
+        context.fillStyle = isLabelSelected ? '#ffffff' : '#334e68';
+        context.fillText(`${padStart(String(startRow + row + 1), labelStringLength, '0')}: ${rowNames[rowNameIndex] ?? ''}`, 8, y + cellHeight / 2);
       }
       context.restore();
     });
@@ -287,6 +292,44 @@ export class EditorUtil {
       if (ctx.isPointInPath(path, canvasX, canvasY)) {
         return pathProperties;
       }
+    }
+
+    return undefined;
+  }
+
+  public static getSelectionFromPathProperties(params: { endPath: EditorPathProperties; startPath: EditorPathProperties }): EditorSelection | undefined {
+    const { endPath, startPath } = params;
+    if (startPath.type !== endPath.type) {
+      return undefined;
+    }
+
+    if (startPath.type === EDITOR_PATH_PROPERTIES_TYPE.CELL && endPath.type === EDITOR_PATH_PROPERTIES_TYPE.CELL) {
+      return {
+        cells: {
+          endCol: Math.max(startPath.col, endPath.col),
+          endRow: Math.max(startPath.row, endPath.row),
+          startCol: Math.min(startPath.col, endPath.col),
+          startRow: Math.min(startPath.row, endPath.row),
+        },
+      } as EditorSelection;
+    }
+
+    if (startPath.type === EDITOR_PATH_PROPERTIES_TYPE.RULER && endPath.type === EDITOR_PATH_PROPERTIES_TYPE.RULER) {
+      return {
+        cols: {
+          end: Math.max(startPath.col, endPath.col),
+          start: Math.min(startPath.col, endPath.col),
+        },
+      } as EditorSelection;
+    }
+
+    if (startPath.type === EDITOR_PATH_PROPERTIES_TYPE.LABEL && endPath.type === EDITOR_PATH_PROPERTIES_TYPE.LABEL) {
+      return {
+        rows: {
+          end: Math.max(startPath.row, endPath.row),
+          start: Math.min(startPath.row, endPath.row),
+        },
+      } as EditorSelection;
     }
 
     return undefined;
@@ -371,9 +414,4 @@ export class EditorUtil {
     }
     return ctx;
   }
-
-  // private static assembleCells(): EditorAssemblyCells {
-
-  // }
-
 }

@@ -1,20 +1,69 @@
+export enum EDITOR_PATH_PROPERTIES_TYPE {
+  CELL = 'CELL',
+  DIVIDER = 'DIVIDER',
+  LABEL = 'LABEL',
+  RULER = 'RULER',
+}
+
+
 export enum MATRIX_TYPE {
   AMINO_ACID = 'amino_acid',
   NUCLEOTIDE = 'nucleotide',
   RECORD_NAME = 'record_name',
 }
 
-/** Sliding-window byte buffer used by the scrolling viewport. */
-export type ChunkStore = {
-  /** Exclusive right column index (alignment-space). */
-  colEnd: number;
-  /** = colEnd − colStart */
-  cols: number;
-  /** Inclusive left column index (alignment-space). */
-  colStart: number;
-  /** Row-major byte array: index = row * cols + (col − colStart). */
-  data: Uint8Array;
-  numRows: number;
+export type EditorAssembly = {
+  cells: EditorAssemblyCells;
+  divider: EditorAssemblyDivider;
+  labels: EditorAssemblyLabels;
+  ruler: EditorAssemblyRuler;
+};
+
+export type EditorAssemblyCells = {
+  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
+};
+
+export type EditorAssemblyDivider = {
+  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
+};
+
+export type EditorAssemblyLabels = {
+  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
+};
+
+export type EditorAssemblyRuler = {
+  pathPropertiesMap: Map<Path2D, EditorPathProperties>;
+};
+
+export type EditorPathProperties = {
+  col: number;
+  row: number;
+  type: EDITOR_PATH_PROPERTIES_TYPE.CELL;
+} | {
+  col: number;
+  type: EDITOR_PATH_PROPERTIES_TYPE.RULER;
+} | {
+  row: number;
+  type: EDITOR_PATH_PROPERTIES_TYPE.LABEL;
+} | {
+  type: EDITOR_PATH_PROPERTIES_TYPE.DIVIDER;
+};
+
+export type EditorSelection = {
+  cells: { // when a rectangular block of cells is selected
+    endCol: number;
+    endRow: number;
+    startCol: number;
+    startRow: number;
+  };
+  cols: { // when entire columns are selected
+    end: number;
+    start: number;
+  };
+  rows: { // when entire rows are selected
+    end: number;
+    start: number;
+  };
 };
 
 /** Metadata describing the currently loaded alignment. */
@@ -24,84 +73,6 @@ export type EngineMeta = {
   sequenceCount: number;
   undoDepth: number;
 };
-
-export type EngineRequest =
-  | { base: number; col: number; reqId: number; rows: Uint32Array; type: 'mutate' }
-  | { base: number; endCol: number; reqId: number; rows: Uint32Array; startCol: number; type: 'mutateRange' }
-  | { checkRecordNames: boolean; query: string; reqId: number; type: 'search' }
-  | { col: number; reqId: number; rows: Uint32Array; type: 'delete' }
-  | { col: number; reqId: number; rows: Uint32Array; type: 'insert' }
-  | { col: number; reqId: number; type: 'deleteColumn' }
-  | { cols: Uint32Array; direction: 'Left' | 'Right'; reqId: number; row: number; type: 'moveHorizontal' }
-  | {
-    endCol: number;
-    endRow: number;
-    /** 0-indexed reading frame (0, 1, or 2). */
-    readingFrame: number;
-    reqId: number;
-    startCol: number;
-    startRow: number;
-    type: 'translate';
-  }
-  | {
-    endCol: number;
-    endRow: number;
-    reqId: number;
-    startCol: number;
-    startRow: number;
-    type: 'viewport';
-  }
-  | { fasta: string; reqId: number; type: 'load' }
-  | { reqId: number; row: number; type: 'name' }
-  | { reqId: number; rows: Uint32Array; type: 'moveRowsDown' }
-  | { reqId: number; rows: Uint32Array; type: 'moveRowsUp' }
-  | { reqId: number; type: 'exportFasta' }
-  | { reqId: number; type: 'meta' }
-  | { reqId: number; type: 'redo' }
-  | { reqId: number; type: 'undo' };
-
-export type EngineResponse =
-  | {
-    buffer: SharedArrayBuffer;
-    /** Maximum bytes the SAB can hold (rows*cols upper bound). */
-    capacity: number;
-    /**
-     * Sent once after the worker creates its SharedArrayBuffer. The main
-     * thread holds this reference and reads viewport bytes directly from it
-     * on every subsequent viewport response — no per-call transfer.
-     */
-    type: 'sab';
-  }
-  | {
-    data?: EngineResultData;
-    ok: true;
-    reqId: number;
-    /**
-     * For SAB-based viewport responses: number of bytes the worker wrote
-     * into the shared buffer. The main thread reads `sab[0..len]`.
-     */
-    sabLen?: number;
-    timing?: EngineTiming;
-    /** For viewport responses: the transferred byte buffer (row-major). */
-    transfer?: ArrayBuffer;
-    type: 'result';
-  }
-  | {
-    errorCode: string;
-    ok: false;
-    reqId: number;
-    type: 'result';
-  }
-  | { message: string; reqId: number; type: 'error' }
-  | { type: 'ready' };
-
-export type EngineResultData =
-  | boolean
-  | Meta
-  | number
-  | SearchResult
-  | string
-  | ViewportResult;
 
 /** A single search match, matching the Rust `search_algorithms::Match`. */
 export type EngineSearchMatch = {
@@ -159,6 +130,30 @@ export type EngineViewportResult = {
   startRow: number;
 };
 
+
+/**
+ * Wire protocol between the main thread and the MSA Web Worker.
+ *
+ * Design goals:
+ *  - **Zero-copy for binary payloads via SharedArrayBuffer.** Viewport
+ *    responses write into a single SAB created at worker init. The worker
+ *    sends a tiny control message (`{sabLen, data: ViewportResult}`) and the
+ *    main thread reads bytes directly from shared memory — no per-call
+ *    structured clone of binary data.
+ *  - **O(1) response correlation.** Every request carries a monotonically
+ *    increasing `reqId`; the client keeps a `Map<reqId, resolver>` for
+ *    constant-time dispatch.
+ *  - **Typed arrays for index vectors.** Row-index lists travel as
+ *    `Uint32Array` (not `number[]`) to avoid per-element number boxing and to
+ *    match the wasm-bindgen `&[usize]` slice mapping directly.
+ *  - **No JSON for hot paths.** Only small plain objects are structured-cloned;
+ *    binary data is always transferred via the shared SAB.
+ */
+
+// ---------------------------------------------------------------------------
+// Shared types
+// ---------------------------------------------------------------------------
+
 /**
  * Contract implemented by the `EngineWorker` class and exposed to the main
  * thread through comlink. Every method is asynchronous so comlink can proxy it
@@ -185,30 +180,6 @@ export interface EngineWorkerApi {
   undo: () => Promise<boolean>;
   viewport: (bounds: ViewportBounds) => Promise<EngineViewportResult>;
 }
-
-
-/**
- * Wire protocol between the main thread and the MSA Web Worker.
- *
- * Design goals:
- *  - **Zero-copy for binary payloads via SharedArrayBuffer.** Viewport
- *    responses write into a single SAB created at worker init. The worker
- *    sends a tiny control message (`{sabLen, data: ViewportResult}`) and the
- *    main thread reads bytes directly from shared memory — no per-call
- *    structured clone of binary data.
- *  - **O(1) response correlation.** Every request carries a monotonically
- *    increasing `reqId`; the client keeps a `Map<reqId, resolver>` for
- *    constant-time dispatch.
- *  - **Typed arrays for index vectors.** Row-index lists travel as
- *    `Uint32Array` (not `number[]`) to avoid per-element number boxing and to
- *    match the wasm-bindgen `&[usize]` slice mapping directly.
- *  - **No JSON for hot paths.** Only small plain objects are structured-cloned;
- *    binary data is always transferred via the shared SAB.
- */
-
-// ---------------------------------------------------------------------------
-// Shared types
-// ---------------------------------------------------------------------------
 
 export type GridGeometry = {
   cellHeight: number;

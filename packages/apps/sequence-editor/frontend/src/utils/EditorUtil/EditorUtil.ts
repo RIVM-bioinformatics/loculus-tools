@@ -70,6 +70,9 @@ export class EditorUtil {
     }
 
     const labelStringLength = meta.sequenceCount.toString().length;
+    const isRowSelected = (row: number): boolean => {
+      return selection?.rows?.includes(row) ?? false;
+    };
 
     EditorUtil.draw(canvasElement, devicePixelRatio, () => {
       context.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -113,13 +116,9 @@ export class EditorUtil {
             cellRow >= selection.cells.startRow &&
             cellRow <= selection.cells.endRow,
           ) || Boolean(
-            selection?.cols &&
-            cellCol >= selection.cols.start &&
-            cellCol <= selection.cols.end,
+            selection?.cols?.includes(cellCol),
           ) || Boolean(
-            selection?.rows &&
-            cellRow >= selection.rows.start &&
-            cellRow <= selection.rows.end,
+            isRowSelected(cellRow),
           );
           if (isCellSelected) {
             [cellBackground, cellForeground] = [cellForeground, cellBackground];
@@ -232,11 +231,7 @@ export class EditorUtil {
           selection?.cells &&
           labelRow >= selection.cells.startRow &&
           labelRow <= selection.cells.endRow,
-        ) || Boolean(
-          selection?.rows &&
-          labelRow >= selection.rows.start &&
-          labelRow <= selection.rows.end,
-        );
+        ) || isRowSelected(labelRow);
         context.fillStyle = isLabelSelected ? '#1565c0' : '#f8fafb';
         context.fillRect(0, y, labelWidth, cellHeight);
         context.fillStyle = isLabelSelected ? '#ffffff' : '#334e68';
@@ -299,8 +294,16 @@ export class EditorUtil {
 
   public static getSelectionFromPathProperties(params: { endPath: EditorPathProperties; startPath: EditorPathProperties }): EditorSelection | undefined {
     const { endPath, startPath } = params;
-    if (startPath.type !== endPath.type) {
-      return undefined;
+
+    if (startPath.type === EDITOR_PATH_PROPERTIES_TYPE.RULER && (
+      endPath.type === EDITOR_PATH_PROPERTIES_TYPE.RULER ||
+      endPath.type === EDITOR_PATH_PROPERTIES_TYPE.CELL
+    )) {
+      const startCol = Math.min(startPath.col, endPath.col);
+      const endCol = Math.max(startPath.col, endPath.col);
+      return {
+        cols: Array.from({ length: endCol - startCol + 1 }, (_, index) => startCol + index),
+      } as EditorSelection;
     }
 
     if (startPath.type === EDITOR_PATH_PROPERTIES_TYPE.CELL && endPath.type === EDITOR_PATH_PROPERTIES_TYPE.CELL) {
@@ -314,21 +317,11 @@ export class EditorUtil {
       } as EditorSelection;
     }
 
-    if (startPath.type === EDITOR_PATH_PROPERTIES_TYPE.RULER && endPath.type === EDITOR_PATH_PROPERTIES_TYPE.RULER) {
-      return {
-        cols: {
-          end: Math.max(startPath.col, endPath.col),
-          start: Math.min(startPath.col, endPath.col),
-        },
-      } as EditorSelection;
-    }
-
     if (startPath.type === EDITOR_PATH_PROPERTIES_TYPE.LABEL && endPath.type === EDITOR_PATH_PROPERTIES_TYPE.LABEL) {
+      const startRow = Math.min(startPath.row, endPath.row);
+      const endRow = Math.max(startPath.row, endPath.row);
       return {
-        rows: {
-          end: Math.max(startPath.row, endPath.row),
-          start: Math.min(startPath.row, endPath.row),
-        },
+        rows: Array.from({ length: endRow - startRow + 1 }, (_, index) => startRow + index),
       } as EditorSelection;
     }
 

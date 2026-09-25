@@ -58,15 +58,6 @@ export const TestPage = () => {
   const pendingVisibleRangeRef = useRef<null | VisibleGridRangeWithArguments>(null);
   const processingVisibleRangeRef = useRef(false);
 
-  useEffect(() => {
-    const unsubscribe = selectionSubject.subscribe((selection) => {
-      console.log('Selection changed:', selection);
-    });
-    return () => {
-      unsubscribe();
-    };
-  }, [selectionSubject]);
-
   const updateScrollbars = useCallback(() => {
     const geometry = geometrySubject.data;
     const meta = metaSubject.data;
@@ -286,7 +277,7 @@ export const TestPage = () => {
       visibleRangeRequestRef.current += 1;
       unsubscribeItems.forEach(unsubscribe => unsubscribe());
     };
-  }, [editorService, metaSubject, palette, visibleRangeSubject]);
+  }, [editorService, metaSubject, palette, selectionSubject, visibleRangeSubject]);
 
   useEffect(() => {
     const unsubscribeItems = [
@@ -325,6 +316,16 @@ export const TestPage = () => {
   }, [scrollSubject]);
 
   const onScrollContainerMouseDown = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+    const scrollContainer = event.currentTarget;
+
+    // Determine if the mouse event occurred on the scrollbars (allow the user to maintain the selection while interacting with the scrollbars)
+    const scrollContainerRect = scrollContainer.getBoundingClientRect();
+    const isVerticalScrollbar = event.clientX >= scrollContainerRect.left + scrollContainer.clientWidth;
+    const isHorizontalScrollbar = event.clientY >= scrollContainerRect.top + scrollContainer.clientHeight;
+    if (isVerticalScrollbar || isHorizontalScrollbar) {
+      return;
+    }
+
     const canvas = canvasRef.current;
     const editorAssembly = editorAssemblyRef.current;
     const devicePixelRatio = DevicePixelRatioService.getInstance().data;
@@ -342,6 +343,24 @@ export const TestPage = () => {
       return;
     }
     if (path.type !== EDITOR_PATH_PROPERTIES_TYPE.DIVIDER) {
+      if (path.type === EDITOR_PATH_PROPERTIES_TYPE.LABEL && (event.metaKey || event.ctrlKey)) {
+        const selectedRows = selectionSubject.data?.rows ?? [];
+        const nextSelectedRows = selectedRows.includes(path.row)
+          ? selectedRows.filter(row => row !== path.row)
+          : [...selectedRows, path.row].sort((firstRow, secondRow) => firstRow - secondRow);
+
+        event.preventDefault();
+        selectionDragRef.current = null;
+        if (nextSelectedRows.length === 0) {
+          selectionSubject.next(null);
+          return;
+        }
+        selectionSubject.next({
+          rows: nextSelectedRows,
+        } as EditorSelection);
+        return;
+      }
+
       const selection = EditorUtil.getSelectionFromPathProperties({
         endPath: path,
         startPath: path,

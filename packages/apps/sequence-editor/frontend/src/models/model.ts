@@ -56,14 +56,8 @@ export type EditorSelection = {
     startCol: number;
     startRow: number;
   };
-  cols: { // when entire columns are selected
-    end: number;
-    start: number;
-  };
-  rows: { // when entire rows are selected
-    end: number;
-    start: number;
-  };
+  cols: number[]; // when entire columns are selected
+  rows: number[]; // when entire rows are selected
 };
 
 /** Metadata describing the currently loaded alignment. */

@@ -8,198 +8,15 @@ import type {
   EngineViewportResult,
   GridGeometry,
   GridRange,
-  GridRangeWithRowNames,
-  GridRangeWithViewportResults,
   PaletteModel,
-  ViewportBounds,
   VisibleGridRange,
-  VisibleGridRangeWithArguments,
 } from '../../models';
 import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
 import { paletteEntryFor } from '../palette';
-import {
-  DEFAULT_GRID_GEOMETRY,
-  MIN_LABEL_WIDTH,
-} from '../../constants';
-
-
-type ScrollContainerMouseDownAction = {
-  selection: EditorSelection;
-  selectionDrag: EditorPathProperties;
-  type: 'select';
-} | {
-  selection: EditorSelection | null;
-  type: 'toggle-row';
-} | {
-  startLabelWidth: number;
-  startX: number;
-  type: 'resize';
-} | {
-  type: 'none';
-};
-
-type ScrollContainerMouseMoveAction = {
-  cursor: 'col-resize';
-  labelWidth: number;
-  type: 'resize';
-} | {
-  cursor: 'col-resize' | 'default';
-  type: 'cursor';
-} | {
-  selection: EditorSelection;
-  type: 'select';
-} | {
-  type: 'none';
-};
-
-type VisibleRangeProcessor = {
-  dispose: () => void;
-  enqueue: (visibleRangeWithArguments: VisibleGridRangeWithArguments) => void;
-};
-
-type VisibleRangeService = {
-  name: (row: number) => Promise<string>;
-  viewport: (bounds: ViewportBounds) => Promise<EngineViewportResult>;
-};
+import { DEFAULT_GRID_GEOMETRY } from '../../constants';
 
 
 export class EditorUtil {
-  public static createVisibleRangeProcessor(params: {
-    canvas: () => HTMLCanvasElement | null;
-    devicePixelRatio: number;
-    editorService: VisibleRangeService;
-    getMeta: () => EngineMeta | null;
-    getSelection: () => EditorSelection | null;
-    onEditorAssembly: (editorAssembly: EditorAssembly) => void;
-    palette: null | PaletteModel | undefined;
-  }): VisibleRangeProcessor {
-    const {
-      canvas,
-      devicePixelRatio,
-      editorService,
-      getMeta,
-      getSelection,
-      onEditorAssembly,
-      palette,
-    } = params;
-    let animationFrame: null | number = null;
-    let cachedGridRangeWithRowNames: GridRangeWithRowNames | null = null;
-    let cachedGridRangeWithViewportResult: GridRangeWithViewportResults | null = null;
-    let isActive = true;
-    let pendingVisibleRange: null | VisibleGridRangeWithArguments = null;
-    let processingVisibleRange = false;
-    let visibleRangeRequest = 0;
-
-    const processVisibleRange = async (): Promise<void> => {
-      if (!isActive || processingVisibleRange) {
-        return;
-      }
-      processingVisibleRange = true;
-
-      try {
-        while (isActive && pendingVisibleRange) {
-          const visibleGridRangeWithArguments = pendingVisibleRange;
-          pendingVisibleRange = null;
-          const requestId = visibleRangeRequest;
-          const { cache, visible } = visibleGridRangeWithArguments.visibleGridRange;
-
-          if (!cachedGridRangeWithRowNames || !EditorUtil.isWithinGridRange({
-            cachedGridRange: cachedGridRangeWithRowNames.range,
-            visibleGridRange: visible,
-          })) {
-            const rowNames: string[] = [];
-            for (let row = cache.startRow; row <= cache.endRow; row++) {
-              rowNames.push(await editorService.name(row));
-            }
-
-            if (!isActive) {
-              return;
-            }
-            cachedGridRangeWithRowNames = {
-              range: cache,
-              rowNames,
-            };
-          }
-
-          if (!cachedGridRangeWithViewportResult || !EditorUtil.isWithinGridRange({
-            cachedGridRange: cachedGridRangeWithViewportResult.range,
-            visibleGridRange: visible,
-          })) {
-            const viewportResult = await editorService.viewport({
-              endCol: cache.endCol,
-              endRow: cache.endRow,
-              startCol: cache.startCol,
-              startRow: cache.startRow,
-            });
-            if (!isActive) {
-              return;
-            }
-            cachedGridRangeWithViewportResult = {
-              range: cache,
-              viewportResult,
-            };
-          }
-
-          if (requestId !== visibleRangeRequest) {
-            continue;
-          }
-          if (animationFrame !== null) {
-            cancelAnimationFrame(animationFrame);
-          }
-          animationFrame = requestAnimationFrame(() => {
-            if (!isActive || requestId !== visibleRangeRequest) {
-              return;
-            }
-            const canvasElement = canvas();
-            const meta = getMeta();
-            if (!canvasElement || !palette || !cachedGridRangeWithViewportResult || !meta || !cachedGridRangeWithRowNames) {
-              return;
-            }
-            onEditorAssembly(EditorUtil.drawCanvas({
-              canvasElement,
-              devicePixelRatio,
-              geometry: visibleGridRangeWithArguments.geometry,
-              meta,
-              palette,
-              rowNames: cachedGridRangeWithRowNames.rowNames,
-              rowNamesStartRow: cachedGridRangeWithRowNames.range.startRow,
-              scrollLeft: visibleGridRangeWithArguments.scrollLeft,
-              scrollTop: visibleGridRangeWithArguments.scrollTop,
-              selection: getSelection(),
-              viewport: cachedGridRangeWithViewportResult.viewportResult,
-              viewportHeight: visibleGridRangeWithArguments.viewportHeight,
-              viewportWidth: visibleGridRangeWithArguments.viewportWidth,
-            }));
-          });
-        }
-      } finally {
-        processingVisibleRange = false;
-        if (isActive && pendingVisibleRange) {
-          void processVisibleRange();
-        }
-      }
-    };
-
-    return {
-      dispose: () => {
-        isActive = false;
-        pendingVisibleRange = null;
-        if (animationFrame !== null) {
-          cancelAnimationFrame(animationFrame);
-        }
-        visibleRangeRequest += 1;
-      },
-      enqueue: (visibleRangeWithArguments) => {
-        if (!isActive) {
-          return;
-        }
-        pendingVisibleRange = visibleRangeWithArguments;
-        visibleRangeRequest += 1;
-        void processVisibleRange();
-      },
-    };
-  }
-
   public static drawCanvas({
     canvasElement,
     devicePixelRatio,
@@ -437,15 +254,16 @@ export class EditorUtil {
    * @param params.canvas - The canvas element that received the mouse event.
    * @param params.event - The mouse event providing cursor coordinates.
    * @param params.treeAssembly - The assembly containing path maps to hit-test against.
+   * @param params.devicePixelRatio - Screen DPR for correct coordinate scaling.
    * @returns The {@link EditorPathProperties} of the hit cell, or `undefined` if nothing was hit.
    */
-  public static getPathPropertiesFromCanvas(params: { canvas: HTMLCanvasElement; editorAssembly: EditorAssembly; event: MouseEvent }): EditorPathProperties | undefined {
-    const { canvas, editorAssembly, event } = params;
+  public static getPathPropertiesFromCanvas(params: { canvas: HTMLCanvasElement; devicePixelRatio: number; editorAssembly: EditorAssembly; event: MouseEvent }): EditorPathProperties | undefined {
+    const { canvas, devicePixelRatio, editorAssembly, event } = params;
 
     const ctx = EditorUtil.getCanvasContext(canvas);
     const rect = canvas.getBoundingClientRect();
-    const canvasX = event.clientX - rect.left;
-    const canvasY = event.clientY - rect.top;
+    const canvasX = (event.clientX - rect.left) * devicePixelRatio;
+    const canvasY = (event.clientY - rect.top) * devicePixelRatio;
 
     for (const [path, pathProperties] of editorAssembly.cells.pathPropertiesMap) {
       if (ctx.isPointInPath(path, canvasX, canvasY)) {
@@ -472,136 +290,6 @@ export class EditorUtil {
     }
 
     return undefined;
-  }
-
-  public static getScrollContainerMouseDownAction(params: {
-    canvas: HTMLCanvasElement;
-    editorAssembly: EditorAssembly;
-    event: MouseEvent;
-    geometry: GridGeometry;
-    scrollContainer: HTMLElement;
-    selection: EditorSelection | null;
-  }): ScrollContainerMouseDownAction {
-    const {
-      canvas,
-      editorAssembly,
-      event,
-      geometry,
-      scrollContainer,
-      selection,
-    } = params;
-    const scrollContainerRect = scrollContainer.getBoundingClientRect();
-    const isVerticalScrollbar = event.clientX >= scrollContainerRect.left + scrollContainer.clientWidth;
-    const isHorizontalScrollbar = event.clientY >= scrollContainerRect.top + scrollContainer.clientHeight;
-    if (isVerticalScrollbar || isHorizontalScrollbar) {
-      return { type: 'none' };
-    }
-
-    const path = EditorUtil.getPathPropertiesFromCanvas({
-      canvas,
-      editorAssembly,
-      event,
-    });
-    if (!path) {
-      return { type: 'none' };
-    }
-
-    if (path.type === EDITOR_PATH_PROPERTIES_TYPE.DIVIDER) {
-      return {
-        startLabelWidth: geometry.labelWidth,
-        startX: event.clientX,
-        type: 'resize',
-      };
-    }
-
-    if (path.type === EDITOR_PATH_PROPERTIES_TYPE.LABEL && (event.metaKey || event.ctrlKey)) {
-      const selectedRows = selection?.rows ?? [];
-      const nextSelectedRows = selectedRows.includes(path.row)
-        ? selectedRows.filter(row => row !== path.row)
-        : [...selectedRows, path.row].sort((firstRow, secondRow) => firstRow - secondRow);
-
-      return {
-        selection: nextSelectedRows.length === 0
-          ? null
-          : { rows: nextSelectedRows } as EditorSelection,
-        type: 'toggle-row',
-      };
-    }
-
-    const nextSelection = EditorUtil.getSelectionFromPathProperties({
-      endPath: path,
-      startPath: path,
-    });
-    if (!nextSelection) {
-      return { type: 'none' };
-    }
-
-    return {
-      selection: nextSelection,
-      selectionDrag: path,
-      type: 'select',
-    };
-  }
-
-  public static getScrollContainerMouseMoveAction(params: {
-    canvas: HTMLCanvasElement;
-    editorAssembly: EditorAssembly | null;
-    event: MouseEvent;
-    maxLabelWidth: number;
-    resize: { startLabelWidth: number; startX: number } | null;
-    selectionStart: EditorPathProperties | null;
-  }): ScrollContainerMouseMoveAction {
-    const {
-      canvas,
-      editorAssembly,
-      event,
-      maxLabelWidth,
-      resize,
-      selectionStart,
-    } = params;
-
-    if (resize) {
-      return {
-        cursor: 'col-resize',
-        labelWidth: Math.min(maxLabelWidth, Math.max(MIN_LABEL_WIDTH, resize.startLabelWidth + event.clientX - resize.startX)),
-        type: 'resize',
-      };
-    }
-
-    if (selectionStart) {
-      if (!editorAssembly) {
-        return { type: 'none' };
-      }
-
-      const path = EditorUtil.getPathPropertiesFromCanvas({
-        canvas,
-        editorAssembly,
-        event,
-      });
-      if (!path) {
-        return { type: 'none' };
-      }
-
-      const selection = EditorUtil.getSelectionFromPathProperties({
-        endPath: path,
-        startPath: selectionStart,
-      });
-      return selection ? { selection, type: 'select' } : { type: 'none' };
-    }
-
-    if (!editorAssembly) {
-      return { type: 'none' };
-    }
-
-    const path = EditorUtil.getPathPropertiesFromCanvas({
-      canvas,
-      editorAssembly,
-      event,
-    });
-    return {
-      cursor: path?.type === EDITOR_PATH_PROPERTIES_TYPE.DIVIDER ? 'col-resize' : 'default',
-      type: 'cursor',
-    };
   }
 
   public static getSelectionFromPathProperties(params: { endPath: EditorPathProperties; startPath: EditorPathProperties }): EditorSelection | undefined {

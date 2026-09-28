@@ -1,0 +1,34 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const __wbg_msaengine_free: (a: number, b: number) => void;
+export const msaengine_delete_at_subset: (a: number, b: number, c: number, d: number) => [number, number];
+export const msaengine_delete_column: (a: number, b: number) => [number, number];
+export const msaengine_get_alignment_width: (a: number) => number;
+export const msaengine_get_aminoacid_view: (a: number, b: number) => any;
+export const msaengine_get_base: (a: number, b: number, c: number) => number;
+export const msaengine_get_name: (a: number, b: number) => [number, number];
+export const msaengine_get_row_length: (a: number, b: number) => number;
+export const msaengine_get_sequence_count: (a: number) => number;
+export const msaengine_get_viewport_len: (a: number) => number;
+export const msaengine_insert_at_subset: (a: number, b: number, c: number, d: number) => [number, number];
+export const msaengine_load_fasta: (a: number, b: number, c: number) => number;
+export const msaengine_move_horizontal: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+export const msaengine_move_rows_down: (a: number, b: number, c: number) => [number, number];
+export const msaengine_move_rows_up: (a: number, b: number, c: number) => [number, number];
+export const msaengine_mutate_base_subset: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+export const msaengine_new: () => number;
+export const msaengine_redo: (a: number) => number;
+export const msaengine_redo_depth: (a: number) => number;
+export const msaengine_search: (a: number, b: number, c: number, d: number) => [number, number, number];
+export const msaengine_translate: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
+export const msaengine_undo: (a: number) => number;
+export const msaengine_undo_depth: (a: number) => number;
+export const msaengine_update_viewport: (a: number, b: number, c: number, d: number, e: number) => any;
+export const msaengine_update_viewport_into: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: any) => number;
+export const __wbindgen_malloc: (a: number, b: number) => number;
+export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __externref_table_dealloc: (a: number) => void;
+export const __wbindgen_start: () => void;

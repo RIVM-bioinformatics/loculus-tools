@@ -1,0 +1,17 @@
+{
+  "name": "sequence-editor",
+  "type": "module",
+  "description": "Rust-powered WebAssembly MSA engine for viral genome alignment editing",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "sequence_editor_bg.wasm",
+    "sequence_editor.js",
+    "sequence_editor.d.ts"
+  ],
+  "main": "sequence_editor.js",
+  "types": "sequence_editor.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

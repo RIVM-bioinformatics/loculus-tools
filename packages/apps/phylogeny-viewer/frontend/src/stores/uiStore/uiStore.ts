@@ -297,8 +297,8 @@ export const uiStore = createStore<UiStore>((set, get) => ({
   },
 
   setSearchQuery: (query: string) => {
-    if (query === null) {
-      set({ highlightedIds: [], searchQuery: null });
+    if (!query) {
+      set({ highlightedIds: [], searchQuery: '' });
       return;
     }
     const allSequenceIds = (get().parsedFasta?.sequences ?? []).map((sequence) => sequence.id);

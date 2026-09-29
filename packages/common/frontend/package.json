@@ -69,6 +69,14 @@
       "types": "./src/components/I18nWrapper/index.ts",
       "import": "./src/components/I18nWrapper/index.ts"
     },
+    "./components/page": {
+      "types": "./src/components/page/index.ts",
+      "import": "./src/components/page/index.ts"
+    },
+    "./constants/page": {
+      "types": "./src/constants/page.ts",
+      "import": "./src/constants/page.ts"
+    },
     "./theme": {
       "types": "./src/theme/index.ts",
       "import": "./src/theme/index.ts"
@@ -79,6 +87,14 @@
       "./components/I18nWrapper": {
         "types": "./dist/components/I18nWrapper/index.d.ts",
         "import": "./dist/components/I18nWrapper/index.js"
+      },
+      "./components/page": {
+        "types": "./dist/components/page/index.d.ts",
+        "import": "./dist/components/page/index.js"
+      },
+      "./constants/page": {
+        "types": "./dist/constants/page.d.ts",
+        "import": "./dist/constants/page.js"
       },
       "./theme": {
         "types": "./dist/theme/index.d.ts",

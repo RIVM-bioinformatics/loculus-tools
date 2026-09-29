@@ -4,34 +4,30 @@ import {
 } from '@mui/material';
 import { BackdropSpinner } from '@gen-epix/ui-core-components/components/BackdropSpinner';
 import {
+  use,
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react';
 import { useStore } from 'zustand';
 import type { TreeNode } from '@gen-epix/ui-phylogenetic-tree/models/tree';
 import { NewickUtil } from '@gen-epix/ui-phylogenetic-tree/utils/NewickUtil';
+import { PageCommonContext } from '@rivm-loculus-tools/frontend-common/components/page';
 
-import { Page } from '../../app/Page';
 import type { AlignmentErrorDialogRefMethods } from '../../dialogs/AlignmentErrorDialog';
 import { AlignmentErrorDialog } from '../../dialogs/AlignmentErrorDialog';
 import type { DataImportDialogRefMethods } from '../../dialogs/DataImportDialog';
 import { DataImportDialog } from '../../dialogs/DataImportDialog';
 import { PhyloTreeView } from '../../ui/PhyloTreeView';
-import {
-  DRAWER_WIDTH,
-  LEGEND_WIDTH,
-} from '../../../constants/view';
+import { LEGEND_WIDTH } from '../../../constants/view';
 import { CALCULATION_STATUS } from '../../../models/calculation';
 import { EventBusService } from '../../../classes/services/EventBusService';
 import { useDeepLinking } from '../../../hooks/useDeepLinking';
 import { SearchBar } from '../../ui/SearchBar';
-import { SideControlPanel } from '../../ui/SideControlPanel';
 import { Legend } from '../../ui/Legend/Legend';
 import { uiStore } from '../../../stores/uiStore';
 import { TreeNotLoaded } from '../../ui/TreeNotLoaded';
-
+import { PhyloViewerPage } from '../../ui/PhyloViewerPage';
 
 export const MainPage = () => {
   const newick = useStore(uiStore, (state) => state.newick);
@@ -42,7 +38,7 @@ export const MainPage = () => {
   const calculationEngine = useStore(uiStore, (state) => state.engine);
   const theme = useTheme();
 
-  const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+  const { setIsDrawerOpen } = use(PageCommonContext);
 
   useEffect(() => {
     const eventBusService = EventBusService.getInstance();
@@ -64,7 +60,7 @@ export const MainPage = () => {
     return () => {
       removers.forEach((remove) => remove());
     };
-  }, []);
+  }, [setIsDrawerOpen]);
 
   useDeepLinking();
 
@@ -93,70 +89,51 @@ export const MainPage = () => {
   const canShowTree = parsedTree !== null && leafNames.length > 0;
 
   return (
-    <Page drawerOpen={isDrawerOpen}>
-      <>
-        {/* Collapsible Sidebar */}
-        <SideControlPanel drawerOpen={isDrawerOpen} />
-        {/* Primary Viewport */}
+    <PhyloViewerPage
+      isNoInteraction={false}
+    >
+      {!canShowTree && <TreeNotLoaded />}
+      {canShowTree && (
         <Box
-          component={'main'}
           sx={{
-            flexGrow: 1,
+            display: 'grid',
+            gridTemplateRows: 'max-content auto',
             height: '100%',
-            overflow: 'hidden',
             position: 'relative',
-            transition: () =>
-              theme.transitions.create(['margin', 'width'], {
-                duration: theme.transitions.duration.leavingScreen,
-                easing: theme.transitions.easing.sharp,
-              }),
-            width: isDrawerOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%',
+            width: '100%',
           }}
         >
-          {!canShowTree && <TreeNotLoaded />}
-          {canShowTree && (
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateRows: 'max-content auto',
-                height: '100%',
-                position: 'relative',
-                width: '100%',
-              }}
-            >
-              <SearchBar />
+          <SearchBar />
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: `auto ${colorByField ? `${LEGEND_WIDTH}px` : '0px'}`,
+              height: '100%',
+              position: 'relative',
+              width: '100%',
+            }}
+          >
+            <PhyloTreeView newick={newick} />
+            {colorByField && (
               <Box
                 sx={{
-                  display: 'grid',
-                  gridTemplateColumns: `auto ${colorByField ? `${LEGEND_WIDTH}px` : '0px'}`,
+                  borderTop: `1px solid ${theme.palette.divider}`,
                   height: '100%',
-                  position: 'relative',
-                  width: '100%',
                 }}
               >
-                <PhyloTreeView newick={newick} />
-                {colorByField && (
-                  <Box
-                    sx={{
-                      borderTop: `1px solid ${theme.palette.divider}`,
-                      height: '100%',
-                    }}
-                  >
-                    <Legend />
-                  </Box>
-                )}
+                <Legend />
               </Box>
-            </Box>
-          )}
+            )}
+          </Box>
         </Box>
-        {/* Global Overlays & Modals */}
-        <DataImportDialog ref={dataImportDialogRef} />
-        <AlignmentErrorDialog ref={alignmentErrorDialogRef} />
-        <BackdropSpinner
-          label={`Computing phylogenetic tree (${calculationEngine === 'tn93' ? 'TN93 + NJ' : 'FastTree'})`}
-          open={calculationStatus === CALCULATION_STATUS.LOADING}
-        />
-      </>
-    </Page>
+      )}
+      {/* Global Overlays & Modals */}
+      <DataImportDialog ref={dataImportDialogRef} />
+      <AlignmentErrorDialog ref={alignmentErrorDialogRef} />
+      <BackdropSpinner
+        label={`Computing phylogenetic tree (${calculationEngine === 'tn93' ? 'TN93 + NJ' : 'FastTree'})`}
+        open={calculationStatus === CALCULATION_STATUS.LOADING}
+      />
+    </PhyloViewerPage>
   );
 };

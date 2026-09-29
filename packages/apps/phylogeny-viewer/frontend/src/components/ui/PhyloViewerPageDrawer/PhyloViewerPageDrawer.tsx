@@ -9,7 +9,6 @@ import {
   AccordionSummary,
   Box,
   Button,
-  Drawer,
   Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -18,14 +17,14 @@ import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import { useStore } from 'zustand';
+import { PageCommonDrawer } from '@rivm-loculus-tools/frontend-common/components/page';
 
-import { DRAWER_WIDTH } from '../../../constants/view';
 import { EventBusService } from '../../../classes/services/EventBusService';
 import { uiStore } from '../../../stores/uiStore';
 
-import { SideControlPanelCalculationSettings } from './SideControlPanelCalculationSettings';
-import { SideControlPanelViewSettings } from './SideControlPanelViewSettings';
-import { SideControlPanelMetadataStyling } from './SideControlPanelMetadataStyling';
+import { PhyloViewerPageDrawerCalculationSettings } from './PhyloViewerPageDrawerCalculationSettings';
+import { PhyloViewerPageDrawerMetadataStyling } from './PhyloViewerPageDrawerMetadataStyling';
+import { PhyloViewerPageDrawerViewSettings } from './PhyloViewerPageDrawerViewSettings';
 
 enum ACCORDIONS {
   CALCULATION = 'CALCULATION',
@@ -33,11 +32,7 @@ enum ACCORDIONS {
   VIEW = 'VIEW',
 }
 
-export type SideControlPanelProps = {
-  drawerOpen: boolean;
-};
-
-export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
+export const PhyloViewerPageDrawer = () => {
   const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
   const [expandedAccordions, setExpandedAccordions] = useState<ACCORDIONS[]>([]);
 
@@ -62,21 +57,7 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
   }, [collapseAccordion, parsedMetadata]);
 
   return (
-    <Drawer
-      anchor={'left'}
-      open={drawerOpen}
-      sx={{
-        '& .MuiDrawer-paper': {
-          height: 'calc(100% - 56px)',
-          overflowY: 'auto',
-          top: '56px',
-          width: DRAWER_WIDTH,
-        },
-        flexShrink: 0,
-        width: drawerOpen ? DRAWER_WIDTH : 0,
-      }}
-      variant={'persistent'}
-    >
+    <PageCommonDrawer>
       {/* Header with Close and Data Load trigger */}
       <Box sx={{ borderBottom: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 1.5, p: 2 }}>
         <Button
@@ -115,7 +96,7 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
             </Box>
           </AccordionSummary>
           <AccordionDetails sx={{ pb: 2, pt: 0, px: 2 }}>
-            <SideControlPanelCalculationSettings />
+            <PhyloViewerPageDrawerCalculationSettings />
           </AccordionDetails>
         </Accordion>
         {/* 2. View & Layout */}
@@ -141,7 +122,7 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
             </Box>
           </AccordionSummary>
           <AccordionDetails sx={{ pb: 2, pt: 0, px: 2 }}>
-            <SideControlPanelViewSettings />
+            <PhyloViewerPageDrawerViewSettings />
           </AccordionDetails>
         </Accordion>
         {/* 3. Metadata & Styling */}
@@ -168,10 +149,10 @@ export const SideControlPanel = ({ drawerOpen }: SideControlPanelProps) => {
             </Box>
           </AccordionSummary>
           <AccordionDetails sx={{ pb: 2, pt: 0, px: 2 }}>
-            <SideControlPanelMetadataStyling />
+            <PhyloViewerPageDrawerMetadataStyling />
           </AccordionDetails>
         </Accordion>
       </Box>
-    </Drawer>
+    </PageCommonDrawer>
   );
 };

@@ -22,7 +22,7 @@ type FormFields = {
   showScaleBar?: boolean;
 };
 
-export const SideControlPanelViewSettings = () => {
+export const PhyloViewerPageDrawerViewSettings = () => {
   const formId = useId();
   const showBranchLengths = useStore(uiStore, (state) => state.showBranchLengths);
   const setShowBranchLengths = useStore(uiStore, (state) => state.setShowBranchLengths);

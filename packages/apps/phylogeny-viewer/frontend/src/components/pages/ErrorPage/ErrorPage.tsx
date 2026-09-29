@@ -4,7 +4,7 @@ import {
 } from '@mui/material';
 import { t } from 'i18next';
 
-import { Page } from '../../app/Page';
+import { PhyloViewerPage } from '../../ui/PhyloViewerPage';
 
 export type ErrorPageProps = {
   readonly error?: unknown;
@@ -12,7 +12,9 @@ export type ErrorPageProps = {
 
 export const ErrorPage = ({ error }: ErrorPageProps) => {
   return (
-    <Page noInteraction>
+    <PhyloViewerPage
+      isNoInteraction
+    >
       <Box
         sx={{
           alignItems: 'center',
@@ -50,6 +52,6 @@ export const ErrorPage = ({ error }: ErrorPageProps) => {
           </Box>
         </Box>
       </Box>
-    </Page>
+    </PhyloViewerPage>
   );
 };

@@ -29,7 +29,7 @@ type FormFields = {
   selectedLabelFields?: string[];
 };
 
-export const SideControlPanelMetadataStyling = () => {
+export const PhyloViewerPageDrawerMetadataStyling = () => {
   const formId = useId();
   const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
   const parsedFasta = useStore(uiStore, (state) => state.parsedFasta);

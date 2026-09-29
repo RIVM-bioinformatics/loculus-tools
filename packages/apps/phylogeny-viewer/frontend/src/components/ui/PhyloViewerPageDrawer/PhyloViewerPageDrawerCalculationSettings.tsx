@@ -31,7 +31,7 @@ import { uiStore } from '../../../stores/uiStore';
 import { StatusChip } from '../StatusChip';
 
 
-export const SideControlPanelCalculationSettings = () => {
+export const PhyloViewerPageDrawerCalculationSettings = () => {
   const engine = useStore(uiStore, (state) => state.engine);
   const setEngine = useStore(uiStore, (state) => state.setEngine);
   const fastTreeMode = useStore(uiStore, (state) => state.fastTreeMode);

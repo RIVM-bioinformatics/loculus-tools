@@ -1,17 +1,18 @@
 import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 import type { Remote } from 'comlink';
 import { wrap } from 'comlink';
+import { FastaUtil } from '@rivm-loculus-tools/frontend-common/utils/FastaUtil';
+import type { FastaPreflightResult } from '@rivm-loculus-tools/frontend-common/models/fasta';
+import { MoveDirection } from '@rivm-loculus-tools/sequence-editor-wasm';
 
 import type {
   EngineMeta,
   EngineSearchResult,
   EngineViewportResult,
   EngineWorkerApi,
-  MoveDirection,
   ViewportBounds,
 } from '../../../models';
-import type { FastaPreflightResult } from '../../../utils/FastaUtil';
-import { FastaUtil } from '../../../utils/FastaUtil';
+import { EDITOR_DIRECTION } from '../../../models/editor';
 
 
 export class EditorWorkerService {
@@ -75,9 +76,12 @@ export class EditorWorkerService {
     });
   }
 
-  public async moveHorizontal(row: number, cols: number[], direction: MoveDirection): Promise<void> {
+  public async moveHorizontal(row: number, cols: number[], direction: EDITOR_DIRECTION): Promise<void> {
+    if (direction !== EDITOR_DIRECTION.LEFT && direction !== EDITOR_DIRECTION.RIGHT) {
+      throw new Error('Invalid horizontal move direction');
+    }
     return await this.runCommand(async () => {
-      await this.engineWorkerProxy.moveHorizontal(row, cols, direction);
+      await this.engineWorkerProxy.moveHorizontal(row, cols, direction === EDITOR_DIRECTION.LEFT ? MoveDirection.Left : MoveDirection.Right);
     });
   }
 

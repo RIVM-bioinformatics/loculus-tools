@@ -1,16 +1,13 @@
 /// <reference lib="webworker" />
 import { expose } from 'comlink';
-import init, {
-  MoveDirection,
-  MsaEngine,
-} from '@rivm-loculus-tools/sequence-editor-wasm';
+import type { MoveDirection } from '@rivm-loculus-tools/sequence-editor-wasm';
+import init, { MsaEngine } from '@rivm-loculus-tools/sequence-editor-wasm';
 
 import type {
   EngineMeta,
   EngineSearchResult,
   EngineViewportResult,
   EngineWorkerApi,
-  MoveDirection as MoveDirectionName,
   ViewportBounds,
 } from '../../../models';
 
@@ -84,10 +81,9 @@ export class EngineWorker implements EngineWorkerApi {
     };
   }
 
-  public async moveHorizontal(row: number, columns: number[], direction: MoveDirectionName): Promise<void> {
+  public async moveHorizontal(row: number, columns: number[], direction: MoveDirection): Promise<void> {
     const engine = await this.requireEngine();
-    const moveDirection = direction === 'Left' ? MoveDirection.Left : MoveDirection.Right;
-    this.throwIfError(engine.move_horizontal(row, this.toRowIndices(columns), moveDirection));
+    this.throwIfError(engine.move_horizontal(row, this.toRowIndices(columns), direction));
   }
 
   public async moveRowsDown(rows: number[]): Promise<void> {

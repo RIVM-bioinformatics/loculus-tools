@@ -1,11 +1,3 @@
-export type ColorMap = {
-  [key: string]: {
-    color: string;
-    count: number;
-    isMissing: boolean;
-  };
-};
-
 export interface MetadataParseResult {
   columns: string[];
   error?: string;

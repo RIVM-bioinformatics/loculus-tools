@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "license": "EUPL-1.2",
   "private": true,
-  "packageManager": "pnpm@12.5.1",
+  "packageManager": "pnpm@12.8.1",
   "scripts": {
     "postinstall": "pnpm run build-wasm",
     "build-wasm": "node scripts/build-wasm.mjs",

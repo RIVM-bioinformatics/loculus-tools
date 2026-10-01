@@ -1,11 +1,10 @@
 import { createStore } from 'zustand';
 import uniq from 'lodash/uniq';
+import { FastaUtil } from '@rivm-loculus-tools/frontend-common/utils/FastaUtil';
+import { MetaDataUtil } from '@rivm-loculus-tools/frontend-common/utils/MetaDataUtil';
 
 import type { FastaParseResult } from '../../models/fasta';
-import type {
-  ColorMap,
-  MetadataParseResult,
-} from '../../models/metadata';
+import type { MetadataParseResult } from '../../models/metadata';
 import type { NodeTooltipInfo } from '../../models/tree';
 import type {
   FastTreeMLParams,
@@ -15,9 +14,8 @@ import type {
 import { CALCULATION_STATUS } from '../../models/calculation';
 import { FastTreeAioliService } from '../../classes/services/FastTreeAioliService';
 import { TN93AioliService } from '../../classes/services/TN93AioliService';
-import { FastaUtil } from '../../utils/FastaUtil';
-import { MetaDataUtil } from '../../utils/MetaDataUtil';
 import { ColorUtil } from '../../utils/ColorUtil';
+import type { ColorMap } from '../../models/color';
 
 export type UiStore = UiStoreActions & UiStoreState;
 

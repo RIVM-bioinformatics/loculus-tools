@@ -25,9 +25,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import { useStore } from 'zustand/react';
+import { MetaDataUtil } from '@rivm-loculus-tools/frontend-common/utils/MetaDataUtil';
 
 import { uiStore } from '../../../stores/uiStore';
-import { MetaDataUtil } from '../../../utils/MetaDataUtil';
 
 export const PhyloTreeViewDraggableNodeTooltip = () => {
   const theme = useTheme();

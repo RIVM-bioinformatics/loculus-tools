@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'child_process';
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
+import { findPackageJsonPaths } from './find-package-json.mjs';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
-const appsDirectory = join(repoRoot, 'packages', 'apps');
 const dependencyVersions = new Map();
 
 function getLatestVersion(dependencyName) {
@@ -17,10 +16,7 @@ function getLatestVersion(dependencyName) {
   return dependencyVersions.get(dependencyName);
 }
 
-for (const appName of readdirSync(appsDirectory)) {
-  const packagePath = join(appsDirectory, appName, 'frontend', 'package.json');
-  if (!existsSync(packagePath)) continue;
-
+for (const packagePath of findPackageJsonPaths(repoRoot)) {
   const packageJson = JSON.parse(readFileSync(packagePath, 'utf8'));
   const dependencies = packageJson.dependencies ?? {};
   const updates = Object.fromEntries(

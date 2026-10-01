@@ -12,7 +12,7 @@
   "dependencies": {
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@gen-epix/ui-core": "3.3.1",
+    "@gen-epix/ui-core": "3.6.1",
     "@gen-epix/ui-core-components": "4.3.1",
     "@gen-epix/ui-core-form": "4.3.1",
     "@mui/icons-material": "9.4.0",

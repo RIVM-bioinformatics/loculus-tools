@@ -2,9 +2,15 @@ import type {
   Meta,
   SearchResult,
 } from './model';
-
 import { makeAliViewDefaultPalette } from './palette';
 import type { PaletteModel } from './palette';
+
+export enum EDITOR_DIRECTION {
+  DOWN = 'DOWN',
+  LEFT = 'LEFT',
+  RIGHT = 'RIGHT',
+  UP = 'UP',
+}
 
 export interface ActiveCell {
   col: number;

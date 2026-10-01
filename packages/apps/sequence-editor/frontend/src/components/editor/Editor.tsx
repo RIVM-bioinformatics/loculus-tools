@@ -13,6 +13,7 @@ import { Box } from '@mui/material';
 import { Subject } from '@gen-epix/ui-core/classes/Subject';
 import { useDebouncedCallback } from 'use-debounce';
 import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/DevicePixelRatioService';
+import { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
 
 import { EditorWorkerService } from '../../classes/services/EditorWorkerService/EditorWorkerService';
 import type {
@@ -29,10 +30,12 @@ import type {
 import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
 import {
   DEFAULT_GRID_GEOMETRY,
+  IUPAC_KEYS,
   MIN_LABEL_WIDTH,
 } from '../../constants';
 import { EditorUtil } from '../../utils/EditorUtil';
 import { loadPalette } from '../../utils/palette';
+import { EDITOR_DIRECTION } from '../../models/editor';
 
 
 export const Editor = () => {
@@ -42,6 +45,7 @@ export const Editor = () => {
   const labelResizeRef = useRef<{ startLabelWidth: number; startX: number } | null>(null);
   const selectionDragRef = useRef<EditorPathProperties | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState<{ height: number; width: number }>({ height: 0, width: 0 });
   const [verticalScrollBarSize, setVerticalScrollBarSize] = useState(0);
   const [horizontalScrollBarSize, setHorizontalScrollBarSize] = useState(0);
@@ -54,6 +58,7 @@ export const Editor = () => {
   const cachedGridRangeWithRowNamesRef = useRef<GridRangeWithRowNames | null>(null);
   const geometrySubject = useMemo(() => new Subject<GridGeometry>(DEFAULT_GRID_GEOMETRY), []);
   const selectionSubject = useMemo(() => new Subject<EditorSelection | null>(null), []);
+  const initialSelectionRef = useRef<EditorSelection | null>(null);
   const visibleRangeRequestRef = useRef(0);
   const pendingVisibleRangeRef = useRef<null | VisibleGridRangeWithArguments>(null);
   const processingVisibleRangeRef = useRef(false);
@@ -304,6 +309,186 @@ export const Editor = () => {
   }, [editorService, geometrySubject, metaSubject, palette, scrollSubject, selectionSubject, updateScrollbars, updateVisibleRange]);
 
   useEffect(() => {
+    const execute = async (args: { command: () => Promise<void>; event: KeyboardEvent; getSelectionPostCommand?: () => EditorSelection | null }) => {
+      const { command, event, getSelectionPostCommand } = args;
+      event.preventDefault();
+      try {
+        await command();
+        cachedGridRangeWithViewPortResultRef.current = null;
+        await updateMeta();
+        updateVisibleRange();
+        if (getSelectionPostCommand) {
+          const selection = getSelectionPostCommand();
+          if (selection) {
+            selectionSubject.next(selection);
+            initialSelectionRef.current = selection;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to post command:', error);
+      }
+    };
+
+    const mutateRange = async (event: KeyboardEvent, base: string) => {
+      if (!metaSubject.data) {
+        return;
+      }
+      const mutateRangeArguments = EditorUtil.getMutateRangeArguments(selectionSubject.data, metaSubject.data);
+      if (!mutateRangeArguments) {
+        return;
+      }
+      await execute({
+        command: async () => editorService.mutateRange(mutateRangeArguments.rows, mutateRangeArguments.startCol, mutateRangeArguments.endCol, base),
+        event,
+      });
+    };
+
+    const moveSelection = (direction: EDITOR_DIRECTION, event: KeyboardEvent) => {
+      if (!metaSubject.data) {
+        return;
+      }
+      event.preventDefault();
+      const newSelection = EditorUtil.getMovedSelection(selectionSubject.data, direction, metaSubject.data);
+      if (newSelection) {
+        selectionSubject.next(newSelection);
+        initialSelectionRef.current = newSelection;
+      }
+    };
+
+    const expandSelection = (direction: EDITOR_DIRECTION, event: KeyboardEvent) => {
+      if (!metaSubject.data || !initialSelectionRef.current || !selectionSubject.data) {
+        return;
+      }
+      event.preventDefault();
+      const newSelection = EditorUtil.getExpandedSelection(selectionSubject.data, initialSelectionRef.current, direction, metaSubject.data);
+      if (newSelection) {
+        selectionSubject.next(newSelection);
+      }
+    };
+
+    const removers = [
+      // Expand selection with shift + arrow keys
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        expandSelection(EDITOR_DIRECTION.LEFT, event);
+      }, code: 'ArrowLeft', modifier: ['Shift'] }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        expandSelection(EDITOR_DIRECTION.RIGHT, event);
+      }, code: 'ArrowRight', modifier: ['Shift'] }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        expandSelection(EDITOR_DIRECTION.UP, event);
+      }, code: 'ArrowUp', modifier: ['Shift'] }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        expandSelection(EDITOR_DIRECTION.DOWN, event);
+      }, code: 'ArrowDown', modifier: ['Shift'] }),
+
+      // Move selection with arrow keys
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        moveSelection(EDITOR_DIRECTION.LEFT, event);
+      }, code: 'ArrowLeft' }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        moveSelection(EDITOR_DIRECTION.RIGHT, event);
+      }, code: 'ArrowRight' }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        moveSelection(EDITOR_DIRECTION.UP, event);
+      }, code: 'ArrowUp' }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        moveSelection(EDITOR_DIRECTION.DOWN, event);
+      }, code: 'ArrowDown' }),
+
+
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        const scrollContainer = scrollContainerRef.current;
+        if (!scrollContainer) {
+          return;
+        }
+        event.preventDefault();
+        scrollContainer.scrollLeft = 0;
+      }, code: 'Home' }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        const scrollContainer = scrollContainerRef.current;
+        if (!scrollContainer) {
+          return;
+        }
+        event.preventDefault();
+        scrollContainer.scrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+      }, code: 'End' }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        const scrollContainer = scrollContainerRef.current;
+        if (!scrollContainer) {
+          return;
+        }
+        event.preventDefault();
+        scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - scrollContainer.clientHeight);
+      }, code: 'PageUp' }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        const scrollContainer = scrollContainerRef.current;
+        if (!scrollContainer) {
+          return;
+        }
+        event.preventDefault();
+        scrollContainer.scrollTop = Math.min(
+          scrollContainer.scrollHeight - scrollContainer.clientHeight,
+          scrollContainer.scrollTop + scrollContainer.clientHeight,
+        );
+      }, code: 'PageDown' }),
+
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
+        if (!metaSubject.data) {
+          return;
+        }
+        const upsertArguments = EditorUtil.getUpsertArguments(selectionSubject.data, metaSubject.data);
+        if (!upsertArguments) {
+          return;
+        }
+        await execute({
+          command: async () => editorService.insert(upsertArguments.rows, upsertArguments.col),
+          event,
+          getSelectionPostCommand: () => EditorUtil.getPostMoveSelection(selectionSubject.data, EDITOR_DIRECTION.RIGHT),
+        });
+      }, code: 'Space' }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
+        if (!metaSubject.data) {
+          return;
+        }
+        const upsertArguments = EditorUtil.getUpsertArguments(selectionSubject.data, metaSubject.data, -1);
+        if (!upsertArguments) {
+          return;
+        }
+        await execute({
+          command: async () => editorService.delete(upsertArguments.rows, upsertArguments.col),
+          event,
+          getSelectionPostCommand: () => EditorUtil.getPostMoveSelection(selectionSubject.data, EDITOR_DIRECTION.LEFT),
+        });
+      }, code: 'Backspace' }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
+        if (!metaSubject.data) {
+          return;
+        }
+        await mutateRange(event, '-');
+      }, code: 'Delete' }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
+        console.log(event);
+        if (!metaSubject.data) {
+          return;
+        }
+        await mutateRange(event, '-');
+      }, key: '-' }),
+
+      // All other keys (without modifiers)
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
+        const base = event.key.toUpperCase();
+        if(!IUPAC_KEYS.has(base)) {
+          return;
+        }
+        await mutateRange(event, base);
+      } }),
+    ];
+    return () => {
+      removers.forEach(callbackfn => callbackfn());
+    };
+  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject, scrollSubject, geometrySubject]);
+
+  useEffect(() => {
     updateVisibleRange();
   }, [updateVisibleRange]);
 
@@ -353,11 +538,15 @@ export const Editor = () => {
         selectionDragRef.current = null;
         if (nextSelectedRows.length === 0) {
           selectionSubject.next(null);
+          initialSelectionRef.current = null;
           return;
         }
         selectionSubject.next({
           rows: nextSelectedRows,
-        } as EditorSelection);
+        });
+        initialSelectionRef.current = {
+          rows: nextSelectedRows,
+        };
         return;
       }
 
@@ -371,6 +560,7 @@ export const Editor = () => {
       event.preventDefault();
       selectionDragRef.current = path;
       selectionSubject.next(selection);
+      initialSelectionRef.current = selection;
       return;
     }
 
@@ -424,6 +614,7 @@ export const Editor = () => {
       });
       if (selection) {
         selectionSubject.next(selection);
+        initialSelectionRef.current = selection;
       }
       return;
     }
@@ -475,6 +666,7 @@ export const Editor = () => {
         onMouseDown={onScrollContainerMouseDown}
         onMouseMove={onScrollContainerMouseMove}
         onScroll={onScrollContainerScroll}
+        ref={scrollContainerRef}
         sx={{
           height: `${containerDimensions.height}px`,
           overflowX: 'scroll',

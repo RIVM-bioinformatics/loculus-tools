@@ -7,33 +7,26 @@ import {
   use,
   useEffect,
   useMemo,
-  useRef,
 } from 'react';
 import { useStore } from 'zustand';
 import type { TreeNode } from '@gen-epix/ui-phylogenetic-tree/models/tree';
 import { NewickUtil } from '@gen-epix/ui-phylogenetic-tree/utils/NewickUtil';
 import { PageCommonContext } from '@rivm-loculus-tools/frontend-common/components/page';
 
-import type { AlignmentErrorDialogRefMethods } from '../../dialogs/AlignmentErrorDialog';
-import { AlignmentErrorDialog } from '../../dialogs/AlignmentErrorDialog';
-import type { DataImportDialogRefMethods } from '../../dialogs/DataImportDialog';
-import { DataImportDialog } from '../../dialogs/DataImportDialog';
 import { PhyloTreeView } from '../../ui/PhyloTreeView';
 import { LEGEND_WIDTH } from '../../../constants/view';
 import { CALCULATION_STATUS } from '../../../models/calculation';
 import { EventBusService } from '../../../classes/services/EventBusService';
-import { useDeepLinking } from '../../../hooks/useDeepLinking';
 import { SearchBar } from '../../ui/SearchBar';
 import { Legend } from '../../ui/Legend/Legend';
 import { uiStore } from '../../../stores/uiStore';
 import { TreeNotLoaded } from '../../ui/TreeNotLoaded';
 import { PhyloViewerPage } from '../../ui/PhyloViewerPage';
+import { DataImportDialogLoader } from '../../ui/DataImportDialogLoader';
 
 export const MainPage = () => {
   const newick = useStore(uiStore, (state) => state.newick);
   const colorByField = useStore(uiStore, (state) => state.colorByField);
-  const dataImportDialogRef = useRef<DataImportDialogRefMethods>(null);
-  const alignmentErrorDialogRef = useRef<AlignmentErrorDialogRefMethods>(null);
   const calculationStatus = useStore(uiStore, (state) => state.calculationStatus);
   const calculationEngine = useStore(uiStore, (state) => state.engine);
   const theme = useTheme();
@@ -45,24 +38,14 @@ export const MainPage = () => {
 
     const removers = [
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
-      eventBusService.addEventListener('onShowImportDialog', (message?: string) => {
-        dataImportDialogRef.current?.open(message ? { initialErrorMessage: message } : undefined);
-      }),
-      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onToggleDrawer', (isOpen: boolean) => {
         setIsDrawerOpen(isOpen);
-      }),
-      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
-      eventBusService.addEventListener('onShowAlignmentErrorDialog', () => {
-        alignmentErrorDialogRef.current?.open();
       }),
     ];
     return () => {
       removers.forEach((remove) => remove());
     };
   }, [setIsDrawerOpen]);
-
-  useDeepLinking();
 
   // Parse Newick tree into TreeNode
   const parsedTree = useMemo<null | TreeNode>(() => {
@@ -128,8 +111,7 @@ export const MainPage = () => {
         </Box>
       )}
       {/* Global Overlays & Modals */}
-      <DataImportDialog ref={dataImportDialogRef} />
-      <AlignmentErrorDialog ref={alignmentErrorDialogRef} />
+      <DataImportDialogLoader />
       <BackdropSpinner
         label={`Computing phylogenetic tree (${calculationEngine === 'tn93' ? 'TN93 + NJ' : 'FastTree'})`}
         open={calculationStatus === CALCULATION_STATUS.LOADING}

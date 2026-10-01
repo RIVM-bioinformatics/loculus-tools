@@ -1,10 +1,10 @@
 import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
+import { FastaUtil } from '@rivm-loculus-tools/frontend-common/utils/FastaUtil';
 
 import type {
   FastTreeMLParams,
   FastTreeMode,
 } from '../../../models/calculation';
-import { FastaUtil } from '../../../utils/FastaUtil';
 import type { AioliService } from '../../abstracts/AioliServiceAbstract';
 import { AioliServiceAbstract } from '../../abstracts/AioliServiceAbstract';
 

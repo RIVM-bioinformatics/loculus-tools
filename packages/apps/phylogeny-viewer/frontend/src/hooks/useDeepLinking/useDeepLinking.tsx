@@ -9,7 +9,6 @@ export const useDeepLinking = () => {
   const setFastaContent = useStore(uiStore, (state) => state.setFastaContent);
   const setMetadataContent = useStore(uiStore, (state) => state.setMetadataContent);
   const calculateTree = useStore(uiStore, (state) => state.calculateTree);
-  const setColorByField = useStore(uiStore, (state) => state.setColorByField);
   const setCalculationStatus = useStore(uiStore, (state) => state.setCalculationStatus);
 
   useEffect(() => {
@@ -66,5 +65,5 @@ export const useDeepLinking = () => {
     };
 
     void handleDeepLinking();
-  }, [setFastaContent, setMetadataContent, calculateTree, setColorByField, setCalculationStatus]);
+  }, [setFastaContent, setMetadataContent, calculateTree, setCalculationStatus]);
 };

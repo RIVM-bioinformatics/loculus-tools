@@ -14,6 +14,7 @@ import type {
 import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
 import { paletteEntryFor } from '../palette';
 import { DEFAULT_GRID_GEOMETRY } from '../../constants';
+import { EDITOR_DIRECTION } from '../../models/editor';
 
 
 export class EditorUtil {
@@ -83,6 +84,7 @@ export class EditorUtil {
       const { bytes, cols, rows, startCol, startRow } = viewport;
 
       // Render cells
+      context.font = '12px monospace';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
       for (let row = 0; row < rows; row++) {
@@ -243,6 +245,214 @@ export class EditorUtil {
     return editorAssembly;
   }
 
+  public static getExpandedSelection(currentSelection: EditorSelection, initialSelection: EditorSelection, direction: EDITOR_DIRECTION, metaData: EngineMeta): EditorSelection | null {
+    const cells = currentSelection.cells;
+    if (cells) {
+      if (direction === EDITOR_DIRECTION.LEFT) {
+        const initialCells = initialSelection.cells;
+        if (!initialCells) {
+          return null;
+        }
+        const expandsLeft = cells.startCol < initialCells.startCol || cells.endCol <= initialCells.startCol;
+        const nextStartCol = expandsLeft ? cells.startCol - 1 : cells.startCol;
+        const endCol = expandsLeft ? cells.endCol : cells.endCol - 1;
+        if (nextStartCol < 0) {
+          return null;
+        }
+        return {
+          cells: {
+            ...cells,
+            endCol,
+            startCol: nextStartCol,
+          },
+        };
+      }
+      if (direction === EDITOR_DIRECTION.RIGHT) {
+        const initialCells = initialSelection.cells;
+        if (!initialCells) {
+          return null;
+        }
+        const startCol = cells.startCol < initialCells.startCol ? cells.startCol + 1 : cells.startCol;
+        const endCol = cells.startCol < initialCells.startCol ? cells.endCol : cells.endCol + 1;
+        if (endCol >= metaData.alignmentWidth) {
+          return null;
+        }
+        return {
+          cells: {
+            ...cells,
+            endCol,
+            startCol,
+          },
+        };
+      }
+      if (direction === EDITOR_DIRECTION.UP) {
+        const initialCells = initialSelection.cells;
+        if (!initialCells) {
+          return null;
+        }
+        const expandsUp = cells.startRow < initialCells.startRow || cells.endRow <= initialCells.startRow;
+        const nextStartRow = expandsUp ? cells.startRow - 1 : cells.startRow;
+        const endRow = expandsUp ? cells.endRow : cells.endRow - 1;
+        if (nextStartRow < 0) {
+          return null;
+        }
+        return {
+          cells: {
+            ...cells,
+            endRow,
+            startRow: nextStartRow,
+          },
+        };
+      }
+      const initialCells = initialSelection.cells;
+      if (!initialCells) {
+        return null;
+      }
+      const startRow = cells.startRow < initialCells.startRow ? cells.startRow + 1 : cells.startRow;
+      const endRow = cells.startRow < initialCells.startRow ? cells.endRow : cells.endRow + 1;
+      if (endRow >= metaData.sequenceCount) {
+        return null;
+      }
+      return {
+        cells: {
+          ...cells,
+          endRow,
+          startRow,
+        },
+      };
+    }
+
+    const cols = currentSelection.cols;
+    if (cols) {
+      if (cols.length === 0 || (direction !== EDITOR_DIRECTION.LEFT && direction !== EDITOR_DIRECTION.RIGHT)) {
+        return null;
+      }
+      const min = Math.min(...cols);
+      const max = Math.max(...cols);
+      const initialCols = initialSelection.cols;
+      if (!initialCols || initialCols.length === 0) {
+        return null;
+      }
+      const initialMin = Math.min(...initialCols);
+      if (direction === EDITOR_DIRECTION.LEFT) {
+        if (max > initialMin) {
+          return { cols: cols.slice(0, -1) };
+        }
+        return min > 0 ? { cols: [min - 1, ...cols] } : null;
+      }
+      if (min < initialMin) {
+        return { cols: cols.slice(1) };
+      }
+      return max < metaData.alignmentWidth - 1 ? { cols: [...cols, max + 1] } : null;
+    }
+
+    const rows = currentSelection.rows;
+    if (rows) {
+      return currentSelection;
+    }
+
+    return null;
+  }
+
+  public static getMovedSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta): EditorSelection | null {
+    if (!selection) {
+      return null;
+    }
+
+    const offset = direction === EDITOR_DIRECTION.LEFT || direction === EDITOR_DIRECTION.UP ? -1 : 1;
+    const canMove = (min: number, max: number, limit: number): boolean => (
+      offset < 0 ? min > 0 : max < limit - 1
+    );
+
+    const cells = selection.cells;
+    if (cells) {
+      if (direction === EDITOR_DIRECTION.LEFT || direction === EDITOR_DIRECTION.RIGHT) {
+        if (!canMove(cells.startCol, cells.endCol, metaData.alignmentWidth)) {
+          return null;
+        }
+        return {
+          cells: {
+            endCol: cells.endCol + offset,
+            endRow: cells.endRow,
+            startCol: cells.startCol + offset,
+            startRow: cells.startRow,
+          },
+        };
+      }
+
+      if (!canMove(cells.startRow, cells.endRow, metaData.sequenceCount)) {
+        return null;
+      }
+      return {
+        cells: {
+          endCol: cells.endCol,
+          endRow: cells.endRow + offset,
+          startCol: cells.startCol,
+          startRow: cells.startRow + offset,
+        },
+      };
+    }
+
+    const cols = selection.cols;
+    if (cols) {
+      if ((direction !== EDITOR_DIRECTION.LEFT && direction !== EDITOR_DIRECTION.RIGHT) || cols.length === 0) {
+        return null;
+      }
+      const min = Math.min(...cols);
+      const max = Math.max(...cols);
+      if (!canMove(min, max, metaData.alignmentWidth)) {
+        return null;
+      }
+      return { cols: cols.map(col => col + offset) };
+    }
+
+    const rows = selection.rows;
+    if (rows) {
+      if ((direction !== EDITOR_DIRECTION.UP && direction !== EDITOR_DIRECTION.DOWN) || rows.length === 0) {
+        return null;
+      }
+      const min = Math.min(...rows);
+      const max = Math.max(...rows);
+      if (!canMove(min, max, metaData.sequenceCount)) {
+        return null;
+      }
+      return { rows: rows.map(row => row + offset) };
+    }
+
+    return null;
+  }
+
+  public static getMutateRangeArguments(selection: EditorSelection | null, metaData: EngineMeta, offset: number = 0): { endCol: number; rows: number[]; startCol: number } | undefined {
+    const cells = selection?.cells;
+    if (cells) {
+      return {
+        endCol: cells.endCol + offset,
+        rows: Array.from({ length: cells.endRow - cells.startRow + 1 }, (_, index) => cells.startRow + index),
+        startCol: cells.startCol + offset,
+      };
+    }
+
+    const cols = selection?.cols;
+    if (cols) {
+      return {
+        endCol: cols[cols.length - 1] + offset,
+        rows: Array.from({ length: metaData.sequenceCount }, (_, index) => index),
+        startCol: cols[0] + offset,
+      };
+    }
+
+    const rows = selection?.rows;
+    if (rows) {
+      return {
+        endCol: metaData.alignmentWidth - 1 + offset,
+        rows,
+        startCol: 0 + offset,
+      };
+    }
+
+    return undefined;
+  }
+
   /**
    * Performs a hit-test against the tree assembly's path maps to find the
    * tree node or line segment under the mouse cursor.
@@ -254,7 +464,7 @@ export class EditorUtil {
    * @param params.canvas - The canvas element that received the mouse event.
    * @param params.event - The mouse event providing cursor coordinates.
    * @param params.treeAssembly - The assembly containing path maps to hit-test against.
-   * @param params.devicePixelRatio - Screen DPR for correct coordinate scaling.
+  * @param params.devicePixelRatio - Screen DPR used when the canvas backing store is scaled.
    * @returns The {@link EditorPathProperties} of the hit cell, or `undefined` if nothing was hit.
    */
   public static getPathPropertiesFromCanvas(params: { canvas: HTMLCanvasElement; devicePixelRatio: number; editorAssembly: EditorAssembly; event: MouseEvent }): EditorPathProperties | undefined {
@@ -262,8 +472,10 @@ export class EditorUtil {
 
     const ctx = EditorUtil.getCanvasContext(canvas);
     const rect = canvas.getBoundingClientRect();
-    const canvasX = (event.clientX - rect.left) * devicePixelRatio;
-    const canvasY = (event.clientY - rect.top) * devicePixelRatio;
+    const canvasScaleX = canvas.width / rect.width;
+    const canvasScaleY = canvas.height / rect.height;
+    const canvasX = (event.clientX - rect.left) * canvasScaleX / devicePixelRatio;
+    const canvasY = (event.clientY - rect.top) * canvasScaleY / devicePixelRatio;
 
     for (const [path, pathProperties] of editorAssembly.cells.pathPropertiesMap) {
       if (ctx.isPointInPath(path, canvasX, canvasY)) {
@@ -292,6 +504,42 @@ export class EditorUtil {
     return undefined;
   }
 
+  public static getPostMoveSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION): EditorSelection | null {
+    if (!selection) {
+      return null;
+    }
+
+    const offset = direction === EDITOR_DIRECTION.LEFT ? -1 : 1;
+
+    const cells = selection.cells;
+    if (cells) {
+      return {
+        cells: {
+          endCol: cells.endCol + offset,
+          endRow: cells.endRow,
+          startCol: cells.startCol + offset,
+          startRow: cells.startRow,
+        },
+      };
+    }
+
+    const cols = selection.cols;
+    if (cols) {
+      return {
+        cols: cols.map(col => col + offset),
+      };
+    }
+
+    const rows = selection.rows;
+    if (rows) {
+      return {
+        rows,
+      };
+    }
+
+    return null;
+  }
+
   public static getSelectionFromPathProperties(params: { endPath: EditorPathProperties; startPath: EditorPathProperties }): EditorSelection | undefined {
     const { endPath, startPath } = params;
 
@@ -303,7 +551,7 @@ export class EditorUtil {
       const endCol = Math.max(startPath.col, endPath.col);
       return {
         cols: Array.from({ length: endCol - startCol + 1 }, (_, index) => startCol + index),
-      } as EditorSelection;
+      };
     }
 
     if (startPath.type === EDITOR_PATH_PROPERTIES_TYPE.CELL && endPath.type === EDITOR_PATH_PROPERTIES_TYPE.CELL) {
@@ -314,7 +562,7 @@ export class EditorUtil {
           startCol: Math.min(startPath.col, endPath.col),
           startRow: Math.min(startPath.row, endPath.row),
         },
-      } as EditorSelection;
+      };
     }
 
     if (startPath.type === EDITOR_PATH_PROPERTIES_TYPE.LABEL && endPath.type === EDITOR_PATH_PROPERTIES_TYPE.LABEL) {
@@ -322,7 +570,35 @@ export class EditorUtil {
       const endRow = Math.max(startPath.row, endPath.row);
       return {
         rows: Array.from({ length: endRow - startRow + 1 }, (_, index) => startRow + index),
-      } as EditorSelection;
+      };
+    }
+
+    return undefined;
+  }
+
+  public static getUpsertArguments(selection: EditorSelection | null, metaData: EngineMeta, offset: number = 0): { col: number; rows: number[] } | undefined {
+    const cells = selection?.cells;
+    if (cells) {
+      return {
+        col: cells.startCol + offset,
+        rows: Array.from({ length: cells.endRow - cells.startRow + 1 }, (_, index) => cells.startRow + index),
+      };
+    }
+
+    const cols = selection?.cols;
+    if (cols) {
+      return {
+        col: cols[0] + offset,
+        rows: Array.from({ length: metaData.sequenceCount }, (_, index) => index),
+      };
+    }
+
+    const rows = selection?.rows;
+    if (rows) {
+      return {
+        col: 0 + offset,
+        rows,
+      };
     }
 
     return undefined;
@@ -373,7 +649,6 @@ export class EditorUtil {
       },
     };
   }
-
 
   public static isWithinGridRange(params: { cachedGridRange: GridRange; visibleGridRange: GridRange }): boolean {
     const { cachedGridRange, visibleGridRange } = params;

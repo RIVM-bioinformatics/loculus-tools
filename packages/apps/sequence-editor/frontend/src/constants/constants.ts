@@ -11,3 +11,5 @@ export const DEFAULT_GRID_GEOMETRY: GridGeometry = {
   numOverscanRows: 16,
   rulerHeight: 26,
 };
+
+export const IUPAC_KEYS = new Set('ACGTURYKMSWBDHVN');

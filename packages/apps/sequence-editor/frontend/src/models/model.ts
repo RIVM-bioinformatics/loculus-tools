@@ -1,3 +1,5 @@
+import type { MoveDirection } from '@rivm-loculus-tools/sequence-editor-wasm';
+
 export enum EDITOR_PATH_PROPERTIES_TYPE {
   CELL = 'CELL',
   DIVIDER = 'DIVIDER',
@@ -50,14 +52,14 @@ export type EditorPathProperties = {
 };
 
 export type EditorSelection = {
-  cells: { // when a rectangular block of cells is selected
+  cells?: { // when a rectangular block of cells is selected
     endCol: number;
     endRow: number;
     startCol: number;
     startRow: number;
   };
-  cols: number[]; // when entire columns are selected
-  rows: number[]; // when entire rows are selected
+  cols?: number[]; // when entire columns are selected
+  rows?: number[]; // when entire rows are selected
 };
 
 /** Metadata describing the currently loaded alignment. */
@@ -222,10 +224,6 @@ export type Meta = {
 // ---------------------------------------------------------------------------
 // Worker → Main responses
 // ---------------------------------------------------------------------------
-
-/** Horizontal move direction understood by the engine. */
-export type MoveDirection = 'Left' | 'Right';
-
 
 /**The following types match the Rust `search_algorithms::Match` and search_algorithms::SearchResult structures. */
 export type SearchMatch = {

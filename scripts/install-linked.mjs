@@ -1,21 +1,18 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'child_process';
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join, relative, resolve, sep } from 'path';
 import { fileURLToPath } from 'url';
+import { findPackageJsonPaths } from './find-package-json.mjs';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const uiPath = process.env.GEN_EPIX_UI_PATH ?? '../gen-epix-ui';
 const uiRoot = resolve(repoRoot, uiPath);
-const appsDirectory = join(repoRoot, 'packages', 'apps');
 
-console.log(`Updating apps with linked dependencies from ${process.env.GEN_EPIX_UI_PATH ?? '../gen-epix-ui'}...`);
+console.log(`Updating package manifests with linked dependencies from ${process.env.GEN_EPIX_UI_PATH ?? '../gen-epix-ui'}...`);
 
-for (const appName of readdirSync(appsDirectory)) {
-  const packagePath = join(appsDirectory, appName, 'frontend', 'package.json');
-  if (!existsSync(packagePath)) continue;
-
+for (const packagePath of findPackageJsonPaths(repoRoot)) {
   const packageDirectory = dirname(packagePath);
   const packageJson = JSON.parse(readFileSync(packagePath, 'utf8'));
   const dependencies = packageJson.dependencies ?? {};

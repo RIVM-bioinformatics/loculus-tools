@@ -41,7 +41,7 @@
     "@gen-epix/eslint-config": "0.7.0",
     "@gen-epix/ui-core-components": "4.3.1",
     "@gen-epix/ui-core-form": "4.3.1",
-    "@gen-epix/ui-core": "3.3.1",
+    "@gen-epix/ui-core": "3.6.0",
     "@mui/icons-material": "9.4.0",
     "@mui/material": "9.4.0",
     "@mui/styled-engine": "9.4.0",
@@ -65,6 +65,10 @@
     "vite": "8.3.0"
   },
   "exports": {
+    "./components/DataImportDialog": {
+      "types": "./src/components/DataImportDialog/index.ts",
+      "import": "./src/components/DataImportDialog/index.ts"
+    },
     "./components/I18nWrapper": {
       "types": "./src/components/I18nWrapper/index.ts",
       "import": "./src/components/I18nWrapper/index.ts"
@@ -77,13 +81,41 @@
       "types": "./src/constants/page.ts",
       "import": "./src/constants/page.ts"
     },
+    "./models/fasta": {
+      "types": "./src/models/fasta.ts",
+      "import": "./src/models/fasta.ts"
+    },
+    "./models/metadata": {
+      "types": "./src/models/metadata.ts",
+      "import": "./src/models/metadata.ts"
+    },
     "./theme": {
       "types": "./src/theme/index.ts",
       "import": "./src/theme/index.ts"
+    },
+    "./utils/DownloadUtil": {
+      "types": "./src/utils/DownloadUtil/index.ts",
+      "import": "./src/utils/DownloadUtil/index.ts"
+    },
+    "./utils/FastaUtil": {
+      "types": "./src/utils/FastaUtil/index.ts",
+      "import": "./src/utils/FastaUtil/index.ts"
+    },
+    "./utils/MetaDataUtil": {
+      "types": "./src/utils/MetaDataUtil/index.ts",
+      "import": "./src/utils/MetaDataUtil/index.ts"
+    },
+    "./utils/UrlUtil": {
+      "types": "./src/utils/UrlUtil/index.ts",
+      "import": "./src/utils/UrlUtil/index.ts"
     }
   },
   "publishConfig": {
     "exports": {
+      "./components/DataImportDialog": {
+        "types": "./dist/components/DataImportDialog/index.d.ts",
+        "import": "./dist/components/DataImportDialog/index.js"
+      },
       "./components/I18nWrapper": {
         "types": "./dist/components/I18nWrapper/index.d.ts",
         "import": "./dist/components/I18nWrapper/index.js"
@@ -96,9 +128,33 @@
         "types": "./dist/constants/page.d.ts",
         "import": "./dist/constants/page.js"
       },
+      "./models/fasta": {
+        "types": "./dist/models/fasta.d.ts",
+        "import": "./dist/models/fasta.js"
+      },
+      "./models/metadata": {
+        "types": "./dist/models/metadata.d.ts",
+        "import": "./dist/models/metadata.js"
+      },
       "./theme": {
         "types": "./dist/theme/index.d.ts",
         "import": "./dist/theme/index.js"
+      },
+      "./utils/DownloadUtil": {
+        "types": "./dist/utils/DownloadUtil/index.d.ts",
+        "import": "./dist/utils/DownloadUtil/index.js"
+      },
+      "./utils/FastaUtil": {
+        "types": "./dist/utils/FastaUtil/index.d.ts",
+        "import": "./dist/utils/FastaUtil/index.js"
+      },
+      "./utils/MetaDataUtil": {
+        "types": "./dist/utils/MetaDataUtil/index.d.ts",
+        "import": "./dist/utils/MetaDataUtil/index.js"
+      },
+      "./utils/UrlUtil": {
+        "types": "./dist/utils/UrlUtil/index.d.ts",
+        "import": "./dist/utils/UrlUtil/index.js"
       }
     }
   }

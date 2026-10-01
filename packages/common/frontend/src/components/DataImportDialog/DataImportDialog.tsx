@@ -27,11 +27,6 @@ import type {
 } from '@gen-epix/ui-core-components/hoc/withDialog';
 import { withDialog } from '@gen-epix/ui-core-components/hoc/withDialog';
 import type { DialogAction } from '@gen-epix/ui-core-components/components/Dialog';
-import { useStore } from 'zustand';
-
-import { uiStore } from '../../../stores/uiStore';
-import { EventBusService } from '../../../classes/services/EventBusService';
-import { UrlUtil } from '../../../utils/UrlUtil';
 
 
 enum FASTA_TAB {
@@ -46,33 +41,30 @@ enum META_DATA_TAB {
   PASTE = 2,
 }
 
-const getErrorMessage = (error: unknown, fallback: string): string =>
-  error instanceof Error ? error.message : fallback;
-
 export interface DataImportDialogOpenProps {
   initialErrorMessage?: string;
 }
 
 export interface DataImportDialogProps extends WithDialogRenderProps<DataImportDialogOpenProps> {
-  //
+  extraActions?: DialogAction[];
+  onDataChange: (fasta: string, metaData?: string) => void;
+  onError: (error: unknown) => void;
 }
 
 export type DataImportDialogRefMethods = WithDialogRefMethods<DataImportDialogProps, DataImportDialogOpenProps>;
 
 export const DataImportDialog = withDialog<DataImportDialogProps, DataImportDialogOpenProps>((
   {
+    extraActions,
     onActionsChange,
     onClose,
+    onDataChange,
     onDisableBackdropClickChange,
+    onError,
     onNoCloseButtonChange,
     openProps,
   }: DataImportDialogProps,
 ): ReactElement => {
-  const setFastaContent = useStore(uiStore, (state) => state.setFastaContent);
-  const setMetadataContent = useStore(uiStore, (state) => state.setMetadataContent);
-  const calculateTree = useStore(uiStore, (state) => state.calculateTree);
-  const setColorByField = useStore(uiStore, (state) => state.setColorByField);
-
   // FASTA state
   const [fastaTab, setFastaTab] = useState(FASTA_TAB.DROP);
   const [fastaFile, setFastaFile] = useState<FileList | null>(null);
@@ -155,80 +147,19 @@ export const DataImportDialog = withDialog<DataImportDialogProps, DataImportDial
       } else if (metadataTab === META_DATA_TAB.PASTE && metadataText.trim()) {
         metadataContent = metadataText.trim();
       }
-
-      // 3. Parse & Validate FASTA
-      const fastaResult = setFastaContent(fastaContent);
-      if (!fastaResult.isAligned) {
-        onClose();
-        EventBusService.getInstance().emit('onShowAlignmentErrorDialog');
-        return;
-      }
-
-      // 4. Parse Metadata
-      if (metadataContent) {
-        const metaResult = setMetadataContent(metadataContent);
-        if (metaResult.columns.length > 0) {
-          // Default color by first non-ID column if available
-          const preferredCols = ['country', 'region', 'host', 'division', 'lineage', 'clade'];
-          const matched = metaResult.columns.find((c) => preferredCols.includes(c.toLowerCase()));
-          const defaultField = matched || metaResult.columns.find((c) => c !== 'accessionVersion' && c !== 'SampleID' && c !== 'id') || metaResult.columns[0];
-          if (defaultField) {
-            setColorByField(defaultField);
-          }
-        }
-      }
-
-      // 5. Calculate default tree
+      onDataChange(fastaContent, metadataContent);
       onClose();
-      await calculateTree(fastaContent);
     } catch (err: unknown) {
       console.error('Data import failed:', err);
-      setErrorMsg(getErrorMessage(err, 'Failed to load dataset.'));
+      onError(err);
     } finally {
       setIsLoading(false);
-      // clear any search params from the URL
-      UrlUtil.clearSearchParams();
     }
-  }, [calculateTree, fastaFile, fastaTab, fastaText, fastaUrl, metadataFile, metadataTab, metadataText, metadataUrl, onClose, setColorByField, setFastaContent, setMetadataContent]);
-
-  const onClickLoadDemoData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setErrorMsg(null);
-      const [fastaRes, metaRes] = await Promise.all([
-        fetch('/sample-data/sarscov2_aligned.fasta'),
-        fetch('/sample-data/sarscov2_metadata.tsv'),
-      ]);
-      const demoFastaText = await fastaRes.text();
-      const demoMetadataText = await metaRes.text();
-
-      setFastaContent(demoFastaText);
-      const metaResult = setMetadataContent(demoMetadataText);
-      if (metaResult.columns.length > 0) {
-        const field = 'country';
-        setColorByField(field);
-      }
-      onClose();
-      await calculateTree(demoFastaText);
-    } catch (err: unknown) {
-      setErrorMsg(`Failed to load demo dataset: ${getErrorMessage(err, 'Unknown error')}`);
-    } finally {
-      setIsLoading(false);
-      UrlUtil.clearSearchParams();
-    }
-  }, [calculateTree, onClose, setColorByField, setFastaContent, setMetadataContent]);
+  }, [fastaFile, fastaTab, fastaText, fastaUrl, metadataFile, metadataTab, metadataText, metadataUrl, onClose, onDataChange, onError]);
 
 
   useEffect(() => {
-    const actions: DialogAction[] = [];
-    actions.push(
-      {
-        autoFocus: true,
-        color: 'secondary',
-        label: 'Demo (SARS-CoV-2)',
-        onClick: onClickLoadDemoData,
-        variant: 'contained',
-      },
+    const actions: DialogAction[] = [
       {
         disabled: isLoading,
         label: isLoading ? 'Processing...' : 'Load & Calculate',
@@ -241,9 +172,12 @@ export const DataImportDialog = withDialog<DataImportDialogProps, DataImportDial
         ) : undefined,
         variant: 'contained',
       },
-    );
+    ];
+    if (extraActions?.length) {
+      actions.unshift(...extraActions);
+    }
     onActionsChange(actions);
-  }, [onActionsChange, onClickLoadDemoData, onClickLoadData, isLoading]);
+  }, [onActionsChange, onClickLoadData, isLoading, extraActions]);
 
   return (
     <>

@@ -1,5 +1,7 @@
 import type {
   FastaParseResult,
+  FastaPreflightResult,
+  FastaRecord,
   FastaSequence,
 } from '../../models/fasta';
 
@@ -81,6 +83,64 @@ export class FastaUtil {
     };
   }
 
+  public static preflightFasta(content: string): FastaPreflightResult {
+    const records: FastaRecord[] = [];
+    let currentName = '';
+    let currentSequence: string[] = [];
+
+    if (!content.trim()) {
+      throw new Error('The FASTA input is empty.');
+    }
+
+    for (const rawLine of content.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line) {
+        continue;
+      }
+
+      if (line.startsWith('>')) {
+        if (currentName || currentSequence.length > 0) {
+          const error = FastaUtil.flushRecord(records, currentName, currentSequence);
+          if (error) {
+            throw new Error(error);
+          }
+        }
+        currentName = line.slice(1).trim().split(/\s+/)[0] ?? '';
+        currentSequence = [];
+        continue;
+      }
+
+      if (!currentName) {
+        throw new Error('FASTA sequence data appeared before its first header.');
+      }
+      currentSequence.push(line);
+    }
+
+    if (currentName || currentSequence.length > 0) {
+      const error = FastaUtil.flushRecord(records, currentName, currentSequence);
+      if (error) {
+        throw new Error(error);
+      }
+    }
+
+    if (records.length === 0) {
+      throw new Error('No FASTA records were found.');
+    }
+
+    const expectedLength = records[0].sequence.length;
+    const invalidRecords = records
+      .filter((record) => record.sequence.length !== expectedLength)
+      .map((record) => ({ length: record.sequence.length, name: record.name }));
+
+    return {
+      expectedLength,
+      invalidRecords,
+      isAligned: invalidRecords.length === 0,
+      records,
+    };
+  }
+
+
   public static stripFastaHeaders(fastaContent: string): string {
     const lines = fastaContent.split('\n');
     const strippedLines = lines.map((line) => {
@@ -93,5 +153,21 @@ export class FastaUtil {
       return line;
     });
     return strippedLines.join('\n');
+  }
+
+  private static flushRecord(
+    records: FastaRecord[],
+    name: string,
+    sequenceParts: string[],
+  ): null | string {
+    const sequence = sequenceParts.join('').replace(/\s/g, '').toUpperCase();
+    if (!name) {
+      return 'Every FASTA record needs a non-empty header.';
+    }
+    if (!sequence) {
+      return `FASTA record "${name}" has no sequence.`;
+    }
+    records.push({ name, sequence });
+    return null;
   }
 }

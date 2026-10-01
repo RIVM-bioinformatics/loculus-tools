@@ -351,7 +351,12 @@ export const Editor = () => {
       const newSelection = EditorUtil.getMovedSelection(selectionSubject.data, direction, metaSubject.data);
       if (newSelection) {
         selectionSubject.next(newSelection);
-        initialSelectionRef.current = newSelection;
+        if (initialSelectionRef.current) {
+          const newInitialSelection = EditorUtil.getMovedSelection(initialSelectionRef.current, direction, metaSubject.data);
+          initialSelectionRef.current = newInitialSelection;
+        } else {
+          initialSelectionRef.current = newSelection;
+        }
       }
     };
 

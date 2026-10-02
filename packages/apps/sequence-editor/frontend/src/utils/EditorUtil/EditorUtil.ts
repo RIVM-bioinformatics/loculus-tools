@@ -504,7 +504,7 @@ export class EditorUtil {
     return undefined;
   }
 
-  public static getPostMoveSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION): EditorSelection | null {
+  public static getPostUpsertSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION): EditorSelection | null {
     if (!selection) {
       return null;
     }
@@ -538,6 +538,26 @@ export class EditorUtil {
     }
 
     return null;
+  }
+
+  public static getRowsToMove(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta): number[] | undefined {
+    const cells = selection?.cells;
+    const rows = selection?.rows ?? (cells
+      ? Array.from({ length: cells.endRow - cells.startRow + 1 }, (_, index) => cells.startRow + index)
+      : undefined);
+    if (!rows || rows.length === 0) {
+      return undefined;
+    }
+
+    const minRow = Math.min(...rows);
+    const maxRow = Math.max(...rows);
+    if (direction === EDITOR_DIRECTION.UP && minRow === 0) {
+      return undefined;
+    }
+    if (direction === EDITOR_DIRECTION.DOWN && maxRow === metaData.sequenceCount - 1) {
+      return undefined;
+    }
+    return rows;
   }
 
   public static getSelectionFromPathProperties(params: { endPath: EditorPathProperties; startPath: EditorPathProperties }): EditorSelection | undefined {

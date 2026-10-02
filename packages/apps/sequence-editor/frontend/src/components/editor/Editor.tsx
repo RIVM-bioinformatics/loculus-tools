@@ -315,6 +315,7 @@ export const Editor = () => {
       try {
         await command();
         cachedGridRangeWithViewPortResultRef.current = null;
+        cachedGridRangeWithRowNamesRef.current = null;
         await updateMeta();
         updateVisibleRange();
         if (getSelectionPostCommand) {
@@ -344,10 +345,10 @@ export const Editor = () => {
     };
 
     const moveSelection = (direction: EDITOR_DIRECTION, event: KeyboardEvent) => {
+      event.preventDefault();
       if (!metaSubject.data) {
         return;
       }
-      event.preventDefault();
       const newSelection = EditorUtil.getMovedSelection(selectionSubject.data, direction, metaSubject.data);
       if (newSelection) {
         selectionSubject.next(newSelection);
@@ -361,32 +362,61 @@ export const Editor = () => {
     };
 
     const expandSelection = (direction: EDITOR_DIRECTION, event: KeyboardEvent) => {
+      event.preventDefault();
       if (!metaSubject.data || !initialSelectionRef.current || !selectionSubject.data) {
         return;
       }
-      event.preventDefault();
       const newSelection = EditorUtil.getExpandedSelection(selectionSubject.data, initialSelectionRef.current, direction, metaSubject.data);
       if (newSelection) {
         selectionSubject.next(newSelection);
       }
     };
 
+    const moveRowsEnd = async (_direction: EDITOR_DIRECTION, _event: KeyboardEvent) => {
+      // TODO
+    };
+
+    const moveRows = async (direction: EDITOR_DIRECTION, event: KeyboardEvent) => {
+      if (!metaSubject.data) {
+        return;
+      }
+      const rows = EditorUtil.getRowsToMove(selectionSubject.data, direction, metaSubject.data);
+      if (!rows) {
+        return;
+      }
+      await execute({
+        command: async () => {
+          if (direction === EDITOR_DIRECTION.UP) {
+            await editorService.moveRowsUp(rows);
+          } else {
+            await editorService.moveRowsDown(rows);
+          }
+        },
+        event,
+        getSelectionPostCommand: () => EditorUtil.getMovedSelection(selectionSubject.data, direction, metaSubject.data!),
+      });
+    };
+
+    const moveCells = async (_direction: EDITOR_DIRECTION, _event: KeyboardEvent) => {
+      // TODO
+    };
+
     const removers = [
       // Expand selection with shift + arrow keys
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         expandSelection(EDITOR_DIRECTION.LEFT, event);
-      }, code: 'ArrowLeft', modifier: ['Shift'] }),
+      }, code: 'ArrowLeft', modifiers: [['Shift']] }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         expandSelection(EDITOR_DIRECTION.RIGHT, event);
-      }, code: 'ArrowRight', modifier: ['Shift'] }),
+      }, code: 'ArrowRight', modifiers: [['Shift']] }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         expandSelection(EDITOR_DIRECTION.UP, event);
-      }, code: 'ArrowUp', modifier: ['Shift'] }),
+      }, code: 'ArrowUp', modifiers: [['Shift']] }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         expandSelection(EDITOR_DIRECTION.DOWN, event);
-      }, code: 'ArrowDown', modifier: ['Shift'] }),
+      }, code: 'ArrowDown', modifiers: [['Shift']] }),
 
-      // Move selection with arrow keys
+      // Move selection box with arrow keys
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         moveSelection(EDITOR_DIRECTION.LEFT, event);
       }, code: 'ArrowLeft' }),
@@ -400,6 +430,28 @@ export const Editor = () => {
         moveSelection(EDITOR_DIRECTION.DOWN, event);
       }, code: 'ArrowDown' }),
 
+      // Move rows vertically (one step)
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        void moveRows(EDITOR_DIRECTION.UP, event);
+      }, code: 'ArrowUp', modifiers: [['Control'], ['Meta']] }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        void moveRows(EDITOR_DIRECTION.DOWN, event);
+      }, code: 'ArrowDown', modifiers: [['Control'], ['Meta']] }),
+      // Move rows vertically (top / bottom)
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        void moveRowsEnd(EDITOR_DIRECTION.UP, event);
+      }, code: 'ArrowUp', modifiers: [['Alt']] }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        void moveRowsEnd(EDITOR_DIRECTION.DOWN, event);
+      }, code: 'ArrowDown', modifiers: [['Alt']] }),
+
+      // Move cells horizontally
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        void moveCells(EDITOR_DIRECTION.LEFT, event);
+      }, code: 'ArrowLeft', modifiers: [['Alt']] }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        void moveCells(EDITOR_DIRECTION.RIGHT, event);
+      }, code: 'ArrowRight', modifiers: [['Alt']] }),
 
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         const scrollContainer = scrollContainerRef.current;
@@ -448,7 +500,7 @@ export const Editor = () => {
         await execute({
           command: async () => editorService.insert(upsertArguments.rows, upsertArguments.col),
           event,
-          getSelectionPostCommand: () => EditorUtil.getPostMoveSelection(selectionSubject.data, EDITOR_DIRECTION.RIGHT),
+          getSelectionPostCommand: () => EditorUtil.getPostUpsertSelection(selectionSubject.data, EDITOR_DIRECTION.RIGHT),
         });
       }, code: 'Space' }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
@@ -462,7 +514,7 @@ export const Editor = () => {
         await execute({
           command: async () => editorService.delete(upsertArguments.rows, upsertArguments.col),
           event,
-          getSelectionPostCommand: () => EditorUtil.getPostMoveSelection(selectionSubject.data, EDITOR_DIRECTION.LEFT),
+          getSelectionPostCommand: () => EditorUtil.getPostUpsertSelection(selectionSubject.data, EDITOR_DIRECTION.LEFT),
         });
       }, code: 'Backspace' }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
@@ -487,6 +539,13 @@ export const Editor = () => {
         }
         await mutateRange(event, base);
       } }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
+        const base = event.key.toUpperCase();
+        if(!IUPAC_KEYS.has(base)) {
+          return;
+        }
+        await mutateRange(event, base);
+      }, modifiers: [['Shift']] }),
     ];
     return () => {
       removers.forEach(callbackfn => callbackfn());

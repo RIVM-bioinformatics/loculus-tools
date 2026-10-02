@@ -47,6 +47,7 @@ export const Editor = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState<{ height: number; width: number }>({ height: 0, width: 0 });
+  const [devicePixelRatio, setDevicePixelRatio] = useState(() => DevicePixelRatioService.getInstance().data);
   const [verticalScrollBarSize, setVerticalScrollBarSize] = useState(0);
   const [horizontalScrollBarSize, setHorizontalScrollBarSize] = useState(0);
   const scrollSubject = useMemo(() => new Subject<{ scrollLeft: number; scrollTop: number }>({ scrollLeft: 0, scrollTop: 0 }), []);
@@ -240,7 +241,7 @@ export const Editor = () => {
             }
             editorAssemblyRef.current = EditorUtil.drawCanvas({
               canvasElement: canvasRef.current,
-              devicePixelRatio,
+              devicePixelRatio: DevicePixelRatioService.getInstance().data,
               geometry: visibleGridRangeWithArguments.geometry,
               meta: metaSubject.data,
               palette,
@@ -298,7 +299,8 @@ export const Editor = () => {
         }
       }),
       selectionSubject.subscribe(() => updateVisibleRange()),
-      DevicePixelRatioService.getInstance().subscribe(() => {
+      DevicePixelRatioService.getInstance().subscribe((nextDevicePixelRatio) => {
+        setDevicePixelRatio(nextDevicePixelRatio);
         updateScrollbars();
         updateVisibleRange();
       }),
@@ -577,14 +579,14 @@ export const Editor = () => {
 
     const canvas = canvasRef.current;
     const editorAssembly = editorAssemblyRef.current;
-    const devicePixelRatio = DevicePixelRatioService.getInstance().data;
+    const currentDevicePixelRatio = DevicePixelRatioService.getInstance().data;
     if (!canvas || !editorAssembly) {
       return;
     }
 
     const path = EditorUtil.getPathPropertiesFromCanvas({
       canvas,
-      devicePixelRatio,
+      devicePixelRatio: currentDevicePixelRatio,
       editorAssembly,
       event: event.nativeEvent,
     });
@@ -639,7 +641,7 @@ export const Editor = () => {
   const onScrollContainerMouseMove = useCallback((event: ReactMouseEvent<HTMLElement>) => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    const devicePixelRatio = DevicePixelRatioService.getInstance().data;
+    const currentDevicePixelRatio = DevicePixelRatioService.getInstance().data;
     const resize = labelResizeRef.current;
     if (!container || !canvas) {
       return;
@@ -664,7 +666,7 @@ export const Editor = () => {
 
       const path = EditorUtil.getPathPropertiesFromCanvas({
         canvas,
-        devicePixelRatio,
+        devicePixelRatio: currentDevicePixelRatio,
         editorAssembly,
         event: event.nativeEvent,
       });
@@ -690,7 +692,7 @@ export const Editor = () => {
 
     const path = EditorUtil.getPathPropertiesFromCanvas({
       canvas,
-      devicePixelRatio,
+      devicePixelRatio: currentDevicePixelRatio,
       editorAssembly,
       event: event.nativeEvent,
     });

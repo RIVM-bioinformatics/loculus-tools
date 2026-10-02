@@ -16,6 +16,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { PageCommonHeader } from '@rivm-loculus-tools/frontend-common/components/page';
+import { UrlUtil } from '@rivm-loculus-tools/frontend-common/utils/UrlUtil';
 import { useStore } from 'zustand';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
@@ -28,7 +29,6 @@ import CodeIcon from '@mui/icons-material/Code';
 import { uiStore } from '../../../stores/uiStore';
 import { ExportUtil } from '../../../utils/ExportUtil';
 import { EventBusService } from '../../../classes/services/EventBusService';
-import { UrlUtil } from '../../../utils/UrlUtil';
 import { TREE_DOWNLOAD_TYPE } from '../../../models/tree';
 
 export const PhyloViewerPageHeader = () => {

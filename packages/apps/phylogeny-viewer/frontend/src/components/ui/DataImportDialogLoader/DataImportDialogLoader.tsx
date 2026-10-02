@@ -8,12 +8,12 @@ import {
   useRef,
 } from 'react';
 import { useStore } from 'zustand';
+import { UrlUtil } from '@rivm-loculus-tools/frontend-common/utils/UrlUtil';
 
 import { EventBusService } from '../../../classes/services/EventBusService';
 import type { AlignmentErrorDialogRefMethods } from '../AlignmentErrorDialog';
 import { AlignmentErrorDialog } from '../AlignmentErrorDialog';
 import { uiStore } from '../../../stores/uiStore';
-import { UrlUtil } from '../../../utils/UrlUtil';
 import { useDeepLinking } from '../../../hooks/useDeepLinking';
 
 const getErrorMessage = (error: unknown, fallback: string): string =>

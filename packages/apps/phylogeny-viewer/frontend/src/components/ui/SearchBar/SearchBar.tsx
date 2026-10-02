@@ -10,14 +10,14 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import { useStore } from 'zustand';
 
-import { uiStore } from '../../../stores/uiStore';
+import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 
 import { SearchBarNodeCounter } from './SearchBarNodeCounter';
 
 
 export const SearchBar = () => {
-  const searchQuery = useStore(uiStore, (state) => state.searchQuery);
-  const setSearchQuery = useStore(uiStore, (state) => state.setSearchQuery);
+  const searchQuery = useStore(phylogenyViewerStore, (state) => state.searchQuery);
+  const setSearchQuery = useStore(phylogenyViewerStore, (state) => state.setSearchQuery);
 
   const onChangeQuery = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);

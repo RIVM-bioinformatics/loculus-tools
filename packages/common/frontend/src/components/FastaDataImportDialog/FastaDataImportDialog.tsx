@@ -41,19 +41,19 @@ enum META_DATA_TAB {
   PASTE = 2,
 }
 
-export interface DataImportDialogOpenProps {
+export interface FastaDataImportDialogOpenProps {
   initialErrorMessage?: string;
 }
 
-export interface DataImportDialogProps extends WithDialogRenderProps<DataImportDialogOpenProps> {
+export interface FastaDataImportDialogProps extends WithDialogRenderProps<FastaDataImportDialogOpenProps> {
   extraActions?: DialogAction[];
   onDataChange: (fasta: string, metaData?: string) => void;
   onError: (error: unknown) => void;
 }
 
-export type DataImportDialogRefMethods = WithDialogRefMethods<DataImportDialogProps, DataImportDialogOpenProps>;
+export type FastaDataImportDialogRefMethods = WithDialogRefMethods<FastaDataImportDialogProps, FastaDataImportDialogOpenProps>;
 
-export const DataImportDialog = withDialog<DataImportDialogProps, DataImportDialogOpenProps>((
+export const FastaDataImportDialog = withDialog<FastaDataImportDialogProps, FastaDataImportDialogOpenProps>((
   {
     extraActions,
     onActionsChange,
@@ -63,7 +63,7 @@ export const DataImportDialog = withDialog<DataImportDialogProps, DataImportDial
     onError,
     onNoCloseButtonChange,
     openProps,
-  }: DataImportDialogProps,
+  }: FastaDataImportDialogProps,
 ): ReactElement => {
   // FASTA state
   const [fastaTab, setFastaTab] = useState(FASTA_TAB.DROP);
@@ -352,5 +352,5 @@ export const DataImportDialog = withDialog<DataImportDialogProps, DataImportDial
   defaultTitle: 'Load Phylogenetic Data',
   fullWidth: true,
   maxWidth: 'xl',
-  testId: 'DataImportDialog',
+  testId: 'FastaDataImportDialog',
 });

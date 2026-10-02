@@ -27,24 +27,24 @@ import type {
   TreeEngine,
 } from '../../../models/calculation';
 import { CALCULATION_STATUS } from '../../../models/calculation';
-import { uiStore } from '../../../stores/uiStore';
+import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import { StatusChip } from '../StatusChip';
 
 
 export const PhyloViewerPageDrawerCalculationSettings = () => {
-  const engine = useStore(uiStore, (state) => state.engine);
-  const setEngine = useStore(uiStore, (state) => state.setEngine);
-  const fastTreeMode = useStore(uiStore, (state) => state.fastTreeMode);
-  const setFastTreeMode = useStore(uiStore, (state) => state.setFastTreeMode);
-  const fastTreeParams = useStore(uiStore, (state) => state.fastTreeParams);
-  const setFastTreeParams = useStore(uiStore, (state) => state.setFastTreeParams);
-  const calculationStatus = useStore(uiStore, (state) => state.calculationStatus);
-  const calculationError = useStore(uiStore, (state) => state.calculationError);
-  const calculateTree = useStore(uiStore, (state) => state.calculateTree);
-  const lastCalculationExecutionTimeMs = useStore(uiStore, (state) => state.lastCalculationExecutionTimeMs);
+  const engine = useStore(phylogenyViewerStore, (state) => state.engine);
+  const setEngine = useStore(phylogenyViewerStore, (state) => state.setEngine);
+  const fastTreeMode = useStore(phylogenyViewerStore, (state) => state.fastTreeMode);
+  const setFastTreeMode = useStore(phylogenyViewerStore, (state) => state.setFastTreeMode);
+  const fastTreeParams = useStore(phylogenyViewerStore, (state) => state.fastTreeParams);
+  const setFastTreeParams = useStore(phylogenyViewerStore, (state) => state.setFastTreeParams);
+  const calculationStatus = useStore(phylogenyViewerStore, (state) => state.calculationStatus);
+  const calculationError = useStore(phylogenyViewerStore, (state) => state.calculationError);
+  const calculateTree = useStore(phylogenyViewerStore, (state) => state.calculateTree);
+  const lastCalculationExecutionTimeMs = useStore(phylogenyViewerStore, (state) => state.lastCalculationExecutionTimeMs);
 
-  const rawFasta = useStore(uiStore, (state) => state.rawFasta);
-  const parsedFasta = useStore(uiStore, (state) => state.parsedFasta);
+  const rawFasta = useStore(phylogenyViewerStore, (state) => state.rawFasta);
+  const parsedFasta = useStore(phylogenyViewerStore, (state) => state.parsedFasta);
 
   const isCalculating = calculationStatus === CALCULATION_STATUS.LOADING;
   const hasValidFasta = Boolean(rawFasta && parsedFasta?.isAligned);

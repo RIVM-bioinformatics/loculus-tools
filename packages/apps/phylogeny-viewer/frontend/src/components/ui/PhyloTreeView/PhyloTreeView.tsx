@@ -19,7 +19,7 @@ import { Subject } from '@gen-epix/ui-core/classes/Subject';
 import { useStore } from 'zustand';
 import { MetaDataUtil } from '@rivm-loculus-tools/frontend-common/utils/MetaDataUtil';
 
-import { uiStore } from '../../../stores/uiStore';
+import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import {
   MISSING_COLOR,
   TREE_ANCESTOR_DOT_RADIUS,
@@ -53,15 +53,15 @@ export type PhyloTreeViewProps = {
 };
 
 export const PhyloTreeView = ({ newick }: PhyloTreeViewProps) => {
-  const colorByField = useStore(uiStore, (state) => state.colorByField);
-  const colorMap = useStore(uiStore, (state) => state.colorMap);
-  const matchKeyField = useStore(uiStore, (state) => state.matchKeyField);
-  const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
-  const selectedLabelFields = useStore(uiStore, (state) => state.selectedLabelFields);
-  const setTooltip = useStore(uiStore, (state) => state.setTooltip);
-  const showBranchLengths = useStore(uiStore, (state) => state.showBranchLengths);
-  const showLeafLabels = useStore(uiStore, (state) => state.showLeafLabels);
-  const showScaleBar = useStore(uiStore, (state) => state.showScaleBar);
+  const colorByField = useStore(phylogenyViewerStore, (state) => state.colorByField);
+  const colorMap = useStore(phylogenyViewerStore, (state) => state.colorMap);
+  const matchKeyField = useStore(phylogenyViewerStore, (state) => state.matchKeyField);
+  const parsedMetadata = useStore(phylogenyViewerStore, (state) => state.parsedMetadata);
+  const selectedLabelFields = useStore(phylogenyViewerStore, (state) => state.selectedLabelFields);
+  const setTooltip = useStore(phylogenyViewerStore, (state) => state.setTooltip);
+  const showBranchLengths = useStore(phylogenyViewerStore, (state) => state.showBranchLengths);
+  const showLeafLabels = useStore(phylogenyViewerStore, (state) => state.showLeafLabels);
+  const showScaleBar = useStore(phylogenyViewerStore, (state) => state.showScaleBar);
 
   const [treeCanvas, setTreeCanvas] = useState<HTMLCanvasElement>();
 
@@ -76,7 +76,7 @@ export const PhyloTreeView = ({ newick }: PhyloTreeViewProps) => {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = uiStore.subscribe((state, prevState) => {
+    const unsubscribe = phylogenyViewerStore.subscribe((state, prevState) => {
       if (JSON.stringify(state.highlightedIds) === JSON.stringify(prevState.highlightedIds)) {
         return;
       }

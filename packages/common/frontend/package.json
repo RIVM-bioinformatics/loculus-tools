@@ -32,7 +32,8 @@
     "react": "*"
   },
   "dependencies": {
-    "lodash": "4.18.1"
+    "lodash": "4.18.1",
+    "zustand": "5.0.15"
   },
   "devDependencies": {
     "@emotion/cache": "11.14.0",
@@ -65,9 +66,17 @@
     "vite": "8.3.0"
   },
   "exports": {
-    "./components/DataImportDialog": {
-      "types": "./src/components/DataImportDialog/index.ts",
-      "import": "./src/components/DataImportDialog/index.ts"
+    "./classes/services/FastaDataEventBusService": {
+      "types": "./src/classes/services/FastaDataEventBusService/index.ts",
+      "import": "./src/classes/services/FastaDataEventBusService/index.ts"
+    },
+    "./components/FastaDataImportDialog": {
+      "types": "./src/components/FastaDataImportDialog/index.ts",
+      "import": "./src/components/FastaDataImportDialog/index.ts"
+    },
+    "./components/FastaDataImportDialogLoader": {
+      "types": "./src/components/FastaDataImportDialogLoader/index.ts",
+      "import": "./src/components/FastaDataImportDialogLoader/index.ts"
     },
     "./components/I18nWrapper": {
       "types": "./src/components/I18nWrapper/index.ts",
@@ -88,6 +97,10 @@
     "./models/metadata": {
       "types": "./src/models/metadata.ts",
       "import": "./src/models/metadata.ts"
+    },
+    "./stores/fastaDataStore": {
+      "types": "./src/stores/fastaDataStore/index.ts",
+      "import": "./src/stores/fastaDataStore/index.ts"
     },
     "./theme": {
       "types": "./src/theme/index.ts",
@@ -112,9 +125,17 @@
   },
   "publishConfig": {
     "exports": {
-      "./components/DataImportDialog": {
-        "types": "./dist/components/DataImportDialog/index.d.ts",
-        "import": "./dist/components/DataImportDialog/index.js"
+      "./classes/services/FastaDataEventBusService": {
+        "types": "./dist/classes/services/FastaDataEventBusService/index.d.ts",
+        "import": "./dist/classes/services/FastaDataEventBusService/index.js"
+      },
+      "./components/FastaDataImportDialog": {
+        "types": "./dist/components/FastaDataImportDialog/index.d.ts",
+        "import": "./dist/components/FastaDataImportDialog/index.js"
+      },
+      "./components/FastaDataImportDialogLoader": {
+        "types": "./dist/components/FastaDataImportDialogLoader/index.d.ts",
+        "import": "./dist/components/FastaDataImportDialogLoader/index.js"
       },
       "./components/I18nWrapper": {
         "types": "./dist/components/I18nWrapper/index.d.ts",
@@ -135,6 +156,10 @@
       "./models/metadata": {
         "types": "./dist/models/metadata.d.ts",
         "import": "./dist/models/metadata.js"
+      },
+      "./stores/fastaDataStore": {
+        "types": "./dist/stores/fastaDataStore/index.d.ts",
+        "import": "./dist/stores/fastaDataStore/index.js"
       },
       "./theme": {
         "types": "./dist/theme/index.d.ts",

@@ -13,7 +13,7 @@ import { FORM_FIELD_DEFINITION_TYPE } from '@gen-epix/ui-core-form/models/form';
 import { FormUtil } from '@gen-epix/ui-core-form/utils/FormUtil';
 import { useForm } from 'react-hook-form';
 
-import { uiStore } from '../../../stores/uiStore';
+import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 
 
 type FormFields = {
@@ -24,12 +24,12 @@ type FormFields = {
 
 export const PhyloViewerPageDrawerViewSettings = () => {
   const formId = useId();
-  const showBranchLengths = useStore(uiStore, (state) => state.showBranchLengths);
-  const setShowBranchLengths = useStore(uiStore, (state) => state.setShowBranchLengths);
-  const showLeafLabels = useStore(uiStore, (state) => state.showLeafLabels);
-  const setShowLeafLabels = useStore(uiStore, (state) => state.setShowLeafLabels);
-  const showScaleBar = useStore(uiStore, (state) => state.showScaleBar);
-  const setShowScaleBar = useStore(uiStore, (state) => state.setShowScaleBar);
+  const showBranchLengths = useStore(phylogenyViewerStore, (state) => state.showBranchLengths);
+  const setShowBranchLengths = useStore(phylogenyViewerStore, (state) => state.setShowBranchLengths);
+  const showLeafLabels = useStore(phylogenyViewerStore, (state) => state.showLeafLabels);
+  const setShowLeafLabels = useStore(phylogenyViewerStore, (state) => state.setShowLeafLabels);
+  const showScaleBar = useStore(phylogenyViewerStore, (state) => state.showScaleBar);
+  const setShowScaleBar = useStore(phylogenyViewerStore, (state) => state.setShowScaleBar);
 
   const onChangeLeafLabels = useCallback((value: boolean) => {
     setShowLeafLabels(value);

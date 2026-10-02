@@ -21,7 +21,7 @@ import type { ReactElement } from 'react';
 import { useEffect } from 'react';
 import { useStore } from 'zustand';
 
-import { uiStore } from '../../../stores/uiStore';
+import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 
 export interface AlignmentErrorDialogOpenProps {
   //
@@ -39,7 +39,7 @@ export const AlignmentErrorDialog = withDialog<AlignmentErrorDialogProps, Alignm
     onClose,
   }: AlignmentErrorDialogProps,
 ): ReactElement => {
-  const parsedFasta = useStore(uiStore, (state) => state.parsedFasta);
+  const parsedFasta = useStore(phylogenyViewerStore, (state) => state.parsedFasta);
 
   useEffect(() => {
     const actions: DialogAction[] = [];

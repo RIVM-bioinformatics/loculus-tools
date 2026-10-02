@@ -20,7 +20,7 @@ import { FormUtil } from '@gen-epix/ui-core-form/utils/FormUtil';
 import { useForm } from 'react-hook-form';
 import { GenericForm } from '@gen-epix/ui-core-form/components/helpers/GenericForm';
 
-import { uiStore } from '../../../stores/uiStore';
+import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import { StatusChip } from '../StatusChip';
 
 type FormFields = {
@@ -31,17 +31,17 @@ type FormFields = {
 
 export const PhyloViewerPageDrawerMetadataStyling = () => {
   const formId = useId();
-  const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
-  const parsedFasta = useStore(uiStore, (state) => state.parsedFasta);
+  const parsedMetadata = useStore(phylogenyViewerStore, (state) => state.parsedMetadata);
+  const parsedFasta = useStore(phylogenyViewerStore, (state) => state.parsedFasta);
 
-  const matchKeyField = useStore(uiStore, (state) => state.matchKeyField);
-  const setMatchKeyField = useStore(uiStore, (state) => state.setMatchKeyField);
-  const columnMatchCounts = useStore(uiStore, (state) => state.columnMatchCounts);
+  const matchKeyField = useStore(phylogenyViewerStore, (state) => state.matchKeyField);
+  const setMatchKeyField = useStore(phylogenyViewerStore, (state) => state.setMatchKeyField);
+  const columnMatchCounts = useStore(phylogenyViewerStore, (state) => state.columnMatchCounts);
 
-  const colorByField = useStore(uiStore, (state) => state.colorByField);
-  const setColorByField = useStore(uiStore, (state) => state.setColorByField);
-  const selectedLabelFields = useStore(uiStore, (state) => state.selectedLabelFields);
-  const setSelectedLabelFields = useStore(uiStore, (state) => state.setSelectedLabelFields);
+  const colorByField = useStore(phylogenyViewerStore, (state) => state.colorByField);
+  const setColorByField = useStore(phylogenyViewerStore, (state) => state.setColorByField);
+  const selectedLabelFields = useStore(phylogenyViewerStore, (state) => state.selectedLabelFields);
+  const setSelectedLabelFields = useStore(phylogenyViewerStore, (state) => state.setSelectedLabelFields);
   const columns = useMemo(() => parsedMetadata?.columns || [], [parsedMetadata]);
 
   const totalTaxa = parsedFasta?.sequences?.length || 0;

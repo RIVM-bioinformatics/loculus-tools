@@ -18,9 +18,9 @@ import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import { useStore } from 'zustand';
 import { PageCommonDrawer } from '@rivm-loculus-tools/frontend-common/components/page';
+import { FastaDataEventBusService } from '@rivm-loculus-tools/frontend-common/classes/services/FastaDataEventBusService';
 
-import { EventBusService } from '../../../classes/services/EventBusService';
-import { uiStore } from '../../../stores/uiStore';
+import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 
 import { PhyloViewerPageDrawerCalculationSettings } from './PhyloViewerPageDrawerCalculationSettings';
 import { PhyloViewerPageDrawerMetadataStyling } from './PhyloViewerPageDrawerMetadataStyling';
@@ -33,7 +33,7 @@ enum ACCORDIONS {
 }
 
 export const PhyloViewerPageDrawer = () => {
-  const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
+  const parsedMetadata = useStore(phylogenyViewerStore, (state) => state.parsedMetadata);
   const [expandedAccordions, setExpandedAccordions] = useState<ACCORDIONS[]>([]);
 
   const toggleAccordion = useCallback((panel: ACCORDIONS) => {
@@ -45,7 +45,7 @@ export const PhyloViewerPageDrawer = () => {
     setExpandedAccordions((prev) => prev.filter((p) => p !== panel));
   }, []);
 
-  const onClickLoadData = useCallback(() => EventBusService.getInstance().emit('onShowImportDialog'), []);
+  const onClickLoadData = useCallback(() => FastaDataEventBusService.getInstance().emit('onShowImportDialog'), []);
   const onCalculationAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.CALCULATION), [toggleAccordion]);
   const onViewAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.VIEW), [toggleAccordion]);
   const onMetaDataAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.METADATA), [toggleAccordion]);

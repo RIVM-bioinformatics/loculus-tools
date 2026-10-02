@@ -5,7 +5,7 @@ import { theme } from '@rivm-loculus-tools/frontend-common/theme';
 import { I18nWrapper } from '@rivm-loculus-tools/frontend-common/components/I18nWrapper';
 import { PageCommonContextProvider } from '@rivm-loculus-tools/frontend-common/components/page';
 
-import { TestPage } from '../pages/TestPage';
+import { MainPage } from '../pages/MainPage';
 
 import { ErrorFallback } from './ErrorFallback';
 
@@ -15,7 +15,7 @@ export const App = () => (
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <PageCommonContextProvider>
-          <TestPage />
+          <MainPage />
         </PageCommonContextProvider>
       </ThemeProvider>
     </I18nWrapper>

@@ -9,13 +9,13 @@ import {
 import PaletteIcon from '@mui/icons-material/Palette';
 import { useStore } from 'zustand/react';
 
-import { uiStore } from '../../../stores/uiStore';
+import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 
 
 export const Legend = () => {
-  const colorMap = useStore(uiStore, (state) => state.colorMap);
+  const colorMap = useStore(phylogenyViewerStore, (state) => state.colorMap);
   const entries = useMemo(() => Object.entries(colorMap), [colorMap]);
-  const colorByField = useStore(uiStore, (state) => state.colorByField);
+  const colorByField = useStore(phylogenyViewerStore, (state) => state.colorByField);
   const theme = useTheme();
 
 

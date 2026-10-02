@@ -27,17 +27,17 @@ import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import { useStore } from 'zustand/react';
 import { MetaDataUtil } from '@rivm-loculus-tools/frontend-common/utils/MetaDataUtil';
 
-import { uiStore } from '../../../stores/uiStore';
+import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 
 export const PhyloTreeViewDraggableNodeTooltip = () => {
   const theme = useTheme();
-  const tooltip = useStore(uiStore, (state) => state.tooltip);
-  const setTooltip = useStore(uiStore, (state) => state.setTooltip);
-  const collapsedNodeIds = useStore(uiStore, (state) => state.collapsedNodeIds);
-  const toggleCollapseNode = useStore(uiStore, (state) => state.toggleCollapseNode);
-  const matchKeyField = useStore(uiStore, (state) => state.matchKeyField);
+  const tooltip = useStore(phylogenyViewerStore, (state) => state.tooltip);
+  const setTooltip = useStore(phylogenyViewerStore, (state) => state.setTooltip);
+  const collapsedNodeIds = useStore(phylogenyViewerStore, (state) => state.collapsedNodeIds);
+  const toggleCollapseNode = useStore(phylogenyViewerStore, (state) => state.toggleCollapseNode);
+  const matchKeyField = useStore(phylogenyViewerStore, (state) => state.matchKeyField);
 
-  const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
+  const parsedMetadata = useStore(phylogenyViewerStore, (state) => state.parsedMetadata);
 
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 

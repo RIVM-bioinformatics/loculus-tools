@@ -1,3 +1,10 @@
+export enum CALCULATION_STATUS {
+  ERROR = 'ERROR',
+  IDLE = 'IDLE',
+  LOADING = 'LOADING',
+  SUCCESS = 'SUCCESS',
+}
+
 export type FastaParseResult = {
   error?: string;
   expectedLength: number;

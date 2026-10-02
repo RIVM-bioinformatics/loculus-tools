@@ -25,19 +25,20 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import ImageIcon from '@mui/icons-material/Image';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CodeIcon from '@mui/icons-material/Code';
+import { FastaDataEventBusService } from '@rivm-loculus-tools/frontend-common/classes/services/FastaDataEventBusService';
 
-import { uiStore } from '../../../stores/uiStore';
+import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import { ExportUtil } from '../../../utils/ExportUtil';
 import { EventBusService } from '../../../classes/services/EventBusService';
 import { TREE_DOWNLOAD_TYPE } from '../../../models/tree';
 
 export const PhyloViewerPageHeader = () => {
-  const parsedFasta = useStore(uiStore, (state) => state.parsedFasta);
-  const parsedMetadata = useStore(uiStore, (state) => state.parsedMetadata);
-  const newick = useStore(uiStore, (state) => state.newick);
-  const resetDataset = useStore(uiStore, (state) => state.resetDataset);
-  const resetCalculation = useStore(uiStore, (state) => state.resetCalculation);
-  const resetTreeView = useStore(uiStore, (state) => state.resetTreeView);
+  const parsedFasta = useStore(phylogenyViewerStore, (state) => state.parsedFasta);
+  const parsedMetadata = useStore(phylogenyViewerStore, (state) => state.parsedMetadata);
+  const newick = useStore(phylogenyViewerStore, (state) => state.newick);
+  const resetDataset = useStore(phylogenyViewerStore, (state) => state.resetDataset);
+  const resetCalculation = useStore(phylogenyViewerStore, (state) => state.resetCalculation);
+  const resetTreeView = useStore(phylogenyViewerStore, (state) => state.resetTreeView);
 
   // Export Menu State
   const [exportAnchorEl, setExportAnchorEl] = useState<HTMLElement | null>(null);
@@ -80,7 +81,7 @@ export const PhyloViewerPageHeader = () => {
     UrlUtil.clearSearchParams();
   }, [resetCalculation, resetDataset, resetTreeView]);
 
-  const onImportDataButtonClick = useCallback(() => EventBusService.getInstance().emit('onShowImportDialog'), []);
+  const onImportDataButtonClick = useCallback(() => FastaDataEventBusService.getInstance().emit('onShowImportDialog'), []);
   const onDocumentationButtonClick = useCallback(() => {
     window.open('https://github.com/RIVM-bioinformatics/loculus-tools', '_blank');
   }, []);

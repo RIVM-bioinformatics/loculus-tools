@@ -407,6 +407,9 @@ importers:
       lodash:
         specifier: 4.18.1
         version: 4.18.1
+      zustand:
+        specifier: 5.0.15
+        version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
     devDependencies:
       '@emotion/cache':
         specifier: 11.14.0

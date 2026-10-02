@@ -6,7 +6,6 @@ import type { TREE_DOWNLOAD_TYPE } from '../../../models/tree';
 export type Event = {
   onDownloadCanvas: TREE_DOWNLOAD_TYPE;
   onShowAlignmentErrorDialog: void;
-  onShowImportDialog: string | undefined;
   onToggleDrawer: boolean;
 };
 

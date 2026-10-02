@@ -1,10 +1,10 @@
 import { useStore } from 'zustand';
 import { Chip } from '@mui/material';
 
-import { uiStore } from '../../../stores/uiStore';
+import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 
 export const SearchBarNodeCounter = () => {
-  const highlightedIds = useStore(uiStore, (state) => state.highlightedIds);
+  const highlightedIds = useStore(phylogenyViewerStore, (state) => state.highlightedIds);
 
   return (
     <Chip

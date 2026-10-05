@@ -5,16 +5,16 @@ import { theme } from '@rivm-loculus-tools/frontend-common/theme';
 import { I18nWrapper } from '@rivm-loculus-tools/frontend-common/components/I18nWrapper';
 import { PageCommonContextProvider } from '@rivm-loculus-tools/frontend-common/components/page';
 
-import { SeqenceEditorMainPage } from '../../pages/SeqenceEditorMainPage';
-import { SeqenceEditorErrorPage } from '../../pages/SeqenceEditorErrorPage';
+import { SequenceEditorMainPage } from '../../pages/SequenceEditorMainPage';
+import { SequenceEditorErrorPage } from '../../pages/SequenceEditorErrorPage';
 
 export const App = () => (
-  <ErrorBoundary FallbackComponent={SeqenceEditorErrorPage}>
+  <ErrorBoundary FallbackComponent={SequenceEditorErrorPage}>
     <I18nWrapper>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <PageCommonContextProvider>
-          <SeqenceEditorMainPage />
+          <SequenceEditorMainPage />
         </PageCommonContextProvider>
       </ThemeProvider>
     </I18nWrapper>

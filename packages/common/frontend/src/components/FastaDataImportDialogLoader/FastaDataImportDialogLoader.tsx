@@ -13,10 +13,8 @@ import type { FastaDataStore } from '../../stores/fastaDataStore';
 import { UrlUtil } from '../../utils/UrlUtil';
 import type { FastaDataImportDialogRefMethods } from '../FastaDataImportDialog/FastaDataImportDialog';
 import { FastaDataImportDialog } from '../FastaDataImportDialog/FastaDataImportDialog';
+import { ErrorUtil } from '../../utils/ErrorUtil';
 
-
-const getErrorMessage = (error: unknown, fallback: string): string =>
-  error instanceof Error ? error.message : fallback;
 
 export type FastaDataImportDialogLoaderProps = {
   extraActions: DialogAction[];
@@ -102,7 +100,7 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
       await setData(fastaContent, metadataContent);
       fastaDataImportDialogRef.current?.close();
     } catch (e) {
-      handleError(getErrorMessage(e, 'Unknown error'));
+      handleError(ErrorUtil.getErrorMessage(e, 'Unknown error'));
     } finally {
       // clear any search params from the URL
       UrlUtil.clearSearchParams();
@@ -110,7 +108,7 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
   }, [handleError, setData]);
 
   const onError = useCallback((errorMessage: unknown) => {
-    handleError(getErrorMessage(errorMessage, 'Unknown error'));
+    handleError(ErrorUtil.getErrorMessage(errorMessage, 'Unknown error'));
   }, [handleError]);
 
   return (

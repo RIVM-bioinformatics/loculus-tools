@@ -15,7 +15,7 @@ import { useDebouncedCallback } from 'use-debounce';
 import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/DevicePixelRatioService';
 import { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
 
-import { EditorWorkerService } from '../../classes/services/EditorWorkerService/EditorWorkerService';
+import { EditorWorkerService } from '../../../classes/services/EditorWorkerService/EditorWorkerService';
 import type {
   EditorAssembly,
   EditorPathProperties,
@@ -26,19 +26,19 @@ import type {
   GridRangeWithViewportResults,
   PaletteModel,
   VisibleGridRangeWithArguments,
-} from '../../models';
-import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
+} from '../../../models';
+import { EDITOR_PATH_PROPERTIES_TYPE } from '../../../models';
 import {
   DEFAULT_GRID_GEOMETRY,
   IUPAC_KEYS,
   MIN_LABEL_WIDTH,
-} from '../../constants';
-import { EditorUtil } from '../../utils/EditorUtil';
-import { loadPalette } from '../../utils/palette';
-import { EDITOR_DIRECTION } from '../../models/editor';
+} from '../../../constants';
+import { EditorUtil } from '../../../utils/EditorUtil';
+import { loadPalette } from '../../../utils/palette';
+import { EDITOR_DIRECTION } from '../../../models/editor';
 
 
-export const Editor = () => {
+export const SeqEditor = () => {
   const editorService = useMemo(() => EditorWorkerService.getInstance(), []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const editorAssemblyRef = useRef<EditorAssembly | null>(null);

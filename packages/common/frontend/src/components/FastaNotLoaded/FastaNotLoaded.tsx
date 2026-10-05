@@ -3,15 +3,21 @@ import {
   Button,
   Typography,
 } from '@mui/material';
-import ForestOutlinedIcon from '@mui/icons-material/ForestOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
+import type { ReactNode } from 'react';
 import { useCallback } from 'react';
 
-import { EventBusService } from '../../../classes/services/EventBusService';
+import { FastaDataEventBusService } from '../../classes/services/FastaDataEventBusService';
 
-export const TreeNotLoaded = () => {
+export type FastaNotLoadedProps = {
+  description: ReactNode;
+  icon: ReactNode;
+  title: ReactNode;
+};
+
+export const FastaNotLoaded = ({ description, icon, title }: FastaNotLoadedProps) => {
   const onClickLoadData = useCallback(() => {
-    EventBusService.getInstance().emit('onShowImportDialog');
+    FastaDataEventBusService.getInstance().emit('onShowImportDialog');
   }, []);
 
   return (
@@ -27,20 +33,20 @@ export const TreeNotLoaded = () => {
         width: '100%',
       }}
     >
-      <ForestOutlinedIcon sx={{ color: 'text.disabled', fontSize: 72 }} />
+      {icon}
       <Typography
         color={'text.secondary'}
         sx={{ fontWeight: 600 }}
         variant={'h6'}
       >
-        {'No Phylogenetic Tree Loaded'}
+        {title}
       </Typography>
       <Typography
         color={'text.secondary'}
         sx={{ maxWidth: 450, textAlign: 'center' }}
         variant={'body2'}
       >
-        {'Load an aligned FASTA sequence file to automatically compute and render an interactive phylogenetic tree.'}
+        {description}
       </Typography>
       <Button
         color={'primary'}

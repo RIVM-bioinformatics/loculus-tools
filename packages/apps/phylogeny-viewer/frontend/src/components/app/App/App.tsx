@@ -7,19 +7,19 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { I18nWrapper } from '@rivm-loculus-tools/frontend-common/components/I18nWrapper';
 import { PageCommonContextProvider } from '@rivm-loculus-tools/frontend-common/components/page';
 
-import { ErrorPage } from '../../pages/ErrorPage';
-import { MainPage } from '../../pages/MainPage';
+import { PhyloViewerErrorPage } from '../../pages/PhyloViewerErrorPage';
+import { PhyloViewerPageMainPage } from '../../pages/PhyloViewerPageMainPage';
 
 export const App = () => {
   return (
     <ErrorBoundary
-      FallbackComponent={ErrorPage}
+      FallbackComponent={PhyloViewerErrorPage}
     >
       <I18nWrapper>
         <ThemeProvider theme={theme}>
           <CssBaseline />
           <PageCommonContextProvider>
-            <MainPage />
+            <PhyloViewerPageMainPage />
           </PageCommonContextProvider>
         </ThemeProvider>
       </I18nWrapper>

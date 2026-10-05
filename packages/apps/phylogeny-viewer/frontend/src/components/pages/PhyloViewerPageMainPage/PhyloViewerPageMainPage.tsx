@@ -3,6 +3,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { BackdropSpinner } from '@gen-epix/ui-core-components/components/BackdropSpinner';
+import { ErrorUtil } from '@rivm-loculus-tools/frontend-common/utils/ErrorUtil';
 import {
   use,
   useCallback,
@@ -18,6 +19,8 @@ import type { DialogAction } from '@gen-epix/ui-core-components/components/Dialo
 import { UrlUtil } from '@rivm-loculus-tools/frontend-common/utils/UrlUtil';
 import { FastaDataImportDialogLoader } from '@rivm-loculus-tools/frontend-common/components/FastaDataImportDialogLoader';
 import { FastaDataEventBusService } from '@rivm-loculus-tools/frontend-common/classes/services/FastaDataEventBusService';
+import { FastaNotLoaded } from '@rivm-loculus-tools/frontend-common/components/FastaNotLoaded';
+import ForestOutlinedIcon from '@mui/icons-material/ForestOutlined';
 
 import { PhyloTreeView } from '../../ui/PhyloTreeView';
 import { LEGEND_WIDTH } from '../../../constants/view';
@@ -26,15 +29,11 @@ import { EventBusService } from '../../../classes/services/EventBusService';
 import { SearchBar } from '../../ui/SearchBar';
 import { Legend } from '../../ui/Legend/Legend';
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
-import { TreeNotLoaded } from '../../ui/TreeNotLoaded';
 import { PhyloViewerPage } from '../../ui/PhyloViewerPage';
 import type { AlignmentErrorDialogRefMethods } from '../../ui/AlignmentErrorDialog';
 import { AlignmentErrorDialog } from '../../ui/AlignmentErrorDialog';
 
-const getErrorMessage = (error: unknown, fallback: string): string =>
-  error instanceof Error ? error.message : fallback;
-
-export const MainPage = () => {
+export const PhyloViewerPageMainPage = () => {
   const newick = useStore(phylogenyViewerStore, (state) => state.newick);
   const colorByField = useStore(phylogenyViewerStore, (state) => state.colorByField);
   const calculationStatus = useStore(phylogenyViewerStore, (state) => state.calculationStatus);
@@ -58,7 +57,7 @@ export const MainPage = () => {
       FastaDataEventBusService.getInstance().emit('onCloseImportDialog');
     } catch (err: unknown) {
       FastaDataEventBusService.getInstance().emit('onCloseImportDialog');
-      const errorMessage = `Failed to load demo dataset: ${getErrorMessage(err, 'Unknown error')}`;
+      const errorMessage = `Failed to load demo dataset: ${ErrorUtil.getErrorMessage(err, 'Unknown error')}`;
       FastaDataEventBusService.getInstance().emit('onShowImportDialog', errorMessage);
     } finally {
       UrlUtil.clearSearchParams();
@@ -123,7 +122,13 @@ export const MainPage = () => {
     <PhyloViewerPage
       isNoInteraction={false}
     >
-      {!canShowTree && <TreeNotLoaded />}
+      {!canShowTree && (
+        <FastaNotLoaded
+          description={'Load an aligned FASTA sequence file to automatically compute and render an interactive phylogenetic tree.'}
+          icon={<ForestOutlinedIcon sx={{ color: 'text.disabled', fontSize: 72 }} />}
+          title={'No Phylogenetic Tree Loaded'}
+        />
+      )}
       {canShowTree && (
         <Box
           sx={{
@@ -158,7 +163,6 @@ export const MainPage = () => {
           </Box>
         </Box>
       )}
-      {/* Global Overlays & Modals */}
       <AlignmentErrorDialog ref={alignmentErrorDialogRef} />
       <FastaDataImportDialogLoader
         extraActions={extraFastaDataImportDialogLoaderActions}

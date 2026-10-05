@@ -1,8 +1,6 @@
 import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 import type { Remote } from 'comlink';
 import { wrap } from 'comlink';
-import { FastaUtil } from '@rivm-loculus-tools/frontend-common/utils/FastaUtil';
-import type { FastaPreflightResult } from '@rivm-loculus-tools/frontend-common/models/fasta';
 import { MoveDirection } from '@rivm-loculus-tools/sequence-editor-wasm';
 
 import type {
@@ -68,11 +66,9 @@ export class EditorWorkerService {
     });
   }
 
-  public async loadFasta(fasta: string): Promise<FastaPreflightResult> {
+  public async loadFasta(fasta: string): Promise<void> {
     return this.runCommand(async () => {
-      const preflight = FastaUtil.preflightFasta(fasta);
       await this.engineWorkerProxy.load(fasta);
-      return preflight;
     });
   }
 

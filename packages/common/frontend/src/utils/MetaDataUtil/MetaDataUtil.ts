@@ -12,7 +12,7 @@ export class MetaDataUtil {
     recordsByColumn: Record<string, Record<string, MetadataRecord>>,
     fastaIds: string[],
   ): { bestColumn: null | string; matchCounts: Record<string, number> } => {
-    const matchCounts: Record<string, number> = {};
+    const matchCounts = MetaDataUtil.getMatchCounts(columns, recordsByColumn, fastaIds);
     let bestColumn: null | string = null;
     let maxMatches = -1;
 
@@ -39,13 +39,7 @@ export class MetaDataUtil {
         continue;
       }
 
-      let count = 0;
-      for (const id of fastaIds) {
-        if (colDict[id]) {
-          count++;
-        }
-      }
-      matchCounts[col] = count;
+      const count = matchCounts[col];
 
       if (count > maxMatches) {
         maxMatches = count;
@@ -76,6 +70,7 @@ export class MetaDataUtil {
 
     return { bestColumn, matchCounts };
   };
+
   public static getHighlightedIds(query: string, allAccessions: string[], metadataRecords: MetadataRecord[], matchKeyField: null | string = null): string[] {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) {
@@ -113,6 +108,37 @@ export class MetaDataUtil {
 
     return Array.from(matched);
   }
+  /**
+   * Count FASTA sequence ID matches for each metadata column.
+   */
+  public static getMatchCounts = (
+    columns: string[],
+    recordsByColumn: Record<string, Record<string, MetadataRecord>>,
+    fastaIds: string[],
+  ): Record<string, number> => {
+    const matchCounts: Record<string, number> = {};
+
+    if (!columns || !recordsByColumn || !fastaIds || fastaIds.length === 0) {
+      return matchCounts;
+    }
+
+    for (const col of columns) {
+      const colDict = recordsByColumn[col];
+      if (!colDict) {
+        continue;
+      }
+
+      let count = 0;
+      for (const id of fastaIds) {
+        if (colDict[id]) {
+          count++;
+        }
+      }
+      matchCounts[col] = count;
+    }
+
+    return matchCounts;
+  };
 
   /**
    * Retrieve metadata record for a given sample/node name with fallback strategies.

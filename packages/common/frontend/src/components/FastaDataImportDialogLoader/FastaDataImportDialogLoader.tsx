@@ -8,7 +8,7 @@ import type { StoreApi } from 'zustand';
 import { useStore } from 'zustand';
 
 import { FastaDataEventBusService } from '../../classes/services/FastaDataEventBusService';
-import { CALCULATION_STATUS } from '../../models/fasta';
+import { LOADING_STATUS } from '../../models/fasta';
 import type { FastaDataStore } from '../../stores/fastaDataStore';
 import { UrlUtil } from '../../utils/UrlUtil';
 import type { FastaDataImportDialogRefMethods } from '../FastaDataImportDialog/FastaDataImportDialog';
@@ -23,7 +23,7 @@ export type FastaDataImportDialogLoaderProps = {
 
 export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataImportDialogLoaderProps) => {
   const setData = useStore(store, (state) => state.setData);
-  const setCalculationStatus = useStore(store, (state) => state.setCalculationStatus);
+  const setLoadingStatus = useStore(store, (state) => state.setLoadingStatus);
   const fastaDataImportDialogRef = useRef<FastaDataImportDialogRefMethods>(null);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
 
     const handleDeepLinking = async () => {
       if (inputFastaUrl) {
-        setCalculationStatus(CALCULATION_STATUS.LOADING);
+        setLoadingStatus(LOADING_STATUS.LOADING);
         try {
           const fastaRes = await fetch(inputFastaUrl);
           if (!fastaRes.ok) {
@@ -59,7 +59,7 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
           const fastaText = await fastaRes.text();
 
           if (!fastaText.trim()) {
-            setCalculationStatus(CALCULATION_STATUS.ERROR);
+            setLoadingStatus(LOADING_STATUS.ERROR);
             throw new Error('The input-fasta URL returned no sequence data. Check that the URL and requested accession(s) are correct.');
           }
 
@@ -88,7 +88,7 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
     };
 
     void handleDeepLinking();
-  }, [setData, setCalculationStatus]);
+  }, [setData, setLoadingStatus]);
 
   const handleError = useCallback((errorMessage: string) => {
     fastaDataImportDialogRef.current?.close();

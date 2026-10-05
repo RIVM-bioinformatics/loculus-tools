@@ -21,12 +21,13 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SpeedIcon from '@mui/icons-material/Speed';
 import BiotechIcon from '@mui/icons-material/Biotech';
 import { useStore } from 'zustand/react';
+import { LOADING_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta';
 
+import { CALCULATION_STATUS } from '../../../models/calculation';
 import type {
   FastTreeMode,
   TreeEngine,
 } from '../../../models/calculation';
-import { CALCULATION_STATUS } from '../../../models/calculation';
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import { StatusChip } from '../StatusChip';
 
@@ -40,13 +41,17 @@ export const PhylogenyViewerPageDrawerCalculationSettings = () => {
   const setFastTreeParams = useStore(phylogenyViewerStore, (state) => state.setFastTreeParams);
   const calculationStatus = useStore(phylogenyViewerStore, (state) => state.calculationStatus);
   const calculationError = useStore(phylogenyViewerStore, (state) => state.calculationError);
+  const loadingStatus = useStore(phylogenyViewerStore, (state) => state.loadingStatus);
+  const loadingError = useStore(phylogenyViewerStore, (state) => state.loadingError);
   const calculateTree = useStore(phylogenyViewerStore, (state) => state.calculateTree);
   const lastCalculationExecutionTimeMs = useStore(phylogenyViewerStore, (state) => state.lastCalculationExecutionTimeMs);
 
   const rawFasta = useStore(phylogenyViewerStore, (state) => state.rawFasta);
   const parsedFasta = useStore(phylogenyViewerStore, (state) => state.parsedFasta);
 
-  const isCalculating = calculationStatus === CALCULATION_STATUS.LOADING;
+  const isCalculating = calculationStatus === CALCULATION_STATUS.LOADING || loadingStatus === LOADING_STATUS.LOADING;
+  const isError = calculationStatus === CALCULATION_STATUS.ERROR || loadingStatus === LOADING_STATUS.ERROR;
+  const error = calculationError || loadingError;
   const hasValidFasta = Boolean(rawFasta && parsedFasta?.isAligned);
 
   const onChangeEngine = useCallback((event: SelectChangeEvent) => {
@@ -244,9 +249,9 @@ export const PhylogenyViewerPageDrawerCalculationSettings = () => {
         {isCalculating ? 'Computing Tree...' : 'Calculate Tree'}
       </Button>
       {/* Calculation Error */}
-      {calculationStatus === CALCULATION_STATUS.ERROR && calculationError && (
+      {isError && error && (
         <Alert severity={'error'}>
-          {calculationError}
+          {error}
         </Alert>
       )}
       {/* Timing Metrics Badge */}

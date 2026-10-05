@@ -1,5 +1,5 @@
 import type { FastaParseResult } from '../../models/fasta';
-import { CALCULATION_STATUS } from '../../models/fasta';
+import { LOADING_STATUS } from '../../models/fasta';
 import type { MetadataParseResult } from '../../models/metadata';
 import { FastaUtil } from '../../utils/FastaUtil';
 import { MetaDataUtil } from '../../utils/MetaDataUtil';
@@ -8,15 +8,16 @@ export type FastaDataStore = FastaDataStoreActions & FastaDataStoreState;
 
 export interface FastaDataStoreActions {
   resetDataset: () => void;
-  setCalculationStatus: (status: CALCULATION_STATUS) => void;
   setColumnMatchCounts: (counts: Record<string, number>) => void;
   setData: (fasta: string, tsv?: string) => Promise<{ fastaResult: FastaParseResult; metadataResult: MetadataParseResult }>;
+  setLoadingStatus: (status: LOADING_STATUS) => void;
   setMatchKeyField: (field: null | string) => void;
 }
 
 export interface FastaDataStoreState {
-  calculationStatus: CALCULATION_STATUS;
   columnMatchCounts: Record<string, number>;
+  loadingError: null | string;
+  loadingStatus: LOADING_STATUS;
   matchKeyField: null | string;
   parsedFasta: FastaParseResult | null;
   parsedMetadata: MetadataParseResult | null;
@@ -25,8 +26,9 @@ export interface FastaDataStoreState {
 }
 
 export const createFastaDataStoreInitialState = (): FastaDataStoreState => ({
-  calculationStatus: CALCULATION_STATUS.IDLE,
   columnMatchCounts: {},
+  loadingError: null,
+  loadingStatus: LOADING_STATUS.IDLE,
   matchKeyField: null,
   parsedFasta: null,
   parsedMetadata: null,
@@ -42,55 +44,57 @@ export const createFastaDataStoreActions = (kwArgs: { get: Get; set: Set }): Fas
   const { get, set } = kwArgs;
   return {
     resetDataset: () => set(createFastaDataStoreInitialState()),
-    setCalculationStatus: (status: CALCULATION_STATUS) => set({ calculationStatus: status }),
     setColumnMatchCounts: (counts: Record<string, number>) => set({ columnMatchCounts: counts }),
     setData: async (fasta: string, tsv?: string) => {
-      let metadataResult: MetadataParseResult;
-      if (tsv) {
-        metadataResult = MetaDataUtil.parseTsv(tsv);
-        set({
-          parsedMetadata: metadataResult,
-          rawMetadata: tsv,
-        });
+      const parsedFasta = FastaUtil.parseFasta(fasta);
 
-        const currentFasta = get().parsedFasta;
-        if (metadataResult && currentFasta && currentFasta.sequences.length > 0) {
-          const fastaIds = currentFasta.sequences.map((s) => s.id);
-          const { bestColumn, matchCounts } = MetaDataUtil.findBestMatchingColumn(
-            metadataResult.columns,
-            metadataResult.recordsByColumn,
-            fastaIds,
-          );
-          get().setColumnMatchCounts(matchCounts);
-          get().setMatchKeyField(bestColumn);
-        } else if (metadataResult && metadataResult.columns.length > 0) {
-          // Default to best candidate
-          const prioritized = ['displayName', 'accessionVersion', 'accession', 'SampleID', 'id', 'strain'];
-          const defaultCol = prioritized.find((p) => metadataResult.columns.includes(p)) || metadataResult.columns[0];
-          get().setMatchKeyField(defaultCol);
-        }
+      if (parsedFasta.error) {
+        set({
+          loadingError: parsedFasta.error,
+          loadingStatus: LOADING_STATUS.ERROR,
+        });
+        throw new Error(parsedFasta.error);
       }
 
-
-      const fastaResult = FastaUtil.parseFasta(fasta);
       set({
-        parsedFasta: fastaResult,
+        parsedFasta,
         rawFasta: fasta,
       });
 
-      if (metadataResult && fastaResult.sequences.length > 0) {
-        const fastaIds = fastaResult.sequences.map((s) => s.id);
+      let parsedMetadata: MetadataParseResult;
+      if (tsv) {
+        parsedMetadata = MetaDataUtil.parseTsv(tsv);
+        if (parsedMetadata.error) {
+          set({
+            loadingError: parsedMetadata.error,
+            loadingStatus: LOADING_STATUS.ERROR,
+          });
+          throw new Error(parsedMetadata.error);
+        }
+
+        set({
+          parsedMetadata,
+          rawMetadata: tsv,
+        });
+
+        const fastaIds = parsedFasta.sequences.map((s) => s.id);
         const { bestColumn, matchCounts } = MetaDataUtil.findBestMatchingColumn(
-          metadataResult.columns,
-          metadataResult.recordsByColumn,
+          parsedMetadata.columns,
+          parsedMetadata.recordsByColumn,
           fastaIds,
         );
         get().setColumnMatchCounts(matchCounts);
         get().setMatchKeyField(bestColumn);
       }
 
-      return Promise.resolve({ fastaResult, metadataResult });
+      set({
+        loadingError: null,
+        loadingStatus: LOADING_STATUS.SUCCESS,
+      });
+
+      return Promise.resolve({ fastaResult: parsedFasta, metadataResult: parsedMetadata });
     },
+    setLoadingStatus: (status: LOADING_STATUS) => set({ loadingStatus: status }),
     setMatchKeyField: (field: null | string) => set({ matchKeyField: field }),
   };
 };

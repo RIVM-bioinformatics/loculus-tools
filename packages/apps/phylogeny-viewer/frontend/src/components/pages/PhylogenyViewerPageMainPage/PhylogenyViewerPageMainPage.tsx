@@ -21,7 +21,7 @@ import { FastaDataImportDialogLoader } from '@rivm-loculus-tools/frontend-common
 import { FastaDataEventBusService } from '@rivm-loculus-tools/frontend-common/classes/services/FastaDataEventBusService';
 import { FastaNotLoaded } from '@rivm-loculus-tools/frontend-common/components/FastaNotLoaded';
 import ForestOutlinedIcon from '@mui/icons-material/ForestOutlined';
-import { CALCULATION_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta';
+import { LOADING_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta';
 
 import { PhylogenyTreeView } from '../../ui/PhylogenyTreeView';
 import { LEGEND_WIDTH } from '../../../constants/view';
@@ -32,17 +32,21 @@ import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import { PhylogenyViewerPage } from '../../ui/PhylogenyViewerPage';
 import type { AlignmentErrorDialogRefMethods } from '../../ui/AlignmentErrorDialog';
 import { AlignmentErrorDialog } from '../../ui/AlignmentErrorDialog';
+import { CALCULATION_STATUS } from '../../../models/calculation';
 
 export const PhylogenyViewerPageMainPage = () => {
   const newick = useStore(phylogenyViewerStore, (state) => state.newick);
   const colorByField = useStore(phylogenyViewerStore, (state) => state.colorByField);
   const calculationStatus = useStore(phylogenyViewerStore, (state) => state.calculationStatus);
+  const loadingStatus = useStore(phylogenyViewerStore, (state) => state.loadingStatus);
   const calculationEngine = useStore(phylogenyViewerStore, (state) => state.engine);
   const setData = useStore(phylogenyViewerStore, (state) => state.setData);
 
   const alignmentErrorDialogRef = useRef<AlignmentErrorDialogRefMethods>(null);
 
   const theme = useTheme();
+
+  const isLoading = calculationStatus === CALCULATION_STATUS.LOADING || loadingStatus === LOADING_STATUS.LOADING;
 
   const onClickLoadDemoData = useCallback(async () => {
     try {
@@ -170,7 +174,7 @@ export const PhylogenyViewerPageMainPage = () => {
       />
       <BackdropSpinner
         label={`Computing phylogenetic tree (${calculationEngine === 'tn93' ? 'TN93 + NJ' : 'FastTree'})`}
-        open={calculationStatus === CALCULATION_STATUS.LOADING}
+        open={isLoading}
       />
     </PhylogenyViewerPage>
   );

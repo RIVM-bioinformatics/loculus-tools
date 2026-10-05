@@ -1,6 +1,5 @@
 import { createStore } from 'zustand';
 import uniq from 'lodash/uniq';
-import { FastaUtil } from '@rivm-loculus-tools/frontend-common/utils/FastaUtil';
 import { MetaDataUtil } from '@rivm-loculus-tools/frontend-common/utils/MetaDataUtil';
 import type {
   FastaDataStoreActions,
@@ -10,11 +9,11 @@ import {
   createFastaDataStoreActions,
   createFastaDataStoreInitialState,
 } from '@rivm-loculus-tools/frontend-common/stores/fastaDataStore';
-import { CALCULATION_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta';
 import type { FastaParseResult } from '@rivm-loculus-tools/frontend-common/models/fasta';
 import type { MetadataParseResult } from '@rivm-loculus-tools/frontend-common/models/metadata';
 
 import type { NodeTooltipInfo } from '../../models/tree';
+import { CALCULATION_STATUS } from '../../models/calculation';
 import type {
   FastTreeMLParams,
   FastTreeMode,
@@ -29,7 +28,7 @@ import { EventBusService } from '../../classes/services/EventBusService';
 export type PhylogenyViewerStore = PhylogenyViewerStoreActions & PhylogenyViewerStoreState;
 
 export interface PhylogenyViewerStoreActions extends FastaDataStoreActions {
-  calculateTree: (overrideFasta?: string) => Promise<null | string>;
+  calculateTree: () => Promise<null | string>;
   resetCalculation: () => void;
   resetDataset: () => void;
   resetTreeView: () => void;
@@ -60,12 +59,7 @@ export interface PhylogenyViewerStoreState extends FastaDataStoreState {
   fastTreeParams: FastTreeMLParams;
   highlightedIds: string[];
   lastCalculationExecutionTimeMs: null | number;
-  matchKeyField: null | string;
   newick: string;
-  parsedFasta: FastaParseResult | null;
-  parsedMetadata: MetadataParseResult | null;
-  rawFasta: string;
-  rawMetadata: string;
   searchQuery: string;
   selectedLabelFields: string[];
   showBranchLengths: boolean;
@@ -77,6 +71,7 @@ export interface PhylogenyViewerStoreState extends FastaDataStoreState {
 const createPhylogenyViewerStoreInitialState = (): PhylogenyViewerStoreState => ({
   ...createFastaDataStoreInitialState(),
   calculationError: null,
+  calculationStatus: CALCULATION_STATUS.IDLE,
   collapsedNodeIds: [],
   colorByField: null,
   colorMap: {},
@@ -106,26 +101,15 @@ export const phylogenyViewerStore = createStore<PhylogenyViewerStore>((set, get)
   return {
     ...initialState,
     ...fastaDataStoreActions,
-    calculateTree: async (overrideFasta?: string) => {
-      const rawFasta = overrideFasta ?? get().rawFasta;
+    calculateTree: async () => {
+      set({
+        calculationError: null,
+        calculationStatus: CALCULATION_STATUS.LOADING,
+        lastCalculationExecutionTimeMs: null,
+        newick: '',
+      });
 
-      if (!rawFasta?.trim()) {
-        set({ calculationError: 'No sequence data available to calculate tree.', calculationStatus: CALCULATION_STATUS.ERROR });
-        return null;
-      }
-
-      // Always re-parse the FASTA actually being used, since an override may not yet be reflected in the store's parsedFasta.
-      const parsedFasta = FastaUtil.parseFasta(rawFasta);
-
-      if (!parsedFasta.isAligned) {
-        set({
-          calculationError: parsedFasta.error || 'The provided FASTA sequences are not aligned.',
-          calculationStatus: CALCULATION_STATUS.ERROR,
-        });
-        return null;
-      }
-
-      set({ calculationError: null, calculationStatus: CALCULATION_STATUS.LOADING });
+      const { rawFasta } = get();
       const startTime = performance.now();
 
       try {
@@ -218,13 +202,11 @@ export const phylogenyViewerStore = createStore<PhylogenyViewerStore>((set, get)
         colorMap: newMap,
       });
     },
-    setColumnMatchCounts: (counts: Record<string, number>) => {
-      set({ columnMatchCounts: counts });
-    },
     setData: async (fasta: string, tsv?: string, forcedColorByField?: string) => {
       const result = await fastaDataStoreActions.setData(fasta, tsv);
-      const { setColorByField } = get();
       const { fastaResult, metadataResult } = result;
+
+      const { setColorByField } = get();
 
       if (!fastaResult.isAligned) {
         set({ calculationStatus: CALCULATION_STATUS.IDLE });
@@ -232,29 +214,19 @@ export const phylogenyViewerStore = createStore<PhylogenyViewerStore>((set, get)
         throw new Error('Fasta data is not aligned');
       }
 
-      if (metadataResult.columns.length > 0) {
+      if (metadataResult?.columns?.length > 0) {
         if (forcedColorByField && metadataResult.columns.includes(forcedColorByField)) {
-          get().setColorByField(forcedColorByField);
+          setColorByField(forcedColorByField);
         } else {
-          const preferred = metadataResult.columns.find((c) =>
-            ['clade', 'country', 'division', 'host', 'lineage', 'region'].includes(c.toLowerCase())) || metadataResult.columns[0];
+          const preferred = metadataResult.columns.find((c) => ['clade', 'country', 'division', 'host', 'lineage', 'region'].includes(c.toLowerCase())) || metadataResult.columns[0];
           if (preferred) {
-            get().setColorByField(preferred);
+            setColorByField(preferred);
           }
         }
       }
 
-      if (metadataResult.columns.length > 0) {
-        // Default color by first non-ID column if available
-        const preferredCols = ['country', 'region', 'host', 'division', 'lineage', 'clade'];
-        const matched = metadataResult.columns.find((c) => preferredCols.includes(c.toLowerCase()));
-        const defaultField = matched || metadataResult.columns.find((c) => c !== 'accessionVersion' && c !== 'SampleID' && c !== 'id') || metadataResult.columns[0];
-        if (defaultField) {
-          setColorByField(defaultField);
-        }
-      }
-
-      await get().calculateTree(fasta);
+      // re-calculate the tree
+      await get().calculateTree();
       return result;
 
     },

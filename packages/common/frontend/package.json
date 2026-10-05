@@ -82,9 +82,25 @@
       "types": "./src/components/FastaNotLoaded/index.ts",
       "import": "./src/components/FastaNotLoaded/index.ts"
     },
+    "./components/FastaPageHeaderCenterComponent": {
+      "types": "./src/components/FastaPageHeaderCenterComponent/index.ts",
+      "import": "./src/components/FastaPageHeaderCenterComponent/index.ts"
+    },
+    "./components/FastaPageHeaderImportButton": {
+      "types": "./src/components/FastaPageHeaderImportButton/index.ts",
+      "import": "./src/components/FastaPageHeaderImportButton/index.ts"
+    },
+    "./components/FastaPageHeaderResetButton": {
+      "types": "./src/components/FastaPageHeaderResetButton/index.ts",
+      "import": "./src/components/FastaPageHeaderResetButton/index.ts"
+    },
     "./components/I18nWrapper": {
       "types": "./src/components/I18nWrapper/index.ts",
       "import": "./src/components/I18nWrapper/index.ts"
+    },
+    "./components/PageHeaderDocumentationButton": {
+      "types": "./src/components/PageHeaderDocumentationButton/index.ts",
+      "import": "./src/components/PageHeaderDocumentationButton/index.ts"
     },
     "./components/page": {
       "types": "./src/components/page/index.ts",
@@ -149,9 +165,25 @@
         "types": "./dist/components/FastaNotLoaded/index.d.ts",
         "import": "./dist/components/FastaNotLoaded/index.js"
       },
+      "./components/FastaPageHeaderCenterComponent": {
+        "types": "./dist/components/FastaPageHeaderCenterComponent/index.d.ts",
+        "import": "./dist/components/FastaPageHeaderCenterComponent/index.js"
+      },
+      "./components/FastaPageHeaderImportButton": {
+        "types": "./dist/components/FastaPageHeaderImportButton/index.d.ts",
+        "import": "./dist/components/FastaPageHeaderImportButton/index.js"
+      },
+      "./components/FastaPageHeaderResetButton": {
+        "types": "./dist/components/FastaPageHeaderResetButton/index.d.ts",
+        "import": "./dist/components/FastaPageHeaderResetButton/index.js"
+      },
       "./components/I18nWrapper": {
         "types": "./dist/components/I18nWrapper/index.d.ts",
         "import": "./dist/components/I18nWrapper/index.js"
+      },
+      "./components/PageHeaderDocumentationButton": {
+        "types": "./dist/components/PageHeaderDocumentationButton/index.d.ts",
+        "import": "./dist/components/PageHeaderDocumentationButton/index.js"
       },
       "./components/page": {
         "types": "./dist/components/page/index.d.ts",

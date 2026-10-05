@@ -8,10 +8,10 @@ import { ErrorUtil } from '@rivm-loculus-tools/frontend-common/utils/ErrorUtil';
 import { UrlUtil } from '@rivm-loculus-tools/frontend-common/utils/UrlUtil';
 import type { DialogAction } from '@gen-epix/ui-core-components/components/Dialog';
 import { FastaDataImportDialogLoader } from '@rivm-loculus-tools/frontend-common/components/FastaDataImportDialogLoader';
-import { CALCULATION_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta';
 import { BackdropSpinner } from '@gen-epix/ui-core-components/components/BackdropSpinner';
 import { FastaNotLoaded } from '@rivm-loculus-tools/frontend-common/components/FastaNotLoaded';
 import BiotechOutlinedIcon from '@mui/icons-material/BiotechOutlined';
+import { LOADING_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditor } from '../../ui/SequenceEditor';
@@ -19,7 +19,7 @@ import { SequenceEditorPage } from '../../ui/SequenceEditorPage';
 
 
 export const SequenceEditorMainPage = () => {
-  const calculationStatus = useStore(sequenceEditorStore, (state) => state.calculationStatus);
+  const loadingStatus = useStore(sequenceEditorStore, (state) => state.loadingStatus);
   const setData = useStore(sequenceEditorStore, (state) => state.setData);
   const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
 
@@ -69,7 +69,7 @@ export const SequenceEditorMainPage = () => {
       />
       <BackdropSpinner
         label={`Computing phylogenetic tree`}
-        open={calculationStatus === CALCULATION_STATUS.LOADING}
+        open={loadingStatus === LOADING_STATUS.LOADING}
       />
     </SequenceEditorPage>
   );

@@ -365,6 +365,9 @@ importers:
       use-debounce:
         specifier: 10.1.1
         version: 10.1.1(react@19.3.0)
+      zustand:
+        specifier: 5.0.15
+        version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
     devDependencies:
       '@gen-epix/eslint-config':
         specifier: 0.7.0

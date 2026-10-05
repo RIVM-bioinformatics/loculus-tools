@@ -14,6 +14,7 @@ import { Subject } from '@gen-epix/ui-core/classes/Subject';
 import { useDebouncedCallback } from 'use-debounce';
 import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/DevicePixelRatioService';
 import { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
+import { useStore } from 'zustand';
 
 import { EditorWorkerService } from '../../../classes/services/EditorWorkerService/EditorWorkerService';
 import type {
@@ -36,9 +37,12 @@ import {
 import { EditorUtil } from '../../../utils/EditorUtil';
 import { loadPalette } from '../../../utils/palette';
 import { EDITOR_DIRECTION } from '../../../models/editor';
+import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 
 
 export const SequenceEditor = () => {
+  const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
+
   const editorService = useMemo(() => EditorWorkerService.getInstance(), []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const editorAssemblyRef = useRef<EditorAssembly | null>(null);
@@ -156,22 +160,16 @@ export const SequenceEditor = () => {
     return () => observer.disconnect();
   }, [editorService, updateDimensionsDebounced]);
 
-  // Load demo data
   useEffect(() => {
     const perform = async () => {
-      // Example command using editorService
       await editorService.initialize();
-      const response = await fetch('/sample-data/sarscov2_demo.fasta');
-      if (!response.ok) {
-        throw new Error(`Demo alignment failed to load (${response.status}).`);
-      }
-      await editorService.loadFasta(await response.text());
+      await editorService.loadFasta(rawFasta);
       await updateMeta();
     };
     perform().catch((error) => {
       console.error(error);
     });
-  }, [editorService, updateMeta]);
+  }, [editorService, rawFasta, updateMeta]);
 
   useEffect(() => {
     let animationFrame: null | number = null;

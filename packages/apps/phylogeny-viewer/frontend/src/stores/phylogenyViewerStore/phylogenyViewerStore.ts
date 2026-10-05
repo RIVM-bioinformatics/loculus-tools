@@ -10,16 +10,16 @@ import {
   createFastaDataStoreActions,
   createFastaDataStoreInitialState,
 } from '@rivm-loculus-tools/frontend-common/stores/fastaDataStore';
+import { CALCULATION_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta';
+import type { FastaParseResult } from '@rivm-loculus-tools/frontend-common/models/fasta';
+import type { MetadataParseResult } from '@rivm-loculus-tools/frontend-common/models/metadata';
 
-import type { FastaParseResult } from '../../models/fasta';
-import type { MetadataParseResult } from '../../models/metadata';
 import type { NodeTooltipInfo } from '../../models/tree';
 import type {
   FastTreeMLParams,
   FastTreeMode,
   TreeEngine,
 } from '../../models/calculation';
-import { CALCULATION_STATUS } from '../../models/calculation';
 import { FastTreeAioliService } from '../../classes/services/FastTreeAioliService';
 import { TN93AioliService } from '../../classes/services/TN93AioliService';
 import { ColorUtil } from '../../utils/ColorUtil';

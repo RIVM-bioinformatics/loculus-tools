@@ -21,10 +21,10 @@ import { FastaDataImportDialogLoader } from '@rivm-loculus-tools/frontend-common
 import { FastaDataEventBusService } from '@rivm-loculus-tools/frontend-common/classes/services/FastaDataEventBusService';
 import { FastaNotLoaded } from '@rivm-loculus-tools/frontend-common/components/FastaNotLoaded';
 import ForestOutlinedIcon from '@mui/icons-material/ForestOutlined';
+import { CALCULATION_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta';
 
 import { PhylogenyTreeView } from '../../ui/PhylogenyTreeView';
 import { LEGEND_WIDTH } from '../../../constants/view';
-import { CALCULATION_STATUS } from '../../../models/calculation';
 import { EventBusService } from '../../../classes/services/EventBusService';
 import { SearchBar } from '../../ui/SearchBar';
 import { Legend } from '../../ui/Legend/Legend';

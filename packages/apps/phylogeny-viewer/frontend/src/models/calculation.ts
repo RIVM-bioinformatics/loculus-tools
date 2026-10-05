@@ -1,10 +1,3 @@
-export enum CALCULATION_STATUS {
-  ERROR = 'ERROR',
-  IDLE = 'IDLE',
-  LOADING = 'LOADING',
-  SUCCESS = 'SUCCESS',
-}
-
 export interface CalculationResult {
   engine: TreeEngine;
   newick: string;

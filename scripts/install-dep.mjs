@@ -18,16 +18,23 @@ function getLatestVersion(dependencyName) {
 
 for (const packagePath of findPackageJsonPaths(repoRoot)) {
   const packageJson = JSON.parse(readFileSync(packagePath, 'utf8'));
-  const dependencies = packageJson.dependencies ?? {};
-  const updates = Object.fromEntries(
-    Object.keys(dependencies)
-      .filter((dependencyName) => dependencyName.startsWith('@gen-epix/'))
-      .map((dependencyName) => [dependencyName, getLatestVersion(dependencyName)]),
-  );
+  let changed = false;
 
-  if (Object.keys(updates).length === 0) continue;
-  Object.assign(dependencies, updates);
-  packageJson.dependencies = dependencies;
+  for (const field of ['dependencies', 'devDependencies']) {
+    const dependencies = packageJson[field] ?? {};
+    const updates = Object.fromEntries(
+      Object.keys(dependencies)
+        .filter((dependencyName) => dependencyName.startsWith('@gen-epix/'))
+        .map((dependencyName) => [dependencyName, getLatestVersion(dependencyName)]),
+    );
+
+    if (Object.keys(updates).length === 0) continue;
+    Object.assign(dependencies, updates);
+    packageJson[field] = dependencies;
+    changed = true;
+  }
+
+  if (!changed) continue;
   console.log(`Updating ${packagePath.slice(repoRoot.length + 1)}...`);
   writeFileSync(packagePath, JSON.stringify(packageJson, null, 2) + '\n');
 }

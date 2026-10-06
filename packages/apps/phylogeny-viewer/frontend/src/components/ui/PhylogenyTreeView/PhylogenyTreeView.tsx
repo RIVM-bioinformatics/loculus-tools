@@ -40,7 +40,7 @@ import {
   TREE_REGULAR_FILL_COLOR_SUPPORT_LINE,
   TREE_SCALE_INCREMENTS,
 } from '../../../constants/tree';
-import { EventBusService } from '../../../classes/services/EventBusService';
+import { PhylogenyViewerEventBusService } from '../../../classes/services/PhylogenyViewerEventBusService';
 import { TREE_DOWNLOAD_TYPE } from '../../../models/tree';
 import { ExportUtil } from '../../../utils/ExportUtil';
 
@@ -189,7 +189,7 @@ export const PhylogenyTreeView = ({ newick }: PhylogenyTreeViewProps) => {
   }, []);
 
   useEffect(() => {
-    const eventBusService = EventBusService.getInstance();
+    const eventBusService = PhylogenyViewerEventBusService.getInstance();
     // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
     const remover = eventBusService.addEventListener('onDownloadCanvas', (type?: TREE_DOWNLOAD_TYPE) => {
       switch (type) {

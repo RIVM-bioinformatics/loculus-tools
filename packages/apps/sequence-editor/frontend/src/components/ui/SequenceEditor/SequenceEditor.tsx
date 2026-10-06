@@ -141,9 +141,10 @@ export const SequenceEditor = () => {
   }, [containerDimensions.width, geometrySubject, maxLabelWidth]);
 
 
-  // Setup container resize observer
+  // Observe the scroll container itself (not its outer wrapper) so contentRect
+  // reflects the area actually visible past the always-on scrollbar gutter.
   useEffect(() => {
-    const element = containerRef.current;
+    const element = scrollContainerRef.current;
     if (!element) {
       return;
     }
@@ -162,14 +163,19 @@ export const SequenceEditor = () => {
 
   useEffect(() => {
     const perform = async () => {
+      cachedGridRangeWithViewPortResultRef.current = null;
+      cachedGridRangeWithRowNamesRef.current = null;
+      scrollSubject.next({ scrollLeft: 0, scrollTop: 0 });
+      selectionSubject.next(null);
       await editorService.initialize();
       await editorService.loadFasta(rawFasta);
       await updateMeta();
+      updateVisibleRange();
     };
     perform().catch((error) => {
       console.error(error);
     });
-  }, [editorService, rawFasta, updateMeta]);
+  }, [editorService, rawFasta, scrollSubject, selectionSubject, updateMeta, updateVisibleRange]);
 
   useEffect(() => {
     let animationFrame: null | number = null;
@@ -320,10 +326,8 @@ export const SequenceEditor = () => {
         updateVisibleRange();
         if (getSelectionPostCommand) {
           const selection = getSelectionPostCommand();
-          if (selection) {
-            selectionSubject.next(selection);
-            initialSelectionRef.current = selection;
-          }
+          selectionSubject.next(selection);
+          initialSelectionRef.current = selection;
         }
       } catch (error) {
         console.error('Failed to post command:', error);
@@ -405,53 +409,53 @@ export const SequenceEditor = () => {
       // Expand selection with shift + arrow keys
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         expandSelection(EDITOR_DIRECTION.LEFT, event);
-      }, code: 'ArrowLeft', modifiers: [['Shift']] }),
+      }, code: 'ArrowLeft', element: containerRef.current!, modifiers: [['Shift']] }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         expandSelection(EDITOR_DIRECTION.RIGHT, event);
-      }, code: 'ArrowRight', modifiers: [['Shift']] }),
+      }, code: 'ArrowRight', element: containerRef.current!, modifiers: [['Shift']] }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         expandSelection(EDITOR_DIRECTION.UP, event);
-      }, code: 'ArrowUp', modifiers: [['Shift']] }),
+      }, code: 'ArrowUp', element: containerRef.current!, modifiers: [['Shift']] }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         expandSelection(EDITOR_DIRECTION.DOWN, event);
-      }, code: 'ArrowDown', modifiers: [['Shift']] }),
+      }, code: 'ArrowDown', element: containerRef.current!, modifiers: [['Shift']] }),
 
       // Move selection box with arrow keys
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         moveSelection(EDITOR_DIRECTION.LEFT, event);
-      }, code: 'ArrowLeft' }),
+      }, code: 'ArrowLeft', element: containerRef.current! }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         moveSelection(EDITOR_DIRECTION.RIGHT, event);
-      }, code: 'ArrowRight' }),
+      }, code: 'ArrowRight', element: containerRef.current! }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         moveSelection(EDITOR_DIRECTION.UP, event);
-      }, code: 'ArrowUp' }),
+      }, code: 'ArrowUp', element: containerRef.current! }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         moveSelection(EDITOR_DIRECTION.DOWN, event);
-      }, code: 'ArrowDown' }),
+      }, code: 'ArrowDown', element: containerRef.current! }),
 
       // Move rows vertically (one step)
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         void moveRows(EDITOR_DIRECTION.UP, event);
-      }, code: 'ArrowUp', modifiers: [['Control'], ['Meta']] }),
+      }, code: 'ArrowUp', element: containerRef.current!, modifiers: [['Control'], ['Meta']] }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         void moveRows(EDITOR_DIRECTION.DOWN, event);
-      }, code: 'ArrowDown', modifiers: [['Control'], ['Meta']] }),
+      }, code: 'ArrowDown', element: containerRef.current!, modifiers: [['Control'], ['Meta']] }),
       // Move rows vertically (top / bottom)
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         void moveRowsEnd(EDITOR_DIRECTION.UP, event);
-      }, code: 'ArrowUp', modifiers: [['Alt']] }),
+      }, code: 'ArrowUp', element: containerRef.current!, modifiers: [['Alt']] }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         void moveRowsEnd(EDITOR_DIRECTION.DOWN, event);
-      }, code: 'ArrowDown', modifiers: [['Alt']] }),
+      }, code: 'ArrowDown', element: containerRef.current!, modifiers: [['Alt']] }),
 
       // Move cells horizontally
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         void moveCells(EDITOR_DIRECTION.LEFT, event);
-      }, code: 'ArrowLeft', modifiers: [['Alt']] }),
+      }, code: 'ArrowLeft', element: containerRef.current!, modifiers: [['Alt']] }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         void moveCells(EDITOR_DIRECTION.RIGHT, event);
-      }, code: 'ArrowRight', modifiers: [['Alt']] }),
+      }, code: 'ArrowRight', element: containerRef.current!, modifiers: [['Alt']] }),
 
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         const scrollContainer = scrollContainerRef.current;
@@ -460,7 +464,7 @@ export const SequenceEditor = () => {
         }
         event.preventDefault();
         scrollContainer.scrollLeft = 0;
-      }, code: 'Home' }),
+      }, code: 'Home', element: containerRef.current! }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         const scrollContainer = scrollContainerRef.current;
         if (!scrollContainer) {
@@ -468,7 +472,7 @@ export const SequenceEditor = () => {
         }
         event.preventDefault();
         scrollContainer.scrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
-      }, code: 'End' }),
+      }, code: 'End', element: containerRef.current! }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         const scrollContainer = scrollContainerRef.current;
         if (!scrollContainer) {
@@ -476,7 +480,7 @@ export const SequenceEditor = () => {
         }
         event.preventDefault();
         scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - scrollContainer.clientHeight);
-      }, code: 'PageUp' }),
+      }, code: 'PageUp', element: containerRef.current! }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
         const scrollContainer = scrollContainerRef.current;
         if (!scrollContainer) {
@@ -487,7 +491,7 @@ export const SequenceEditor = () => {
           scrollContainer.scrollHeight - scrollContainer.clientHeight,
           scrollContainer.scrollTop + scrollContainer.clientHeight,
         );
-      }, code: 'PageDown' }),
+      }, code: 'PageDown', element: containerRef.current! }),
 
       KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
         if (!metaSubject.data) {
@@ -502,7 +506,7 @@ export const SequenceEditor = () => {
           event,
           getSelectionPostCommand: () => EditorUtil.getPostUpsertSelection(selectionSubject.data, EDITOR_DIRECTION.RIGHT),
         });
-      }, code: 'Space' }),
+      }, code: 'Space', element: containerRef.current! }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
         if (!metaSubject.data) {
           return;
@@ -516,20 +520,39 @@ export const SequenceEditor = () => {
           event,
           getSelectionPostCommand: () => EditorUtil.getPostUpsertSelection(selectionSubject.data, EDITOR_DIRECTION.LEFT),
         });
-      }, code: 'Backspace' }),
+      }, code: 'Backspace', element: containerRef.current! }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
         if (!metaSubject.data) {
           return;
         }
         await mutateRange(event, '-');
-      }, code: 'Delete' }),
+      }, code: 'Delete', element: containerRef.current! }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
-        console.log(event);
         if (!metaSubject.data) {
           return;
         }
         await mutateRange(event, '-');
-      }, key: '-' }),
+      }, element: containerRef.current!, key: '-' }),
+
+      // Undo (Cmd+Z / Ctrl+Z)
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
+        console.log('Undo command triggered');
+        await execute({
+          command: async () => editorService.undo(),
+          event,
+          getSelectionPostCommand: () => null,
+        });
+      }, element: containerRef.current!, key: 'z', modifiers: [['Meta'], ['Control']] }),
+      // Redo (Cmd+Shift+Z / Ctrl+Shift+Z)
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
+        console.log('Redo command triggered');
+        await execute({
+          command: async () => editorService.redo(),
+          event,
+          getSelectionPostCommand: () => null,
+        });
+      }, element: containerRef.current!, key: 'z', modifiers: [['Meta', 'Shift'], ['Control', 'Shift']] }),
+
 
       // All other keys (without modifiers)
       KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
@@ -538,14 +561,14 @@ export const SequenceEditor = () => {
           return;
         }
         await mutateRange(event, base);
-      } }),
+      }, element: containerRef.current! }),
       KeyboardShortcutService.getInstance().registerShortcut({ callback: async (event) => {
         const base = event.key.toUpperCase();
         if(!IUPAC_KEYS.has(base)) {
           return;
         }
         await mutateRange(event, base);
-      }, modifiers: [['Shift']] }),
+      }, element: containerRef.current!, modifiers: [['Shift']] }),
     ];
     return () => {
       removers.forEach(callbackfn => callbackfn());
@@ -565,6 +588,7 @@ export const SequenceEditor = () => {
   }, [scrollSubject]);
 
   const onScrollContainerMouseDown = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+    containerRef.current?.focus();
     const scrollContainer = event.currentTarget;
 
     // Determine if the mouse event occurred on the scrollbars (allow the user to maintain the selection while interacting with the scrollbars)
@@ -725,6 +749,7 @@ export const SequenceEditor = () => {
         position: 'relative',
         width: '100%',
       }}
+      tabIndex={0}
     >
       <Box
         onMouseDown={onScrollContainerMouseDown}
@@ -732,11 +757,11 @@ export const SequenceEditor = () => {
         onScroll={onScrollContainerScroll}
         ref={scrollContainerRef}
         sx={{
-          height: `${containerDimensions.height}px`,
+          height: '100%',
           overflowX: 'scroll',
           overflowY: 'scroll',
           position: 'absolute',
-          width: `${containerDimensions.width}px`,
+          width: '100%',
           zIndex: 1,
         }}
       >

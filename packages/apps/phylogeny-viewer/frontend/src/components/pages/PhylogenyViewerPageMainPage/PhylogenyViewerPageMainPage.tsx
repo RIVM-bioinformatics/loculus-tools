@@ -25,7 +25,7 @@ import { LOADING_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta
 
 import { PhylogenyTreeView } from '../../ui/PhylogenyTreeView';
 import { LEGEND_WIDTH } from '../../../constants/view';
-import { EventBusService } from '../../../classes/services/EventBusService';
+import { PhylogenyViewerEventBusService } from '../../../classes/services/PhylogenyViewerEventBusService';
 import { SearchBar } from '../../ui/SearchBar';
 import { Legend } from '../../ui/Legend/Legend';
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
@@ -81,7 +81,7 @@ export const PhylogenyViewerPageMainPage = () => {
   const { setIsDrawerOpen } = use(PageCommonContext);
 
   useEffect(() => {
-    const eventBusService = EventBusService.getInstance();
+    const eventBusService = PhylogenyViewerEventBusService.getInstance();
 
     const removers = [
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
@@ -89,7 +89,7 @@ export const PhylogenyViewerPageMainPage = () => {
         setIsDrawerOpen(isOpen);
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
-      EventBusService.getInstance().addEventListener('onShowAlignmentErrorDialog', () => {
+      PhylogenyViewerEventBusService.getInstance().addEventListener('onShowAlignmentErrorDialog', () => {
         alignmentErrorDialogRef.current?.open();
       }),
     ];

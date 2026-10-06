@@ -197,17 +197,17 @@ importers:
         specifier: 11.14.1
         version: 11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2)
       '@gen-epix/ui-core':
-        specifier: 3.7.0
-        version: 3.7.0(react@19.3.0)
+        specifier: 3.8.0
+        version: 3.8.0(react@19.3.0)
       '@gen-epix/ui-core-components':
         specifier: 4.3.1
-        version: 4.3.1(c6dd6563d1c6e8f270b1463347c20887)
+        version: 4.3.1(ab72d6d96576eab02366128e6e30cb7d)
       '@gen-epix/ui-core-form':
         specifier: 4.3.1
-        version: 4.3.1(018a5f112cc3264793964314ba2cbf3c)
+        version: 4.3.1(0487ad25e88431a696c3f641ceaef151)
       '@gen-epix/ui-phylogenetic-tree':
         specifier: 3.4.2
-        version: 3.4.2(@gen-epix/ui-core@3.7.0(react@19.3.0))(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
+        version: 3.4.2(@gen-epix/ui-core@3.8.0(react@19.3.0))(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
       '@hookform/resolvers':
         specifier: 5.9.1
         version: 5.9.1(react-hook-form@7.88.0(react@19.3.0))(yup@1.7.1)(zod@4.6.5)
@@ -309,14 +309,14 @@ importers:
         specifier: 11.14.1
         version: 11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2)
       '@gen-epix/ui-core':
-        specifier: 3.7.0
-        version: 3.7.0(react@19.3.0)
+        specifier: 3.8.0
+        version: 3.8.0(react@19.3.0)
       '@gen-epix/ui-core-components':
         specifier: 4.3.1
-        version: 4.3.1(c6dd6563d1c6e8f270b1463347c20887)
+        version: 4.3.1(ab72d6d96576eab02366128e6e30cb7d)
       '@gen-epix/ui-core-form':
         specifier: 4.3.1
-        version: 4.3.1(018a5f112cc3264793964314ba2cbf3c)
+        version: 4.3.1(0487ad25e88431a696c3f641ceaef151)
       '@mui/icons-material':
         specifier: 9.4.0
         version: 9.4.0(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
@@ -427,14 +427,14 @@ importers:
         specifier: 0.7.0
         version: 0.7.0(eslint-plugin-import-x@4.17.1(eslint@10.11.0(supports-color@10.2.2))(supports-color@10.2.2))(eslint@10.11.0(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
       '@gen-epix/ui-core':
-        specifier: 3.7.0
-        version: 3.7.0(react@19.3.0)
+        specifier: 3.8.0
+        version: 3.8.0(react@19.3.0)
       '@gen-epix/ui-core-components':
         specifier: 4.3.1
-        version: 4.3.1(c6dd6563d1c6e8f270b1463347c20887)
+        version: 4.3.1(ab72d6d96576eab02366128e6e30cb7d)
       '@gen-epix/ui-core-form':
         specifier: 4.3.1
-        version: 4.3.1(018a5f112cc3264793964314ba2cbf3c)
+        version: 4.3.1(0487ad25e88431a696c3f641ceaef151)
       '@mui/icons-material':
         specifier: 9.4.0
         version: 9.4.0(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
@@ -828,8 +828,8 @@ packages:
       react-i18next: '*'
       yup: '*'
 
-  '@gen-epix/ui-core@3.7.0':
-    resolution: {integrity: sha512-ip5SqMspFwBScwhKpcoo+G7BrXSVC8Wj6IwZOkscGRT9vtH9XaJ4H+ztNXy2c/uri9HZWe0abm8WTTFcKOPrBw==}
+  '@gen-epix/ui-core@3.8.0':
+    resolution: {integrity: sha512-B3fmgzLbhcOMeTZ5Cl8mRWGKgaa1hy8cyqKLhiJHv396GIaXD8SpNdpDVRI/Uz/znXh13M1ZIFX3+CA/24Y2ZA==}
     peerDependencies:
       react: '*'
 
@@ -5510,9 +5510,9 @@ snapshots:
       - ts-declaration-location
       - vitest
 
-  '@gen-epix/ui-core-components@4.3.1(c6dd6563d1c6e8f270b1463347c20887)':
+  '@gen-epix/ui-core-components@4.3.1(ab72d6d96576eab02366128e6e30cb7d)':
     dependencies:
-      '@gen-epix/ui-core': 3.7.0(react@19.3.0)
+      '@gen-epix/ui-core': 3.8.0(react@19.3.0)
       '@mui/icons-material': 9.4.0(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
       '@mui/material': 9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@mui/utils': 9.4.0(@types/react@19.3.0)(react@19.3.0)
@@ -5526,10 +5526,10 @@ snapshots:
       use-debounce: 10.1.1(react@19.3.0)
       uuid: 14.0.2
 
-  '@gen-epix/ui-core-form@4.3.1(018a5f112cc3264793964314ba2cbf3c)':
+  '@gen-epix/ui-core-form@4.3.1(0487ad25e88431a696c3f641ceaef151)':
     dependencies:
-      '@gen-epix/ui-core': 3.7.0(react@19.3.0)
-      '@gen-epix/ui-core-components': 4.3.1(c6dd6563d1c6e8f270b1463347c20887)
+      '@gen-epix/ui-core': 3.8.0(react@19.3.0)
+      '@gen-epix/ui-core-components': 4.3.1(ab72d6d96576eab02366128e6e30cb7d)
       '@mui/icons-material': 9.4.0(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
       '@mui/material': 9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@mui/x-date-pickers': 9.14.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@mui/system@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -5590,15 +5590,15 @@ snapshots:
       - '@types/react-dom'
       - react-dom
 
-  '@gen-epix/ui-core@3.7.0(react@19.3.0)':
+  '@gen-epix/ui-core@3.8.0(react@19.3.0)':
     dependencies:
       lodash: 4.18.1
       react: 19.3.0
       uuid: 14.0.2
 
-  '@gen-epix/ui-phylogenetic-tree@3.4.2(@gen-epix/ui-core@3.7.0(react@19.3.0))(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)':
+  '@gen-epix/ui-phylogenetic-tree@3.4.2(@gen-epix/ui-core@3.8.0(react@19.3.0))(@mui/material@9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@gen-epix/ui-core': 3.7.0(react@19.3.0)
+      '@gen-epix/ui-core': 3.8.0(react@19.3.0)
       '@mui/material': 9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       decimal.js: 10.6.0
       lodash: 4.18.1

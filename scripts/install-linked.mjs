@@ -15,21 +15,28 @@ console.log(`Updating package manifests with linked dependencies from ${process.
 for (const packagePath of findPackageJsonPaths(repoRoot)) {
   const packageDirectory = dirname(packagePath);
   const packageJson = JSON.parse(readFileSync(packagePath, 'utf8'));
-  const dependencies = packageJson.dependencies ?? {};
   let changed = false;
 
-  for (const dependencyName of Object.keys(dependencies).filter((name) => name.startsWith('@gen-epix/'))) {
-    const packageName = dependencyName.slice('@gen-epix/'.length);
-    const linkedPackage = join(uiRoot, 'packages', packageName);
-    if (!existsSync(linkedPackage)) continue;
+  for (const field of ['dependencies', 'devDependencies']) {
+    const dependencies = packageJson[field] ?? {};
+    let fieldChanged = false;
 
-    const linkedPath = relative(packageDirectory, linkedPackage).split(sep).join('/');
-    dependencies[dependencyName] = `link:${linkedPath}`;
+    for (const dependencyName of Object.keys(dependencies).filter((name) => name.startsWith('@gen-epix/'))) {
+      const packageName = dependencyName.slice('@gen-epix/'.length);
+      const linkedPackage = join(uiRoot, 'packages', packageName);
+      if (!existsSync(linkedPackage)) continue;
+
+      const linkedPath = relative(packageDirectory, linkedPackage).split(sep).join('/');
+      dependencies[dependencyName] = `link:${linkedPath}`;
+      fieldChanged = true;
+    }
+
+    if (!fieldChanged) continue;
+    packageJson[field] = dependencies;
     changed = true;
   }
 
   if (!changed) continue;
-  packageJson.dependencies = dependencies;
   console.log(`Updating ${packagePath.slice(repoRoot.length + 1)}...`);
   writeFileSync(packagePath, JSON.stringify(packageJson, null, 2) + '\n');
 }

@@ -25,7 +25,7 @@ import CodeIcon from '@mui/icons-material/Code';
 
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import { ExportUtil } from '../../../utils/ExportUtil';
-import { EventBusService } from '../../../classes/services/EventBusService';
+import { PhylogenyViewerEventBusService } from '../../../classes/services/PhylogenyViewerEventBusService';
 import { TREE_DOWNLOAD_TYPE } from '../../../models/tree';
 
 export const PhylogenyViewerPageHeader = () => {
@@ -54,17 +54,17 @@ export const PhylogenyViewerPageHeader = () => {
   }, [newick, onCloseExportMenu]);
 
   const onClickExportPng = useCallback(() => {
-    EventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.PNG);
+    PhylogenyViewerEventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.PNG);
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 
   const onClickExportJpeg = useCallback(() => {
-    EventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.JPEG);
+    PhylogenyViewerEventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.JPEG);
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 
   const onClickExportSvg = useCallback(() => {
-    EventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.SVG);
+    PhylogenyViewerEventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.SVG);
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 

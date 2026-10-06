@@ -23,7 +23,7 @@ import { FastTreeAioliService } from '../../classes/services/FastTreeAioliServic
 import { TN93AioliService } from '../../classes/services/TN93AioliService';
 import { ColorUtil } from '../../utils/ColorUtil';
 import type { ColorMap } from '../../models/color';
-import { EventBusService } from '../../classes/services/EventBusService';
+import { PhylogenyViewerEventBusService } from '../../classes/services/PhylogenyViewerEventBusService';
 
 export type PhylogenyViewerStore = PhylogenyViewerStoreActions & PhylogenyViewerStoreState;
 
@@ -210,7 +210,7 @@ export const phylogenyViewerStore = createStore<PhylogenyViewerStore>((set, get)
 
       if (!fastaResult.isAligned) {
         set({ calculationStatus: CALCULATION_STATUS.IDLE });
-        EventBusService.getInstance().emit('onShowAlignmentErrorDialog');
+        PhylogenyViewerEventBusService.getInstance().emit('onShowAlignmentErrorDialog');
         throw new Error('Fasta data is not aligned');
       }
 

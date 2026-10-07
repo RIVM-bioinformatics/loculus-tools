@@ -5,7 +5,6 @@ import {
 import { BackdropSpinner } from '@gen-epix/ui-core-components/components/BackdropSpinner';
 import { ErrorUtil } from '@rivm-loculus-tools/frontend-common/utils/ErrorUtil';
 import {
-  use,
   useCallback,
   useEffect,
   useMemo,
@@ -14,7 +13,6 @@ import {
 import { useStore } from 'zustand';
 import type { TreeNode } from '@gen-epix/ui-phylogenetic-tree/models/tree';
 import { NewickUtil } from '@gen-epix/ui-phylogenetic-tree/utils/NewickUtil';
-import { PageCommonContext } from '@rivm-loculus-tools/frontend-common/components/page';
 import type { DialogAction } from '@gen-epix/ui-core-components/components/Dialog';
 import { UrlUtil } from '@rivm-loculus-tools/frontend-common/utils/UrlUtil';
 import { FastaDataImportDialogLoader } from '@rivm-loculus-tools/frontend-common/components/FastaDataImportDialogLoader';
@@ -78,25 +76,19 @@ export const PhylogenyViewerPageMainPage = () => {
     },
   ], [onClickLoadDemoData]);
 
-  const { setIsDrawerOpen } = use(PageCommonContext);
-
   useEffect(() => {
     const eventBusService = PhylogenyViewerEventBusService.getInstance();
 
     const removers = [
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
-      eventBusService.addEventListener('onToggleDrawer', (isOpen: boolean) => {
-        setIsDrawerOpen(isOpen);
-      }),
-      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
-      PhylogenyViewerEventBusService.getInstance().addEventListener('onShowAlignmentErrorDialog', () => {
+      eventBusService.addEventListener('onShowAlignmentErrorDialog', () => {
         alignmentErrorDialogRef.current?.open();
       }),
     ];
     return () => {
       removers.forEach((remove) => remove());
     };
-  }, [setIsDrawerOpen]);
+  }, []);
 
   // Parse Newick tree into TreeNode
   const parsedTree = useMemo<null | TreeNode>(() => {

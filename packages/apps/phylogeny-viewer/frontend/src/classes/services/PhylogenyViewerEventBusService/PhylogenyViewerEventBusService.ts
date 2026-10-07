@@ -6,7 +6,6 @@ import type { TREE_DOWNLOAD_TYPE } from '../../../models/tree';
 export type PhylogenyViewerEventBusServiceEvent = {
   onDownloadCanvas: TREE_DOWNLOAD_TYPE;
   onShowAlignmentErrorDialog: void;
-  onToggleDrawer: boolean;
 };
 
 export class PhylogenyViewerEventBusService extends EventBusAbstract<PhylogenyViewerEventBusServiceEvent> {

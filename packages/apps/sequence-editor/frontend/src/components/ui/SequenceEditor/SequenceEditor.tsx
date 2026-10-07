@@ -42,7 +42,6 @@ import { EditorUtil } from '../../../utils/EditorUtil';
 import { loadPalette } from '../../../utils/palette';
 import { EDITOR_DIRECTION } from '../../../models/editor';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
-import { SequenceEditorStatsSubscribable } from '../../../classes/services/SequenceEditorStatsSubscribable';
 
 import { SequenceEditorStatusBar } from './SequenceEditorStatusBar';
 import type { SequenceEditorGotoPositionDialogRefMethods } from './SequenceEditorGotoPositionDialog';
@@ -51,6 +50,9 @@ import { SequenceEditorGotoPositionDialog } from './SequenceEditorGotoPositionDi
 
 export const SequenceEditor = () => {
   const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
+  const setLatestMessage = useStore(sequenceEditorStore, (state) => state.setLatestMessage);
+  const setMeta = useStore(sequenceEditorStore, (state) => state.setMeta);
+  const setSelection = useStore(sequenceEditorStore, (state) => state.setSelection);
   const sequenceEditorGotoPositionDialogRef = useRef<null | SequenceEditorGotoPositionDialogRefMethods>(null);
   const editorService = useMemo(() => EditorWorkerService.getInstance(), []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -138,30 +140,21 @@ export const SequenceEditor = () => {
   const maxLabelWidth = containerDimensions.width > 0 ? containerDimensions.width / 2 : MIN_LABEL_WIDTH;
 
   useEffect(() => {
-    const sequenceEditorStatsSubscribable = SequenceEditorStatsSubscribable.getInstance();
     const removers = [
       metaSubject.subscribe(data => {
-        sequenceEditorStatsSubscribable.next({
-          ...sequenceEditorStatsSubscribable.data,
-          meta: data,
-        });
+        setMeta(data);
       }),
       selectionSubject.subscribe(data => {
-        sequenceEditorStatsSubscribable.next({
-          ...sequenceEditorStatsSubscribable.data,
-          selection: data,
-        });
+        setSelection(data);
       }),
     ];
     return () => {
       removers.forEach(remove => remove());
-      sequenceEditorStatsSubscribable.next({
-        latestMessage: null,
-        meta: null,
-        selection: null,
-      });
+      setLatestMessage(null);
+      setMeta(null);
+      setSelection(null);
     };
-  }, [metaSubject, selectionSubject]);
+  }, [metaSubject, selectionSubject, setLatestMessage, setMeta, setSelection]);
 
   useEffect(() => {
     if (containerDimensions.width <= 0) {

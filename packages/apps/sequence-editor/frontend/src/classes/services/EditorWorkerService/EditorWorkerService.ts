@@ -2,9 +2,7 @@ import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 import type { Remote } from 'comlink';
 import { wrap } from 'comlink';
 import { MoveDirection } from '@rivm-loculus-tools/sequence-editor-wasm';
-import { ErrorUtil } from '@rivm-loculus-tools/frontend-common/utils/ErrorUtil';
 
-import { SequenceEditorStatsSubscribable } from '../SequenceEditorStatsSubscribable';
 import type {
   EngineMeta,
   EngineSearchResult,
@@ -13,6 +11,8 @@ import type {
   ViewportBounds,
 } from '../../../models';
 import { EDITOR_DIRECTION } from '../../../models/editor';
+import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
+import { EngineErrorUtil } from '../../../utils/EngineErrorUtil/EngineErrorUtil';
 
 
 export class EditorWorkerService {
@@ -145,21 +145,15 @@ export class EditorWorkerService {
 
   private async runCommand<T>(command: () => Promise<T>): Promise<T> {
     const queuedCommand = this.commandQueue.then(async (): Promise<T> => {
-      const sequenceEditorStatsSubscribable = SequenceEditorStatsSubscribable.getInstance();
+      const { setLatestMessage } = sequenceEditorStore.getState();
       try {
         const result = await command();
-        if (sequenceEditorStatsSubscribable.data.latestMessage) {
-          sequenceEditorStatsSubscribable.next({
-            ...sequenceEditorStatsSubscribable.data,
-            latestMessage: null,
-          });
+        if (sequenceEditorStore.getState().latestMessage) {
+          setLatestMessage(null);
         }
         return result;
       } catch (error: unknown) {
-        sequenceEditorStatsSubscribable.next({
-          ...sequenceEditorStatsSubscribable.data,
-          latestMessage: ErrorUtil.getErrorMessage(error),
-        });
+        setLatestMessage(EngineErrorUtil.getEngineErrorMessage(error));
         console.error('COMMAND ERROR', error);
         throw error;
       }

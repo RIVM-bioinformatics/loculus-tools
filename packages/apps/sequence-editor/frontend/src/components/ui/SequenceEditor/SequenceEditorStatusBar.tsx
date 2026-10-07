@@ -3,31 +3,21 @@ import {
   darken,
   useTheme,
 } from '@mui/material';
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useMemo } from 'react';
+import { useStore } from 'zustand';
 
-import type { SequenceEditorStatsSubscribableData } from '../../../classes/services/SequenceEditorStatsSubscribable';
-import { SequenceEditorStatsSubscribable } from '../../../classes/services/SequenceEditorStatsSubscribable';
+import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { EditorUtil } from '../../../utils/EditorUtil';
 
 export const SequenceEditorStatusBar = () => {
   const theme = useTheme();
-
-  const [stats, setStats] = useState<null | SequenceEditorStatsSubscribableData>(null);
-
-  useEffect(() => {
-    const remove = SequenceEditorStatsSubscribable.getInstance().subscribe(data => {
-      setStats(data);
-    });
-    return () => remove();
-  }, []);
+  const latestMessage = useStore(sequenceEditorStore, (state) => state.latestMessage);
+  const meta = useStore(sequenceEditorStore, (state) => state.meta);
+  const selection = useStore(sequenceEditorStore, (state) => state.selection);
 
   const normalizedSelection = useMemo(
-    () => EditorUtil.getStatusBarSelectionStats(stats?.selection ?? null, stats?.meta ?? null),
-    [stats],
+    () => EditorUtil.getStatusBarSelectionStats(selection, meta),
+    [meta, selection],
   );
 
   return (
@@ -59,7 +49,7 @@ export const SequenceEditorStatusBar = () => {
         }}
       >
         <Box>
-          {stats?.latestMessage ?? ''}
+          {latestMessage ?? ''}
         </Box>
         <Box>
           {`Pos: ${normalizedSelection.pos}`}
@@ -74,7 +64,7 @@ export const SequenceEditorStatusBar = () => {
           {`Total selected chars: ${normalizedSelection.totalSelectedChars}`}
         </Box>
         <Box>
-          {`Alignment: ${stats?.meta?.alignmentWidth ?? '0'} sequences ${stats?.meta?.sequenceCount ?? '0'} pos.`}
+          {`Alignment: ${meta?.alignmentWidth ?? '0'} sequences ${meta?.sequenceCount ?? '0'} pos.`}
         </Box>
       </Box>
     </Box>

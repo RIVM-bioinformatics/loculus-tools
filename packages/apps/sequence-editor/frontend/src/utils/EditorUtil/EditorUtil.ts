@@ -1,4 +1,8 @@
 import padStart from 'lodash/padStart';
+import {
+  darken,
+  lighten,
+} from '@mui/material/styles';
 
 import type {
   EditorAssembly,
@@ -16,6 +20,9 @@ import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
 import { paletteEntryFor } from '../palette';
 import { DEFAULT_GRID_GEOMETRY } from '../../constants';
 import { EDITOR_DIRECTION } from '../../models/editor';
+
+const SELECTED_CELL_BACKGROUND_DARKENING = 0.3;
+const SELECTED_CELL_FOREGROUND_LIGHTENING = 0.5;
 
 
 export class EditorUtil {
@@ -75,6 +82,17 @@ export class EditorUtil {
     const isRowSelected = (row: number): boolean => {
       return selection?.rows?.includes(row) ?? false;
     };
+    const isCellSelected = (row: number, col: number): boolean => Boolean(
+      selection?.cells &&
+      col >= selection.cells.startCol &&
+      col <= selection.cells.endCol &&
+      row >= selection.cells.startRow &&
+      row <= selection.cells.endRow,
+    ) || Boolean(
+      selection?.cols?.includes(col),
+    ) || Boolean(
+      isRowSelected(row),
+    );
 
     EditorUtil.draw(canvasElement, devicePixelRatio, () => {
       context.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -112,19 +130,11 @@ export class EditorUtil {
             cellBackground = '#f7f8f9';
           }
           let cellForeground = colors.foreground;
-          const isCellSelected = Boolean(
-            selection?.cells &&
-            cellCol >= selection.cells.startCol &&
-            cellCol <= selection.cells.endCol &&
-            cellRow >= selection.cells.startRow &&
-            cellRow <= selection.cells.endRow,
-          ) || Boolean(
-            selection?.cols?.includes(cellCol),
-          ) || Boolean(
-            isRowSelected(cellRow),
-          );
-          if (isCellSelected) {
+          const isSelected = isCellSelected(cellRow, cellCol);
+          if (isSelected) {
             [cellBackground, cellForeground] = [cellForeground, cellBackground];
+            cellBackground = darken(cellBackground, SELECTED_CELL_BACKGROUND_DARKENING);
+            cellForeground = lighten(cellForeground, SELECTED_CELL_FOREGROUND_LIGHTENING);
           }
           const rectanglePath = new Path2D();
           rectanglePath.rect(x, y, cellWidth, cellHeight);

@@ -4,15 +4,8 @@ const ENGINE_ERROR_MESSAGES = new Map<string, string>([
   ['MoveNotIupac', 'Move failed: only nucleotide or gap characters can move.'],
   ['MutateNotIupac', 'Edit failed: use a nucleotide, IUPAC ambiguity code, or gap.'],
 ]);
-export class EngineErrorUtil {
-  public static getEngineErrorCode(error: unknown): null | string {
-    if (typeof error === 'object' && error !== null && 'code' in error) {
-      const code = (error as { code?: unknown }).code;
-      return typeof code === 'string' ? code : null;
-    }
-    return null;
-  }
 
+export class EngineErrorUtil {
   public static getEngineErrorMessage(error: unknown): string {
     const code = EngineErrorUtil.getEngineErrorCode(error);
     const mappedMessage = code ? ENGINE_ERROR_MESSAGES.get(code) : undefined;
@@ -20,5 +13,13 @@ export class EngineErrorUtil {
       return mappedMessage;
     }
     return error instanceof Error ? error.message : 'The sequence-editor command failed.';
+  }
+
+  private static getEngineErrorCode(error: unknown): null | string {
+    if (typeof error === 'object' && error !== null && 'message' in error) {
+      const code = (error as { message?: unknown }).message;
+      return typeof code === 'string' ? code : null;
+    }
+    return null;
   }
 }

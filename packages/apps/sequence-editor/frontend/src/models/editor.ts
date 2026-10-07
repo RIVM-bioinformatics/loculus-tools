@@ -1,8 +1,9 @@
+import { PaletteUtil } from '../utils/PaletteUtil';
+
 import type {
   Meta,
   SearchResult,
 } from './model';
-import { makeAliViewDefaultPalette } from './palette';
 import type { PaletteModel } from './palette';
 
 export enum EDITOR_DIRECTION {
@@ -62,7 +63,7 @@ export const initialEditorState: EditorState = {
   metadata: null,
   openDialog: 'none',
   openPanel: 'none',
-  palette: makeAliViewDefaultPalette(),
+  palette: PaletteUtil.makeAliViewDefaultPalette(),
   searchResults: null,
   selectedRows: [],
   selectionAnchorRow: null,

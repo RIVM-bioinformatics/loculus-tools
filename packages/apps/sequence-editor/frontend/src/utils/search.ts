@@ -1,4 +1,4 @@
-import { MatrixType } from '../models';
+import { MATRIX_TYPE } from '../models';
 import type {
   SearchMatch,
   SearchResult,
@@ -9,8 +9,8 @@ export const filterSearchResults = (
   includeRecordNames: boolean,
 ): SearchResult => {
   const positions = result.positions.filter((position) => (
-    position.matrix_type === MatrixType.Nucleotide
-    || (includeRecordNames && position.matrix_type === MatrixType.RecordName)
+    position.matrix_type === MATRIX_TYPE.NUCLEOTIDE
+    || (includeRecordNames && position.matrix_type === MATRIX_TYPE.RECORD_NAME)
   ));
   return {
     ...result,
@@ -36,7 +36,7 @@ export const searchHitContainsCell = (
   row: number,
   col: number,
 ): boolean => (
-  hit.matrix_type === MatrixType.Nucleotide
+  hit.matrix_type === MATRIX_TYPE.NUCLEOTIDE
   && hit.row === row
   && col >= hit.col
   && col < hit.col + Math.max(1, query.length)

@@ -17,7 +17,7 @@ import type {
   VisibleGridRange,
 } from '../../models';
 import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
-import { paletteEntryFor } from '../palette';
+import { PaletteUtil } from '../PaletteUtil';
 import { DEFAULT_GRID_GEOMETRY } from '../../constants';
 import { EDITOR_DIRECTION } from '../../models/editor';
 
@@ -122,7 +122,7 @@ export class EditorUtil {
           const cellRow = startRow + row;
           const charCode = byte ?? '';
           const label = String.fromCharCode(charCode);
-          const colors = paletteEntryFor(palette, label);
+          const colors = PaletteUtil.paletteEntryFor(palette, label);
           let cellBackground = colors.background;
           if (byte === null) {
             cellBackground = '#e9eef2';

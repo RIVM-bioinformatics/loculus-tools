@@ -39,7 +39,7 @@ import {
   MIN_LABEL_WIDTH,
 } from '../../../constants';
 import { EditorUtil } from '../../../utils/EditorUtil';
-import { loadPalette } from '../../../utils/palette';
+import { PaletteUtil } from '../../../utils/PaletteUtil';
 import { EDITOR_DIRECTION } from '../../../models/editor';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 
@@ -125,7 +125,7 @@ export const SequenceEditor = () => {
   }, [geometrySubject, metaSubject, scrollSubject, visibleRangeSubject]);
 
   useEffect(() => {
-    setPalette(loadPalette());
+    setPalette(PaletteUtil.loadPalette());
   }, []);
 
   const updateDimensionsDebounced = useDebouncedCallback((width: number, height: number) => {

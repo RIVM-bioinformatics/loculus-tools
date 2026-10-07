@@ -7,7 +7,6 @@ import { useForm } from 'react-hook-form';
 import { GenericForm } from '@gen-epix/ui-core-form/components/helpers/GenericForm';
 import type { FormFieldDefinition } from '@gen-epix/ui-core-form/models/form';
 import { FORM_FIELD_DEFINITION_TYPE } from '@gen-epix/ui-core-form/models/form';
-import { FormUtil } from '@gen-epix/ui-core-form/utils/FormUtil';
 
 import type {
   AminoAcidPalette,
@@ -50,9 +49,9 @@ export const SequenceEditorPageDrawerColorForm = <TPalette extends AminoAcidPale
     } as const satisfies FormFieldDefinition<FormFields>,
   ] as const, [onChangePalette, paletteOptions]);
 
-  const values = useMemo<FormFields>(() => FormUtil.createFormValues(formFieldDefinitions, {
+  const values = useMemo<FormFields>(() => ({
     palette: currentPalette.name,
-  }), [currentPalette.name, formFieldDefinitions]);
+  }), [currentPalette.name]);
 
   const formMethods = useForm<FormFields>({
     values,

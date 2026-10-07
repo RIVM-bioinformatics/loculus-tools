@@ -31,14 +31,17 @@ import type {
   GridRangeWithViewportResults,
   VisibleGridRangeWithArguments,
 } from '../../../models';
-import { EDITOR_PATH_PROPERTIES_TYPE } from '../../../models';
+import {
+  EDITOR_DIRECTION,
+  EDITOR_PATH_PROPERTIES_TYPE,
+} from '../../../models';
 import {
   DEFAULT_GRID_GEOMETRY,
   IUPAC_KEYS,
+  KEYBOARD_SHORTCUTS,
   MIN_LABEL_WIDTH,
 } from '../../../constants';
 import { EditorUtil } from '../../../utils/EditorUtil';
-import { EDITOR_DIRECTION } from '../../../models/editor';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 
 import { SequenceEditorStatusBar } from './SequenceEditorStatusBar';
@@ -343,78 +346,65 @@ export const SequenceEditor = () => {
 
   // Captures raw keyboard shortcuts and forwards them as bus events; business logic lives in the listener effect below.
   useEffect(() => {
-    const emitDirection = (eventName: 'onExpandSelection' | 'onMoveCells' | 'onMoveRows' | 'onMoveRowsEnd' | 'onMoveSelection', direction: EDITOR_DIRECTION) => (event: KeyboardEvent) => {
-      event.preventDefault();
-      SequenceEditorEventBusService.getInstance().emit(eventName, direction);
-    };
-
-    const emitVoid = (eventName: 'onDeleteBackward' | 'onGotoPosition' | 'onInsert' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo') => (event: KeyboardEvent) => {
-      event.preventDefault();
-      SequenceEditorEventBusService.getInstance().emit(eventName);
-    };
-
-    const emitMutateSelection = (base: string) => (event: KeyboardEvent) => {
+    const mutateSelection = (event: KeyboardEvent) => {
+      const base = event.key.toUpperCase();
+      if (!IUPAC_KEYS.has(base)) {
+        return;
+      }
       event.preventDefault();
       SequenceEditorEventBusService.getInstance().emit('onMutateSelection', base);
     };
 
+    const register = (shortcut: typeof KEYBOARD_SHORTCUTS[string]) => KeyboardShortcutService.getInstance().registerShortcut({
+      callback: shortcut.callback,
+      element: containerRef.current!,
+      ...shortcut.shortcut,
+    });
+
     const removers = [
       // Expand selection with shift + arrow keys
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onExpandSelection', EDITOR_DIRECTION.LEFT), code: 'ArrowLeft', element: containerRef.current!, modifiers: [['Shift']] }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onExpandSelection', EDITOR_DIRECTION.RIGHT), code: 'ArrowRight', element: containerRef.current!, modifiers: [['Shift']] }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onExpandSelection', EDITOR_DIRECTION.UP), code: 'ArrowUp', element: containerRef.current!, modifiers: [['Shift']] }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onExpandSelection', EDITOR_DIRECTION.DOWN), code: 'ArrowDown', element: containerRef.current!, modifiers: [['Shift']] }),
+      register(KEYBOARD_SHORTCUTS.expandSelectionLeft),
+      register(KEYBOARD_SHORTCUTS.expandSelectionRight),
+      register(KEYBOARD_SHORTCUTS.expandSelectionUp),
+      register(KEYBOARD_SHORTCUTS.expandSelectionDown),
 
       // Move selection box with arrow keys
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onMoveSelection', EDITOR_DIRECTION.LEFT), code: 'ArrowLeft', element: containerRef.current! }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onMoveSelection', EDITOR_DIRECTION.RIGHT), code: 'ArrowRight', element: containerRef.current! }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onMoveSelection', EDITOR_DIRECTION.UP), code: 'ArrowUp', element: containerRef.current! }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onMoveSelection', EDITOR_DIRECTION.DOWN), code: 'ArrowDown', element: containerRef.current! }),
+      register(KEYBOARD_SHORTCUTS.moveSelectionLeft),
+      register(KEYBOARD_SHORTCUTS.moveSelectionRight),
+      register(KEYBOARD_SHORTCUTS.moveSelectionUp),
+      register(KEYBOARD_SHORTCUTS.moveSelectionDown),
 
       // Move rows vertically (one step)
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onMoveRows', EDITOR_DIRECTION.UP), code: 'ArrowUp', element: containerRef.current!, modifiers: [['Control'], ['Meta']] }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onMoveRows', EDITOR_DIRECTION.DOWN), code: 'ArrowDown', element: containerRef.current!, modifiers: [['Control'], ['Meta']] }),
+      register(KEYBOARD_SHORTCUTS.moveRowUp),
+      register(KEYBOARD_SHORTCUTS.moveRowDown),
       // Move rows vertically (top / bottom)
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onMoveRowsEnd', EDITOR_DIRECTION.UP), code: 'ArrowUp', element: containerRef.current!, modifiers: [['Alt']] }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onMoveRowsEnd', EDITOR_DIRECTION.DOWN), code: 'ArrowDown', element: containerRef.current!, modifiers: [['Alt']] }),
+      register(KEYBOARD_SHORTCUTS.moveRowToStart),
+      register(KEYBOARD_SHORTCUTS.moveRowToEnd),
 
       // Move cells horizontally
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onMoveCells', EDITOR_DIRECTION.LEFT), code: 'ArrowLeft', element: containerRef.current!, modifiers: [['Alt']] }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitDirection('onMoveCells', EDITOR_DIRECTION.RIGHT), code: 'ArrowRight', element: containerRef.current!, modifiers: [['Alt']] }),
+      register(KEYBOARD_SHORTCUTS.moveCellLeft),
+      register(KEYBOARD_SHORTCUTS.moveCellRight),
 
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onScrollToLineStart'), code: 'Home', element: containerRef.current! }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onScrollToLineEnd'), code: 'End', element: containerRef.current! }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onScrollPageUp'), code: 'PageUp', element: containerRef.current! }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onScrollPageDown'), code: 'PageDown', element: containerRef.current! }),
+      register(KEYBOARD_SHORTCUTS.scrollToLineStart),
+      register(KEYBOARD_SHORTCUTS.scrollToLineEnd),
+      register(KEYBOARD_SHORTCUTS.scrollPageUp),
+      register(KEYBOARD_SHORTCUTS.scrollPageDown),
 
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onInsert'), code: 'Space', element: containerRef.current! }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onDeleteBackward'), code: 'Backspace', element: containerRef.current! }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitMutateSelection('-'), code: 'Delete', element: containerRef.current! }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitMutateSelection('-'), element: containerRef.current!, key: '-' }),
+      register(KEYBOARD_SHORTCUTS.insertGap),
+      register(KEYBOARD_SHORTCUTS.deleteBackward),
+      register(KEYBOARD_SHORTCUTS.deleteSelection),
+      register(KEYBOARD_SHORTCUTS.deleteBase),
 
       // Undo (Cmd+Z / Ctrl+Z)
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onUndo'), element: containerRef.current!, key: 'z', modifiers: [['Meta'], ['Control']] }),
+      register(KEYBOARD_SHORTCUTS.undo),
       // Redo (Cmd+Shift+Z / Ctrl+Shift+Z)
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onRedo'), element: containerRef.current!, key: 'z', modifiers: [['Meta', 'Shift'], ['Control', 'Shift']] }),
+      register(KEYBOARD_SHORTCUTS.redo),
 
       // Goto Position Dialog (Cmd+G / Ctrl+G)
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onGotoPosition'), element: containerRef.current!, key: 'g', modifiers: [['Meta'], ['Control']] }),
+      register(KEYBOARD_SHORTCUTS.gotoPosition),
 
-      // All other keys (without modifiers)
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
-        const base = event.key.toUpperCase();
-        if (!IUPAC_KEYS.has(base)) {
-          return;
-        }
-        emitMutateSelection(base)(event);
-      }, element: containerRef.current! }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
-        const base = event.key.toUpperCase();
-        if (!IUPAC_KEYS.has(base)) {
-          return;
-        }
-        emitMutateSelection(base)(event);
-      }, element: containerRef.current!, modifiers: [['Shift']] }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: mutateSelection, element: containerRef.current! }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: mutateSelection, element: containerRef.current!, modifiers: [['Shift']] }),
     ];
     return () => {
       removers.forEach(callbackfn => callbackfn());

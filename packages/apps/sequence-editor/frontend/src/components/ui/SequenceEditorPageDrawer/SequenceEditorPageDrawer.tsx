@@ -15,6 +15,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
 import InvertColorsIcon from '@mui/icons-material/InvertColors';
+import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined';
 import { useStore } from 'zustand';
 import { PageCommonDrawer } from '@rivm-loculus-tools/frontend-common/components/page';
 
@@ -33,9 +34,11 @@ import {
 } from '../../../constants';
 
 import { SequenceEditorPageDrawerColorForm } from './SequenceEditorPageDrawerColorForm';
+import { SequenceEditorPageDrawerKeyboardShortcuts } from './SequenceEditorPageDrawerKeyboardShortcuts';
 
 enum ACCORDIONS {
   AMINO_ACID_COLORS = 'AMINO_ACID_COLORS',
+  KEYBOARD_SHORTCUTS = 'KEYBOARD_SHORTCUTS',
   METADATA = 'METADATA',
   NUCLEOTIDE_COLORS = 'NUCLEOTIDE_COLORS',
 }
@@ -61,6 +64,7 @@ export const SequenceEditorPageDrawer = () => {
   const onColorsAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.NUCLEOTIDE_COLORS), [toggleAccordion]);
   const onAminoAcidColorsAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.AMINO_ACID_COLORS), [toggleAccordion]);
   const onMetaDataAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.METADATA), [toggleAccordion]);
+  const onKeyboardShortcutsAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.KEYBOARD_SHORTCUTS), [toggleAccordion]);
 
   useEffect(() => {
     if (!parsedMetadata) {
@@ -114,8 +118,32 @@ export const SequenceEditorPageDrawer = () => {
           </>
         )}
       </Box>
-      {/* Accordions */}
       <Box sx={{ pb: 3 }}>
+        <Accordion
+          disableGutters
+          elevation={0}
+          expanded={expandedAccordions.includes(ACCORDIONS.KEYBOARD_SHORTCUTS)}
+          onChange={onKeyboardShortcutsAccordionChange}
+          sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
+              <KeyboardOutlinedIcon
+                color={'primary'}
+                fontSize={'small'}
+              />
+              <Typography
+                sx={{ fontWeight: 600 }}
+                variant={'body2'}
+              >
+                {'Keyboard shortcuts'}
+              </Typography>
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: 0 }}>
+            <SequenceEditorPageDrawerKeyboardShortcuts />
+          </AccordionDetails>
+        </Accordion>
         <Accordion
           disableGutters
           elevation={0}
@@ -174,7 +202,6 @@ export const SequenceEditorPageDrawer = () => {
             />
           </AccordionDetails>
         </Accordion>
-        {/* 3. Metadata & Styling */}
         <Accordion
           disabled={!parsedMetadata}
           disableGutters

@@ -201,27 +201,27 @@ export const ALI_VIEW_CLUSTAL_X_AMINO_ACID_PALETTE_COLORS: AminoAcidPaletteColor
 };
 
 export const ALI_VIEW_DEFAULT_NUCLEOTIDE_PALETTE: NucleotidePalette = {
-  name: 'AliView Default',
+  name: 'Default',
   paletteColors: ALI_VIEW_DEFAULT_NUCLEOTIDE_PALETTE_COLORS,
 };
 export const ALI_VIEW_FAST_NUCLEOTIDE_PALETTE: NucleotidePalette = {
-  name: 'AliView Fast',
+  name: 'Fast',
   paletteColors: ALI_VIEW_FAST_NUCLEOTIDE_PALETTE_COLORS,
 };
 export const ALI_VIEW_SEA_VIEW_NUCLEOTIDE_PALETTE: NucleotidePalette = {
-  name: 'AliView SeaView',
+  name: 'SeaView',
   paletteColors: ALI_VIEW_SEA_VIEW_NUCLEOTIDE_PALETTE_COLORS,
 };
 
 export const ALI_VIEW_DEFAULT_AMINO_ACID_PALETTE: AminoAcidPalette = {
-  name: 'AliView Default',
+  name: 'Default',
   paletteColors: ALI_VIEW_DEFAULT_AMINO_ACID_PALETTE_COLORS,
 };
 export const ALI_VIEW_SEA_VIEW_AMINO_ACID_PALETTE: AminoAcidPalette = {
-  name: 'AliView SeaView',
+  name: 'SeaView',
   paletteColors: ALI_VIEW_SEA_VIEW_AMINO_ACID_PALETTE_COLORS,
 };
 export const ALI_VIEW_CLUSTAL_X_AMINO_ACID_PALETTE: AminoAcidPalette = {
-  name: 'AliView Clustal X',
+  name: 'Clustal X',
   paletteColors: ALI_VIEW_CLUSTAL_X_AMINO_ACID_PALETTE_COLORS,
 };

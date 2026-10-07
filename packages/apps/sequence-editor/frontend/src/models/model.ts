@@ -126,30 +126,6 @@ export type EngineViewportResult = {
   startRow: number;
 };
 
-
-/**
- * Wire protocol between the main thread and the MSA Web Worker.
- *
- * Design goals:
- *  - **Zero-copy for binary payloads via SharedArrayBuffer.** Viewport
- *    responses write into a single SAB created at worker init. The worker
- *    sends a tiny control message (`{sabLen, data: ViewportResult}`) and the
- *    main thread reads bytes directly from shared memory — no per-call
- *    structured clone of binary data.
- *  - **O(1) response correlation.** Every request carries a monotonically
- *    increasing `reqId`; the client keeps a `Map<reqId, resolver>` for
- *    constant-time dispatch.
- *  - **Typed arrays for index vectors.** Row-index lists travel as
- *    `Uint32Array` (not `number[]`) to avoid per-element number boxing and to
- *    match the wasm-bindgen `&[usize]` slice mapping directly.
- *  - **No JSON for hot paths.** Only small plain objects are structured-cloned;
- *    binary data is always transferred via the shared SAB.
- */
-
-// ---------------------------------------------------------------------------
-// Shared types
-// ---------------------------------------------------------------------------
-
 /**
  * Contract implemented by the `EngineWorker` class and exposed to the main
  * thread through comlink. Every method is asynchronous so comlink can proxy it
@@ -176,6 +152,30 @@ export interface EngineWorkerApi {
   undo: () => Promise<boolean>;
   viewport: (bounds: ViewportBounds) => Promise<EngineViewportResult>;
 }
+
+
+/**
+ * Wire protocol between the main thread and the MSA Web Worker.
+ *
+ * Design goals:
+ *  - **Zero-copy for binary payloads via SharedArrayBuffer.** Viewport
+ *    responses write into a single SAB created at worker init. The worker
+ *    sends a tiny control message (`{sabLen, data: ViewportResult}`) and the
+ *    main thread reads bytes directly from shared memory — no per-call
+ *    structured clone of binary data.
+ *  - **O(1) response correlation.** Every request carries a monotonically
+ *    increasing `reqId`; the client keeps a `Map<reqId, resolver>` for
+ *    constant-time dispatch.
+ *  - **Typed arrays for index vectors.** Row-index lists travel as
+ *    `Uint32Array` (not `number[]`) to avoid per-element number boxing and to
+ *    match the wasm-bindgen `&[usize]` slice mapping directly.
+ *  - **No JSON for hot paths.** Only small plain objects are structured-cloned;
+ *    binary data is always transferred via the shared SAB.
+ */
+
+// ---------------------------------------------------------------------------
+// Shared types
+// ---------------------------------------------------------------------------
 
 export type GridGeometry = {
   cellHeight: number;
@@ -210,10 +210,6 @@ export type GridRangeWithViewportResults = {
   viewportResult: EngineViewportResult;
 };
 
-// ---------------------------------------------------------------------------
-// Main → Worker requests
-// ---------------------------------------------------------------------------
-
 export type Meta = {
   redoDepth: number;
   sequences: number;
@@ -222,7 +218,7 @@ export type Meta = {
 };
 
 // ---------------------------------------------------------------------------
-// Worker → Main responses
+// Main → Worker requests
 // ---------------------------------------------------------------------------
 
 /**The following types match the Rust `search_algorithms::Match` and search_algorithms::SearchResult structures. */
@@ -231,6 +227,10 @@ export type SearchMatch = {
   matrix_type: MATRIX_TYPE;
   row: number;
 };
+
+// ---------------------------------------------------------------------------
+// Worker → Main responses
+// ---------------------------------------------------------------------------
 
 export type SearchResult = EngineSearchResult;
 
@@ -242,6 +242,13 @@ export type Stats = {
   median: number;
   min: number;
   p95: number;
+};
+
+export type StatusBarSelectionStats = {
+  cols: number;
+  pos: number;
+  selectedSeqs: number;
+  totalSelectedChars: number;
 };
 
 /** Inclusive column/row bounds for a viewport or translation request. */

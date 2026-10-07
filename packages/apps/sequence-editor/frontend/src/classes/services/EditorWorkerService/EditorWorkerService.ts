@@ -2,7 +2,9 @@ import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 import type { Remote } from 'comlink';
 import { wrap } from 'comlink';
 import { MoveDirection } from '@rivm-loculus-tools/sequence-editor-wasm';
+import { ErrorUtil } from '@rivm-loculus-tools/frontend-common/utils/ErrorUtil';
 
+import { SequenceEditorStatsSubscribable } from '../SequenceEditorStatsSubscribable';
 import type {
   EngineMeta,
   EngineSearchResult,
@@ -143,10 +145,22 @@ export class EditorWorkerService {
 
   private async runCommand<T>(command: () => Promise<T>): Promise<T> {
     const queuedCommand = this.commandQueue.then(async (): Promise<T> => {
+      const sequenceEditorStatsSubscribable = SequenceEditorStatsSubscribable.getInstance();
       try {
-        return await command();
+        const result = await command();
+        if (sequenceEditorStatsSubscribable.data.latestMessage) {
+          sequenceEditorStatsSubscribable.next({
+            ...sequenceEditorStatsSubscribable.data,
+            latestMessage: null,
+          });
+        }
+        return result;
       } catch (error: unknown) {
-        console.log('COMMAND ERROR', error);
+        sequenceEditorStatsSubscribable.next({
+          ...sequenceEditorStatsSubscribable.data,
+          latestMessage: ErrorUtil.getErrorMessage(error),
+        });
+        console.error('COMMAND ERROR', error);
         throw error;
       }
     });

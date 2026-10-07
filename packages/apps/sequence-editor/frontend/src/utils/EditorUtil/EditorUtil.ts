@@ -9,6 +9,7 @@ import type {
   GridGeometry,
   GridRange,
   PaletteModel,
+  StatusBarSelectionStats,
   VisibleGridRange,
 } from '../../models';
 import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
@@ -594,6 +595,48 @@ export class EditorUtil {
     }
 
     return undefined;
+  }
+
+  public static getStatusBarSelectionStats(selection: EditorSelection | null, meta: EngineMeta | null = null): StatusBarSelectionStats {
+    if (!selection) {
+      return {
+        cols: 0,
+        pos: 0,
+        selectedSeqs: 0,
+        totalSelectedChars: 0,
+      };
+    }
+
+    if (selection.cells) {
+      const cols = selection.cells.endCol - selection.cells.startCol + 1;
+      const selectedSeqs = selection.cells.endRow - selection.cells.startRow + 1;
+      return {
+        cols,
+        pos: selection.cells.startCol + 1,
+        selectedSeqs,
+        totalSelectedChars: cols * selectedSeqs,
+      };
+    }
+
+    if (selection.cols) {
+      const cols = selection.cols.length;
+      const selectedSeqs = meta?.sequenceCount ?? 0;
+      return {
+        cols,
+        pos: selection.cols[0] === undefined ? 0 : selection.cols[0] + 1,
+        selectedSeqs,
+        totalSelectedChars: cols * selectedSeqs,
+      };
+    }
+
+    const selectedSeqs = selection.rows?.length ?? 0;
+    const cols = meta?.alignmentWidth ?? 0;
+    return {
+      cols,
+      pos: 0,
+      selectedSeqs,
+      totalSelectedChars: cols * selectedSeqs,
+    };
   }
 
   public static getUpsertArguments(selection: EditorSelection | null, metaData: EngineMeta, offset: number = 0): { col: number; rows: number[] } | undefined {

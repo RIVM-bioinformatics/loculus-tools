@@ -18,6 +18,8 @@ import { useStore } from 'zustand';
 import { PageCommonDrawer } from '@rivm-loculus-tools/frontend-common/components/page';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
+import type { SequenceEditorStatsSubscribableData } from '../../../classes/services/SequenceEditorStatsSubscribable';
+import { SequenceEditorStatsSubscribable } from '../../../classes/services/SequenceEditorStatsSubscribable';
 
 enum ACCORDIONS {
   AMINO_ACID_COLORS = 'AMINO_ACID_COLORS',
@@ -28,6 +30,14 @@ enum ACCORDIONS {
 export const SequenceEditorPageDrawer = () => {
   const parsedMetadata = useStore(sequenceEditorStore, (state) => state.parsedMetadata);
   const [expandedAccordions, setExpandedAccordions] = useState<ACCORDIONS[]>([]);
+  const [stats, setStats] = useState<null | SequenceEditorStatsSubscribableData>(null);
+
+  useEffect(() => {
+    const remove = SequenceEditorStatsSubscribable.getInstance().subscribe(data => {
+      setStats(data);
+    });
+    return () => remove();
+  }, []);
 
   const toggleAccordion = useCallback((panel: ACCORDIONS) => {
     setExpandedAccordions((prev) =>
@@ -53,7 +63,22 @@ export const SequenceEditorPageDrawer = () => {
     <PageCommonDrawer>
       {/* Header with Close and Data Load trigger */}
       <Box sx={{ borderBottom: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 1.5, p: 2 }}>
-        {'test header'}
+        {stats?.meta && (
+          <>
+            <Typography
+              sx={{ fontWeight: 600 }}
+              variant={'body2'}
+            >
+              {'Alignment dimensions'}
+            </Typography>
+            <Typography
+              sx={{ fontWeight: 400 }}
+              variant={'body2'}
+            >
+              {`${stats.meta.sequenceCount} sequences x ${stats.meta.alignmentWidth} bases`}
+            </Typography>
+          </>
+        )}
       </Box>
       {/* Accordions */}
       <Box sx={{ pb: 3 }}>

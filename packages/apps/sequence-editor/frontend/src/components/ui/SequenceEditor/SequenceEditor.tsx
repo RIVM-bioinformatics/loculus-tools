@@ -9,7 +9,10 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Box } from '@mui/material';
+import {
+  Box,
+  useTheme,
+} from '@mui/material';
 import { Subject } from '@gen-epix/ui-core/classes/Subject';
 import { useDebouncedCallback } from 'use-debounce';
 import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/DevicePixelRatioService';
@@ -39,6 +42,9 @@ import { EditorUtil } from '../../../utils/EditorUtil';
 import { loadPalette } from '../../../utils/palette';
 import { EDITOR_DIRECTION } from '../../../models/editor';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
+import { SequenceEditorStatsSubscribable } from '../../../classes/services/SequenceEditorStatsSubscribable';
+
+import { SequenceEditorStatusBar } from './SequenceEditorStatusBar';
 
 
 export const SequenceEditor = () => {
@@ -68,6 +74,7 @@ export const SequenceEditor = () => {
   const visibleRangeRequestRef = useRef(0);
   const pendingVisibleRangeRef = useRef<null | VisibleGridRangeWithArguments>(null);
   const processingVisibleRangeRef = useRef(false);
+  const theme = useTheme();
 
   const updateScrollbars = useCallback(() => {
     const geometry = geometrySubject.data;
@@ -127,6 +134,31 @@ export const SequenceEditor = () => {
   }, [containerDimensions, updateVisibleRange]);
 
   const maxLabelWidth = containerDimensions.width > 0 ? containerDimensions.width / 2 : MIN_LABEL_WIDTH;
+
+  useEffect(() => {
+    const sequenceEditorStatsSubscribable = SequenceEditorStatsSubscribable.getInstance();
+    const removers = [
+      metaSubject.subscribe(data => {
+        sequenceEditorStatsSubscribable.next({
+          ...sequenceEditorStatsSubscribable.data,
+          meta: data,
+        });
+      }),
+      selectionSubject.subscribe(data => {
+        sequenceEditorStatsSubscribable.next({
+          ...sequenceEditorStatsSubscribable.data,
+          selection: data,
+        });
+      }),
+    ];
+    return () => {
+      removers.forEach(remove => remove());
+      sequenceEditorStatsSubscribable.next({
+        meta: null,
+        selection: null,
+      });
+    };
+  }, [metaSubject, selectionSubject]);
 
   useEffect(() => {
     if (containerDimensions.width <= 0) {
@@ -752,9 +784,8 @@ export const SequenceEditor = () => {
       onMouseUp={onContainerMouseUp}
       ref={containerRef}
       sx={{
-        height: 'calc(100% - 32px)',
-        marginBottom: '32px',
-        overflow: 'hidden',
+        height: `calc(100% - ${theme.spacing(3)})`,
+        marginBottom: theme.spacing(3),
         position: 'relative',
         width: '100%',
       }}
@@ -798,6 +829,18 @@ export const SequenceEditor = () => {
         }}
         width={canvasWidth}
       />
+      <Box
+        sx={{
+          bottom: theme.spacing(-3),
+          height: theme.spacing(3),
+          left: 0,
+          position: 'absolute',
+          width: '100%',
+          zIndex: 2,
+        }}
+      >
+        <SequenceEditorStatusBar />
+      </Box>
     </Box>
   );
 };

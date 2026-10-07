@@ -1,14 +1,68 @@
-export type AminoAcidSymbol = '-' | '*' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z';
-export type NucleotideSymbol = '-' | 'A' | 'B' | 'C' | 'D' | 'G' | 'H' | 'K' | 'M' | 'N' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y';
-
-export interface PaletteEntry {
-  background: string;
-  foreground: string;
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export enum AminoAcidSymbol {
+  A = 'A',
+  C = 'C',
+  D = 'D',
+  E = 'E',
+  F = 'F',
+  G = 'G',
+  GAP = '-',
+  H = 'H',
+  I = 'I',
+  K = 'K',
+  L = 'L',
+  M = 'M',
+  N = 'N',
+  P = 'P',
+  Q = 'Q',
+  R = 'R',
+  S = 'S',
+  STOP = '*',
+  T = 'T',
+  V = 'V',
+  W = 'W',
+  X = 'X',
+  Y = 'Y',
 }
 
-export interface PaletteModel {
-  aminoAcid: Record<AminoAcidSymbol, PaletteEntry>;
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export enum NucleotideSymbol {
+  A = 'A',
+  B = 'B',
+  C = 'C',
+  D = 'D',
+  G = 'G',
+  GAP = '-',
+  H = 'H',
+  K = 'K',
+  M = 'M',
+  N = 'N',
+  R = 'R',
+  S = 'S',
+  T = 'T',
+  U = 'U',
+  UNKNOWN = 'X',
+  V = 'V',
+  W = 'W',
+  Y = 'Y',
+}
+
+export type AminoAcidPalette = {
   name: string;
-  nucleotide: Record<NucleotideSymbol, PaletteEntry>;
-  version: number;
-}
+  paletteColors: AminoAcidPaletteColors;
+};
+export type AminoAcidPaletteColors = Record<AminoAcidSymbol, PaletteEntry>;
+
+export type NucleotidePalette = {
+  name: string;
+  paletteColors: NucleotidePaletteColors;
+};
+
+export type NucleotidePaletteColors = Record<NucleotideSymbol, PaletteEntry>;
+
+export type PaletteEntry = {
+  background: string;
+  backgroundSelected: string;
+  foreground: string;
+  foregroundSelected: string;
+};

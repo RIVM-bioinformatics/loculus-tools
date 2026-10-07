@@ -1,10 +1,7 @@
 import padStart from 'lodash/padStart';
-import {
-  darken,
-  lighten,
-} from '@mui/material/styles';
 
 import type {
+  AminoAcidPalette,
   EditorAssembly,
   EditorPathProperties,
   EditorSelection,
@@ -12,7 +9,7 @@ import type {
   EngineViewportResult,
   GridGeometry,
   GridRange,
-  PaletteModel,
+  NucleotidePalette,
   StatusBarSelectionStats,
   VisibleGridRange,
 } from '../../models';
@@ -20,10 +17,6 @@ import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
 import { PaletteUtil } from '../PaletteUtil';
 import { DEFAULT_GRID_GEOMETRY } from '../../constants';
 import { EDITOR_DIRECTION } from '../../models/editor';
-
-const SELECTED_CELL_BACKGROUND_DARKENING = 0.3;
-const SELECTED_CELL_FOREGROUND_LIGHTENING = 0.5;
-
 
 export class EditorUtil {
   public static drawCanvas({
@@ -45,7 +38,7 @@ export class EditorUtil {
     devicePixelRatio: number;
     geometry: GridGeometry;
     meta: EngineMeta;
-    palette: PaletteModel;
+    palette: AminoAcidPalette | NucleotidePalette;
     rowNames: string[];
     rowNamesStartRow: number;
     scrollLeft: number;
@@ -132,9 +125,8 @@ export class EditorUtil {
           let cellForeground = colors.foreground;
           const isSelected = isCellSelected(cellRow, cellCol);
           if (isSelected) {
-            [cellBackground, cellForeground] = [cellForeground, cellBackground];
-            cellBackground = darken(cellBackground, SELECTED_CELL_BACKGROUND_DARKENING);
-            cellForeground = lighten(cellForeground, SELECTED_CELL_FOREGROUND_LIGHTENING);
+            cellBackground = colors.backgroundSelected;
+            cellForeground = colors.foregroundSelected;
           }
           const rectanglePath = new Path2D();
           rectanglePath.rect(x, y, cellWidth, cellHeight);

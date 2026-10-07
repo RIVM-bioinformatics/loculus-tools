@@ -29,7 +29,6 @@ import type {
   GridGeometry,
   GridRangeWithRowNames,
   GridRangeWithViewportResults,
-  PaletteModel,
   VisibleGridRangeWithArguments,
 } from '../../../models';
 import { EDITOR_PATH_PROPERTIES_TYPE } from '../../../models';
@@ -39,7 +38,6 @@ import {
   MIN_LABEL_WIDTH,
 } from '../../../constants';
 import { EditorUtil } from '../../../utils/EditorUtil';
-import { PaletteUtil } from '../../../utils/PaletteUtil';
 import { EDITOR_DIRECTION } from '../../../models/editor';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 
@@ -68,7 +66,6 @@ export const SequenceEditor = () => {
   const scrollSubject = useMemo(() => new Subject<{ scrollLeft: number; scrollTop: number }>({ scrollLeft: 0, scrollTop: 0 }), []);
   const containerDimensionsRef = useRef(containerDimensions);
   const metaSubject = useMemo(() => new Subject<EngineMeta | null>(null), []);
-  const [palette, setPalette] = useState<null | PaletteModel>();
   const visibleRangeSubject = useMemo(() => new Subject<null | VisibleGridRangeWithArguments>(null), []);
   const cachedGridRangeWithViewPortResultRef = useRef<GridRangeWithViewportResults | null>(null);
   const cachedGridRangeWithRowNamesRef = useRef<GridRangeWithRowNames | null>(null);
@@ -123,10 +120,6 @@ export const SequenceEditor = () => {
       visibleGridRange: visibleRange,
     });
   }, [geometrySubject, metaSubject, scrollSubject, visibleRangeSubject]);
-
-  useEffect(() => {
-    setPalette(PaletteUtil.loadPalette());
-  }, []);
 
   const updateDimensionsDebounced = useDebouncedCallback((width: number, height: number) => {
     setContainerDimensions({ height, width });
@@ -269,7 +262,7 @@ export const SequenceEditor = () => {
             if (!isActive || requestId !== visibleRangeRequestRef.current) {
               return;
             }
-            if (!canvasRef.current || !palette || !cachedGridRangeWithViewPortResultRef.current || !metaSubject.data || !cachedGridRangeWithRowNamesRef.current) {
+            if (!canvasRef.current || !sequenceEditorStore.getState().nucleotidePalette || !cachedGridRangeWithViewPortResultRef.current || !metaSubject.data || !cachedGridRangeWithRowNamesRef.current) {
               return;
             }
             editorAssemblyRef.current = EditorUtil.drawCanvas({
@@ -277,7 +270,7 @@ export const SequenceEditor = () => {
               devicePixelRatio: DevicePixelRatioService.getInstance().data,
               geometry: visibleGridRangeWithArguments.geometry,
               meta: metaSubject.data,
-              palette,
+              palette: sequenceEditorStore.getState().nucleotidePalette,
               rowNames: cachedGridRangeWithRowNamesRef.current.rowNames,
               rowNamesStartRow: cachedGridRangeWithRowNamesRef.current.range.startRow,
               scrollLeft: visibleGridRangeWithArguments.scrollLeft,
@@ -316,10 +309,15 @@ export const SequenceEditor = () => {
       visibleRangeRequestRef.current += 1;
       unsubscribeItems.forEach(unsubscribe => unsubscribe());
     };
-  }, [editorService, metaSubject, palette, selectionSubject, visibleRangeSubject]);
+  }, [editorService, metaSubject, selectionSubject, visibleRangeSubject]);
 
   useEffect(() => {
     const unsubscribeItems = [
+      sequenceEditorStore.subscribe((state, prevState) => {
+        if (state.nucleotidePalette?.name !== prevState.nucleotidePalette?.name) {
+          updateVisibleRange();
+        }
+      }),
       geometrySubject.subscribe(() => {
         updateScrollbars();
         updateVisibleRange();
@@ -341,7 +339,7 @@ export const SequenceEditor = () => {
     return () => {
       unsubscribeItems.forEach(unsubscribe => unsubscribe());
     };
-  }, [editorService, geometrySubject, metaSubject, palette, scrollSubject, selectionSubject, updateScrollbars, updateVisibleRange]);
+  }, [editorService, geometrySubject, metaSubject, scrollSubject, selectionSubject, updateScrollbars, updateVisibleRange]);
 
   // Captures raw keyboard shortcuts and forwards them as bus events; business logic lives in the listener effect below.
   useEffect(() => {

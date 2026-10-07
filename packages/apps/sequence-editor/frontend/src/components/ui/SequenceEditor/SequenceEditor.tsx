@@ -357,7 +357,7 @@ export const SequenceEditor = () => {
       SequenceEditorEventBusService.getInstance().emit(eventName, direction);
     };
 
-    const emitVoid = (eventName: 'onDeleteBackward' | 'onInsert' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo') => (event: KeyboardEvent) => {
+    const emitVoid = (eventName: 'onDeleteBackward' | 'onGotoPosition' | 'onInsert' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo') => (event: KeyboardEvent) => {
       event.preventDefault();
       SequenceEditorEventBusService.getInstance().emit(eventName);
     };
@@ -407,10 +407,7 @@ export const SequenceEditor = () => {
       KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onRedo'), element: containerRef.current!, key: 'z', modifiers: [['Meta', 'Shift'], ['Control', 'Shift']] }),
 
       // Goto Position Dialog (Cmd+G / Ctrl+G)
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
-        event.preventDefault();
-        sequenceEditorGotoPositionDialogRef.current?.open({});
-      }, element: containerRef.current!, key: 'g', modifiers: [['Meta'], ['Control']] }),
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onGotoPosition'), element: containerRef.current!, key: 'g', modifiers: [['Meta'], ['Control']] }),
 
       // All other keys (without modifiers)
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
@@ -524,6 +521,8 @@ export const SequenceEditor = () => {
     const removers = [
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onExpandSelection', (direction) => expandSelection(direction)),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onGotoPosition', () => sequenceEditorGotoPositionDialogRef.current?.open({})),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onMoveSelection', (direction) => moveSelection(direction)),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener

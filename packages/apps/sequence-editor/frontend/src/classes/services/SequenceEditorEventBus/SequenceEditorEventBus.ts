@@ -6,6 +6,7 @@ import type { EDITOR_DIRECTION } from '../../../models/editor';
 export type SequenceEditorEventBusServiceEvent = {
   onDeleteBackward: void;
   onExpandSelection: EDITOR_DIRECTION;
+  onGotoPosition: void;
   onInsert: void;
   onMoveCells: EDITOR_DIRECTION;
   onMoveRows: EDITOR_DIRECTION;

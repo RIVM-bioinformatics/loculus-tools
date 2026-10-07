@@ -45,11 +45,13 @@ import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorStatsSubscribable } from '../../../classes/services/SequenceEditorStatsSubscribable';
 
 import { SequenceEditorStatusBar } from './SequenceEditorStatusBar';
+import type { SequenceEditorGotoPositionDialogRefMethods } from './SequenceEditorGotoPositionDialog';
+import { SequenceEditorGotoPositionDialog } from './SequenceEditorGotoPositionDialog';
 
 
 export const SequenceEditor = () => {
   const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
-
+  const sequenceEditorGotoPositionDialogRef = useRef<null | SequenceEditorGotoPositionDialogRefMethods>(null);
   const editorService = useMemo(() => EditorWorkerService.getInstance(), []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const editorAssemblyRef = useRef<EditorAssembly | null>(null);
@@ -154,6 +156,7 @@ export const SequenceEditor = () => {
     return () => {
       removers.forEach(remove => remove());
       sequenceEditorStatsSubscribable.next({
+        latestMessage: null,
         meta: null,
         selection: null,
       });
@@ -402,6 +405,12 @@ export const SequenceEditor = () => {
       KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onUndo'), element: containerRef.current!, key: 'z', modifiers: [['Meta'], ['Control']] }),
       // Redo (Cmd+Shift+Z / Ctrl+Shift+Z)
       KeyboardShortcutService.getInstance().registerShortcut({ callback: emitVoid('onRedo'), element: containerRef.current!, key: 'z', modifiers: [['Meta', 'Shift'], ['Control', 'Shift']] }),
+
+      // Goto Position Dialog (Cmd+G / Ctrl+G)
+      KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
+        event.preventDefault();
+        sequenceEditorGotoPositionDialogRef.current?.open({});
+      }, element: containerRef.current!, key: 'g', modifiers: [['Meta'], ['Control']] }),
 
       // All other keys (without modifiers)
       KeyboardShortcutService.getInstance().registerShortcut({ callback: (event) => {
@@ -776,71 +785,89 @@ export const SequenceEditor = () => {
     selectionDragRef.current = null;
   }, []);
 
+  const onGotoPosition = useCallback((x: null | number, y: null | number) => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+    const geometry = geometrySubject.data;
+    scrollContainer.scrollTo({
+      left: x === null ? scrollContainer.scrollLeft : Math.max(0, x - 1) * geometry.cellWidth,
+      top: y === null ? scrollContainer.scrollTop : Math.max(0, y - 1) * geometry.cellHeight,
+    });
+  }, [geometrySubject]);
+
   const canvasWidth = Math.max(1, Math.floor(containerDimensions.width * devicePixelRatio));
   const canvasHeight = Math.max(1, Math.floor(containerDimensions.height * devicePixelRatio));
 
   return (
-    <Box
-      onMouseUp={onContainerMouseUp}
-      ref={containerRef}
-      sx={{
-        height: `calc(100% - ${theme.spacing(3)})`,
-        marginBottom: theme.spacing(3),
-        position: 'relative',
-        width: '100%',
-      }}
-      tabIndex={0}
-    >
+    <>
       <Box
-        onMouseDown={onScrollContainerMouseDown}
-        onMouseMove={onScrollContainerMouseMove}
-        onScroll={onScrollContainerScroll}
-        ref={scrollContainerRef}
+        onMouseUp={onContainerMouseUp}
+        ref={containerRef}
         sx={{
-          height: '100%',
-          overflowX: 'scroll',
-          overflowY: 'scroll',
-          position: 'absolute',
+          height: `calc(100% - ${theme.spacing(3)})`,
+          marginBottom: theme.spacing(3),
+          position: 'relative',
           width: '100%',
-          zIndex: 1,
         }}
+        tabIndex={0}
       >
         <Box
+          onMouseDown={onScrollContainerMouseDown}
+          onMouseMove={onScrollContainerMouseMove}
+          onScroll={onScrollContainerScroll}
+          ref={scrollContainerRef}
           sx={{
-            height: `${Math.max(verticalScrollBarSize, containerDimensions.height)}px`,
-            pointerEvents: 'none',
-            width: `${Math.max(horizontalScrollBarSize, containerDimensions.width)}px`,
+            height: '100%',
+            overflowX: 'scroll',
+            overflowY: 'scroll',
+            position: 'absolute',
+            width: '100%',
+            zIndex: 1,
           }}
+        >
+          <Box
+            sx={{
+              height: `${Math.max(verticalScrollBarSize, containerDimensions.height)}px`,
+              pointerEvents: 'none',
+              width: `${Math.max(horizontalScrollBarSize, containerDimensions.width)}px`,
+            }}
+          />
+        </Box>
+        <canvas
+          height={canvasHeight}
+          ref={canvasRef}
+          style={{
+            display: 'block',
+            height: `${containerDimensions.height}px`,
+            imageRendering: 'pixelated',
+            left: 0,
+            pointerEvents: 'auto',
+            position: 'absolute',
+            top: 0,
+            width: `${containerDimensions.width}px`,
+            zIndex: 0,
+          }}
+          width={canvasWidth}
         />
+        <Box
+          sx={{
+            bottom: theme.spacing(-3),
+            height: theme.spacing(3),
+            left: 0,
+            position: 'absolute',
+            width: '100%',
+            zIndex: 2,
+          }}
+        >
+          <SequenceEditorStatusBar />
+        </Box>
       </Box>
-      <canvas
-        height={canvasHeight}
-        ref={canvasRef}
-        style={{
-          display: 'block',
-          height: `${containerDimensions.height}px`,
-          imageRendering: 'pixelated',
-          left: 0,
-          pointerEvents: 'auto',
-          position: 'absolute',
-          top: 0,
-          width: `${containerDimensions.width}px`,
-          zIndex: 0,
-        }}
-        width={canvasWidth}
+      <SequenceEditorGotoPositionDialog
+        onGotoPosition={onGotoPosition}
+        ref={sequenceEditorGotoPositionDialogRef}
       />
-      <Box
-        sx={{
-          bottom: theme.spacing(-3),
-          height: theme.spacing(3),
-          left: 0,
-          position: 'absolute',
-          width: '100%',
-          zIndex: 2,
-        }}
-      >
-        <SequenceEditorStatusBar />
-      </Box>
-    </Box>
+    </>
   );
 };

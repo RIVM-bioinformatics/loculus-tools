@@ -276,6 +276,19 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       break;
     }
     case 'translate': {
+      if (!Number.isInteger(req.readingFrame) || req.readingFrame < 0 || req.readingFrame > 2) {
+        post({
+          error: {
+            code: 'InvalidReadingFrame',
+            context: { frame: req.readingFrame },
+            message: `Invalid reading frame ${req.readingFrame}; expected frame 0, 1, or 2`,
+          },
+          ok: false,
+          reqId: req.reqId,
+          type: 'result',
+        });
+        break;
+      }
       const shape = getViewportShape(req);
       if (!shape) {
         post({

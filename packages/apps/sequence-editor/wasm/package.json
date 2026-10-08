@@ -1,5 +1,5 @@
 {
-  "name": "sequence-editor",
+  "name": "@rivm-loculus-tools/sequence-editor-wasm",
   "type": "module",
   "description": "Rust-powered WebAssembly MSA engine for viral genome alignment editing",
   "version": "0.1.0",

@@ -458,6 +458,10 @@ context fields are omitted when absent. The worker normalizes that thrown value
 and posts `{ ok: false, error }`; unexpected exceptions use code
 `UnexpectedRuntimeError`. Invalid or oversized viewport requests use
 `InvalidViewport` with the available starting row/column.
+Direct Rust/WASM translation calls also check inclusive dimensions and their
+product against `MAX_VIEWPORT_BYTES` before reserving viewport memory. Overflow,
+oversized results, or reservation failures return `InvalidViewport` with
+`row`, `col`, and `frame` context.
 
 | Code | Meaning | Context |
 |----------|-------|---------|
@@ -466,7 +470,7 @@ and posts `{ ok: false, error }`; unexpected exceptions use code
 | `MoveNotIupac` | Selected block contains a non-IUPAC character. | `row`, `col`, `base` |
 | `MoveNoGapTarget` | No adjacent gap or alignment boundary reached. | `row`, `col`, `direction`, and optional `base` |
 | `InvalidReadingFrame` | Translation requested a frame outside 0, 1, or 2. | `frame` |
-| `InvalidViewport` | Viewport bounds are invalid or exceed worker capacity. | `row`, `col` |
+| `InvalidViewport` | Viewport bounds overflow, exceed capacity, or translation memory cannot be reserved. | `row`, `col`, and `frame` for translation |
 | `UnexpectedRuntimeError` | Unrecognized runtime failure. | None unless available |
 
 ---

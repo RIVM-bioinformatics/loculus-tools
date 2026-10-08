@@ -803,8 +803,28 @@ impl MsaEngine {
             return Ok(js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0)));
         }
 
-        let cols = end_col - start_col + 1;
-        let mut viewport = Vec::with_capacity((row_end - start_row + 1) * cols);
+        let invalid_viewport = || StructuredEngineError {
+            code: "InvalidViewport".to_owned(),
+            message: format!(
+                "Translate bounds must fit within {MAX_VIEWPORT_BYTES} bytes and memory must be available"
+            ),
+            context: Some(ErrorContext {
+                row: Some(start_row),
+                col: Some(start_col),
+                frame: Some(reading_frame),
+                ..ErrorContext::default()
+            }),
+        };
+        let rows = inclusive_range_len(start_row, row_end).ok_or_else(invalid_viewport)?;
+        let cols = inclusive_range_len(start_col, end_col).ok_or_else(invalid_viewport)?;
+        let byte_len = rows
+            .checked_mul(cols)
+            .filter(|&byte_len| byte_len <= MAX_VIEWPORT_BYTES)
+            .ok_or_else(invalid_viewport)?;
+        let mut viewport = Vec::new();
+        viewport
+            .try_reserve_exact(byte_len)
+            .map_err(|_| invalid_viewport())?;
 
         for row in start_row..=row_end {
             let seq = &self.aminoacid_sequences[row];
@@ -815,7 +835,7 @@ impl MsaEngine {
                 _ => unreachable!("reading frame validated before translation"),
             };
             let frame_cols = if start_col < frame.len() {
-                (end_col + 1).min(frame.len()) - start_col
+                (frame.len() - start_col).min(cols)
             } else {
                 0
             };

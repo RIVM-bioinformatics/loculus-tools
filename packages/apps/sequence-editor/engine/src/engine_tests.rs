@@ -673,6 +673,33 @@ fn translate_rejects_invalid_reading_frame_with_context() {
 }
 
 #[test]
+fn translate_rejects_oversized_and_overflowing_viewports_with_context() {
+    for (start_row, end_row, start_col, end_col) in [
+        (0, 0, 0, MAX_VIEWPORT_BYTES),
+        (0, 1, 0, MAX_VIEWPORT_BYTES / 2),
+        (0, 0, 0, usize::MAX),
+        (0, 2, 0, usize::MAX / 2),
+        (1, 1, 2, MAX_VIEWPORT_BYTES + 2),
+    ] {
+        let mut engine = engine_with_sample();
+        let error = engine
+            .translate(start_row, end_row, start_col, end_col, 2)
+            .unwrap_err();
+        assert_eq!(error.code, "InvalidViewport");
+        assert!(error.message.contains(&MAX_VIEWPORT_BYTES.to_string()));
+        assert_eq!(
+            error.context,
+            Some(ErrorContext {
+                row: Some(start_row),
+                col: Some(start_col),
+                frame: Some(2),
+                ..ErrorContext::default()
+            })
+        );
+    }
+}
+
+#[test]
 fn structured_error_serializes_code_message_and_optional_context() {
     let error = StructuredEngineError::from(DeleteError::TargetNotGap {
         row: 2,

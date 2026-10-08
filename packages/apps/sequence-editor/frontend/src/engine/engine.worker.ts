@@ -21,15 +21,20 @@
  */
 
 import init, {
+  EditError,
   MoveDirection,
   MsaEngine,
 } from '@rivm-loculus-tools/sequence-editor-wasm';
 
 import type {
+  EditErrorCode,
+  EngineErrorCode,
   EngineRequest,
   EngineResponse,
+  ErrorContext,
   Meta,
   SearchResult,
+  StructuredEngineError,
   ViewportResult,
 } from './protocol';
 
@@ -53,6 +58,16 @@ interface ViewportShape {
   rows: number;
 }
 
+const engineErrorCodes: ReadonlySet<string> = new Set<EngineErrorCode>([
+  'DeleteNotGap',
+  'InvalidReadingFrame',
+  'InvalidViewport',
+  'MoveNoGapTarget',
+  'MoveNotIupac',
+  'MutateNotIupac',
+  'UnexpectedRuntimeError',
+]);
+
 function checkedInclusiveLength(start: number, end: number): null | number {
   const span = end - start;
   if (!Number.isSafeInteger(span) || span >= Number.MAX_SAFE_INTEGER) {
@@ -62,7 +77,7 @@ function checkedInclusiveLength(start: number, end: number): null | number {
 }
 
 function getViewportShape(
-  req: Extract<EngineRequest, { type: 'viewport' }>,
+  req: Pick<Extract<EngineRequest, { type: 'viewport' }>, 'endCol' | 'endRow' | 'startCol' | 'startRow'>,
 ): null | ViewportShape {
   const bounds = [req.startRow, req.endRow, req.startCol, req.endCol];
   if (!bounds.every((value) => Number.isSafeInteger(value) && value >= 0)) {
@@ -79,6 +94,37 @@ function getViewportShape(
   }
 
   return { cols, rows };
+}
+
+function normalizeError(err: unknown): StructuredEngineError {
+  if (typeof err === 'object' && err !== null) {
+    const candidate = err as {
+      code?: unknown;
+      context?: unknown;
+      message?: unknown;
+    };
+    if (typeof candidate.code === 'string' && typeof candidate.message === 'string') {
+      if (!engineErrorCodes.has(candidate.code)) {
+        return { code: 'UnexpectedRuntimeError', message: candidate.message };
+      }
+      const structured: StructuredEngineError = {
+        code: candidate.code as EngineErrorCode,
+        message: candidate.message,
+      };
+      if (typeof candidate.context === 'object' && candidate.context !== null) {
+        structured.context = candidate.context as ErrorContext;
+      }
+      return structured;
+    }
+  }
+  if (typeof err === 'number' && err in EditError) {
+    const code = EditError[err as EditError] as EditErrorCode;
+    return { code, message: `Engine rejected: ${code}` };
+  }
+  return {
+    code: 'UnexpectedRuntimeError',
+    message: err instanceof Error ? err.message : String(err),
+  };
 }
 
 /** Pending commands issued before WASM finished initializing. */
@@ -106,7 +152,11 @@ async function ensureEngine(): Promise<void> {
     // Drain any commands that arrived during initialization.
     while (queue.length > 0) {
       const next = queue.shift()!;
-      await handle(next);
+      try {
+        await handle(next);
+      } catch (err: unknown) {
+        post({ error: normalizeError(err), ok: false, reqId: next.reqId, type: 'result' });
+      }
     }
   } catch (err) {
     post({
@@ -123,6 +173,23 @@ function post(msg: EngineResponse, transfer?: Transferable[]) {
   (self as unknown as Worker).postMessage(msg, transfer ?? []);
 }
 
+function handleEdit(reqId: number, fn: () => void, engineStart: number) {
+  try {
+    fn();
+    const engineMs = performance.now() - engineStart;
+    post({ ok: true, reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
+  } catch (err: unknown) {
+    const engineMs = performance.now() - engineStart;
+    post({
+      error: normalizeError(err),
+      ok: false,
+      reqId,
+      timing: { engineMs, workerMs: 0 },
+      type: 'result',
+    });
+  }
+}
+
 /**
  * Wrap a handler that produces a response, measuring:
  *  - `engineMs`: time inside the handler (Rust call + buffer prep)
@@ -137,37 +204,15 @@ async function timedHandle(req: EngineRequest): Promise<void> {
   const engineStart = performance.now();
 
   switch (req.type) {
-    case 'delete': {
-      const errCode = e.delete_at_subset(req.rows, req.col);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'delete':
+      handleEdit(req.reqId, () => e.delete_at_subset(req.rows, req.col), engineStart);
       break;
-    }
-    case 'deleteColumn': {
-      const errCode = e.delete_column(req.col);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'deleteColumn':
+      handleEdit(req.reqId, () => e.delete_column(req.col), engineStart);
       break;
-    }
-
-    case 'insert': {
-      const errCode = e.insert_at_subset(req.rows, req.col);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'insert':
+      handleEdit(req.reqId, () => e.insert_at_subset(req.rows, req.col), engineStart);
       break;
-    }
 
     case 'load': {
       const n = e.load_fasta(req.fasta);
@@ -190,45 +235,18 @@ async function timedHandle(req: EngineRequest): Promise<void> {
     }
     case 'moveHorizontal': {
       const direction = req.direction === 'Left' ? MoveDirection.Left : MoveDirection.Right;
-      const errCode = e.move_horizontal(req.row, req.cols, direction);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+      handleEdit(req.reqId, () => e.move_horizontal(req.row, req.cols, direction), engineStart);
       break;
     }
-    case 'moveRowsDown': {
-      const errCode = e.move_rows_down(req.rows);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'moveRowsDown':
+      handleEdit(req.reqId, () => e.move_rows_down(req.rows), engineStart);
       break;
-    }
-    case 'moveRowsUp': {
-      const errCode = e.move_rows_up(req.rows);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'moveRowsUp':
+      handleEdit(req.reqId, () => e.move_rows_up(req.rows), engineStart);
       break;
-    }
-    case 'mutate': {
-      const errCode = e.mutate_base_subset(req.rows, req.col, req.base);
-      engineMs = performance.now() - engineStart;
-      if (errCode) {
-        post({ errorCode: errCode, ok: false, reqId: req.reqId, type: 'result' });
-      } else {
-        post({ ok: true, reqId: req.reqId, timing: { engineMs, workerMs: 0 }, type: 'result' });
-      }
+    case 'mutate':
+      handleEdit(req.reqId, () => e.mutate_base_subset(req.rows, req.col, req.base), engineStart);
       break;
-    }
     case 'name': {
       const data = e.get_name(req.row);
       engineMs = performance.now() - engineStart;
@@ -258,6 +276,33 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       break;
     }
     case 'translate': {
+      if (!Number.isInteger(req.readingFrame) || req.readingFrame < 0 || req.readingFrame > 2) {
+        post({
+          error: {
+            code: 'InvalidReadingFrame',
+            context: { frame: req.readingFrame },
+            message: `Invalid reading frame ${req.readingFrame}; expected frame 0, 1, or 2`,
+          },
+          ok: false,
+          reqId: req.reqId,
+          type: 'result',
+        });
+        break;
+      }
+      const shape = getViewportShape(req);
+      if (!shape) {
+        post({
+          error: {
+            code: 'InvalidViewport',
+            context: { col: req.startCol, frame: req.readingFrame, row: req.startRow },
+            message: `Translate bounds must be non-negative safe integers within ${SAB_MAX_BYTES} bytes`,
+          },
+          ok: false,
+          reqId: req.reqId,
+          type: 'result',
+        });
+        break;
+      }
       // `e.translate` returns raw amino-acid bytes, padded to a fixed stride
       // just like `update_viewport` — reuse the same SAB copy-and-describe path.
       const view = e.translate(
@@ -272,17 +317,23 @@ async function timedHandle(req: EngineRequest): Promise<void> {
 
       if (len > SAB_MAX_BYTES) {
         post({
-          message: `Translate result too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+          error: {
+            code: 'InvalidViewport',
+            context: { col: req.startCol, frame: req.readingFrame, row: req.startRow },
+            message: `Translate result too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+          },
+          ok: false,
           reqId: req.reqId,
-          type: 'error',
+          type: 'result',
         });
         break;
       }
       if (!sabView) {
         post({
-          message: 'SharedArrayBuffer not initialized',
+          error: { code: 'UnexpectedRuntimeError', message: 'SharedArrayBuffer not initialized' },
+          ok: false,
           reqId: req.reqId,
-          type: 'error',
+          type: 'result',
         });
         break;
       }
@@ -290,12 +341,10 @@ async function timedHandle(req: EngineRequest): Promise<void> {
 
       // Rust's `translate` now uses the same inclusive `[start, end]` ranges
       // and fixed-stride row padding as `update_viewport`.
-      const reqCols = Math.max(0, req.endCol - req.startCol + 1);
-      const actualCols = reqCols > 0 ? reqCols : 0;
-      const actualRows = actualCols > 0 ? Math.floor(len / actualCols) : 0;
+      const actualRows = Math.floor(len / shape.cols);
 
       const data: ViewportResult = {
-        cols: actualCols,
+        cols: shape.cols,
         rows: actualRows,
         startCol: req.startCol,
         startRow: req.startRow,
@@ -323,9 +372,14 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       const shape = getViewportShape(req);
       if (!shape) {
         post({
-          message: `Viewport bounds must be non-negative safe integers within ${SAB_MAX_BYTES} bytes`,
+          error: {
+            code: 'InvalidViewport',
+            context: { row: req.startRow, col: req.startCol },
+            message: `Viewport bounds must be non-negative safe integers within ${SAB_MAX_BYTES} bytes`,
+          },
+          ok: false,
           reqId: req.reqId,
-          type: 'error',
+          type: 'result',
         });
         break;
       }
@@ -338,17 +392,23 @@ async function timedHandle(req: EngineRequest): Promise<void> {
       // with a RangeError from sabView.set().
       if (len > SAB_MAX_BYTES) {
         post({
-          message: `Viewport too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+          error: {
+            code: 'InvalidViewport',
+            context: { row: req.startRow, col: req.startCol },
+            message: `Viewport too large: ${len} bytes exceeds SAB capacity of ${SAB_MAX_BYTES}`,
+          },
+          ok: false,
           reqId: req.reqId,
-          type: 'error',
+          type: 'result',
         });
         break;
       }
       if (!sabView) {
         post({
-          message: 'SharedArrayBuffer not initialized',
+          error: { code: 'UnexpectedRuntimeError', message: 'SharedArrayBuffer not initialized' },
+          ok: false,
           reqId: req.reqId,
-          type: 'error',
+          type: 'result',
         });
         break;
       }
@@ -404,11 +464,12 @@ self.onmessage = async (ev: MessageEvent<EngineRequest>) => {
   }
   try {
     await handle(req);
-  } catch (err) {
+  } catch (err: unknown) {
     post({
-      message: err instanceof Error ? err.message : String(err),
+      error: normalizeError(err),
+      ok: false,
       reqId: req.reqId,
-      type: 'error',
+      type: 'result',
     });
   }
 };

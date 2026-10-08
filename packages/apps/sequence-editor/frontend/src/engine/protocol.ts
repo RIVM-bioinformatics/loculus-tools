@@ -27,6 +27,47 @@ export enum MatrixType {
   RecordName = 'record_name',
 }
 
+export type EditErrorCode =
+  | 'DeleteNotGap'
+  | 'MoveNoGapTarget'
+  | 'MoveNotIupac'
+  | 'MutateNotIupac';
+
+export type EngineErrorCode =
+  | 'InvalidReadingFrame'
+  | 'InvalidViewport'
+  | 'UnexpectedRuntimeError'
+  | EditErrorCode;
+
+export interface InvalidCharacterContext {
+  byte?: number;
+  invalidChar: string;
+  line: number;
+  position: number;
+  sequenceId: string;
+}
+
+export interface ErrorContext {
+  base?: string;
+  byte?: number;
+  col?: number;
+  direction?: 'Left' | 'Right';
+  frame?: number;
+  invalidChar?: string;
+  invalidCharacters?: InvalidCharacterContext[];
+  line?: number;
+  mode?: string;
+  position?: number;
+  row?: number;
+  sequenceId?: string;
+}
+
+export interface StructuredEngineError {
+  code: EngineErrorCode;
+  context?: ErrorContext;
+  message: string;
+}
+
 export type EngineRequest =
   | { base: number; col: number; reqId: number; rows: Uint32Array; type: 'mutate' }
   | { checkRecordNames: boolean; query: string; reqId: number; type: 'search' }
@@ -87,9 +128,10 @@ export type EngineResponse =
     type: 'result';
   }
   | {
-    errorCode: string;
+    error: StructuredEngineError;
     ok: false;
     reqId: number;
+    timing?: EngineTiming;
     type: 'result';
   }
   | { message: string; reqId: number; type: 'error' }

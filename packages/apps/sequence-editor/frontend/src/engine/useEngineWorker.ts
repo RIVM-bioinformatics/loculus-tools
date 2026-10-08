@@ -16,8 +16,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   EngineRequest,
   EngineResponse,
+  EditErrorCode,
+  EngineErrorCode,
+  ErrorContext,
   Meta,
   SearchResult,
+  StructuredEngineError,
   ViewportResult,
 } from "./protocol";
 
@@ -47,6 +51,28 @@ export interface CallTiming {
   bridgeBackMs: number;
   /** Number of bytes transferred (for viewport responses), else 0. */
   bytes: number;
+}
+
+export class EngineEditError extends Error {
+  readonly code: EditErrorCode;
+
+  constructor(code: EditErrorCode) {
+    super(`Engine rejected: ${code}`);
+    this.name = "EngineEditError";
+    this.code = code;
+  }
+}
+
+export class EngineStructuredError extends Error {
+  readonly code: EngineErrorCode;
+  readonly context?: ErrorContext;
+
+  constructor(payload: StructuredEngineError) {
+    super(payload.message);
+    this.name = "EngineStructuredError";
+    this.code = payload.code;
+    this.context = payload.context;
+  }
 }
 
 export interface EngineClient {
@@ -154,11 +180,12 @@ export function useEngineWorker(): EngineClient {
         return;
       }
       // res.type === "result"
+      if (!res.ok) {
+        setError(res.error.message);
+      }
       const entry = pending.current.get(res.reqId);
       if (entry) {
-        // The `ok: false` variant carries only `errorCode`; all the data-bearing
-        // fields (sabLen, data, timing, transfer) only exist on the `ok: true`
-        // variant. Narrow the union before touching them.
+        // All data-bearing fields only exist on the `ok: true` variant.
         if (res.ok) {
           // For SAB-based viewport responses, read bytes directly from the
           // shared buffer using the reported length. No transfer reassembly.
@@ -236,9 +263,7 @@ export function useEngineWorker(): EngineClient {
             if (res.type === "result" && res.ok) {
               resolve(res.data as T);
             } else if (res.type === "result" && !res.ok) {
-              const err = new Error(`Engine rejected: ${res.errorCode}`);
-              (err as any).code = res.errorCode;
-              reject(err);
+              reject(new EngineStructuredError(res.error));
             } else if (res.type === "error") {
               console.log("Worker error:", res.message);
               reject(new Error(res.message));

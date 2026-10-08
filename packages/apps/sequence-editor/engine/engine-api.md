@@ -113,6 +113,13 @@ console.log(count); // 2
 - Calling `load` **replaces** all previous data and clears the undo/redo history.
 - Sequence bytes are uppercased; internal whitespace is skipped; sequences may
   span multiple lines.
+- Sequence bodies accept only IUPAC nucleotides (`ACGTURYSWKMBDHVN`, either
+  case) and `-`. Any other character rejects the entire load with an
+  `EngineStructuredError` code of `InvalidAlphabet`. Its message and context
+  identify the sequence, invalid character, 1-based sequence position, and
+  1-based input line. A rejected load preserves the existing data and history.
+- Sequence data before the first `>` header rejects with
+  `InvalidFastaFormat`.
 - The row name is the first whitespace-delimited token after the `>` header.
 - The input is expected to be **pre-aligned**. The engine does not enforce
   uniform row length — use `meta()` and `name()` to inspect the result.
@@ -450,16 +457,39 @@ The `error` field on the client also reflects the last worker error.
 
 ### Error codes
 
-Mutation methods that fail validation reject the promise with an `Error` that
-has a `.code` property containing a string error code. You can inspect it to
-show a user-friendly message:
+Engine methods that fail validation reject with an `EngineStructuredError`.
+It carries a stable `.code`, readable `.message`, and optional `.context` with
+offending coordinates, base, movement direction, reading frame, or FASTA
+diagnostics:
+
+```ts
+import { EngineStructuredError } from "./engine/useEngineWorker";
+
+try {
+  await engine.delete([0], 3); // col 3 is 'A', not '-'
+} catch (err: unknown) {
+  if (err instanceof EngineStructuredError && err.code === "DeleteNotGap") {
+    console.log(err.message, err.context?.row, err.context?.col, err.context?.base);
+    showToast("Mutate the character to '-' first, then delete.");
+  }
+}
+```
+
+`EngineErrorCode` covers all the stable codes below; `EditErrorCode` is its
+edit-only subset. Transport and initialization failures remain worker errors.
+
+FASTA load errors use `InvalidAlphabet`. The context's `invalidCharacters`
+array contains every invalid character across all records, with its `sequenceId`,
+`position`, `line`, and `invalidChar`; `byte` is present for ASCII characters.
+The other FASTA context fields mirror the first occurrence for convenience.
+`InvalidFastaFormat` includes the offending `line`.
 
 ```ts
 try {
-  await engine.delete([0], 3); // col 3 is 'A', not '-'
-} catch (err: any) {
-  if (err.code === "DeleteNotGap") {
-    showToast("Mutate the character to '-' first, then delete.");
+  await engine.load(">seq1\nACGTZ");
+} catch (err: unknown) {
+  if (err instanceof EngineStructuredError && err.code === "InvalidAlphabet") {
+    console.error(err.message, err.context?.invalidCharacters);
   }
 }
 ```
@@ -470,6 +500,11 @@ try {
 | `"MutateNotIupac"` | `mutate()` | Attempted to mutate a character that is not IUPAC or `-`, or to write a base that is not IUPAC or `-`. |
 | `"MoveNotIupac"` | `moveHorizontal()` | Attempted to move a block containing non-IUPAC characters. |
 | `"MoveNoGapTarget"` | `moveHorizontal()` | No gap adjacent to the block in the move direction. |
+| `"InvalidAlphabet"` | `load()` | A sequence contains a character outside IUPAC nucleotides and `-`; the rejected load is atomic. |
+| `"InvalidFastaFormat"` | `load()` | Sequence data appears before the first FASTA header. |
+| `"InvalidReadingFrame"` | `translate()` | Reading frame is not 0, 1, or 2; context includes `frame`. |
+| `"InvalidViewport"` | `viewport()`, `translate()` | Bounds are invalid or the requested/resulting slice exceeds the shared buffer capacity; context includes `row` and `col` (and `frame` for translation). |
+| `"UnexpectedRuntimeError"` | Worker request handling | An unrecognized engine or runtime exception occurred; the message describes the failure. |
 
 ---
 

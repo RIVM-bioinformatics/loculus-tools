@@ -11,6 +11,7 @@ mod search_algorithms;
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
 use search_algorithms::{run_search, Match, MatrixType, SearchAlgorithm, SearchResult};
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 // Bound to the JS `console.log`, so this works in both the main thread and
@@ -27,17 +28,288 @@ macro_rules! console_log {
     ($($arg:tt)*) => { log(&format!($($arg)*)) };
 }
 
-// Error code constants
-// These are returned as `String` from mutation methods. Empty string => success.
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditError {
+    DeleteNotGap,
+    MutateNotIupac,
+    MoveNoGapTarget,
+    MoveNotIupac,
+}
 
-/// Attempted to delete a character that is not `-`.
-const ERR_DELETE_NOT_GAP: &str = "DeleteNotGap";
-/// Attempted to mutate a character that is not IUPAC or `-`.
-const ERR_MUTATE_NOT_IUPAC: &str = "MutateNotIupac";
-/// Attempted to move IUPAC characters but target position(s) are not `-`.
-const ERR_MOVE_NO_GAP_TARGET: &str = "MoveNoGapTarget";
-/// Attempted to move non-IUPAC characters.
-const ERR_MOVE_NOT_IUPAC: &str = "MoveNotIupac";
+impl EditError {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::DeleteNotGap => "DeleteNotGap",
+            Self::MutateNotIupac => "MutateNotIupac",
+            Self::MoveNoGapTarget => "MoveNoGapTarget",
+            Self::MoveNotIupac => "MoveNotIupac",
+        }
+    }
+}
+
+impl std::fmt::Display for EditError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl std::error::Error for EditError {}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct InvalidCharacterContext {
+    #[serde(rename = "sequenceId")]
+    pub sequence_id: String,
+    pub position: usize,
+    pub line: usize,
+    #[serde(rename = "invalidChar")]
+    pub invalid_char: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub byte: Option<u8>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct ErrorContext {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub row: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub col: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frame: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub direction: Option<String>,
+    #[serde(rename = "sequenceId", skip_serializing_if = "Option::is_none")]
+    pub sequence_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub position: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
+    #[serde(rename = "invalidChar", skip_serializing_if = "Option::is_none")]
+    pub invalid_char: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub byte: Option<u8>,
+    #[serde(rename = "invalidCharacters", skip_serializing_if = "Option::is_none")]
+    pub invalid_characters: Option<Vec<InvalidCharacterContext>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct StructuredEngineError {
+    pub code: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<ErrorContext>,
+}
+
+impl std::fmt::Display for StructuredEngineError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}: {}", self.code, self.message)
+    }
+}
+
+impl std::error::Error for StructuredEngineError {}
+
+impl From<StructuredEngineError> for JsValue {
+    fn from(error: StructuredEngineError) -> Self {
+        serde_wasm_bindgen::to_value(&error)
+            .unwrap_or_else(|_| JsValue::from_str(&error.to_string()))
+    }
+}
+
+impl StructuredEngineError {
+    fn new(code: EditError, message: String, context: Option<ErrorContext>) -> Self {
+        Self::with_code(code.as_str(), message, context)
+    }
+
+    fn with_code(code: impl Into<String>, message: String, context: Option<ErrorContext>) -> Self {
+        Self {
+            code: code.into(),
+            message,
+            context,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MutateError {
+    NewBaseNotIupac { base: u8 },
+    TargetNotIupac { row: usize, col: usize, base: u8 },
+}
+
+impl From<MutateError> for EditError {
+    fn from(_: MutateError) -> Self {
+        Self::MutateNotIupac
+    }
+}
+
+impl From<MutateError> for StructuredEngineError {
+    fn from(error: MutateError) -> Self {
+        match error {
+            MutateError::NewBaseNotIupac { base } => Self::new(
+                error.into(),
+                format!(
+                    "Invalid replacement character '{}' (0x{base:02X}); must be an IUPAC nucleotide or '-'",
+                    base as char
+                ),
+                Some(ErrorContext {
+                    base: Some((base as char).to_string()),
+                    ..ErrorContext::default()
+                }),
+            ),
+            MutateError::TargetNotIupac { row, col, base } => Self::new(
+                error.into(),
+                format!(
+                    "Target base '{}' at row {row}, column {col} is not an IUPAC nucleotide or '-'",
+                    base as char
+                ),
+                Some(ErrorContext {
+                    row: Some(row),
+                    col: Some(col),
+                    base: Some((base as char).to_string()),
+                    ..ErrorContext::default()
+                }),
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DeleteError {
+    TargetNotGap { row: usize, col: usize, base: u8 },
+}
+
+impl From<DeleteError> for EditError {
+    fn from(_: DeleteError) -> Self {
+        Self::DeleteNotGap
+    }
+}
+
+impl From<DeleteError> for StructuredEngineError {
+    fn from(error: DeleteError) -> Self {
+        match error {
+            DeleteError::TargetNotGap { row, col, base } => Self::new(
+                error.into(),
+                format!(
+                    "Cannot delete non-gap character '{}' at row {row}, column {col}. Mutate it to '-' first.",
+                    base as char
+                ),
+                Some(ErrorContext {
+                    row: Some(row),
+                    col: Some(col),
+                    base: Some((base as char).to_string()),
+                    ..ErrorContext::default()
+                }),
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MoveError {
+    BlockNotIupac {
+        row: usize,
+        col: usize,
+        base: u8,
+    },
+    TargetNotGap {
+        row: usize,
+        col: usize,
+        base: u8,
+        direction: MoveDirection,
+    },
+    BoundaryReached {
+        row: usize,
+        col: usize,
+        direction: MoveDirection,
+    },
+}
+
+impl From<MoveError> for EditError {
+    fn from(error: MoveError) -> Self {
+        match error {
+            MoveError::BlockNotIupac { .. } => Self::MoveNotIupac,
+            MoveError::TargetNotGap { .. } | MoveError::BoundaryReached { .. } => {
+                Self::MoveNoGapTarget
+            }
+        }
+    }
+}
+
+impl From<MoveError> for StructuredEngineError {
+    fn from(error: MoveError) -> Self {
+        match error {
+            MoveError::BlockNotIupac { row, col, base } => Self::new(
+                EditError::MoveNotIupac,
+                format!(
+                    "Selected block contains non-IUPAC character '{}' at row {row}, column {col}",
+                    base as char
+                ),
+                Some(ErrorContext {
+                    row: Some(row),
+                    col: Some(col),
+                    base: Some((base as char).to_string()),
+                    ..ErrorContext::default()
+                }),
+            ),
+            MoveError::TargetNotGap {
+                row,
+                col,
+                base,
+                direction,
+            } => Self::new(
+                EditError::MoveNoGapTarget,
+                format!(
+                    "Destination column {col} in row {row} is occupied by '{}'; moving {direction:?} requires an adjacent '-' gap",
+                    base as char
+                ),
+                Some(ErrorContext {
+                    row: Some(row),
+                    col: Some(col),
+                    base: Some((base as char).to_string()),
+                    direction: Some(format!("{direction:?}")),
+                    ..ErrorContext::default()
+                }),
+            ),
+            MoveError::BoundaryReached {
+                row,
+                col,
+                direction,
+            } => Self::new(
+                EditError::MoveNoGapTarget,
+                format!("Cannot move {direction:?} from row {row}, column {col}; alignment boundary reached"),
+                Some(ErrorContext {
+                    row: Some(row),
+                    col: Some(col),
+                    direction: Some(format!("{direction:?}")),
+                    ..ErrorContext::default()
+                }),
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TranslateError {
+    InvalidReadingFrame { frame: u8 },
+}
+
+impl From<TranslateError> for StructuredEngineError {
+    fn from(error: TranslateError) -> Self {
+        match error {
+            TranslateError::InvalidReadingFrame { frame } => Self {
+                code: "InvalidReadingFrame".to_owned(),
+                message: format!("Invalid reading frame {frame}; expected frame 0, 1, or 2"),
+                context: Some(ErrorContext {
+                    frame: Some(frame),
+                    ..ErrorContext::default()
+                }),
+            },
+        }
+    }
+}
 
 /// Matches the worker's SharedArrayBuffer capacity and bounds direct WASM calls.
 /// TODO: we may need to revisit this later for a more logical max size of a viewport. i.e. Do we even want to support 200K columns in the viewport if a modern display can only show a few thousand (pixels) at a time? For now, this is a safe upper bound that matches the worker's buffer size.
@@ -51,6 +323,7 @@ fn inclusive_range_len(start: usize, end: usize) -> Option<usize> {
 
 /// Direction for horizontal character movement.
 #[wasm_bindgen]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MoveDirection {
     Left,
     Right,
@@ -128,37 +401,31 @@ impl MsaEngine {
     /// sequence. Shorter sequences are NOT automatically padded.
     /// Callers can detect ragged alignments via `get_row_length`.
     ///
-    /// Returns the number of sequences parsed after successful engine population.
-    pub fn load_fasta(&mut self, fasta_content: &str) -> usize {
-        self.nucleotide_sequences.clear();
-        self.aminoacid_sequences.clear();
-        self.names.clear();
-        self.alignment_width = 0;
-        self.undo_stack.clear();
-        self.redo_stack.clear();
-
+    /// Returns the sequence count on success. Invalid sequence characters
+    /// reject the load without changing the current engine state.
+    pub fn load_fasta(&mut self, fasta_content: &str) -> Result<usize, StructuredEngineError> {
+        let mut staged_sequences = Vec::new();
+        let mut staged_names = Vec::new();
         let mut current_name: Option<String> = None;
         let mut current_seq: Vec<u8> = Vec::new();
+        let mut current_position = 0;
+        let mut invalid_characters = Vec::new();
 
-        for raw_line in fasta_content.lines() {
+        for (line_index, raw_line) in fasta_content.lines().enumerate() {
+            let line_number = line_index + 1;
             let line = raw_line.trim();
             if line.is_empty() {
                 continue;
             }
             if let Some(header) = line.strip_prefix('>') {
-                // Flush the previous record before starting a new one.
-                if let Some(n) = current_name.take() {
+                if let Some(name) = current_name.take() {
                     if !current_seq.is_empty() {
-                        if self.alignment_width == 0 {
-                            self.alignment_width = current_seq.len();
-                        }
-                        self.names.push(n);
-                        self.nucleotide_sequences
-                            .push(std::mem::take(&mut current_seq));
+                        staged_names.push(name);
+                        staged_sequences.push(std::mem::take(&mut current_seq));
                     }
                 }
-                // Header text is everything after '>'; take the first token as
-                // the ID (matching common FASTA convention).
+                current_position = 0;
+                //todo: see issue #27, to be fixed in separate pr.
                 let header_text = header.trim();
                 let id = header_text
                     .split_whitespace()
@@ -167,32 +434,90 @@ impl MsaEngine {
                     .to_string();
                 current_name = Some(id);
             } else {
-                // Sequence data: append uppercase bytes, skipping internal whitespace.
-                for b in line.bytes() {
-                    if !b.is_ascii_whitespace() {
-                        current_seq.push(b.to_ascii_uppercase());
+                let Some(sequence_id) = current_name.as_deref() else {
+                    return Err(StructuredEngineError::with_code(
+                        "InvalidFastaFormat",
+                        format!(
+                            "Sequence data appears before a FASTA header on line {line_number}"
+                        ),
+                        Some(ErrorContext {
+                            line: Some(line_number),
+                            ..ErrorContext::default()
+                        }),
+                    ));
+                };
+
+                for character in line.chars() {
+                    if character.is_ascii_whitespace() {
+                        continue;
                     }
+                    current_position += 1;
+                    let uppercase = character.to_ascii_uppercase();
+                    if !uppercase.is_ascii()
+                        || (!is_iupac(uppercase as u8) && !is_gap(uppercase as u8))
+                    {
+                        invalid_characters.push(InvalidCharacterContext {
+                            sequence_id: sequence_id.to_owned(),
+                            position: current_position,
+                            line: line_number,
+                            invalid_char: character.to_string(),
+                            byte: character.is_ascii().then_some(character as u8),
+                        });
+                        continue;
+                    }
+                    current_seq.push(uppercase as u8);
                 }
             }
         }
-        // Flush the final record.
-        if let Some(n) = current_name.take() {
+
+        if let Some(first) = invalid_characters.first() {
+            let byte_description = first
+                .byte
+                .map(|byte| format!(" (0x{byte:02X})"))
+                .unwrap_or_default();
+            let message = format!(
+                "Found {} invalid FASTA character(s). First: '{}'{} in sequence {:?} at position {}, line {}; see context.invalidCharacters for all occurrences. Expected an IUPAC nucleotide or '-'",
+                invalid_characters.len(),
+                first.invalid_char,
+                byte_description,
+                first.sequence_id,
+                first.position,
+                first.line
+            );
+            return Err(StructuredEngineError::with_code(
+                "InvalidAlphabet",
+                message,
+                Some(ErrorContext {
+                    sequence_id: Some(first.sequence_id.clone()),
+                    position: Some(first.position),
+                    line: Some(first.line),
+                    invalid_char: Some(first.invalid_char.clone()),
+                    byte: first.byte,
+                    invalid_characters: Some(invalid_characters),
+                    ..ErrorContext::default()
+                }),
+            ));
+        }
+
+        if let Some(name) = current_name {
             if !current_seq.is_empty() {
-                self.names.push(n);
-                self.nucleotide_sequences
-                    .push(std::mem::take(&mut current_seq));
+                staged_names.push(name);
+                staged_sequences.push(current_seq);
             }
         }
 
-        // alignment_width is the length of the longest sequence (Rule 8).
-        self.alignment_width = self
-            .nucleotide_sequences
-            .iter()
-            .map(|s| s.len())
-            .max()
-            .unwrap_or(0);
+        let alignment_width = staged_sequences.iter().map(Vec::len).max().unwrap_or(0);
+        let sequence_count = staged_sequences.len();
 
-        self.nucleotide_sequences.len()
+        self.nucleotide_sequences = staged_sequences;
+        self.names = staged_names;
+        self.aminoacid_sequences.clear();
+        self.alignment_width = alignment_width;
+        self.viewport_buffer.clear();
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+
+        Ok(sequence_count)
     }
 
     /// Extract a windowed slice of the matrix into the reusable viewport buffer
@@ -536,7 +861,14 @@ impl MsaEngine {
         start_col: usize,
         end_col: usize,
         reading_frame: u8,
-    ) -> js_sys::Uint8Array {
+    ) -> Result<js_sys::Uint8Array, StructuredEngineError> {
+        if reading_frame > 2 {
+            return Err(TranslateError::InvalidReadingFrame {
+                frame: reading_frame,
+            }
+            .into());
+        }
+
         if self.aminoacid_sequences.is_empty() {
             for seq in &self.nucleotide_sequences {
                 self.aminoacid_sequences.push(Self::translate_sequence(seq));
@@ -544,15 +876,35 @@ impl MsaEngine {
         }
 
         if self.aminoacid_sequences.is_empty() {
-            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+            return Ok(js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0)));
         }
         let row_end = end_row.min(self.aminoacid_sequences.len() - 1);
         if start_row > row_end || start_col > end_col {
-            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+            return Ok(js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0)));
         }
 
-        let cols = end_col - start_col + 1;
-        let mut viewport = Vec::with_capacity((row_end - start_row + 1) * cols);
+        let invalid_viewport = || StructuredEngineError {
+            code: "InvalidViewport".to_owned(),
+            message: format!(
+                "Translate bounds must fit within {MAX_VIEWPORT_BYTES} bytes and memory must be available"
+            ),
+            context: Some(ErrorContext {
+                row: Some(start_row),
+                col: Some(start_col),
+                frame: Some(reading_frame),
+                ..ErrorContext::default()
+            }),
+        };
+        let rows = inclusive_range_len(start_row, row_end).ok_or_else(invalid_viewport)?;
+        let cols = inclusive_range_len(start_col, end_col).ok_or_else(invalid_viewport)?;
+        let byte_len = rows
+            .checked_mul(cols)
+            .filter(|&byte_len| byte_len <= MAX_VIEWPORT_BYTES)
+            .ok_or_else(invalid_viewport)?;
+        let mut viewport = Vec::new();
+        viewport
+            .try_reserve_exact(byte_len)
+            .map_err(|_| invalid_viewport())?;
 
         for row in start_row..=row_end {
             let seq = &self.aminoacid_sequences[row];
@@ -560,11 +912,10 @@ impl MsaEngine {
                 0 => &seq.frame_1,
                 1 => &seq.frame_2,
                 2 => &seq.frame_3,
-                // Out-of-range frame: fall back to frame 1 instead of panicking.
-                _ => &seq.frame_1,
+                _ => unreachable!("reading frame validated before translation"),
             };
             let frame_cols = if start_col < frame.len() {
-                (end_col + 1).min(frame.len()) - start_col
+                (frame.len() - start_col).min(cols)
             } else {
                 0
             };
@@ -577,7 +928,7 @@ impl MsaEngine {
             }
         }
 
-        js_sys::Uint8Array::from(&viewport[..])
+        Ok(js_sys::Uint8Array::from(&viewport[..]))
     }
 
     pub fn get_aminoacid_view(&self, row: usize) -> js_sys::Uint8Array {
@@ -640,18 +991,17 @@ impl MsaEngine {
     /// at a single column index. Rows outside `row_indices` are untouched.
     /// Out-of-range rows or columns are silently skipped.
     ///
-    /// Returns an empty string on success, or an error code constant on
-    /// validation failure (all-or-nothing: no rows are modified on failure).
+    /// Returns a typed error on validation failure; no rows are modified.
     pub fn mutate_base_subset(
         &mut self,
         row_indices: &[usize],
         col_idx: usize,
         new_base: u8,
-    ) -> String {
+    ) -> Result<(), StructuredEngineError> {
         // Validate the destination base: it must be an IUPAC nucleotide or '-'
         // (Rule 3). Mutating to any other character is not allowed.
         if !is_iupac(new_base) && !is_gap(new_base) {
-            return String::from(ERR_MUTATE_NOT_IUPAC);
+            return Err(MutateError::NewBaseNotIupac { base: new_base }.into());
         }
         // Validate: all existing characters at the target positions must be IUPAC or '-'.
         for &r in row_indices {
@@ -659,7 +1009,12 @@ impl MsaEngine {
                 if col_idx < seq.len() {
                     let existing = seq[col_idx];
                     if !is_iupac(existing) && !is_gap(existing) {
-                        return String::from(ERR_MUTATE_NOT_IUPAC);
+                        return Err(MutateError::TargetNotIupac {
+                            row: r,
+                            col: col_idx,
+                            base: existing,
+                        }
+                        .into());
                     }
                 }
             }
@@ -676,7 +1031,7 @@ impl MsaEngine {
             }
         }
         if mutated_rows.is_empty() {
-            return String::new();
+            return Ok(());
         }
         self.undo_stack.push(UndoCommand::Substitutions {
             col_idx,
@@ -692,7 +1047,7 @@ impl MsaEngine {
                 }
             }
         }
-        String::new()
+        Ok(())
     }
 
     /// Simultaneous gap insertion at a single column index on a subset of
@@ -700,11 +1055,14 @@ impl MsaEngine {
     /// the gap at the clamped insertion column; non-target rows have a `-`
     /// appended at the end to keep matrix width consistent.
     ///
-    /// Returns an empty string on success (no validation needed since only
-    /// `-` can be inserted).
-    pub fn insert_at_subset(&mut self, row_indices: &[usize], col_idx: usize) -> String {
+    /// Returns success; no validation is needed since only `-` can be inserted.
+    pub fn insert_at_subset(
+        &mut self,
+        row_indices: &[usize],
+        col_idx: usize,
+    ) -> Result<(), StructuredEngineError> {
         if self.nucleotide_sequences.is_empty() {
-            return String::new();
+            return Ok(());
         }
 
         // Clamp the insertion column to the current alignment width. If `col_idx` is greater than the current width, the gap will be appended to all rows.
@@ -732,7 +1090,7 @@ impl MsaEngine {
             .map(Vec::len)
             .max()
             .unwrap_or(0);
-        String::new()
+        Ok(())
     }
 
     /// Simultaneous deletion at a single column index on a subset of rows.
@@ -740,14 +1098,23 @@ impl MsaEngine {
     /// is removed and a `-` is appended at the end to keep width unchanged.
     /// Non-target rows are completely untouched.
     ///
-    /// Returns an empty string on success, or `ERR_DELETE_NOT_GAP` if any
-    /// target position contains a non-`-` character (all-or-nothing).
-    pub fn delete_at_subset(&mut self, row_indices: &[usize], col_idx: usize) -> String {
+    /// Returns `DeleteNotGap` if any target position contains a non-`-`
+    /// character; the operation is all-or-nothing.
+    pub fn delete_at_subset(
+        &mut self,
+        row_indices: &[usize],
+        col_idx: usize,
+    ) -> Result<(), StructuredEngineError> {
         // Validate: all target positions must be '-'.
         for &r in row_indices {
             if let Some(seq) = self.nucleotide_sequences.get(r) {
                 if col_idx < seq.len() && !is_gap(seq[col_idx]) {
-                    return String::from(ERR_DELETE_NOT_GAP);
+                    return Err(DeleteError::TargetNotGap {
+                        row: r,
+                        col: col_idx,
+                        base: seq[col_idx],
+                    }
+                    .into());
                 }
             }
         }
@@ -767,18 +1134,18 @@ impl MsaEngine {
             }
         }
         // Width unchanged
-        String::new()
+        Ok(())
     }
 
     /// Delete a column from every row, shrinking `alignment_width` by 1.
     /// This is the width-preserving inverse of a full-column insert.
-    /// Returns an empty string on success.
-    pub fn delete_column(&mut self, col_idx: usize) -> String {
+    /// Returns success.
+    pub fn delete_column(&mut self, col_idx: usize) -> Result<(), StructuredEngineError> {
         // If the column is out of range for every row, nothing is removed and
         // the width must not change, otherwise `alignment_width` would
         // desynchronize from the actual row lengths.
         if col_idx >= self.alignment_width {
-            return String::new();
+            return Ok(());
         }
         self.record_structural_undo();
         for seq in self.nucleotide_sequences.iter_mut() {
@@ -787,7 +1154,7 @@ impl MsaEngine {
             }
         }
         self.alignment_width -= 1;
-        String::new()
+        Ok(())
     }
 
     // Horizontal moves of character blocks
@@ -805,52 +1172,78 @@ impl MsaEngine {
     /// **Right move:** validates the selected chars are IUPAC and the position
     /// to the right is `-`, then rotates the block right by 1.
     ///
-    /// Returns an empty string on success, or an error code on failure
-    /// (all-or-nothing).
+    /// Returns a typed error on failure; the operation is all-or-nothing.
     pub fn move_horizontal(
         &mut self,
         row: usize,
         col_indices: &[usize],
         direction: MoveDirection,
-    ) -> String {
+    ) -> Result<(), StructuredEngineError> {
         let seq = match self.nucleotide_sequences.get(row) {
             Some(s) => s,
-            None => return String::new(), // out-of-range row is a no-op
+            None => return Ok(()), // out-of-range row is a no-op
         };
 
         if col_indices.is_empty() {
-            return String::new();
+            return Ok(());
         }
 
         let start = *col_indices.iter().min().unwrap();
         let end = *col_indices.iter().max().unwrap();
 
         if end >= seq.len() {
-            return String::new(); // out of range
+            return Ok(()); // out of range
         }
 
         // Validate: all selected characters must be IUPAC (not '-').
-        for &c in &seq[start..=end] {
-            if !is_iupac(c) {
-                return String::from(ERR_MOVE_NOT_IUPAC);
+        for (offset, &base) in seq[start..=end].iter().enumerate() {
+            if !is_iupac(base) {
+                return Err(MoveError::BlockNotIupac {
+                    row,
+                    col: start + offset,
+                    base,
+                }
+                .into());
             }
         }
 
         match direction {
             MoveDirection::Left => {
                 if start == 0 {
-                    return String::from(ERR_MOVE_NO_GAP_TARGET);
+                    return Err(MoveError::BoundaryReached {
+                        row,
+                        col: 0,
+                        direction: MoveDirection::Left,
+                    }
+                    .into());
                 }
                 if !is_gap(seq[start - 1]) {
-                    return String::from(ERR_MOVE_NO_GAP_TARGET);
+                    return Err(MoveError::TargetNotGap {
+                        row,
+                        col: start - 1,
+                        base: seq[start - 1],
+                        direction: MoveDirection::Left,
+                    }
+                    .into());
                 }
             }
             MoveDirection::Right => {
                 if end + 1 >= seq.len() {
-                    return String::from(ERR_MOVE_NO_GAP_TARGET);
+                    return Err(MoveError::BoundaryReached {
+                        row,
+                        col: seq.len(),
+                        direction: MoveDirection::Right,
+                    }
+                    .into());
                 }
                 if !is_gap(seq[end + 1]) {
-                    return String::from(ERR_MOVE_NO_GAP_TARGET);
+                    return Err(MoveError::TargetNotGap {
+                        row,
+                        col: end + 1,
+                        base: seq[end + 1],
+                        direction: MoveDirection::Right,
+                    }
+                    .into());
                 }
             }
         }
@@ -873,7 +1266,7 @@ impl MsaEngine {
             }
         }
 
-        String::new()
+        Ok(())
     }
 
     // vertical moves and reordering of rows
@@ -881,10 +1274,10 @@ impl MsaEngine {
     /// Move the specified rows up by 1 position. Each specified row swaps with
     /// the row immediately above it. Rows already at the top (index 0) are
     /// silently skipped. Multiple rows may be moved simultaneously.
-    /// Returns an empty string on success.
-    pub fn move_rows_up(&mut self, row_indices: &[usize]) -> String {
+    /// Returns success.
+    pub fn move_rows_up(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || self.nucleotide_sequences.len() < 2 {
-            return String::new();
+            return Ok(());
         }
 
         self.record_structural_undo();
@@ -902,16 +1295,16 @@ impl MsaEngine {
             self.names.swap(r, r - 1);
         }
 
-        String::new()
+        Ok(())
     }
 
     /// Move the specified rows down by 1 position. Each specified row swaps
     /// with the row immediately below it. Rows already at the bottom are
     /// silently skipped. Multiple rows may be moved simultaneously.
-    /// Returns an empty string on success.
-    pub fn move_rows_down(&mut self, row_indices: &[usize]) -> String {
+    /// Returns success.
+    pub fn move_rows_down(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || self.nucleotide_sequences.len() < 2 {
-            return String::new();
+            return Ok(());
         }
 
         self.record_structural_undo();
@@ -929,7 +1322,7 @@ impl MsaEngine {
             self.names.swap(r, r + 1);
         }
 
-        String::new()
+        Ok(())
     }
 
     /// transactional history with undo/redo stacks.

@@ -2,22 +2,25 @@ import {
   CssBaseline,
   ThemeProvider,
 } from '@mui/material';
+import { theme } from '@rivm-loculus-tools/frontend-common/theme';
 import { ErrorBoundary } from 'react-error-boundary';
+import { I18nWrapper } from '@rivm-loculus-tools/frontend-common/components/I18nWrapper';
+import { PageCommonContextProvider } from '@rivm-loculus-tools/frontend-common/components/page';
 
-import { theme } from '../../../theme/theme';
-import { I18nWrapper } from '../../ui/I18nWrapper';
-import { ErrorPage } from '../../pages/ErrorPage';
-import { MainPage } from '../../pages/MainPage';
+import { PhylogenyViewerErrorPage } from '../../pages/PhylogenyViewerErrorPage';
+import { PhylogenyViewerPageMainPage } from '../../pages/PhylogenyViewerPageMainPage';
 
 export const App = () => {
   return (
     <ErrorBoundary
-      FallbackComponent={ErrorPage}
+      FallbackComponent={PhylogenyViewerErrorPage}
     >
       <I18nWrapper>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          <MainPage />
+          <PageCommonContextProvider>
+            <PhylogenyViewerPageMainPage />
+          </PageCommonContextProvider>
         </ThemeProvider>
       </I18nWrapper>
     </ErrorBoundary>

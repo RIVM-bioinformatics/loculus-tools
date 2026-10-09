@@ -47,33 +47,33 @@ It is purely a synchronous in-memory data engine.
 >
 > It's a fair question — at ~16MB the data trivially fits in memory, so why add a
 > Rust/WASM layer and a Web Worker at all? The short answer is that the 16MB footprint only makes the *memory* trivial; it says nothing about the harder problems of *who owns the data*, *how edits stay consistent and atomic*, *how the UI stays responsive*, and *how the logic is verified*. The separate engine addresses these concerns. Concretely:
-> 
+>
 > 1. **Separation of concerns & testability:** Keeping the business logic
->   (parsing, matrix layout, mutation logic, history) in a pure Rust crate
->   decoupled from the UI makes it testable in isolation (see
->   [section 7.1](#71-from-rust-native-tests)).
-> 2. **Previous lessons:** In an earlier PoC of this project we implemented 
->   the same editing logic *inside* the React app, and it quickly became 
->   completely unmaintainable (by hand at least). 
+> (parsing, matrix layout, mutation logic, history) in a pure Rust crate
+> decoupled from the UI makes it testable in isolation (see
+> [section 7.1](#71-from-rust-native-tests)).
+> 2. **Previous lessons:** In an earlier PoC of this project we implemented
+> the same editing logic *inside* the React app, and it quickly became
+> completely unmaintainable (by hand at least).
 > 3. **A single source of truth for the alignment.** The sequence information,
->   and all its derived information (e.g. `alignment_width`), lives in only 
->   one place: the engine. The React side can now only be concerned with 
->   the questions *how to render?* and *how to pass on interactions?*.
+> and all its derived information (e.g. `alignment_width`), lives in only
+> one place: the engine. The React side can now only be concerned with
+> the questions *how to render?* and *how to pass on interactions?*.
 > 4. **Windowed access keeps the frontend cheap.** Because the engine owns the
->   full matrix and only hands out bounded viewport slices, the entire React
->   layer operates on O(visible cells) data. This is what makes the
->   sliding-window Canvas renderer viable and keeps scrolling smooth no matter
->   the size of the alignment (with some limits of course).
+> full matrix and only hands out bounded viewport slices, the entire React
+> layer operates on O(visible cells) data. This is what makes the
+> sliding-window Canvas renderer viable and keeps scrolling smooth no matter
+> the size of the alignment (with some limits of course).
 > 5. **The Web Worker model keeps the UI thread responsive.** All parsing, structural
->   edits, undo/redo snapshots, and (future) search run synchronously in the
->   worker, off the main thread, so a large FASTA parse or a structural insert
->   across 80 sequences never drops a frame on the UI thread. Doing this in
->   React would block rendering for a noticeable period.
-> 7. **Future features require speed.** Features that are not yet implemented, 
->   such as live 3-frame nucleotide→amino-acid translation, and especially searching 
->   the sequences for exact (multiple) matches of user-input are computationally expensive.
->   These actions gain massively from compiled language implementation and the ability to
->   run off the main thread.
+> edits, undo/redo snapshots, and (future) search run synchronously in the
+> worker, off the main thread, so a large FASTA parse or a structural insert
+> across 80 sequences never drops a frame on the UI thread. Doing this in
+> React would block rendering for a noticeable period.
+> 6. **Future features require speed.** Features that are not yet implemented,
+> such as live 3-frame nucleotide→amino-acid translation, and especially searching
+> the sequences for exact (multiple) matches of user-input are computationally expensive.
+> These actions gain massively from compiled language implementation and the ability to
+> run off the main thread.
 
 ---
 
@@ -136,7 +136,7 @@ pub struct MsaEngine {
 ```
 
 | Field | Purpose |
-|-------|---------|
+| ------- | --------- |
 | `sequences` | The matrix. Each inner `Vec<u8>` is one sequence of ASCII bytes (`b'A'`, `b'-'`, ...). |
 | `names` | Row identifiers, parallel to `sequences`. |
 | `alignment_width` | The global number of columns. Set from the longest sequence at load time. |
@@ -228,7 +228,7 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 ### 4.3 Viewport Extraction
 
 | Method | Signature | Description |
-|--------|-----------|-------------|
+| -------- | ----------- | ------------- |
 | `update_viewport` | `update_viewport(startRow, endRow, startCol, endCol): Uint8Array` | Extract a windowed slice into the reusable buffer and return it as a `Uint8Array`. |
 | `update_viewport_into` | `update_viewport_into(startRow, endRow, startCol, endCol, out: Uint8Array): number` | Write the slice directly into a caller-provided buffer (e.g. a `SharedArrayBuffer` view). Returns bytes written. |
 | `get_viewport_len` | `get_viewport_len(): number` | Bytes currently held in the viewport buffer. |
@@ -269,7 +269,7 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 ### 4.4 Metadata Getters
 
 | Method | Signature | Description |
-|--------|-----------|-------------|
+| -------- | ----------- | ------------- |
 | `get_sequence_count` | `(): number` | Number of loaded sequences. |
 | `get_alignment_width` | `(): number` | Global column count (0 if empty). |
 | `get_name` | `(row: number): string` | Row name, or `""` if out of range. |
@@ -490,7 +490,7 @@ oversized results, or reservation failures return `InvalidViewport` with
 `row`, `col`, and `frame` context.
 
 | Code | Meaning | Context |
-|----------|-------|---------|
+| ---------- | ------- | --------- |
 | `DeleteNotGap` | Attempted to delete a non-`-` character. | `row`, `col`, `base` |
 | `MutateNotIupac` | Target or replacement character is not IUPAC or `-`. | `row`, `col`, and/or `base` |
 | `MoveNotIupac` | Selected block contains a non-IUPAC character. | `row`, `col`, `base` |
@@ -683,7 +683,7 @@ capabilities. The surrounding consumer layers (worker bridge, test harness) are
 implemented in `www/` and are described in the companion documents.
 
 | Area | Status |
-|------|--------|
+| ------ | -------- |
 | Core data structures & memory layout | ✅ Done (`MsaEngine`, viewport buffer) |
 | WASM boundary API | ✅ Done (`load_fasta`, `update_viewport`, `update_viewport_into`, metadata getters) |
 | Mutation core | ✅ Done (`mutate_base_subset`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |

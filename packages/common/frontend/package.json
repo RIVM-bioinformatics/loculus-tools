@@ -32,49 +32,210 @@
     "react": "*"
   },
   "dependencies": {
-    "lodash": "4.18.1"
+    "lodash": "4.18.1",
+    "zustand": "5.0.15"
   },
   "devDependencies": {
     "@emotion/cache": "11.14.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@gen-epix/eslint-config": "0.5.0",
-    "@gen-epix/ui-core-components": "4.2.0",
-    "@gen-epix/ui-core-form": "4.2.0",
-    "@gen-epix/ui-core": "3.2.0",
+    "@gen-epix/eslint-config": "0.7.0",
+    "@gen-epix/ui-core-components": "4.3.1",
+    "@gen-epix/ui-core-form": "4.3.1",
+    "@gen-epix/ui-core": "3.8.1",
     "@mui/icons-material": "9.4.0",
     "@mui/material": "9.4.0",
     "@mui/styled-engine": "9.4.0",
     "@mui/system": "9.4.0",
     "@mui/utils": "9.4.0",
     "@types/lodash": "4.17.25",
-    "@types/node": "26.4.1",
+    "@types/node": "26.6.2",
     "@types/react-dom": "19.3.0",
     "@types/react": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
-    "eslint": "10.10.0",
+    "eslint": "10.11.0",
     "i18next": "26.4.2",
     "react-dom": "19.3.0",
-    "react-error-boundary": "6.1.5",
-    "react-hook-form": "7.87.0",
-    "react-i18next": "17.0.13",
+    "react-error-boundary": "6.1.6",
+    "react-hook-form": "7.88.0",
+    "react-i18next": "17.0.15",
     "react": "19.3.0",
     "typescript": "6.0.3",
-    "vite-plugin-dts": "5.1.0",
+    "vite-plugin-dts": "5.1.1",
     "vite-plugin-static-copy": "4.1.1",
     "vite": "8.3.0"
   },
   "exports": {
-    "./components/Mock": {
-      "types": "./src/components/Mock/index.ts",
-      "import": "./src/components/Mock/index.ts"
+    "./classes/services/FastaDataEventBusService": {
+      "types": "./src/classes/services/FastaDataEventBusService/index.ts",
+      "import": "./src/classes/services/FastaDataEventBusService/index.ts"
+    },
+    "./components/FastaDataImportDialog": {
+      "types": "./src/components/FastaDataImportDialog/index.ts",
+      "import": "./src/components/FastaDataImportDialog/index.ts"
+    },
+    "./components/FastaDataImportDialogLoader": {
+      "types": "./src/components/FastaDataImportDialogLoader/index.ts",
+      "import": "./src/components/FastaDataImportDialogLoader/index.ts"
+    },
+    "./components/FastaNotLoaded": {
+      "types": "./src/components/FastaNotLoaded/index.ts",
+      "import": "./src/components/FastaNotLoaded/index.ts"
+    },
+    "./components/FastaPageHeaderCenterComponent": {
+      "types": "./src/components/FastaPageHeaderCenterComponent/index.ts",
+      "import": "./src/components/FastaPageHeaderCenterComponent/index.ts"
+    },
+    "./components/FastaPageHeaderImportButton": {
+      "types": "./src/components/FastaPageHeaderImportButton/index.ts",
+      "import": "./src/components/FastaPageHeaderImportButton/index.ts"
+    },
+    "./components/FastaPageHeaderResetButton": {
+      "types": "./src/components/FastaPageHeaderResetButton/index.ts",
+      "import": "./src/components/FastaPageHeaderResetButton/index.ts"
+    },
+    "./components/I18nWrapper": {
+      "types": "./src/components/I18nWrapper/index.ts",
+      "import": "./src/components/I18nWrapper/index.ts"
+    },
+    "./components/PageHeaderDocumentationButton": {
+      "types": "./src/components/PageHeaderDocumentationButton/index.ts",
+      "import": "./src/components/PageHeaderDocumentationButton/index.ts"
+    },
+    "./components/SearchBar": {
+      "types": "./src/components/SearchBar/index.ts",
+      "import": "./src/components/SearchBar/index.ts"
+    },
+    "./components/page": {
+      "types": "./src/components/page/index.ts",
+      "import": "./src/components/page/index.ts"
+    },
+    "./constants/page": {
+      "types": "./src/constants/page.ts",
+      "import": "./src/constants/page.ts"
+    },
+    "./models/fasta": {
+      "types": "./src/models/fasta.ts",
+      "import": "./src/models/fasta.ts"
+    },
+    "./models/metadata": {
+      "types": "./src/models/metadata.ts",
+      "import": "./src/models/metadata.ts"
+    },
+    "./stores/fastaDataStore": {
+      "types": "./src/stores/fastaDataStore/index.ts",
+      "import": "./src/stores/fastaDataStore/index.ts"
+    },
+    "./theme": {
+      "types": "./src/theme/index.ts",
+      "import": "./src/theme/index.ts"
+    },
+    "./utils/DownloadUtil": {
+      "types": "./src/utils/DownloadUtil/index.ts",
+      "import": "./src/utils/DownloadUtil/index.ts"
+    },
+    "./utils/ErrorUtil": {
+      "types": "./src/utils/ErrorUtil/index.ts",
+      "import": "./src/utils/ErrorUtil/index.ts"
+    },
+    "./utils/FastaUtil": {
+      "types": "./src/utils/FastaUtil/index.ts",
+      "import": "./src/utils/FastaUtil/index.ts"
+    },
+    "./utils/MetaDataUtil": {
+      "types": "./src/utils/MetaDataUtil/index.ts",
+      "import": "./src/utils/MetaDataUtil/index.ts"
+    },
+    "./utils/UrlUtil": {
+      "types": "./src/utils/UrlUtil/index.ts",
+      "import": "./src/utils/UrlUtil/index.ts"
     }
   },
   "publishConfig": {
     "exports": {
-      "./components/Mock": {
-        "types": "./dist/components/Mock/index.d.ts",
-        "import": "./dist/components/Mock/index.js"
+      "./classes/services/FastaDataEventBusService": {
+        "types": "./dist/classes/services/FastaDataEventBusService/index.d.ts",
+        "import": "./dist/classes/services/FastaDataEventBusService/index.js"
+      },
+      "./components/FastaDataImportDialog": {
+        "types": "./dist/components/FastaDataImportDialog/index.d.ts",
+        "import": "./dist/components/FastaDataImportDialog/index.js"
+      },
+      "./components/FastaDataImportDialogLoader": {
+        "types": "./dist/components/FastaDataImportDialogLoader/index.d.ts",
+        "import": "./dist/components/FastaDataImportDialogLoader/index.js"
+      },
+      "./components/FastaNotLoaded": {
+        "types": "./dist/components/FastaNotLoaded/index.d.ts",
+        "import": "./dist/components/FastaNotLoaded/index.js"
+      },
+      "./components/FastaPageHeaderCenterComponent": {
+        "types": "./dist/components/FastaPageHeaderCenterComponent/index.d.ts",
+        "import": "./dist/components/FastaPageHeaderCenterComponent/index.js"
+      },
+      "./components/FastaPageHeaderImportButton": {
+        "types": "./dist/components/FastaPageHeaderImportButton/index.d.ts",
+        "import": "./dist/components/FastaPageHeaderImportButton/index.js"
+      },
+      "./components/FastaPageHeaderResetButton": {
+        "types": "./dist/components/FastaPageHeaderResetButton/index.d.ts",
+        "import": "./dist/components/FastaPageHeaderResetButton/index.js"
+      },
+      "./components/I18nWrapper": {
+        "types": "./dist/components/I18nWrapper/index.d.ts",
+        "import": "./dist/components/I18nWrapper/index.js"
+      },
+      "./components/PageHeaderDocumentationButton": {
+        "types": "./dist/components/PageHeaderDocumentationButton/index.d.ts",
+        "import": "./dist/components/PageHeaderDocumentationButton/index.js"
+      },
+      "./components/SearchBar": {
+        "types": "./dist/components/SearchBar/index.d.ts",
+        "import": "./dist/components/SearchBar/index.js"
+      },
+      "./components/page": {
+        "types": "./dist/components/page/index.d.ts",
+        "import": "./dist/components/page/index.js"
+      },
+      "./constants/page": {
+        "types": "./dist/constants/page.d.ts",
+        "import": "./dist/constants/page.js"
+      },
+      "./models/fasta": {
+        "types": "./dist/models/fasta.d.ts",
+        "import": "./dist/models/fasta.js"
+      },
+      "./models/metadata": {
+        "types": "./dist/models/metadata.d.ts",
+        "import": "./dist/models/metadata.js"
+      },
+      "./stores/fastaDataStore": {
+        "types": "./dist/stores/fastaDataStore/index.d.ts",
+        "import": "./dist/stores/fastaDataStore/index.js"
+      },
+      "./theme": {
+        "types": "./dist/theme/index.d.ts",
+        "import": "./dist/theme/index.js"
+      },
+      "./utils/DownloadUtil": {
+        "types": "./dist/utils/DownloadUtil/index.d.ts",
+        "import": "./dist/utils/DownloadUtil/index.js"
+      },
+      "./utils/ErrorUtil": {
+        "types": "./dist/utils/ErrorUtil/index.d.ts",
+        "import": "./dist/utils/ErrorUtil/index.js"
+      },
+      "./utils/FastaUtil": {
+        "types": "./dist/utils/FastaUtil/index.d.ts",
+        "import": "./dist/utils/FastaUtil/index.js"
+      },
+      "./utils/MetaDataUtil": {
+        "types": "./dist/utils/MetaDataUtil/index.d.ts",
+        "import": "./dist/utils/MetaDataUtil/index.js"
+      },
+      "./utils/UrlUtil": {
+        "types": "./dist/utils/UrlUtil/index.d.ts",
+        "import": "./dist/utils/UrlUtil/index.js"
       }
     }
   }

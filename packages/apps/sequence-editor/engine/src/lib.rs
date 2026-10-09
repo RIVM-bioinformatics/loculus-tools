@@ -10,7 +10,7 @@ mod alphabets;
 mod search_algorithms;
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
-use search_algorithms::{run_search, Match, MatrixType, SearchAlgorithm, SearchResult};
+use search_algorithms::{naive_search, MAX_SEARCH_RESULTS, Match, MatrixType, SearchResult};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
@@ -685,7 +685,7 @@ impl MsaEngine {
     /// create a function for checking the query input
     /// It should be in the alphabet of the sequences, otherwise return an error message
     fn is_valid_nucleotide_query(&self, query: &str) -> bool {
-        for b in query.bytes() {
+        for b in query.bytes().map(|byte| byte.to_ascii_uppercase()) {
             if !is_iupac(b) && !is_gap(b) {
                 return false;
             }
@@ -694,7 +694,7 @@ impl MsaEngine {
     }
 
     fn is_valid_amino_acid_query(&self, query: &str) -> bool {
-        for b in query.bytes() {
+        for b in query.bytes().map(|byte| byte.to_ascii_uppercase()) {
             if !is_amino(b) && !is_gap(b) {
                 return false;
             }
@@ -716,12 +716,7 @@ impl MsaEngine {
         if self.nucleotide_sequences.is_empty() || !self.is_valid_nucleotide_query(query) {
             SearchResult::empty(query)
         } else {
-            run_search(
-                &SearchAlgorithm::FmIndex,
-                &self.nucleotide_sequences,
-                query,
-                MatrixType::Nucleotide,
-            )
+            naive_search(&self.nucleotide_sequences, query, MatrixType::Nucleotide)
         }
     }
 
@@ -740,12 +735,7 @@ impl MsaEngine {
             })
             .collect();
 
-        run_search(
-            &SearchAlgorithm::FmIndex,
-            &amino_acid_bytes,
-            query,
-            MatrixType::AminoAcid,
-        )
+        naive_search(&amino_acid_bytes, query, MatrixType::AminoAcid)
     }
 
     fn search_record_names(&self, query: &str) -> SearchResult {
@@ -771,6 +761,7 @@ impl MsaEngine {
             SearchResult {
                 query: query.to_string(),
                 num_matches: positions.len(),
+                truncated: false,
                 positions,
             }
         }
@@ -792,13 +783,21 @@ impl MsaEngine {
             SearchResult::empty(&query)
         };
 
+        let mut truncated = nucleotide_result.truncated
+            || amino_acid_result.truncated
+            || record_names_result.truncated;
         let mut all_positions = nucleotide_result.positions;
         all_positions.extend(amino_acid_result.positions);
         all_positions.extend(record_names_result.positions);
+        if all_positions.len() > MAX_SEARCH_RESULTS {
+            all_positions.truncate(MAX_SEARCH_RESULTS);
+            truncated = true;
+        }
 
         let combined_result = SearchResult {
             query: query.to_string(),
             num_matches: all_positions.len(),
+            truncated,
             positions: all_positions,
         };
 

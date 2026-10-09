@@ -8,8 +8,7 @@ if (!container) {
   throw new Error('Root container not found in document.');
 }
 
-const root = createRoot(container);
-root.render(
+createRoot(container).render(
   <StrictMode>
     <App />
   </StrictMode>,

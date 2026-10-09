@@ -1,3 +1,4 @@
+import { globalIgnores } from 'eslint/config';
 import baseEslintConfig from '@gen-epix/eslint-config';
 
 // Example of adding a custom rule
@@ -13,4 +14,29 @@ import baseEslintConfig from '@gen-epix/eslint-config';
 // }];
 
 
-export default baseEslintConfig;
+export default [
+  ...baseEslintConfig,
+  globalIgnores([
+    'src/BenchmarkPanel.tsx',
+    'src/ScrollingViewport.tsx',
+    'src/TestHarness.tsx',
+  ]),
+  {
+    files: ['src/engine/engine.worker.ts'],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-use-before-define': 'off',
+      '@typescript-eslint/require-await': 'off',
+      'default-case': 'off',
+      'no-useless-assignment': 'off',
+      'prefer-arrow/prefer-arrow-functions': 'off',
+    },
+  },
+  {
+    files: ['src/engine/protocol.ts'],
+    rules: {
+      '@typescript-eslint/naming-convention': 'off',
+    },
+  },
+];

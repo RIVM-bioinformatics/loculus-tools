@@ -63,11 +63,72 @@ fn out_of_range_base_returns_zero() {
 }
 
 #[test]
+fn nucleotide_search_accepts_lowercase_queries() {
+    let e = engine_with_sample();
+    let result = e.search_nucleotide("atgc");
+
+    assert_eq!(result.query, "atgc");
+    assert_eq!(result.num_matches, 4);
+}
+
+#[test]
 fn empty_fasta_loads_zero() {
     let mut e = MsaEngine::new();
     assert_eq!(e.load_fasta("").unwrap(), 0);
     assert_eq!(e.get_sequence_count(), 0);
     assert_eq!(e.get_alignment_width(), 0);
+}
+
+#[test]
+fn exports_loaded_alignment_as_unwrapped_fasta() {
+    let e = engine_with_sample();
+
+    assert_eq!(
+        e.export_fasta(),
+        ">seq1\nATGCATGC\n>seq2\nATGGTG-A\n>seq3\nATGCAT-C\n"
+    );
+}
+
+#[test]
+fn exports_edited_alignment() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.mutate_base_subset(&[0], 0, b'G'), "");
+
+    assert_eq!(
+        e.export_fasta(),
+        ">seq1\nGTGCATGC\n>seq2\nATGGTG-A\n>seq3\nATGCAT-C\n"
+    );
+}
+
+#[test]
+fn exports_current_row_order() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.move_rows_up(&[1]), "");
+
+    assert_eq!(
+        e.export_fasta(),
+        ">seq2\nATGGTG-A\n>seq1\nATGCATGC\n>seq3\nATGCAT-C\n"
+    );
+}
+
+#[test]
+fn exports_empty_engine_as_empty_string() {
+    let e = MsaEngine::new();
+
+    assert_eq!(e.export_fasta(), "");
+}
+
+#[test]
+fn export_tracks_undo_and_redo_state() {
+    let mut e = engine_with_sample();
+    let original = e.export_fasta();
+
+    assert_eq!(e.mutate_base_subset(&[0], 0, b'G'), "");
+    let edited = e.export_fasta();
+    assert!(e.undo());
+    assert_eq!(e.export_fasta(), original);
+    assert!(e.redo());
+    assert_eq!(e.export_fasta(), edited);
 }
 
 #[test]
@@ -332,6 +393,33 @@ fn mutate_base_subset_changes_only_target_rows() {
 }
 
 #[test]
+fn mutate_base_range_changes_one_rectangle_atomically() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.mutate_base_range(&[0, 1], 1, 3, b'N'), "");
+    for row in 0..=1 {
+        for col in 1..=3 {
+            assert_eq!(e.get_base(row, col), b'N');
+        }
+    }
+    assert_eq!(e.get_base(2, 1), b'T');
+    assert!(e.undo());
+    assert_eq!(e.get_base(0, 1), b'T');
+    assert_eq!(e.get_base(1, 3), b'G');
+    assert!(e.redo());
+    assert_eq!(e.get_base(0, 1), b'N');
+    assert_eq!(e.get_base(1, 3), b'N');
+}
+
+#[test]
+fn mutate_base_range_rejects_before_changing_any_position() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.mutate_base_range(&[0], 0, 7, b'X'), ERR_MUTATE_NOT_IUPAC);
+    assert_eq!(e.get_base(0, 0), b'A');
+    assert_eq!(e.get_base(0, 7), b'C');
+    assert_eq!(e.undo_depth(), 0);
+}
+
+#[test]
 fn mutate_skips_out_of_range_rows_and_cols() {
     let mut e = engine_with_sample();
     assert_eq!(e.mutate_base_subset(&[0, 99], 3, b'T'), Ok(()));
@@ -501,6 +589,29 @@ fn redo_structural_insert_reapplies() {
     assert_eq!(e.get_alignment_width(), 9);
     assert_eq!(e.get_base(0, 2), b'-'); // gap
     assert_eq!(e.get_base(2, 2), b'G'); // unchanged, non-target
+}
+
+#[test]
+fn repeated_subset_inserts_undo_and_redo_without_losing_rows() {
+    let mut e = engine_with_sample();
+    let original = e.export_fasta();
+
+    for _ in 0..100 {
+        e.insert_at_subset(&[0, 1], 2);
+    }
+    assert_eq!(e.get_alignment_width(), 108);
+    assert_eq!(e.undo_depth(), 100);
+
+    for _ in 0..100 {
+        assert!(e.undo());
+    }
+    assert_eq!(e.export_fasta(), original);
+
+    for _ in 0..100 {
+        assert!(e.redo());
+    }
+    assert_eq!(e.get_alignment_width(), 108);
+    assert_eq!(e.get_base(0, 2), b'-');
 }
 
 #[test]

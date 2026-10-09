@@ -80,7 +80,11 @@ pub fn naive_search(matrix: &[Vec<u8>], query: &str, matrix_type: MatrixType) ->
 }
 
 #[cfg(test)]
-pub fn fm_index_search(matrix: &[Vec<u8>], query: &str, matrix_type: MatrixType) -> SearchResult {
+pub fn fm_index_search(
+    matrix: &Vec<Vec<u8>>,
+    query: &str,
+    matrix_type: MatrixType,
+) -> SearchResult {
     // We need a Text representation of the matrix for the FM-index, with '\0' as row separators.
     let mut concatenated: Vec<u8> = Vec::new();
     let mut row_offsets = Vec::new();

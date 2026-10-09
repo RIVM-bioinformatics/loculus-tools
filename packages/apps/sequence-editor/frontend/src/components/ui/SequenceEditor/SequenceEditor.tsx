@@ -456,16 +456,20 @@ export const SequenceEditor = () => {
       }
     };
 
-    const mutateRange = async (base: string) => {
+    const mutate = async (base: string) => {
       if (!metaSubject.data) {
         return;
       }
-      const mutateRangeArguments = EditorUtil.getMutateRangeArguments(selectionSubject.data, metaSubject.data);
+      const mutateRangeArguments = EditorUtil.getMutateArguments(selectionSubject.data, metaSubject.data);
       if (!mutateRangeArguments) {
         return;
       }
       await execute({
-        command: async () => editorService.mutateRange(mutateRangeArguments.rows, mutateRangeArguments.startCol, mutateRangeArguments.endCol, base),
+        command: async () => {
+          for (let column = mutateRangeArguments.startCol; column <= mutateRangeArguments.endCol; column += 1) {
+            await editorService.mutate(mutateRangeArguments.rows, column, base);
+          }
+        },
       });
     };
 
@@ -616,7 +620,7 @@ export const SequenceEditor = () => {
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onMutateSelection', (base) => {
-        void mutateRange(base);
+        void mutate(base);
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onUndo', () => {

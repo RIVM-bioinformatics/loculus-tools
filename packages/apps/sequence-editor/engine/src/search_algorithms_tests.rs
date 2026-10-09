@@ -6,7 +6,7 @@
 //! Because it is a sibling module of `search_algorithms` at the crate root,
 //! it imports the search items via `crate::search_algorithms`.
 
-use crate::search_algorithms::{fm_index_search, naive_search, MatrixType, MAX_SEARCH_RESULTS};
+use crate::search_algorithms::{MAX_SEARCH_RESULTS, MatrixType, fm_index_search, naive_search};
 
 // A single real-world-shaped sequence, written across multiple source lines
 // for readability. The trailing `\` on each line is a Rust string-literal
@@ -107,12 +107,14 @@ fn fm_index_search_reports_no_matches_for_missing_query() {
 }
 
 #[test]
-fn naive_search_caps_high_frequency_matches() {
-    let matrix = vec![b"N".repeat(MAX_SEARCH_RESULTS + 1)];
+fn search_limits_high_frequency_matches() {
+    let matrix = vec![vec![b'A'; MAX_SEARCH_RESULTS + 1]];
 
-    let result = naive_search(&matrix, "N", MatrixType::Nucleotide);
+    let naive_result = naive_search(&matrix, "A", MatrixType::Nucleotide);
+    assert_eq!(naive_result.num_matches, MAX_SEARCH_RESULTS);
+    assert!(naive_result.truncated);
 
-    assert_eq!(result.positions.len(), MAX_SEARCH_RESULTS);
-    assert_eq!(result.num_matches, MAX_SEARCH_RESULTS);
-    assert!(result.truncated);
+    let fm_index_result = fm_index_search(&matrix, "A", MatrixType::Nucleotide);
+    assert_eq!(fm_index_result.num_matches, MAX_SEARCH_RESULTS);
+    assert!(fm_index_result.truncated);
 }

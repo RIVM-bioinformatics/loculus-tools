@@ -47,33 +47,33 @@ It is purely a synchronous in-memory data engine.
 >
 > It's a fair question — at ~16MB the data trivially fits in memory, so why add a
 > Rust/WASM layer and a Web Worker at all? The short answer is that the 16MB footprint only makes the *memory* trivial; it says nothing about the harder problems of *who owns the data*, *how edits stay consistent and atomic*, *how the UI stays responsive*, and *how the logic is verified*. The separate engine addresses these concerns. Concretely:
-> 
+>
 > 1. **Separation of concerns & testability:** Keeping the business logic
->   (parsing, matrix layout, mutation logic, history) in a pure Rust crate
->   decoupled from the UI makes it testable in isolation (see
->   [section 7.1](#71-from-rust-native-tests)).
-> 2. **Previous lessons:** In an earlier PoC of this project we implemented 
->   the same editing logic *inside* the React app, and it quickly became 
->   completely unmaintainable (by hand at least). 
+> (parsing, matrix layout, mutation logic, history) in a pure Rust crate
+> decoupled from the UI makes it testable in isolation (see
+> [section 7.1](#71-from-rust-native-tests)).
+> 2. **Previous lessons:** In an earlier PoC of this project we implemented
+> the same editing logic *inside* the React app, and it quickly became
+> completely unmaintainable (by hand at least).
 > 3. **A single source of truth for the alignment.** The sequence information,
->   and all its derived information (e.g. `alignment_width`), lives in only 
->   one place: the engine. The React side can now only be concerned with 
->   the questions *how to render?* and *how to pass on interactions?*.
+> and all its derived information (e.g. `alignment_width`), lives in only
+> one place: the engine. The React side can now only be concerned with
+> the questions *how to render?* and *how to pass on interactions?*.
 > 4. **Windowed access keeps the frontend cheap.** Because the engine owns the
->   full matrix and only hands out bounded viewport slices, the entire React
->   layer operates on O(visible cells) data. This is what makes the
->   sliding-window Canvas renderer viable and keeps scrolling smooth no matter
->   the size of the alignment (with some limits of course).
+> full matrix and only hands out bounded viewport slices, the entire React
+> layer operates on O(visible cells) data. This is what makes the
+> sliding-window Canvas renderer viable and keeps scrolling smooth no matter
+> the size of the alignment (with some limits of course).
 > 5. **The Web Worker model keeps the UI thread responsive.** All parsing, structural
->   edits, undo/redo snapshots, translation, and search run synchronously in the
->   worker, off the main thread, so a large FASTA parse or a structural insert
->   across 80 sequences never drops a frame on the UI thread. Doing this in
->   React would block rendering for a noticeable period.
-> 7. **Translation and search require speed.** Live 3-frame nucleotide→amino-acid
->   translation and searching the sequences for exact (multiple) matches of
->   user-input are computationally expensive.
->   These actions gain massively from compiled language implementation and the ability to
->   run off the main thread.
+> edits, undo/redo snapshots, and (future) search run synchronously in the
+> worker, off the main thread, so a large FASTA parse or a structural insert
+> across 80 sequences never drops a frame on the UI thread. Doing this in
+> React would block rendering for a noticeable period.
+> 6. **Future features require speed.** Features that are not yet implemented,
+> such as live 3-frame nucleotide→amino-acid translation, and especially searching
+> the sequences for exact (multiple) matches of user-input are computationally expensive.
+> These actions gain massively from compiled language implementation and the ability to
+> run off the main thread.
 
 ---
 
@@ -81,13 +81,13 @@ It is purely a synchronous in-memory data engine.
 
 ```
 sequence-editor/
-├── engine/             # Rust crate (MsaEngine + UndoCommand + tests)
-│   ├── Cargo.toml
-│   ├── src/
-│   └── target/         # cargo build artifacts
-├── frontend/           # Vite + React + MUI test harness (consumer)
-│   └── src/engine/     # worker bridge + RPC hook + protocol types
-└── wasm/               # wasm-pack build output
+├── Cargo.toml          # crate manifest (note: capital C)
+├── src/
+│   └── lib.rs          # the entire engine (MsaEngine + UndoCommand + tests)
+├── www/                # Vite + React + MUI test harness (consumer)
+│   ├── src/engine/     # worker bridge + RPC hook + protocol types
+│   └── wasm/           # wasm-pack build output
+└── target/             # cargo build artifacts
 ```
 
 The engine is a single-file crate: all logic lives in `src/lib.rs`. The crate
@@ -126,8 +126,7 @@ The engine is a single `#[wasm_bindgen]` struct that owns all state:
 ```rust
 #[wasm_bindgen]
 pub struct MsaEngine {
-    nucleotide_sequences: Vec<Vec<u8>>, // the nucleotide matrix, row-major
-    aminoacid_sequences: Vec<AminoacidSequence>, // cached translated sequences
+    sequences: Vec<Vec<u8>>,   // the alignment matrix, row-major
     names: Vec<String>,        // one row identifier per sequence
     alignment_width: usize,    // global column count
     viewport_buffer: Vec<u8>,  // reusable slice buffer
@@ -137,9 +136,8 @@ pub struct MsaEngine {
 ```
 
 | Field | Purpose |
-|-------|---------|
-| `nucleotide_sequences` | The matrix. Each inner `Vec<u8>` is one sequence of ASCII bytes (`b'A'`, `b'-'`, ...). |
-| `aminoacid_sequences` | Lazily initialized translations for the three reading frames. |
+| ------- | --------- |
+| `sequences` | The matrix. Each inner `Vec<u8>` is one sequence of ASCII bytes (`b'A'`, `b'-'`, ...). |
 | `names` | Row identifiers, parallel to `sequences`. |
 | `alignment_width` | The global number of columns. Set from the longest sequence at load time. |
 | `viewport_buffer` | A single reusable buffer for viewport extraction, pre-allocated to ~5000 bytes and grown on demand. |
@@ -159,7 +157,7 @@ enum UndoCommand {
         old_bases: Vec<u8>,
     },
     /// Structural inserts/deletes: a lightweight clone of the full matrix.
-    StructuralSnapshot {
+StructuralSnapshot {
         matrix_snapshot: Vec<Vec<u8>>,
         names_snapshot: Vec<String>,
         width_snapshot: usize,
@@ -192,22 +190,31 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 | Method | Signature (JS-facing) | Description |
 |--------|----------------------|-------------|
 | `new()` | `new MsaEngine()` | Construct an empty engine. |
-| `export_fasta` | `(): string` | Serialize the current row order, names, and nucleotide bytes as unwrapped FASTA. |
 
 ### 4.2 Loading
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `load_fasta` | `load_fasta(fasta: string): number` | Parse FASTA content, populate the matrix, return the number of sequences loaded. |
+| `load_fasta` | `load_fasta(fasta: string): number` | Validate and parse FASTA atomically; throw a structured error on invalid input. |
 
 `load_fasta` behavior:
 
-- Clears all previous state (sequences, names, width, undo/redo stacks).
+- Parses into temporary sequence/name buffers first. Only after the complete
+  input is valid does it replace existing data and clear undo/redo history;
+  invalid input leaves the current engine state intact.
 - Scans line by line. A line starting with `>` begins a new record; the first
   whitespace-delimited token after `>` becomes the row name (common FASTA
   convention).
 - Sequence lines are appended as **uppercased** ASCII bytes; internal whitespace
   is skipped. Sequences may span multiple lines.
+- Sequence bodies accept only IUPAC nucleotide characters
+  (`ACGTURYSWKMBDHVN`, either case) and `-`. Other characters, including
+  non-ASCII characters, reject with `StructuredEngineError` code
+  `InvalidAlphabet`. The `invalidCharacters` context array lists every
+  occurrence across all records, with its sequence ID, invalid character,
+  1-based sequence position, and 1-based input line. Scalar context fields
+  mirror the first occurrence.
+- Sequence data before the first header rejects with `InvalidFastaFormat`.
 - The **longest** sequence sets `alignment_width` (not the first). Subsequent
   sequences are loaded as-is even if they differ in length — the engine does
   **not** enforce uniform length. The caller can detect ragged alignments via
@@ -218,16 +225,10 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 > **Assumption:** The input is expected to be *pre-aligned* (as provided by
 > Loculus). The engine does not perform alignment itself.
 
-### 4.3 FASTA Export
-
-`export_fasta()` returns deterministic, unwrapped FASTA in the engine's current
-row order. Each record uses the current row name and bytes, ends with a newline,
-and is emitted without line wrapping. An empty engine returns an empty string.
-
-### 4.4 Viewport Extraction
+### 4.3 Viewport Extraction
 
 | Method | Signature | Description |
-|--------|-----------|-------------|
+| -------- | ----------- | ------------- |
 | `update_viewport` | `update_viewport(startRow, endRow, startCol, endCol): Uint8Array` | Extract a windowed slice into the reusable buffer and return it as a `Uint8Array`. |
 | `update_viewport_into` | `update_viewport_into(startRow, endRow, startCol, endCol, out: Uint8Array): number` | Write the slice directly into a caller-provided buffer (e.g. a `SharedArrayBuffer` view). Returns bytes written. |
 | `get_viewport_len` | `get_viewport_len(): number` | Bytes currently held in the viewport buffer. |
@@ -268,7 +269,7 @@ and is emitted without line wrapping. An empty engine returns an empty string.
 ### 4.4 Metadata Getters
 
 | Method | Signature | Description |
-|--------|-----------|-------------|
+| -------- | ----------- | ------------- |
 | `get_sequence_count` | `(): number` | Number of loaded sequences. |
 | `get_alignment_width` | `(): number` | Global column count (0 if empty). |
 | `get_name` | `(row: number): string` | Row name, or `""` if out of range. |
@@ -290,8 +291,9 @@ sends a command and awaits an acknowledgment.
 
 The mutation core is governed by a fixed set of editing constraints. These
 constraints define exactly which combinations of actions are allowed and which
-are rejected. Every mutation method below enforces them and returns an error
-code (see [section 5.7](#57-error-codes)) when a constraint is violated, leaving the matrix **unchanged**
+are rejected. Every mutation method below enforces them and returns a
+`StructuredEngineError` (see [section 5.7](#57-structured-errors)) when a
+constraint is violated, leaving the matrix **unchanged**
 (all-or-nothing).
 
 1. **Delete only gaps.** It is only possible to delete an item in the matrix if
@@ -300,7 +302,7 @@ code (see [section 5.7](#57-error-codes)) when a constraint is violated, leaving
    - To delete an IUPAC character, a user must first mutate it to `-`, then
      delete it.
    - Attempting to delete a non-`-` character is rejected with
-     `ERR_DELETE_NOT_GAP` and the mutation is not applied.
+    `EditError::DeleteNotGap` and the mutation is not applied.
 2. **Insert only gaps.** It is only possible to insert a `-` (dash) character
    into the matrix. Inserting any other character is not allowed.
    - To insert an IUPAC character, a user must first insert a `-`, then mutate
@@ -312,7 +314,7 @@ code (see [section 5.7](#57-error-codes)) when a constraint is violated, leaving
    - Both the existing character at the target position **and** the new base
      must be IUPAC or `-`.
    - Attempting to mutate a character that is not IUPAC or `-` (either as the
-     source or the destination) is rejected with `ERR_MUTATE_NOT_IUPAC` and the
+     source or the destination) is rejected with `EditError::MutateNotIupac` and the
      mutation is not applied.
 4. **Move only IUPAC into gaps, horizontally.** Moving a character within the
    matrix is allowed, but only IUPAC characters may be moved into the place of
@@ -323,9 +325,9 @@ code (see [section 5.7](#57-error-codes)) when a constraint is violated, leaving
    - Moving may only happen horizontally (within one row); vertical movement
      between rows is not allowed.
    - If there are no `-` characters in the row to accommodate the move, the
-     action is rejected with `ERR_MOVE_NO_GAP_TARGET` and the move is not
+     action is rejected with `EditError::MoveNoGapTarget` and the move is not
      applied. If the selected block contains a non-IUPAC character, the action
-     is rejected with `ERR_MOVE_NOT_IUPAC`.
+     is rejected with `EditError::MoveNotIupac`.
 5. **Rows may be reordered freely.** It is possible to reorder the rows in the
    matrix regardless of the characters present in those rows. Reordering has no
    character-based constraints.
@@ -357,13 +359,13 @@ single column.
 - **Validation (Rule 3, [section 5](#50-editing-constraints-the-ruleset)):** The existing character at each target position must
   be an IUPAC nucleotide or `-`, **and** the new base must itself be an IUPAC
   nucleotide or `-`. If any target position contains a character that is
-  neither, or the new base is neither, the method returns `ERR_MUTATE_NOT_IUPAC`
+  neither, or the new base is neither, the method returns `EditError::MutateNotIupac`
   and **no rows are modified** (all-or-nothing).
 - Records a `Substitutions` undo command capturing the old bases of the rows it
   actually changed.
 - If no rows are actually mutated (all out of range), it is a no-op and records
   nothing.
-- Returns an empty string on success, or an error code constant on failure.
+- Returns `Ok(())` on success, or `Err(EditError::MutateNotIupac)` on validation failure.
 
 ### 5.2 `insert_at_subset(rows, col)`
 
@@ -375,8 +377,7 @@ inserted character is always `-` (there is no `base` parameter).
   consistent (they are not modified at `col_idx`).
 - `alignment_width` is incremented by 1.
 - Records a `StructuralSnapshot` undo command.
-- Returns an empty string on success (no validation needed since only `-` can
-  be inserted).
+- Returns `Ok(())` (no validation is needed since only `-` can be inserted).
 
 ### 5.3 `delete_at_subset(rows, col)`
 
@@ -388,9 +389,9 @@ Simultaneous deletion at a single column on a **subset** of rows.
 - `alignment_width` is left unchanged.
 - **Validation (Rule 1, [section 5](#50-editing-constraints-the-ruleset)):** The character at `col` in every target row must be
   `-`. If any target row has a non-`-` character, the method returns
-  `ERR_DELETE_NOT_GAP` and **no rows are modified** (all-or-nothing).
+  `EditError::DeleteNotGap` and **no rows are modified** (all-or-nothing).
 - Records a `StructuralSnapshot` undo command.
-- Returns an empty string on success, or an error code constant on failure.
+- Returns `Ok(())` on success, or `Err(EditError::DeleteNotGap)` on validation failure.
 
 ### 5.4 `delete_column(col)`
 
@@ -398,7 +399,7 @@ Delete a column from **every** row, shrinking `alignment_width` by 1.
 
 - This is the width-preserving inverse of a full-column insert.
 - Records a `StructuralSnapshot` undo command.
-- Returns an empty string on success.
+- Returns `Ok(())`.
 
 ### 5.5 `move_horizontal(row, col_indices, direction)`
 
@@ -414,8 +415,8 @@ calls for multi-position moves.
 - **Right move:** validates all selected chars are IUPAC and the position to the
   right is `-`, then rotates the block right by 1 (the `-` moves to the start
   of the block).
-- Returns `ERR_MOVE_NOT_IUPAC` if any selected character is not IUPAC, or
-  `ERR_MOVE_NO_GAP_TARGET` if the adjacent position is not `-` (all-or-nothing).
+- Returns `Err(EditError::MoveNotIupac)` if any selected character is not IUPAC,
+  or `Err(EditError::MoveNoGapTarget)` if the adjacent position is not `-` (all-or-nothing).
 - Out-of-range rows are a no-op.
 - Records a `StructuralSnapshot` undo command.
 
@@ -433,21 +434,72 @@ Reorder rows by swapping each specified row with its immediate neighbour.
 - Both `sequences` and `names` are swapped together.
 - Records a `StructuralSnapshot` undo command (which now captures `names`
   as well, so undo/redo of row reorder correctly restores names).
-- Returns an empty string on success.
+- Returns `Ok(())`.
 
-### 5.7 Error codes
+### 5.7 Structured errors
 
-Mutation methods return an empty string on success, or one of the following
-error-code constants on validation failure. The Web Worker bridge maps a
-non-empty return value to `{ok: false, errorCode}` so the client promise
-rejects with the code (see `engine-api.md` [section 9](#9-performance-characteristics)).
+WASM-facing edit methods and `load_fasta` return
+`Result<_, StructuredEngineError>`. The
+private `MutateError`, `DeleteError`, and `MoveError` variants preserve the
+failing coordinates, base, and direction. Their conversions create a stable
+error code, readable message, and optional `ErrorContext` fields. The
+`translate` method similarly returns `InvalidReadingFrame` with the invalid
+frame in context instead of silently selecting frame 0.
 
-| Constant | Value | Meaning |
-|----------|-------|---------|
-| `ERR_DELETE_NOT_GAP` | `"DeleteNotGap"` | Attempted to delete a non-`-` character (rule 1, [section 5](#50-editing-constraints-the-ruleset)). Mutate it to `-` first. |
-| `ERR_MUTATE_NOT_IUPAC` | `"MutateNotIupac"` | Attempted to mutate a character that is not IUPAC or `-`, or to write a base that is not IUPAC or `-` (rule 3, [section 5](#50-editing-constraints-the-ruleset)). |
-| `ERR_MOVE_NOT_IUPAC` | `"MoveNotIupac"` | Attempted to move a block containing non-IUPAC characters (rule 4, [section 5](#50-editing-constraints-the-ruleset)). |
-| `ERR_MOVE_NO_GAP_TARGET` | `"MoveNoGapTarget"` | No gap adjacent to the block in the move direction (rule 4, [section 5](#50-editing-constraints-the-ruleset)). |
+```rust
+pub struct StructuredEngineError {
+  pub code: String,
+  pub message: String,
+  pub context: Option<ErrorContext>,
+}
+
+pub struct ErrorContext {
+  pub row: Option<usize>,
+  pub col: Option<usize>,
+  pub base: Option<String>,
+  pub frame: Option<u8>,
+  pub mode: Option<String>,
+  pub direction: Option<String>,
+  pub sequence_id: Option<String>,
+  pub position: Option<usize>,
+  pub line: Option<usize>,
+  pub invalid_char: Option<String>,
+  pub byte: Option<u8>,
+  pub invalid_characters: Option<Vec<InvalidCharacterContext>>,
+}
+
+pub struct InvalidCharacterContext {
+  pub sequence_id: String,
+  pub position: usize,
+  pub line: usize,
+  pub invalid_char: String,
+  pub byte: Option<u8>,
+}
+```
+
+The types derive `serde::Serialize`; `From<StructuredEngineError> for JsValue`
+uses `serde_wasm_bindgen` so wasm-bindgen throws the structured object. Optional
+context fields are omitted when absent. The worker normalizes that thrown value
+and posts `{ ok: false, error }` for edit, load, translation, and viewport
+failures; unexpected exceptions use code `UnexpectedRuntimeError`. Invalid or
+oversized viewport requests use `InvalidViewport` with the available starting
+row/column.
+Direct Rust/WASM translation calls also check inclusive dimensions and their
+product against `MAX_VIEWPORT_BYTES` before reserving viewport memory. Overflow,
+oversized results, or reservation failures return `InvalidViewport` with
+`row`, `col`, and `frame` context.
+
+| Code | Meaning | Context |
+| ---------- | ------- | --------- |
+| `DeleteNotGap` | Attempted to delete a non-`-` character. | `row`, `col`, `base` |
+| `MutateNotIupac` | Target or replacement character is not IUPAC or `-`. | `row`, `col`, and/or `base` |
+| `MoveNotIupac` | Selected block contains a non-IUPAC character. | `row`, `col`, `base` |
+| `MoveNoGapTarget` | No adjacent gap or alignment boundary reached. | `row`, `col`, `direction`, and optional `base` |
+| `InvalidReadingFrame` | Translation requested a frame outside 0, 1, or 2. | `frame` |
+| `InvalidViewport` | Viewport bounds overflow, exceed capacity, or translation memory cannot be reserved. | `row`, `col`, and `frame` for translation |
+| `UnexpectedRuntimeError` | Unrecognized runtime failure. | None unless available |
+| `InvalidAlphabet` | Sequence contains characters outside IUPAC nucleotides and `-`. | `invalidCharacters` lists every occurrence; scalar fields mirror the first |
+| `InvalidFastaFormat` | Sequence data appears before a FASTA header. | `line` |
 
 ---
 
@@ -509,19 +561,21 @@ A minimal native usage:
 
 ```rust
 let mut e = MsaEngine::new();
-e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGGTG-A");
+e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGGTG-A").unwrap();
 assert_eq!(e.get_sequence_count(), 2);
 assert_eq!(e.get_alignment_width(), 8);
 
-// Mutation methods return an empty string on success, or an error code.
-assert_eq!(e.mutate_base_subset(&[0], 3, b'G'), "");
+// Mutation methods return Result<(), StructuredEngineError>.
+assert_eq!(e.mutate_base_subset(&[0], 3, b'G'), Ok(()));
 assert_eq!(e.get_base(0, 3), b'G');
 assert!(e.undo());
 assert_eq!(e.get_base(0, 3), b'C');
 
-// Attempting to delete a non-gap returns an error code.
+// Attempting to delete a non-gap returns a structured error.
 let err = e.delete_at_subset(&[0], 0); // col 0 is 'A', not '-'
-assert_eq!(err, "DeleteNotGap");
+let err = err.unwrap_err();
+assert_eq!(err.code, "DeleteNotGap");
+assert_eq!(err.context.unwrap().base.as_deref(), Some("A"));
 assert_eq!(e.get_base(0, 0), b'A'); // unchanged
 ```
 
@@ -530,7 +584,7 @@ assert_eq!(e.get_base(0, 0), b'A'); // unchanged
 The engine is compiled with `wasm-pack`:
 
 ```bash
-wasm-pack build --target web --release --out-dir ../wasm
+wasm-pack build --target web --release --out-dir www/wasm
 ```
 
 The generated bindings expose the methods described in [section 4](#4-the-wasm-boundary-api). Note that `&[usize]`
@@ -538,7 +592,7 @@ maps to a `Uint32Array` in the JS bindings (not a plain `number[]`).
 
 ### 7.3 From the Web Worker (the intended production path)
 
-The engine instance is owned by a Web Worker (`frontend/src/engine/engine.worker.ts`).
+The engine instance is owned by a Web Worker (`www/src/engine/engine.worker.ts`).
 The UI never calls the engine directly; it sends typed request messages over
 `postMessage` and awaits responses. The worker:
 
@@ -546,19 +600,16 @@ The UI never calls the engine directly; it sends typed request messages over
    (self-init at module load — **not** lazily on the first message, to avoid a
    chicken-and-egg problem where the UI waits for a `ready` signal that only
    fires after a command triggers init).
-2. Handles `load`, `exportFasta`, `viewport`, `search`, `translate`, `mutate`,
-   `insert`, `delete`, row moves, `undo`, `redo`, `meta`, and `name` requests.
-   Mutation handlers check the Rust return string: if
-   non-empty (an error code), the worker posts `{ok: false, errorCode}` instead
-   of `{ok: true}`, causing the client promise to reject with the error code.
+2. Handles `load`, `viewport`, `mutate`, `insert`, `delete`, `undo`, `redo`,
+   and `meta` requests. Edit and translation failures are normalized to
+   `{ok: false, error: {code, message, context?}}`; successful calls post
+   `{ok: true}`. Unknown exceptions use `UnexpectedRuntimeError`.
 3. For viewport requests, transfers the returned `ArrayBuffer` (or writes into a
    shared `SharedArrayBuffer`) so binary data crosses the boundary without a
    second copy.
 
 The main thread uses a promise-based RPC hook (`useEngineWorker.ts`) that
-correlates responses to requests via a `reqId` counter. Pending calls are
-rejected if initialization fails, the worker crashes, its message channel fails,
-or the hook is unmounted.
+correlates responses to requests via a `reqId` counter.
 
 > **Transfer gotcha:** When transferring an `ArrayBuffer` via the `postMessage`
 > transfer list, do **not** also embed a `Uint8Array` view of it in the
@@ -566,16 +617,14 @@ or the hook is unmounted.
 > metadata in `data`, the raw buffer in `transfer`, and reassemble on the main
 > thread.
 
-### 7.4 From the production React editor
+### 7.4 From the MUI Test Harness
 
-`frontend/src/components/pages/MainPage.tsx` is the user-facing shell. It owns
-the worker hook, the reducer-backed `useSequenceEditor` controller, import and
-export dialogs, search, palette settings, and status announcements.
-`frontend/src/components/editor/AlignmentGrid.tsx` requests an overscanned
-viewport rectangle, renders visible cells with ordered canvas layers, and
-forwards pointer and keyboard commands to the controller. `TestHarness.tsx`,
-`BenchmarkPanel.tsx`, and `SliceCanvas.tsx` remain developer diagnostics and are
-not mounted by `main.tsx`.
+`www/src/TestHarness.tsx` is a throwaway MUI UI that validates the engine
+end-to-end: load a FASTA, fetch a slice, apply a mutation/insertion/delete,
+refetch, and visually confirm the bytes changed. It renders slices as plain
+colorized text (no Canvas/WebGL) — the goal is correctness, not performance.
+The sliding-window viewport rendering it demonstrates is the pattern the
+production Canvas renderer will build on.
 
 ---
 
@@ -591,7 +640,7 @@ not mounted by `main.tsx`.
                           [ SharedArrayBuffer / Uint8Array ]
                                   │
                                   ▼
-                          [ AlignmentGrid Canvas Layers ]
+                          [ Canvas Render Loop (rAF) ]
 ```
 
 - **Rust/WASM (the engine)** — the brain: matrix, mutation math, parsing,
@@ -600,10 +649,11 @@ not mounted by `main.tsx`.
   off the main thread so parsing/mutation/viewport extraction never block the UI
   or the render loop.
 - **React (the shell)** — high-level UI state; never touches WASM directly.
-- **Canvas (the viewport)** — `AlignmentGrid` reads visible bytes produced by
-  the engine (relayed through the worker) and paints base, search, selection,
-  cursor, ruler, and gutter layers. It keeps names in a visible-row cache and
-  discards stale viewport responses by dataset and edit revision.
+- **Canvas (the viewport)** — a 2D `<canvas>` renderer that reads raw bytes
+  produced by the engine (relayed through the worker) and paints the visible
+  window each frame. This mirrors the sliding-window viewport approach used in
+  the test harness and is deliberately preferred over a WebGL pipeline for
+  long-term maintainability.
 
 The engine is deliberately decoupled from all of this. It exposes a synchronous,
 windowed, mutation-oriented API; the worker and UI layers decide how to schedule
@@ -628,25 +678,28 @@ and render.
 
 ## 10. Current Status & Roadmap
 
-The engine implements the core data, mutation/history, search, translation, and
-export capabilities. The worker bridge and production React consumer are
-implemented in `frontend/` and are described in the companion documents.
+The engine currently implements the core data layer and mutation/history
+capabilities. The surrounding consumer layers (worker bridge, test harness) are
+implemented in `www/` and are described in the companion documents.
 
 | Area | Status |
-|------|--------|
+| ------ | -------- |
 | Core data structures & memory layout | ✅ Done (`MsaEngine`, viewport buffer) |
-| WASM boundary API | ✅ Done (`load_fasta`, `export_fasta`, viewport/translation, search, metadata getters) |
-| Mutation core | ✅ Done (`mutate_base_subset`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and error codes |
+| WASM boundary API | ✅ Done (`load_fasta`, `update_viewport`, `update_viewport_into`, metadata getters) |
+| Mutation core | ✅ Done (`mutate_base_subset`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
 | Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
-| Web Worker bridge | ✅ Done (in `frontend/`, consumes the engine) |
-| Production React editor | ✅ Done (`MainPage`, controller, import/export, search, palette, status UI) |
-| Virtualized canvas renderer | ✅ Done (`AlignmentGrid`, overscanned 2D viewport, DPR canvas layers) |
-| Translation layer | ✅ Done (three reading-frame translated viewports) |
-| Sequence search | ✅ Done (exact nucleotide, cached amino-acid, and optional record-name hits) |
+| Web Worker bridge | ✅ Done (in `www/`, consumes the engine) |
+| MUI test harness | ✅ Done (in `www/`, consumes the engine) |
+| Canvas renderer | ⏳ Planned (2D `<canvas>` sliding-window viewport, in `www/`) |
+| Translation layer | ⏳ Not yet implemented in the engine |
+| Sequence search | ⏳ Not yet implemented in the engine |
 
-The engine covers the core data, mutation, history, translation, search, and
-export layers. UI render-mode state, hit navigation, selection, and palette
-state remain consumer-layer responsibilities.
+The engine covers the core data, mutation, and history layers. The worker bridge
+and test harness are implemented as consumers in `www/`. The Canvas renderer,
+the dynamic 3-frame translation layer, and sequence search are future work and
+would extend the engine's API (e.g. `RenderMode`, `set_render_mode`,
+`set_reading_frame`, `get_display_width`, a codon-translating viewport path, and
+a search/hit-navigation API).
 
 ---
 
@@ -656,11 +709,18 @@ state remain consumer-layer responsibilities.
   caller must detect and handle raggedness via `get_row_length`.
 - **Structural snapshot cost:** Full-matrix snapshots are fine at ~16MB but
   would need revisiting for much larger alignments.
-- **Rendering limits:** The production renderer is a 2D canvas with an
-  overscanned viewport rather than WebGL. Very large alignments may still need
-  further profiling and tuning as interaction requirements grow.
-- **Translation and search scope:** Translation currently serves fixed-stride
-  visible ranges for one of three frames. Search currently returns exact-match
-  coordinates for nucleotide data, cached translations, and optional record
-  names; gap-insensitive matching and engine-managed hit navigation are not
-  implemented.
+- **Canvas renderer:** The production renderer will be a 2D `<canvas>` that
+  paints the sliding-window viewport (the same pattern demonstrated by the test
+  harness), rather than a WebGL pipeline. This keeps the rendering layer simple
+  and maintainable while still hitting 60 FPS for the expected dataset sizes.
+- **Translation layer:** Not yet implemented. When added, the engine will
+  translate nucleotides to amino acids on the fly for the visible viewport
+  only, keeping nucleotides as the single source of truth. Editing in amino-acid
+  mode will require validation (e.g. disallowing single-base substitutions,
+  which are ambiguous at the codon level).
+- **Sequence search:** Not yet implemented. When added, the engine will search
+  the full matrix in Rust (exact match, and gap-insensitive matching for
+  primers/motifs), cache hit coordinates internally, and expose navigation
+  (next/previous hit) so the frontend can jump between matches without ever
+  holding the full matrix. In amino-acid mode, search will switch to searching
+  translated peptide motifs.

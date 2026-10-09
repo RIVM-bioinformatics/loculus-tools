@@ -11,19 +11,21 @@ import type {
   GridGeometry,
   GridRange,
   NucleotidePalette,
+  SearchMatch,
+  SearchResult,
   StatusBarSelectionStats,
   VisibleGridRange,
 } from '../../models';
-import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
+import {
+  EDITOR_PATH_PROPERTIES_TYPE,
+  MATRIX_TYPE,
+} from '../../models';
 import { PaletteUtil } from '../PaletteUtil';
 import { DEFAULT_GRID_GEOMETRY } from '../../constants';
 import { EDITOR_DIRECTION } from '../../models/editor';
-import {
-  searchHitAt,
-  searchHitContainsCell,
-} from '../search';
 
 export class EditorUtil {
+
   public static drawCanvas({
     canvasElement,
     devicePixelRatio,
@@ -96,7 +98,7 @@ export class EditorUtil {
       isRowSelected(row),
     );
     const highlightedSearchHit = searchResult && searchResultHighlightedIndex !== null
-      ? searchHitAt(searchResult, searchResultHighlightedIndex)
+      ? EditorUtil.searchHitAt(searchResult, searchResultHighlightedIndex)
       : null;
 
     EditorUtil.draw(canvasElement, devicePixelRatio, () => {
@@ -129,7 +131,7 @@ export class EditorUtil {
           hitRow < 0 ||
           hitRow >= rows ||
           hitStartCol >= hitEndCol ||
-          !searchHitContainsCell(hit, searchResult.query, hit.row, hitStartCol)
+          !EditorUtil.searchHitContainsCell(hit, searchResult.query, hit.row, hitStartCol)
         ) {
           return;
         }
@@ -431,6 +433,7 @@ export class EditorUtil {
     return null;
   }
 
+
   public static getMovedSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta): EditorSelection | null {
     if (!selection) {
       return null;
@@ -499,7 +502,7 @@ export class EditorUtil {
     return null;
   }
 
-  public static getMutateRangeArguments(selection: EditorSelection | null, metaData: EngineMeta, offset: number = 0): { endCol: number; rows: number[]; startCol: number } | undefined {
+  public static getMutateArguments(selection: EditorSelection | null, metaData: EngineMeta, offset: number = 0): { endCol: number; rows: number[]; startCol: number } | undefined {
     const cells = selection?.cells;
     if (cells) {
       return {
@@ -833,7 +836,7 @@ export class EditorUtil {
       searchResultHighlightedIndex,
     } = params;
     const searchHit = searchResult && searchResultHighlightedIndex !== null
-      ? searchHitAt(searchResult, searchResultHighlightedIndex)
+      ? EditorUtil.searchHitAt(searchResult, searchResultHighlightedIndex)
       : null;
     if (!searchHit) {
       return;
@@ -867,5 +870,23 @@ export class EditorUtil {
       throw new Error('Failed to acquire 2D canvas context.');
     }
     return ctx;
+  }
+
+  private static searchHitAt(result: null | SearchResult, index: number): null | SearchMatch {
+    return result?.positions[index] ?? null;
+  }
+
+  private static searchHitContainsCell(
+    hit: SearchMatch,
+    query: string,
+    row: number,
+    col: number,
+  ): boolean {
+    return (
+      hit.matrix_type === MATRIX_TYPE.NUCLEOTIDE
+      && hit.row === row
+      && col >= hit.col
+      && col < hit.col + Math.max(1, query.length)
+    );
   }
 }

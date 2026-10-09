@@ -42,10 +42,7 @@ interface EngineClient {
 
   // Operations
   load: (fasta: string) => Promise<number>;
-  exportFasta: () => Promise<string>;
   viewport: (r: ViewportRequest) => Promise<ViewportResult & { bytes: Uint8Array }>;
-  search: (query: string, checkRecordNames?: boolean) => Promise<SearchResult>;
-  translate: (r: TranslationRequest) => Promise<ViewportResult & { bytes: Uint8Array }>;
   mutate: (rows: number[], col: number, base: string) => Promise<void>;
   insert: (rows: number[], col: number) => Promise<void>;
   delete: (rows: number[], col: number) => Promise<void>;
@@ -97,11 +94,6 @@ loops, where React state may not have flushed yet).
 > on every worker response would cause re-render storms during benchmarks,
 > inflating latency measurements. Read `lastTimingRef.current` instead.
 
-Requests that are pending when the worker fails to initialize, crashes, loses
-its message channel, or is unmounted are rejected. Mutation rejections retain
-their structured `Error.code` value so callers can distinguish engine
-validation failures from worker lifecycle failures.
-
 ---
 
 ## 3. Loading Data
@@ -121,20 +113,16 @@ console.log(count); // 2
 - Calling `load` **replaces** all previous data and clears the undo/redo history.
 - Sequence bytes are uppercased; internal whitespace is skipped; sequences may
   span multiple lines.
+- Sequence bodies accept only IUPAC nucleotides (`ACGTURYSWKMBDHVN`, either
+  case) and `-`. Any other character rejects the entire load with an
+  `EngineStructuredError` code of `InvalidAlphabet`. Its message and context
+  identify the sequence, invalid character, 1-based sequence position, and
+  1-based input line. A rejected load preserves the existing data and history.
+- Sequence data before the first `>` header rejects with
+  `InvalidFastaFormat`.
 - The row name is the first whitespace-delimited token after the `>` header.
 - The input is expected to be **pre-aligned**. The engine does not enforce
   uniform row length — use `meta()` and `name()` to inspect the result.
-
-### `exportFasta(): Promise<string>`
-
-Serializes the current engine state as deterministic, unwrapped FASTA. Records
-are emitted in their current row order with their current names and nucleotide
-bytes. Every emitted record ends with a newline; an empty engine returns an
-empty string.
-
-```ts
-const fasta = await engine.exportFasta();
-```
 
 ---
 
@@ -222,58 +210,6 @@ const baseAt = (row: number, col: number) =>
 ```
 
 ---
-
-### `search(query: string, checkRecordNames?: boolean): Promise<SearchResult>`
-
-Runs an exact-match search in the engine and combines nucleotide hits with
-amino-acid hits and, when `checkRecordNames` is `true`, record-name hits. The
-result is a flat list of positions; record-name hits use column `0`.
-
-```ts
-interface SearchMatch {
-  row: number;
-  col: number;
-  matrix_type: 'nucleotide' | 'amino_acid' | 'record_name';
-}
-
-interface SearchResult {
-  query: string;
-  num_matches: number;
-  positions: SearchMatch[];
-}
-
-const result = await engine.search('ATG', true);
-```
-
-Nucleotide queries must contain IUPAC nucleotide symbols or `-`. Amino-acid
-search uses translations previously initialized by `translate()`, and
-record-name search matches substrings. There is no engine-side current-hit
-cursor or previous/next navigation; consumers navigate the returned positions.
-
-### `translate(r): Promise<ViewportResult & { bytes: Uint8Array }>`
-
-Returns a fixed-stride translated viewport for one of the three reading frames.
-The row and column ranges are inclusive and use the same padding and viewport
-metadata rules as `viewport()`.
-
-```ts
-interface TranslationRequest extends ViewportRequest {
-  /** 0, 1, or 2 for the first, second, or third reading frame. */
-  readingFrame: number;
-}
-
-const translated = await engine.translate({
-  startRow: 0,
-  endRow: 2,
-  startCol: 0,
-  endCol: 20,
-  readingFrame: 0,
-});
-```
-
-Gap-containing codons translate to `-`; incomplete trailing codons are omitted
-and short rows are padded with spaces. An out-of-range reading frame falls back
-to frame `0`.
 
 ## 5. Editing Data
 
@@ -521,16 +457,39 @@ The `error` field on the client also reflects the last worker error.
 
 ### Error codes
 
-Mutation methods that fail validation reject the promise with an `Error` that
-has a `.code` property containing a string error code. You can inspect it to
-show a user-friendly message:
+Engine methods that fail validation reject with an `EngineStructuredError`.
+It carries a stable `.code`, readable `.message`, and optional `.context` with
+offending coordinates, base, movement direction, reading frame, or FASTA
+diagnostics:
+
+```ts
+import { EngineStructuredError } from "./engine/useEngineWorker";
+
+try {
+  await engine.delete([0], 3); // col 3 is 'A', not '-'
+} catch (err: unknown) {
+  if (err instanceof EngineStructuredError && err.code === "DeleteNotGap") {
+    console.log(err.message, err.context?.row, err.context?.col, err.context?.base);
+    showToast("Mutate the character to '-' first, then delete.");
+  }
+}
+```
+
+`EngineErrorCode` covers all the stable codes below; `EditErrorCode` is its
+edit-only subset. Transport and initialization failures remain worker errors.
+
+FASTA load errors use `InvalidAlphabet`. The context's `invalidCharacters`
+array contains every invalid character across all records, with its `sequenceId`,
+`position`, `line`, and `invalidChar`; `byte` is present for ASCII characters.
+The other FASTA context fields mirror the first occurrence for convenience.
+`InvalidFastaFormat` includes the offending `line`.
 
 ```ts
 try {
-  await engine.delete([0], 3); // col 3 is 'A', not '-'
-} catch (err: any) {
-  if (err.code === "DeleteNotGap") {
-    showToast("Mutate the character to '-' first, then delete.");
+  await engine.load(">seq1\nACGTZ");
+} catch (err: unknown) {
+  if (err instanceof EngineStructuredError && err.code === "InvalidAlphabet") {
+    console.error(err.message, err.context?.invalidCharacters);
   }
 }
 ```
@@ -541,6 +500,11 @@ try {
 | `"MutateNotIupac"` | `mutate()` | Attempted to mutate a character that is not IUPAC or `-`, or to write a base that is not IUPAC or `-`. |
 | `"MoveNotIupac"` | `moveHorizontal()` | Attempted to move a block containing non-IUPAC characters. |
 | `"MoveNoGapTarget"` | `moveHorizontal()` | No gap adjacent to the block in the move direction. |
+| `"InvalidAlphabet"` | `load()` | A sequence contains a character outside IUPAC nucleotides and `-`; the rejected load is atomic. |
+| `"InvalidFastaFormat"` | `load()` | Sequence data appears before the first FASTA header. |
+| `"InvalidReadingFrame"` | `translate()` | Reading frame is not 0, 1, or 2; context includes `frame`. |
+| `"InvalidViewport"` | `viewport()`, `translate()` | Bounds are invalid or the requested/resulting slice exceeds the shared buffer capacity; context includes `row` and `col` (and `frame` for translation). |
+| `"UnexpectedRuntimeError"` | Worker request handling | An unrecognized engine or runtime exception occurred; the message describes the failure. |
 
 ---
 
@@ -549,12 +513,9 @@ try {
 | Method | Arguments | Returns | Purpose |
 | -------- | ----------- | --------- | --------- |
 | `load` | `fasta: string` | `Promise<number>` | Parse FASTA; returns sequence count |
-| `exportFasta` | — | `Promise<string>` | Export current rows as deterministic unwrapped FASTA |
 | `meta` | — | `Promise<Meta>` | Alignment metadata (rows, width, undo/redo depth) |
 | `name` | `row: number` | `Promise<string>` | Row name |
 | `viewport` | `{startRow, endRow, startCol, endCol}` | `Promise<ViewportResult & {bytes}>` | Fetch a windowed slice |
-| `search` | `query, checkRecordNames?` | `Promise<SearchResult>` | Return exact nucleotide, cached amino-acid, and optional record-name hits |
-| `translate` | `{startRow, endRow, startCol, endCol, readingFrame}` | `Promise<ViewportResult & {bytes}>` | Fetch a translated viewport |
 | `mutate` | `rows: number[], col, base: string` | `Promise<void>` | Change bases on a subset of rows (validates existing char and new base are IUPAC or `-`) |
 | `insert` | `rows: number[], col` | `Promise<void>` | Insert a `-` at col on target rows; append `-` on non-targets |
 | `delete` | `rows: number[], col` | `Promise<void>` | Delete a column on a subset (validates target is `-`; non-targets untouched) |
@@ -567,13 +528,37 @@ try {
 
 ---
 
-## 11. Deliberately Deferred Features
+## 11. Roadmap & Future Work
 
-The engine currently provides viewport translation and exact search, but the
-following concerns remain outside this API:
+The following features are planned and will extend the `EngineClient` API. They
+are not yet implemented.
 
-- UI render-mode state, reading-frame controls, and display-width policy.
-- Gap-insensitive or approximate search.
-- Engine-managed current-hit state and previous/next navigation.
-- Backend persistence, autosave, collaboration, and metadata tables.
+### Amino-acid translation
+
+A button will toggle the view between nucleotides and amino acids, with a
+choice of reading frame (1, 2, or 3). The engine will translate nucleotides to
+amino acids **on the fly for the visible viewport only**, keeping nucleotides
+as the single source of truth. Expected API additions:
+
+- `setRenderMode(mode)` / `setReadingFrame(frame)` — switch between nucleotide
+  and amino-acid display, and select the frame.
+- `getDisplayWidth()` — report the display width (≈1/3 of the nucleotide width
+  in amino-acid mode) so the frontend can resize scroll areas.
+- The viewport bytes will be translated amino acids when in amino-acid mode.
+
+### Sequence search
+
+A search box will let users find a nucleotide sequence (or, in amino-acid mode,
+a peptide motif) across all loaded data. Search runs entirely in Rust against
+the full matrix; the frontend never holds the whole dataset. Expected API
+additions:
+
+- `executeSearch(query)` — run the search and return the number of hits.
+- `getAllHitCoordinates()` — return the flattened hit coordinates.
+- `jumpNext()` / `jumpPrev()` — navigate between hits; the engine returns the
+  coordinates to scroll to.
+- `getCurrentHitIndex()` — report the active hit (for a "Match 3 of 42" UI).
+
+Search will support exact matching and gap-insensitive matching (for primers
+and motifs that may be split by alignment gaps), and will switch to peptide
 search when amino-acid mode is active.

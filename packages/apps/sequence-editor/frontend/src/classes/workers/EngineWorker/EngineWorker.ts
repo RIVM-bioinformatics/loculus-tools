@@ -28,17 +28,25 @@ export class EngineWorker implements EngineWorkerApi {
 
   public async delete(rows: number[], column: number): Promise<void> {
     const engine = await this.requireEngine();
-    this.throwIfError(engine.delete_at_subset(this.toRowIndices(rows), column));
+    engine.delete_at_subset(this.toRowIndices(rows), column);
   }
 
   public async deleteColumn(column: number): Promise<void> {
     const engine = await this.requireEngine();
-    this.throwIfError(engine.delete_column(column));
+    engine.delete_column(column);
   }
 
   public async exportFasta(): Promise<string> {
     const engine = await this.requireEngine();
-    return engine.export_fasta();
+    const records: string[] = [];
+    for (let row = 0; row < engine.get_sequence_count(); row += 1) {
+      const sequence: string[] = [];
+      for (let column = 0; column < engine.get_row_length(row); column += 1) {
+        sequence.push(String.fromCharCode(engine.get_base(row, column)));
+      }
+      records.push(`>${engine.get_name(row)}\n${sequence.join('')}\n`);
+    }
+    return records.join('');
   }
 
   /**
@@ -63,7 +71,7 @@ export class EngineWorker implements EngineWorkerApi {
 
   public async insert(rows: number[], column: number): Promise<void> {
     const engine = await this.requireEngine();
-    this.throwIfError(engine.insert_at_subset(this.toRowIndices(rows), column));
+    engine.insert_at_subset(this.toRowIndices(rows), column);
   }
 
   public async load(fastaContent: string): Promise<number> {
@@ -83,27 +91,22 @@ export class EngineWorker implements EngineWorkerApi {
 
   public async moveHorizontal(row: number, columns: number[], direction: MoveDirection): Promise<void> {
     const engine = await this.requireEngine();
-    this.throwIfError(engine.move_horizontal(row, this.toRowIndices(columns), direction));
+    engine.move_horizontal(row, this.toRowIndices(columns), direction);
   }
 
   public async moveRowsDown(rows: number[]): Promise<void> {
     const engine = await this.requireEngine();
-    this.throwIfError(engine.move_rows_down(this.toRowIndices(rows)));
+    engine.move_rows_down(this.toRowIndices(rows));
   }
 
   public async moveRowsUp(rows: number[]): Promise<void> {
     const engine = await this.requireEngine();
-    this.throwIfError(engine.move_rows_up(this.toRowIndices(rows)));
+    engine.move_rows_up(this.toRowIndices(rows));
   }
 
   public async mutate(rows: number[], column: number, base: string): Promise<void> {
     const engine = await this.requireEngine();
-    this.throwIfError(engine.mutate_base_subset(this.toRowIndices(rows), column, base.charCodeAt(0)));
-  }
-
-  public async mutateRange(rows: number[], startColumn: number, endColumn: number, base: string): Promise<void> {
-    const engine = await this.requireEngine();
-    this.throwIfError(engine.mutate_base_range(this.toRowIndices(rows), startColumn, endColumn, base.charCodeAt(0)));
+    engine.mutate_base_subset(this.toRowIndices(rows), column, base.charCodeAt(0));
   }
 
   public async name(row: number): Promise<string> {
@@ -171,13 +174,6 @@ export class EngineWorker implements EngineWorkerApi {
       throw new Error('Engine failed to initialize');
     }
     return this.engine;
-  }
-
-  /** Throws when the engine returns a non-empty error code. */
-  private throwIfError(errorCode: string): void {
-    if (errorCode) {
-      throw new Error(errorCode);
-    }
   }
 
   /** Converts a plain row-index list into the typed array the WASM API expects. */

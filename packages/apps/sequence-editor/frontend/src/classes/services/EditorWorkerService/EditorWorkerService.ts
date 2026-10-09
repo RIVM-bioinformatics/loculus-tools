@@ -101,12 +101,6 @@ export class EditorWorkerService {
     });
   }
 
-  public async mutateRange(rows: number[], startCol: number, endCol: number, base: string): Promise<void> {
-    return await this.runCommand(async () => {
-      await this.engineWorkerProxy.mutateRange(rows, startCol, endCol, base);
-    });
-  }
-
   public async name(row: number): Promise<string> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.name(row);

@@ -48,12 +48,16 @@ export const AlignmentErrorDialog = withDialog<AlignmentErrorDialogProps, Alignm
         autoFocus: true,
         color: 'secondary',
         label: 'Close',
-        onClick: onClose,
+        onClick: () => onClose?.(),
         variant: 'contained',
       },
     );
-    onActionsChange(actions);
+    onActionsChange?.(actions);
   }, [onActionsChange, onClose]);
+
+  if (!parsedFasta) {
+    return <></>;
+  }
 
   return (
     <>

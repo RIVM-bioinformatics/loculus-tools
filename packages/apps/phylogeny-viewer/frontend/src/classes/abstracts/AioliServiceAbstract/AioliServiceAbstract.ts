@@ -16,11 +16,11 @@ export abstract class AioliServiceAbstract {
   public abstract getTree(fastaContent: string): Promise<string>;
 
   protected async exec(command: string, args: string[] = []): Promise<string> {
-    await this.init();
+    const aioli = await this.init();
     try {
       const fullCommand = `${command} ${args.join(' ')}`.trim();
       console.info('[BiowasmService] Executing:', fullCommand);
-      const result = await this.aioli.exec(fullCommand);
+      const result = await aioli.exec(fullCommand);
       return typeof result === 'string' ? result : (result?.stdout || JSON.stringify(result));
     } catch (error) {
       console.error(`[BiowasmService] Execution failed for '${command}':`, error);
@@ -29,9 +29,9 @@ export abstract class AioliServiceAbstract {
   }
 
   protected async mount(file: File): Promise<void> {
-    await this.init();
+    const aioli = await this.init();
     try {
-      await this.aioli.mount(file);
+      await aioli.mount(file);
       console.info('[BiowasmService] File mounted successfully:', file.name);
     } catch (error) {
       console.error('[BiowasmService] Failed to mount file:', error);
@@ -39,9 +39,10 @@ export abstract class AioliServiceAbstract {
     }
   }
 
-  private async init(): Promise<void> {
+  private async init(): Promise<AioliInstance> {
     if (!this.aioli) {
       this.aioli = await new Aioli(this.tool);
     }
+    return this.aioli;
   }
 }

@@ -63,7 +63,7 @@ export const PhylogenyTreeView = ({ newick }: PhylogenyTreeViewProps) => {
   const showLeafLabels = useStore(phylogenyViewerStore, (state) => state.showLeafLabels);
   const showScaleBar = useStore(phylogenyViewerStore, (state) => state.showScaleBar);
 
-  const [treeCanvas, setTreeCanvas] = useState<HTMLCanvasElement>();
+  const [treeCanvas, setTreeCanvas] = useState<HTMLCanvasElement | null>(null);
 
   const treeRef = useRef<PhylogeneticTreeRef>(null);
 
@@ -161,7 +161,7 @@ export const PhylogenyTreeView = ({ newick }: PhylogenyTreeViewProps) => {
         setTooltip({
           descendantCount: treeNode.size ?? treeNode.subTreeLeaveNames?.length ?? 1,
           isLeaf,
-          nodeName: treeNode.name,
+          nodeName: treeNode.name ?? '',
           subTreeLeaveNames: treeNode.subTreeLeaveNames,
           treeNode,
           x: mouseEvent.clientX,
@@ -174,7 +174,7 @@ export const PhylogenyTreeView = ({ newick }: PhylogenyTreeViewProps) => {
         setTooltip({
           descendantCount: pathProperties.subTreeLeaveNames.length,
           isLeaf: pathProperties.subTreeLeaveNames.length === 1,
-          nodeName: pathProperties.subTreeLeaveNames[0],
+          nodeName: pathProperties.subTreeLeaveNames[0] ?? '',
           subTreeLeaveNames: pathProperties.subTreeLeaveNames,
           x: mouseEvent.clientX,
           y: mouseEvent.clientY,
@@ -254,7 +254,7 @@ export const PhylogenyTreeView = ({ newick }: PhylogenyTreeViewProps) => {
         sortedLeafNames={leafNames}
         supportLineColorLinked={'#0f0'}
         supportLineColorUnlinked={'#f00'}
-        tree={parsedTree}
+        tree={parsedTree ?? undefined}
         treeColor={'#334155'}
         treeFont={'10px Noto Sans, sans-serif'}
         treePadding={TREE_PADDING}

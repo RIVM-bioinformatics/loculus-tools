@@ -19,7 +19,7 @@ import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/Devi
 import { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
 import { useStore } from 'zustand';
 
-import { EditorWorkerService } from '../../../classes/services/EditorWorkerService/EditorWorkerService';
+import { EditorWorkerService } from '../../../classes/services/EditorWorkerService';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
 import type {
   EditorAssembly,

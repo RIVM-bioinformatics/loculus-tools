@@ -4,10 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "validate": "pnpm run lint && pnpm run check-types",
+    "lint": "eslint ./src --report-unused-disable-directives --max-warnings 0",
+    "lint-fix": "eslint ./src --report-unused-disable-directives --max-warnings 0 --fix",
+    "check-types": "tsc --noEmit",
     "start": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "wasm": "wasm-pack build --target web --release --out-dir wasm"
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

@@ -33,7 +33,7 @@ export interface PhylogenyViewerStoreActions extends FastaDataStoreActions {
   resetDataset: () => void;
   resetTreeView: () => void;
   setColorByField: (field: string) => void;
-  setData: (fasta: string, tsv?: string, forcedColorByField?: string) => Promise<{ fastaResult: FastaParseResult; metadataResult: MetadataParseResult }>;
+  setData: (fasta: string, tsv?: string, forcedColorByField?: string) => Promise<{ fastaResult: FastaParseResult; metadataResult?: MetadataParseResult }>;
   setEngine: (engine: TreeEngine) => void;
   setFastTreeMode: (mode: FastTreeMode) => void;
   setFastTreeParams: (params: Partial<FastTreeMLParams>) => void;
@@ -175,7 +175,7 @@ export const phylogenyViewerStore = createStore<PhylogenyViewerStore>((set, get)
         set({ colorByField: null, colorMap: {} });
         return;
       }
-      const { parsedMetadata: { records = [] } = {} } = get();
+      const records = get().parsedMetadata?.records ?? [];
 
       const values = records.map((r) => r[field] || '');
       const uniqueValues = uniq(values);
@@ -214,11 +214,12 @@ export const phylogenyViewerStore = createStore<PhylogenyViewerStore>((set, get)
         throw new Error('Fasta data is not aligned');
       }
 
-      if (metadataResult?.columns?.length > 0) {
-        if (forcedColorByField && metadataResult.columns.includes(forcedColorByField)) {
+      const metadataColumns = metadataResult?.columns ?? [];
+      if (metadataColumns.length > 0) {
+        if (forcedColorByField && metadataColumns.includes(forcedColorByField)) {
           setColorByField(forcedColorByField);
         } else {
-          const preferred = metadataResult.columns.find((c) => ['clade', 'country', 'division', 'host', 'lineage', 'region'].includes(c.toLowerCase())) || metadataResult.columns[0];
+          const preferred = metadataColumns.find((c) => ['clade', 'country', 'division', 'host', 'lineage', 'region'].includes(c.toLowerCase())) || metadataColumns[0];
           if (preferred) {
             setColorByField(preferred);
           }
@@ -239,8 +240,8 @@ export const phylogenyViewerStore = createStore<PhylogenyViewerStore>((set, get)
       fastaDataStoreActions.setMatchKeyField(field);
 
       const { setColorByField, setSearchQuery, setSelectedLabelFields } = get();
-      setSearchQuery(null);
-      setColorByField(null);
+      setSearchQuery('');
+      setColorByField('');
       setSelectedLabelFields(field ? [field] : []);
     },
     setNewick: (newick: string) => {
@@ -260,7 +261,7 @@ export const phylogenyViewerStore = createStore<PhylogenyViewerStore>((set, get)
       const { matchKeyField } = get();
       const fieldsWithoutMatchedKeyField = fields.filter((f) => f !== matchKeyField);
 
-      set({ selectedLabelFields: [matchKeyField, ...fieldsWithoutMatchedKeyField].filter(x => !!x) });
+      set({ selectedLabelFields: [matchKeyField, ...fieldsWithoutMatchedKeyField].filter((x): x is string => Boolean(x)) });
     },
     setShowBranchLengths: (show: boolean) => set({ showBranchLengths: show }),
     setShowLeafLabels: (show: boolean) => set({ showLeafLabels: show }),

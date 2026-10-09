@@ -46,17 +46,16 @@ export const PhylogenyViewerPageDrawerMetadataStyling = () => {
 
   const totalTaxa = parsedFasta?.sequences?.length || 0;
 
-  const onChangeColorBy = useCallback((field: string) => {
-    setColorByField(field);
+  const onChangeColorBy = useCallback((field: unknown) => {
+    setColorByField(typeof field === 'string' ? field : '');
   }, [setColorByField]);
 
-  const onChangeMatchKey = useCallback((field: string) => {
-    setMatchKeyField(field);
+  const onChangeMatchKey = useCallback((field: unknown) => {
+    setMatchKeyField(typeof field === 'string' ? field : null);
   }, [setMatchKeyField]);
 
-  const onChangeLabelField = useCallback((fields: string[]) => {
-
-    setSelectedLabelFields(fields);
+  const onChangeLabelField = useCallback((fields: unknown) => {
+    setSelectedLabelFields(Array.isArray(fields) ? fields.filter((field): field is string => typeof field === 'string') : []);
   }, [setSelectedLabelFields]);
 
   const matchKeyColumnOptions = useMemo<AutoCompleteOption<string>[]>(() => {
@@ -78,12 +77,12 @@ export const PhylogenyViewerPageDrawerMetadataStyling = () => {
       options.push(option);
     });
     return options.sort((a, b) => {
-      const matchCountA = matchCountMap.get(a.value) || 0;
-      const matchCountB = matchCountMap.get(b.value) || 0;
+      const matchCountA = matchCountMap.get(a.value ?? '') || 0;
+      const matchCountB = matchCountMap.get(b.value ?? '') || 0;
       if (matchCountA !== matchCountB) {
         return matchCountB - matchCountA; // descending order
       }
-      return a.label.localeCompare(b.label);
+      return (a.label ?? '').localeCompare(b.label ?? '');
     });
   }, [columnMatchCounts, columns, totalTaxa]);
 
@@ -149,7 +148,7 @@ export const PhylogenyViewerPageDrawerMetadataStyling = () => {
             {selectedLabelFields.join(' | ')}
           </code>
         </Typography>
-      ) : null,
+      ) : undefined,
       definition: FORM_FIELD_DEFINITION_TYPE.AUTOCOMPLETE,
       disabled: !matchKeyField || !labelFieldOptions.length,
       hideSelectAll: true,

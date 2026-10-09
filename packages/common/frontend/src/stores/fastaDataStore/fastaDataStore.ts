@@ -1,3 +1,5 @@
+import type { StoreApi } from 'zustand';
+
 import type { FastaParseResult } from '../../models/fasta';
 import { LOADING_STATUS } from '../../models/fasta';
 import type { MetadataParseResult } from '../../models/metadata';
@@ -9,7 +11,7 @@ export type FastaDataStore = FastaDataStoreActions & FastaDataStoreState;
 export interface FastaDataStoreActions {
   resetDataset: () => void;
   setColumnMatchCounts: (counts: Record<string, number>) => void;
-  setData: (fasta: string, tsv?: string) => Promise<{ fastaResult: FastaParseResult; metadataResult: MetadataParseResult }>;
+  setData: (fasta: string, tsv?: string) => Promise<{ fastaResult: FastaParseResult; metadataResult?: MetadataParseResult }>;
   setLoadingStatus: (status: LOADING_STATUS) => void;
   setMatchKeyField: (field: null | string) => void;
 }
@@ -37,42 +39,44 @@ export const createFastaDataStoreInitialState = (): FastaDataStoreState => ({
 });
 
 
-type Get = () => FastaDataStore;
-type Set = (partial: ((state: FastaDataStore) => FastaDataStore | Partial<FastaDataStore>) | FastaDataStore | Partial<FastaDataStore>, replace?: false) => void;
+type Get<T extends FastaDataStore> = StoreApi<T>['getState'];
+type Set<T extends FastaDataStore> = StoreApi<T>['setState'];
 
-export const createFastaDataStoreActions = (kwArgs: { get: Get; set: Set }): FastaDataStoreActions => {
+export const createFastaDataStoreActions = <T extends FastaDataStore>(kwArgs: { get: Get<T>; set: Set<T> }): FastaDataStoreActions => {
   const { get, set } = kwArgs;
+  const setBaseState = (partial: Partial<FastaDataStoreState>) => set(partial as Partial<T>);
+
   return {
-    resetDataset: () => set(createFastaDataStoreInitialState()),
-    setColumnMatchCounts: (counts: Record<string, number>) => set({ columnMatchCounts: counts }),
+    resetDataset: () => setBaseState(createFastaDataStoreInitialState()),
+    setColumnMatchCounts: (counts: Record<string, number>) => setBaseState({ columnMatchCounts: counts }),
     setData: async (fasta: string, tsv?: string) => {
       const parsedFasta = FastaUtil.parseFasta(fasta);
 
       if (parsedFasta.error) {
-        set({
+        setBaseState({
           loadingError: parsedFasta.error,
           loadingStatus: LOADING_STATUS.ERROR,
         });
         throw new Error(parsedFasta.error);
       }
 
-      set({
+      setBaseState({
         parsedFasta,
         rawFasta: fasta,
       });
 
-      let parsedMetadata: MetadataParseResult;
+      let parsedMetadata: MetadataParseResult | undefined;
       if (tsv) {
         parsedMetadata = MetaDataUtil.parseTsv(tsv);
         if (parsedMetadata.error) {
-          set({
+          setBaseState({
             loadingError: parsedMetadata.error,
             loadingStatus: LOADING_STATUS.ERROR,
           });
           throw new Error(parsedMetadata.error);
         }
 
-        set({
+        setBaseState({
           parsedMetadata,
           rawMetadata: tsv,
         });
@@ -87,14 +91,13 @@ export const createFastaDataStoreActions = (kwArgs: { get: Get; set: Set }): Fas
         get().setMatchKeyField(bestColumn);
       }
 
-      set({
+      setBaseState({
         loadingError: null,
         loadingStatus: LOADING_STATUS.SUCCESS,
       });
-
       return Promise.resolve({ fastaResult: parsedFasta, metadataResult: parsedMetadata });
     },
-    setLoadingStatus: (status: LOADING_STATUS) => set({ loadingStatus: status }),
-    setMatchKeyField: (field: null | string) => set({ matchKeyField: field }),
+    setLoadingStatus: (status: LOADING_STATUS) => setBaseState({ loadingStatus: status }),
+    setMatchKeyField: (field: null | string) => setBaseState({ matchKeyField: field }),
   };
 };

@@ -25,7 +25,7 @@ export const PageCommon = ({ children, drawerComponent, headerComponent, isNoInt
   const { isDrawerOpen, setIsNoInteraction } = use(PageCommonContext);
 
   useEffect(() => {
-    setIsNoInteraction(isNoInteraction);
+    setIsNoInteraction(!!isNoInteraction);
   }, [isNoInteraction, setIsNoInteraction]);
 
   return (

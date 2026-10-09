@@ -534,7 +534,7 @@ export const SequenceEditor = () => {
         if (!searchQuery) {
           return;
         }
-        const result = await editorService.search(searchQuery, true);
+        const result = await editorService.search(searchQuery, false);
         sequenceEditorStore.getState().setSearchResult(result);
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener

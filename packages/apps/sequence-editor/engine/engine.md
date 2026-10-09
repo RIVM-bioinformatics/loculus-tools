@@ -202,9 +202,9 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 - Parses into temporary sequence/name buffers first. Only after the complete
   input is valid does it replace existing data and clear undo/redo history;
   invalid input leaves the current engine state intact.
-- Scans line by line. A line starting with `>` begins a new record; the first
-  whitespace-delimited token after `>` becomes the row name (common FASTA
-  convention).
+- Scans line by line. A line starting with `>` begins a new record; the complete
+  trimmed header after `>` becomes the row name. Validation diagnostics use the
+  first whitespace-delimited token as the sequence ID.
 - Sequence lines are appended as **uppercased** ASCII bytes; internal whitespace
   is skipped. Sequences may span multiple lines.
 - Sequence bodies accept only IUPAC nucleotide characters

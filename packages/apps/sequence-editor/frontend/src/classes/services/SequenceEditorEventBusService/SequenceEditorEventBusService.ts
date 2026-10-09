@@ -18,6 +18,7 @@ export type SequenceEditorEventBusServiceEvent = {
   onScrollPageUp: void;
   onScrollToLineEnd: void;
   onScrollToLineStart: void;
+  onSearch: string;
   onUndo: void;
 };
 

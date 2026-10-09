@@ -11,8 +11,8 @@ import type {
   ViewportBounds,
 } from '../../../models';
 import { EDITOR_DIRECTION } from '../../../models/editor';
-import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { EngineErrorUtil } from '../../../utils/EngineErrorUtil/EngineErrorUtil';
+import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 
 
 export class EditorWorkerService {

@@ -16,6 +16,7 @@ import type {
   AminoAcidPalette,
   EditorSelection,
   EngineMeta,
+  EngineSearchResult,
   NucleotidePalette,
 } from '../../models';
 import {
@@ -30,6 +31,9 @@ export interface SequenceEditorStoreActions extends FastaDataStoreActions {
   setLatestMessage: (message: null | string) => void;
   setMeta: (meta: EngineMeta | null) => void;
   setNucleotidePalette: (palette: NucleotidePalette) => void;
+  setSearchQuery: (query: string) => void;
+  setSearchResult: (results: EngineSearchResult | null) => void;
+  setSearchResultHighlightedIndex: (index: null | number) => void;
   setSelection: (selection: EditorSelection | null) => void;
 }
 
@@ -38,6 +42,9 @@ export interface SequenceEditorStoreState extends FastaDataStoreState {
   latestMessage: null | string;
   meta: EngineMeta | null;
   nucleotidePalette: NucleotidePalette;
+  searchQuery: string;
+  searchResult: EngineSearchResult | null;
+  searchResultHighlightedIndex: null | number;
   selection: EditorSelection | null;
 }
 
@@ -47,6 +54,9 @@ const createSequenceEditorStoreInitialState = (): SequenceEditorStoreState => ({
   latestMessage: null,
   meta: null,
   nucleotidePalette: ALI_VIEW_DEFAULT_NUCLEOTIDE_PALETTE,
+  searchQuery: '',
+  searchResult: null,
+  searchResultHighlightedIndex: null,
   selection: null,
 });
 
@@ -63,6 +73,20 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
         setLatestMessage: (message: null | string) => set({ latestMessage: message }),
         setMeta: (meta: EngineMeta | null) => set({ meta }),
         setNucleotidePalette: (palette: NucleotidePalette) => set({ nucleotidePalette: palette }),
+        setSearchQuery: (query: string) => {
+          const { setSearchResult, setSearchResultHighlightedIndex: setSearchResultsHighlightedIndex } = get();
+          set({ searchQuery: query });
+          if (!query) {
+            setSearchResultsHighlightedIndex(null);
+            setSearchResult(null);
+          }
+        },
+        setSearchResult: (results: EngineSearchResult | null) => {
+          const { setSearchResultHighlightedIndex: setSearchResultsHighlightedIndex } = get();
+          set({ searchResult: results });
+          setSearchResultsHighlightedIndex(null);
+        },
+        setSearchResultHighlightedIndex: (index: null | number) => set({ searchResultHighlightedIndex: index }),
         setSelection: (selection: EditorSelection | null) => set({ selection }),
       };
     },

@@ -1,6 +1,6 @@
 import type { KeyboardShortcutConfig } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
 
-import { SequenceEditorEventBusService } from '../classes/services/SequenceEditorEventBus';
+import { SequenceEditorEventBusService } from '../classes/services/SequenceEditorEventBusService';
 import { EDITOR_DIRECTION } from '../models/editor';
 
 

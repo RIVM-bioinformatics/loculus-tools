@@ -6,6 +6,7 @@ import type {
   EditorPathProperties,
   EditorSelection,
   EngineMeta,
+  EngineSearchResult,
   EngineViewportResult,
   GridGeometry,
   GridRange,
@@ -17,6 +18,10 @@ import { EDITOR_PATH_PROPERTIES_TYPE } from '../../models';
 import { PaletteUtil } from '../PaletteUtil';
 import { DEFAULT_GRID_GEOMETRY } from '../../constants';
 import { EDITOR_DIRECTION } from '../../models/editor';
+import {
+  searchHitAt,
+  searchHitContainsCell,
+} from '../search';
 
 export class EditorUtil {
   public static drawCanvas({
@@ -29,6 +34,8 @@ export class EditorUtil {
     rowNamesStartRow,
     scrollLeft,
     scrollTop,
+    searchResult,
+    searchResultHighlightedIndex,
     selection,
     viewport,
     viewportHeight,
@@ -43,6 +50,8 @@ export class EditorUtil {
     rowNamesStartRow: number;
     scrollLeft: number;
     scrollTop: number;
+    searchResult: EngineSearchResult | null;
+    searchResultHighlightedIndex: null | number;
     selection: EditorSelection | null;
     viewport: EngineViewportResult;
     viewportHeight: number;
@@ -86,6 +95,9 @@ export class EditorUtil {
     ) || Boolean(
       isRowSelected(row),
     );
+    const highlightedSearchHit = searchResult && searchResultHighlightedIndex !== null
+      ? searchHitAt(searchResult, searchResultHighlightedIndex)
+      : null;
 
     EditorUtil.draw(canvasElement, devicePixelRatio, () => {
       context.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -94,6 +106,43 @@ export class EditorUtil {
       const gridStart = labelWidth + dividerWidth;
 
       const { bytes, cols, rows, startCol, startRow } = viewport;
+      const hasSearchResult = (searchResult?.positions.length ?? 0) > 0;
+      const searchMatchFlags = hasSearchResult ? new Uint8Array(rows * cols) : null;
+      const highlightedSearchMatchFlags = highlightedSearchHit ? new Uint8Array(rows * cols) : null;
+      const searchMatchPath = hasSearchResult ? new Path2D() : null;
+      const highlightedSearchMatchPath = highlightedSearchHit ? new Path2D() : null;
+      let hasSearchMatches = false;
+      let hasHighlightedSearchMatches = false;
+
+      const addSearchHitToFlags = (
+        hit: EngineSearchResult['positions'][number],
+        flags: Uint8Array,
+      ): void => {
+        if (!searchResult) {
+          return;
+        }
+        const hitLength = Math.max(1, searchResult.query.length);
+        const hitStartCol = Math.max(startCol, hit.col);
+        const hitEndCol = Math.min(startCol + cols, hit.col + hitLength);
+        const hitRow = hit.row - startRow;
+        if (
+          hitRow < 0 ||
+          hitRow >= rows ||
+          hitStartCol >= hitEndCol ||
+          !searchHitContainsCell(hit, searchResult.query, hit.row, hitStartCol)
+        ) {
+          return;
+        }
+        const startIndex = hitRow * cols + hitStartCol - startCol;
+        flags.fill(1, startIndex, startIndex + hitEndCol - hitStartCol);
+      };
+
+      if (searchResult && searchMatchFlags) {
+        searchResult.positions.forEach((hit) => addSearchHitToFlags(hit, searchMatchFlags));
+        if (highlightedSearchHit && highlightedSearchMatchFlags) {
+          addSearchHitToFlags(highlightedSearchHit, highlightedSearchMatchFlags);
+        }
+      }
 
       // Render cells
       context.font = '12px monospace';
@@ -128,6 +177,9 @@ export class EditorUtil {
             cellBackground = colors.backgroundSelected;
             cellForeground = colors.foregroundSelected;
           }
+          const cellIndex = row * cols + col;
+          const matchesSearch = searchMatchFlags?.[cellIndex] === 1;
+          const matchesHighlightedSearch = highlightedSearchMatchFlags?.[cellIndex] === 1;
           const rectanglePath = new Path2D();
           rectanglePath.rect(x, y, cellWidth, cellHeight);
           rectanglePath.closePath();
@@ -139,9 +191,31 @@ export class EditorUtil {
           // draw path on canvas
           context.fillStyle = cellBackground;
           context.fill(rectanglePath);
+          if (matchesHighlightedSearch) {
+            context.fillStyle = 'rgba(255, 193, 7, 0.35)';
+            context.fillRect(x + 2, y + 2, Math.max(0, cellWidth - 4), Math.max(0, cellHeight - 4));
+          }
           context.fillStyle = cellForeground;
           context.fillText(label, x + cellWidth / 2, y + cellHeight / 2);
+          if (matchesSearch && searchMatchPath) {
+            hasSearchMatches = true;
+            searchMatchPath.rect(x + 0.5, y + 0.5, cellWidth - 1, cellHeight - 1);
+            if (matchesHighlightedSearch && highlightedSearchMatchPath) {
+              hasHighlightedSearchMatches = true;
+              highlightedSearchMatchPath.rect(x + 1, y + 1, cellWidth - 2, cellHeight - 2);
+            }
+          }
         }
+      }
+
+      if (hasSearchMatches && searchMatchPath) {
+        context.strokeStyle = '#000000';
+        context.lineWidth = 1;
+        context.stroke(searchMatchPath);
+      }
+      if (hasHighlightedSearchMatches && highlightedSearchMatchPath) {
+        context.lineWidth = 2;
+        context.stroke(highlightedSearchMatchPath);
       }
 
       // Render ruler
@@ -723,6 +797,53 @@ export class EditorUtil {
       visibleGridRange.startRow >= cachedGridRange.startRow &&
       visibleGridRange.endRow <= cachedGridRange.endRow
     );
+  }
+
+  public static scrollToPosition(params: {
+    geometry: GridGeometry;
+    scrollContainer: HTMLDivElement | null;
+    x: null | number;
+    y: null | number;
+  }): void {
+    const {
+      geometry,
+      scrollContainer,
+      x,
+      y,
+    } = params;
+    if (!scrollContainer) {
+      return;
+    }
+    scrollContainer.scrollTo({
+      left: x === null ? scrollContainer.scrollLeft : Math.max(0, x - 1) * geometry.cellWidth,
+      top: y === null ? scrollContainer.scrollTop : Math.max(0, y - 1) * geometry.cellHeight,
+    });
+  }
+
+  public static scrollToSearchResult(params: {
+    geometry: GridGeometry;
+    scrollContainer: HTMLDivElement | null;
+    searchResult: EngineSearchResult | null;
+    searchResultHighlightedIndex: null | number;
+  }): void {
+    const {
+      geometry,
+      scrollContainer,
+      searchResult,
+      searchResultHighlightedIndex,
+    } = params;
+    const searchHit = searchResult && searchResultHighlightedIndex !== null
+      ? searchHitAt(searchResult, searchResultHighlightedIndex)
+      : null;
+    if (!searchHit) {
+      return;
+    }
+    EditorUtil.scrollToPosition({
+      geometry,
+      scrollContainer,
+      x: searchHit.col + 1,
+      y: searchHit.row + 1,
+    });
   }
 
   /**

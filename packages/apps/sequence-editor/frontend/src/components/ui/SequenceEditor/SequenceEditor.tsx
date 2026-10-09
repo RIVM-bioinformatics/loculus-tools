@@ -20,12 +20,13 @@ import { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/Keyb
 import { useStore } from 'zustand';
 
 import { EditorWorkerService } from '../../../classes/services/EditorWorkerService/EditorWorkerService';
-import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBus';
+import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
 import type {
   EditorAssembly,
   EditorPathProperties,
   EditorSelection,
   EngineMeta,
+  EngineSearchResult,
   GridGeometry,
   GridRangeWithRowNames,
   GridRangeWithViewportResults,
@@ -43,11 +44,11 @@ import {
 } from '../../../constants';
 import { EditorUtil } from '../../../utils/EditorUtil';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
+import { SequenceEditorSearchBar } from '../SequenceEditorSearchBar';
 
 import { SequenceEditorStatusBar } from './SequenceEditorStatusBar';
 import type { SequenceEditorGotoPositionDialogRefMethods } from './SequenceEditorGotoPositionDialog';
 import { SequenceEditorGotoPositionDialog } from './SequenceEditorGotoPositionDialog';
-
 
 export const SequenceEditor = () => {
   const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
@@ -205,6 +206,8 @@ export const SequenceEditor = () => {
   useEffect(() => {
     let animationFrame: null | number = null;
     let isActive = true;
+    let searchResult: EngineSearchResult | null = null;
+    let searchResultHighlightedIndex: null | number = null;
 
     const processVisibleRange = async (): Promise<void> => {
       if (!isActive || processingVisibleRangeRef.current) {
@@ -278,6 +281,8 @@ export const SequenceEditor = () => {
               rowNamesStartRow: cachedGridRangeWithRowNamesRef.current.range.startRow,
               scrollLeft: visibleGridRangeWithArguments.scrollLeft,
               scrollTop: visibleGridRangeWithArguments.scrollTop,
+              searchResult,
+              searchResultHighlightedIndex,
               selection: selectionSubject.data,
               viewport: cachedGridRangeWithViewPortResultRef.current.viewportResult,
               viewportHeight: visibleGridRangeWithArguments.viewportHeight,
@@ -294,6 +299,26 @@ export const SequenceEditor = () => {
     };
 
     const unsubscribeItems = [
+      sequenceEditorStore.subscribe((state, prevState) => {
+        let shouldProcess = false;
+        if (state.searchResult !== prevState.searchResult) {
+          searchResult = state.searchResult;
+          shouldProcess = true;
+        }
+        if (state.searchResultHighlightedIndex !== prevState.searchResultHighlightedIndex) {
+          searchResultHighlightedIndex = state.searchResultHighlightedIndex;
+          EditorUtil.scrollToSearchResult({
+            geometry: geometrySubject.data,
+            scrollContainer: scrollContainerRef.current,
+            searchResult: state.searchResult,
+            searchResultHighlightedIndex: state.searchResultHighlightedIndex,
+          });
+          shouldProcess = true;
+        }
+        if (shouldProcess) {
+          updateVisibleRange();
+        }
+      }),
       visibleRangeSubject.subscribe((visibleGridRangeWithArguments) => {
         if (!visibleGridRangeWithArguments) {
           return;
@@ -312,7 +337,7 @@ export const SequenceEditor = () => {
       visibleRangeRequestRef.current += 1;
       unsubscribeItems.forEach(unsubscribe => unsubscribe());
     };
-  }, [editorService, metaSubject, selectionSubject, visibleRangeSubject]);
+  }, [editorService, geometrySubject, metaSubject, selectionSubject, updateVisibleRange, visibleRangeSubject]);
 
   useEffect(() => {
     const unsubscribeItems = [
@@ -500,6 +525,14 @@ export const SequenceEditor = () => {
 
     const eventBusService = SequenceEditorEventBusService.getInstance();
     const removers = [
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onSearch', async (searchQuery) => {
+        if (!searchQuery) {
+          return;
+        }
+        const result = await editorService.search(searchQuery, true);
+        sequenceEditorStore.getState().setSearchResult(result);
+      }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onExpandSelection', (direction) => expandSelection(direction)),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
@@ -766,14 +799,11 @@ export const SequenceEditor = () => {
   }, []);
 
   const onGotoPosition = useCallback((x: null | number, y: null | number) => {
-    const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer) {
-      return;
-    }
-    const geometry = geometrySubject.data;
-    scrollContainer.scrollTo({
-      left: x === null ? scrollContainer.scrollLeft : Math.max(0, x - 1) * geometry.cellWidth,
-      top: y === null ? scrollContainer.scrollTop : Math.max(0, y - 1) * geometry.cellHeight,
+    EditorUtil.scrollToPosition({
+      geometry: geometrySubject.data,
+      scrollContainer: scrollContainerRef.current,
+      x,
+      y,
     });
   }, [geometrySubject]);
 
@@ -781,7 +811,16 @@ export const SequenceEditor = () => {
   const canvasHeight = Math.max(1, Math.floor(containerDimensions.height * devicePixelRatio));
 
   return (
-    <>
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateRows: 'max-content auto',
+        height: '100%',
+        position: 'relative',
+        width: '100%',
+      }}
+    >
+      <SequenceEditorSearchBar />
       <Box
         onMouseUp={onContainerMouseUp}
         ref={containerRef}
@@ -848,6 +887,6 @@ export const SequenceEditor = () => {
         onGotoPosition={onGotoPosition}
         ref={sequenceEditorGotoPositionDialogRef}
       />
-    </>
+    </Box>
   );
 };

@@ -102,6 +102,10 @@
       "types": "./src/components/PageHeaderDocumentationButton/index.ts",
       "import": "./src/components/PageHeaderDocumentationButton/index.ts"
     },
+    "./components/SearchBar": {
+      "types": "./src/components/SearchBar/index.ts",
+      "import": "./src/components/SearchBar/index.ts"
+    },
     "./components/page": {
       "types": "./src/components/page/index.ts",
       "import": "./src/components/page/index.ts"
@@ -184,6 +188,10 @@
       "./components/PageHeaderDocumentationButton": {
         "types": "./dist/components/PageHeaderDocumentationButton/index.d.ts",
         "import": "./dist/components/PageHeaderDocumentationButton/index.js"
+      },
+      "./components/SearchBar": {
+        "types": "./dist/components/SearchBar/index.d.ts",
+        "import": "./dist/components/SearchBar/index.js"
       },
       "./components/page": {
         "types": "./dist/components/page/index.d.ts",

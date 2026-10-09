@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
-import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBus';
+import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
 
 export const SequenceEditorPageHeader = () => {
   const resetDataset = useStore(sequenceEditorStore, (state) => state.resetDataset);

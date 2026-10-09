@@ -24,7 +24,7 @@ import { LOADING_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta
 import { PhylogenyTreeView } from '../../ui/PhylogenyTreeView';
 import { LEGEND_WIDTH } from '../../../constants/view';
 import { PhylogenyViewerEventBusService } from '../../../classes/services/PhylogenyViewerEventBusService';
-import { SearchBar } from '../../ui/SearchBar';
+import { PhylogenyViewerSearchBar } from '../../ui/PhylogenyViewerSearchBar';
 import { Legend } from '../../ui/Legend/Legend';
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import { PhylogenyViewerPage } from '../../ui/PhylogenyViewerPage';
@@ -135,7 +135,7 @@ export const PhylogenyViewerPageMainPage = () => {
             width: '100%',
           }}
         >
-          <SearchBar />
+          <PhylogenyViewerSearchBar />
           <Box
             sx={{
               display: 'grid',

@@ -14,12 +14,12 @@ export class FastaUtil {
     let currentHeader = '';
     let currentSeqParts: string[] = [];
 
-    const commitSequence = (): FastaParseResult | null => {
+    const commitSequence = (): void => {
       if (currentHeader) {
         const fullSeq = currentSeqParts.join('').replace(/\s/g, '').toUpperCase();
-        if (!fullSeq.length) {
-          return FastaUtil.createErrorResult(`FASTA record "${currentHeader}" has no sequence.`);
-        }
+
+        // Empty records (a header with no following sequence) are retained with
+        // a length of zero rather than being discarded or rejected.
 
         // Extract ID: part before pipe or tab, sanitized for Newick compatibility
         const firstPart = currentHeader.split(/[|\t]/)[0].trim();
@@ -33,7 +33,6 @@ export class FastaUtil {
           sequence: fullSeq,
         });
       }
-      return null;
     };
 
     for (const sourceLine of lines) {
@@ -43,10 +42,7 @@ export class FastaUtil {
       }
 
       if (line.startsWith('>')) {
-        const error = commitSequence();
-        if (error) {
-          return error;
-        }
+        commitSequence();
         currentHeader = line.slice(1).trim();
         if (!currentHeader) {
           return FastaUtil.createErrorResult('Every FASTA record needs a non-empty header.');
@@ -59,10 +55,7 @@ export class FastaUtil {
         currentSeqParts.push(line);
       }
     }
-    const error = commitSequence();
-    if (error) {
-      return error;
-    }
+    commitSequence();
 
     if (sequences.length === 0) {
       return FastaUtil.createErrorResult('No FASTA records were found.');

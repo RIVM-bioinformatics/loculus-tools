@@ -59,6 +59,10 @@
     "vitest-browser-react": "2.3.0"
   },
   "exports": {
+    "./types": {
+      "types": "./src/@types/phylogeny-viewer.d.ts",
+      "import": "./src/@types/phylogeny-viewer.d.ts"
+    },
     "./classes/abstracts/AioliServiceAbstract": {
       "types": "./src/classes/abstracts/AioliServiceAbstract/index.ts",
       "import": "./src/classes/abstracts/AioliServiceAbstract/index.ts"
@@ -154,6 +158,10 @@
   },
   "publishConfig": {
     "exports": {
+      "./types": {
+        "types": "./dist/@types/phylogeny-viewer.d.ts",
+        "import": "./dist/@types/phylogeny-viewer.d.ts"
+      },
       "./classes/abstracts/AioliServiceAbstract": {
         "types": "./dist/classes/abstracts/AioliServiceAbstract/index.d.ts",
         "import": "./dist/classes/abstracts/AioliServiceAbstract/index.js"

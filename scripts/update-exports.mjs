@@ -51,6 +51,7 @@ const componentKeys = [...indexBasedKeys, ...flatKeys].sort();
 
 // Check for a types declaration file matching the package name (e.g., src/@types/ui-client-common.d.ts for @gen-epix/ui-client-common)
 const pkgBaseName = basename(pkg.name.replace(/^@[^/]+\//, ''));
+console.log('pkgBaseName', pkgBaseName)
 const typesDeclarationFile = join(srcDir, '@types', `${pkgBaseName}.d.ts`);
 const hasTypesEntry = existsSync(typesDeclarationFile);
 const hasRootEntry = existsSync(join(srcDir, 'index.ts'));

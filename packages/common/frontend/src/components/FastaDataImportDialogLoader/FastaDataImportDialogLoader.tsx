@@ -95,7 +95,7 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
     FastaDataEventBusService.getInstance().emit('onShowImportDialog', errorMessage);
   }, []);
 
-  const onDataChange = useCallback(async (fastaContent: string, metadataContent: string) => {
+  const onDataChange = useCallback(async (fastaContent: string, metadataContent?: string) => {
     try {
       await setData(fastaContent, metadataContent);
       fastaDataImportDialogRef.current?.close();

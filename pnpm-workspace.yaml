@@ -1,5 +1,7 @@
 packages:
   - packages/apps/**/frontend
+  - packages/apps/**/frontend-lib
+  - packages/apps/**/frontend-app
   - packages/apps/**/wasm
   - packages/common/**
 

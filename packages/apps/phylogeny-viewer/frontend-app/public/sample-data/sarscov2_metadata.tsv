@@ -1,0 +1,15 @@
+accessionVersion	SampleID	country	region	host	collectionDate	clade
+EPI_ISL_402119	Sample_Wuhan_01	China	Asia	Homo sapiens	2019-12-30	19A
+EPI_ISL_402120	Sample_Wuhan_02	China	Asia	Homo sapiens	2019-12-30	19A
+EPI_ISL_402121	Sample_Italy_01	Italy	Europe	Homo sapiens	2020-02-15	20A
+EPI_ISL_402122	Sample_Italy_02	Italy	Europe	Homo sapiens	2020-02-20	20A
+EPI_ISL_402123	Sample_Netherlands_01	Netherlands	Europe	Homo sapiens	2020-02-27	20B
+EPI_ISL_402124	Sample_Netherlands_02	Netherlands	Europe	Homo sapiens	2020-03-01	20B
+EPI_ISL_402125	Sample_Netherlands_03	Netherlands	Europe	Homo sapiens	2020-03-05	20B
+EPI_ISL_402126	Sample_Germany_01	Germany	Europe	Homo sapiens	2020-03-10	19A
+EPI_ISL_402127	Sample_Germany_02	Germany	Europe	Homo sapiens	2020-03-12	19A
+EPI_ISL_402128	Sample_UK_01	United Kingdom	Europe	Homo sapiens	2020-03-15	20A
+EPI_ISL_402129	Sample_UK_02	United Kingdom	Europe	Homo sapiens	2020-03-18	20A
+EPI_ISL_402130	Sample_USA_01	United States	North America	Homo sapiens	2020-03-20	20C
+EPI_ISL_402131	Sample_USA_02	United States	North America	Homo sapiens	2020-03-22	20C
+EPI_ISL_402132	Sample_Brazil_01	Brazil	South America	Homo sapiens	2020-03-25	20B

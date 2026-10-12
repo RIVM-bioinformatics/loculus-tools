@@ -7,8 +7,8 @@
     "validate": "pnpm run lint && pnpm run check-types",
     "lint": "eslint ./src --report-unused-disable-directives --max-warnings 0",
     "lint-fix": "eslint ./src --report-unused-disable-directives --max-warnings 0 --fix",
+    "update-exports": "node scripts/update-exports.js",
     "check-types": "tsc --noEmit",
-    "start": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -57,5 +57,195 @@
     "vite-plugin-svgr": "5.2.0",
     "vitest": "5.0.1",
     "vitest-browser-react": "2.3.0"
+  },
+  "exports": {
+    "./classes/abstracts/AioliServiceAbstract": {
+      "types": "./src/classes/abstracts/AioliServiceAbstract/index.ts",
+      "import": "./src/classes/abstracts/AioliServiceAbstract/index.ts"
+    },
+    "./classes/services/FastTreeAioliService": {
+      "types": "./src/classes/services/FastTreeAioliService/index.ts",
+      "import": "./src/classes/services/FastTreeAioliService/index.ts"
+    },
+    "./classes/services/PhylogenyViewerEventBusService": {
+      "types": "./src/classes/services/PhylogenyViewerEventBusService/index.ts",
+      "import": "./src/classes/services/PhylogenyViewerEventBusService/index.ts"
+    },
+    "./classes/services/TN93AioliService": {
+      "types": "./src/classes/services/TN93AioliService/index.ts",
+      "import": "./src/classes/services/TN93AioliService/index.ts"
+    },
+    "./components/app/App": {
+      "types": "./src/components/app/App/index.ts",
+      "import": "./src/components/app/App/index.ts"
+    },
+    "./components/pages/PhylogenyViewerErrorPage": {
+      "types": "./src/components/pages/PhylogenyViewerErrorPage/index.ts",
+      "import": "./src/components/pages/PhylogenyViewerErrorPage/index.ts"
+    },
+    "./components/pages/PhylogenyViewerPageMainPage": {
+      "types": "./src/components/pages/PhylogenyViewerPageMainPage/index.ts",
+      "import": "./src/components/pages/PhylogenyViewerPageMainPage/index.ts"
+    },
+    "./components/ui/AlignmentErrorDialog": {
+      "types": "./src/components/ui/AlignmentErrorDialog/index.ts",
+      "import": "./src/components/ui/AlignmentErrorDialog/index.ts"
+    },
+    "./components/ui/Legend": {
+      "types": "./src/components/ui/Legend/index.ts",
+      "import": "./src/components/ui/Legend/index.ts"
+    },
+    "./components/ui/PhylogenyTreeView": {
+      "types": "./src/components/ui/PhylogenyTreeView/index.ts",
+      "import": "./src/components/ui/PhylogenyTreeView/index.ts"
+    },
+    "./components/ui/PhylogenyViewerPage": {
+      "types": "./src/components/ui/PhylogenyViewerPage/index.ts",
+      "import": "./src/components/ui/PhylogenyViewerPage/index.ts"
+    },
+    "./components/ui/PhylogenyViewerPageDrawer": {
+      "types": "./src/components/ui/PhylogenyViewerPageDrawer/index.ts",
+      "import": "./src/components/ui/PhylogenyViewerPageDrawer/index.ts"
+    },
+    "./components/ui/PhylogenyViewerPageHeader": {
+      "types": "./src/components/ui/PhylogenyViewerPageHeader/index.ts",
+      "import": "./src/components/ui/PhylogenyViewerPageHeader/index.ts"
+    },
+    "./components/ui/PhylogenyViewerSearchBar": {
+      "types": "./src/components/ui/PhylogenyViewerSearchBar/index.ts",
+      "import": "./src/components/ui/PhylogenyViewerSearchBar/index.ts"
+    },
+    "./components/ui/StatusChip": {
+      "types": "./src/components/ui/StatusChip/index.ts",
+      "import": "./src/components/ui/StatusChip/index.ts"
+    },
+    "./constants/tree": {
+      "types": "./src/constants/tree.ts",
+      "import": "./src/constants/tree.ts"
+    },
+    "./constants/view": {
+      "types": "./src/constants/view.ts",
+      "import": "./src/constants/view.ts"
+    },
+    "./models/calculation": {
+      "types": "./src/models/calculation.ts",
+      "import": "./src/models/calculation.ts"
+    },
+    "./models/color": {
+      "types": "./src/models/color.ts",
+      "import": "./src/models/color.ts"
+    },
+    "./models/tree": {
+      "types": "./src/models/tree.ts",
+      "import": "./src/models/tree.ts"
+    },
+    "./stores/phylogenyViewerStore": {
+      "types": "./src/stores/phylogenyViewerStore/index.ts",
+      "import": "./src/stores/phylogenyViewerStore/index.ts"
+    },
+    "./utils/ColorUtil": {
+      "types": "./src/utils/ColorUtil/index.ts",
+      "import": "./src/utils/ColorUtil/index.ts"
+    },
+    "./utils/ExportUtil": {
+      "types": "./src/utils/ExportUtil/index.ts",
+      "import": "./src/utils/ExportUtil/index.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      "./classes/abstracts/AioliServiceAbstract": {
+        "types": "./dist/classes/abstracts/AioliServiceAbstract/index.d.ts",
+        "import": "./dist/classes/abstracts/AioliServiceAbstract/index.js"
+      },
+      "./classes/services/FastTreeAioliService": {
+        "types": "./dist/classes/services/FastTreeAioliService/index.d.ts",
+        "import": "./dist/classes/services/FastTreeAioliService/index.js"
+      },
+      "./classes/services/PhylogenyViewerEventBusService": {
+        "types": "./dist/classes/services/PhylogenyViewerEventBusService/index.d.ts",
+        "import": "./dist/classes/services/PhylogenyViewerEventBusService/index.js"
+      },
+      "./classes/services/TN93AioliService": {
+        "types": "./dist/classes/services/TN93AioliService/index.d.ts",
+        "import": "./dist/classes/services/TN93AioliService/index.js"
+      },
+      "./components/app/App": {
+        "types": "./dist/components/app/App/index.d.ts",
+        "import": "./dist/components/app/App/index.js"
+      },
+      "./components/pages/PhylogenyViewerErrorPage": {
+        "types": "./dist/components/pages/PhylogenyViewerErrorPage/index.d.ts",
+        "import": "./dist/components/pages/PhylogenyViewerErrorPage/index.js"
+      },
+      "./components/pages/PhylogenyViewerPageMainPage": {
+        "types": "./dist/components/pages/PhylogenyViewerPageMainPage/index.d.ts",
+        "import": "./dist/components/pages/PhylogenyViewerPageMainPage/index.js"
+      },
+      "./components/ui/AlignmentErrorDialog": {
+        "types": "./dist/components/ui/AlignmentErrorDialog/index.d.ts",
+        "import": "./dist/components/ui/AlignmentErrorDialog/index.js"
+      },
+      "./components/ui/Legend": {
+        "types": "./dist/components/ui/Legend/index.d.ts",
+        "import": "./dist/components/ui/Legend/index.js"
+      },
+      "./components/ui/PhylogenyTreeView": {
+        "types": "./dist/components/ui/PhylogenyTreeView/index.d.ts",
+        "import": "./dist/components/ui/PhylogenyTreeView/index.js"
+      },
+      "./components/ui/PhylogenyViewerPage": {
+        "types": "./dist/components/ui/PhylogenyViewerPage/index.d.ts",
+        "import": "./dist/components/ui/PhylogenyViewerPage/index.js"
+      },
+      "./components/ui/PhylogenyViewerPageDrawer": {
+        "types": "./dist/components/ui/PhylogenyViewerPageDrawer/index.d.ts",
+        "import": "./dist/components/ui/PhylogenyViewerPageDrawer/index.js"
+      },
+      "./components/ui/PhylogenyViewerPageHeader": {
+        "types": "./dist/components/ui/PhylogenyViewerPageHeader/index.d.ts",
+        "import": "./dist/components/ui/PhylogenyViewerPageHeader/index.js"
+      },
+      "./components/ui/PhylogenyViewerSearchBar": {
+        "types": "./dist/components/ui/PhylogenyViewerSearchBar/index.d.ts",
+        "import": "./dist/components/ui/PhylogenyViewerSearchBar/index.js"
+      },
+      "./components/ui/StatusChip": {
+        "types": "./dist/components/ui/StatusChip/index.d.ts",
+        "import": "./dist/components/ui/StatusChip/index.js"
+      },
+      "./constants/tree": {
+        "types": "./dist/constants/tree.d.ts",
+        "import": "./dist/constants/tree.js"
+      },
+      "./constants/view": {
+        "types": "./dist/constants/view.d.ts",
+        "import": "./dist/constants/view.js"
+      },
+      "./models/calculation": {
+        "types": "./dist/models/calculation.d.ts",
+        "import": "./dist/models/calculation.js"
+      },
+      "./models/color": {
+        "types": "./dist/models/color.d.ts",
+        "import": "./dist/models/color.js"
+      },
+      "./models/tree": {
+        "types": "./dist/models/tree.d.ts",
+        "import": "./dist/models/tree.js"
+      },
+      "./stores/phylogenyViewerStore": {
+        "types": "./dist/stores/phylogenyViewerStore/index.d.ts",
+        "import": "./dist/stores/phylogenyViewerStore/index.js"
+      },
+      "./utils/ColorUtil": {
+        "types": "./dist/utils/ColorUtil/index.d.ts",
+        "import": "./dist/utils/ColorUtil/index.js"
+      },
+      "./utils/ExportUtil": {
+        "types": "./dist/utils/ExportUtil/index.d.ts",
+        "import": "./dist/utils/ExportUtil/index.js"
+      }
+    }
   }
 }

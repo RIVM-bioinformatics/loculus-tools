@@ -6,4 +6,4 @@ import {
 } from 'path';
 
 // eslint-disable-next-line import-x/dynamic-import-chunkname
-await import(join(dirname(fileURLToPath(import.meta.url)), '../../../../scripts/update-exports.mjs'));
+await import(join(dirname(fileURLToPath(import.meta.url)), '../../../../../scripts/update-exports.mjs'));

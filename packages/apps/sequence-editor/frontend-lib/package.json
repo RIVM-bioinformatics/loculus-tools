@@ -7,6 +7,7 @@
     "validate": "pnpm run lint && pnpm run check-types",
     "lint": "eslint ./src --report-unused-disable-directives --max-warnings 0",
     "lint-fix": "eslint ./src --report-unused-disable-directives --max-warnings 0 --fix",
+    "update-exports": "node scripts/update-exports.js",
     "check-types": "tsc --noEmit",
     "start": "vite",
     "build": "vite build",
@@ -52,5 +53,179 @@
     "vite-plugin-svgr": "5.2.0",
     "vitest": "5.0.1",
     "vitest-browser-react": "2.3.0"
+  },
+  "exports": {
+    "./classes/services/EditorWorkerService": {
+      "types": "./src/classes/services/EditorWorkerService/index.ts",
+      "import": "./src/classes/services/EditorWorkerService/index.ts"
+    },
+    "./classes/services/SequenceEditorEventBusService": {
+      "types": "./src/classes/services/SequenceEditorEventBusService/index.ts",
+      "import": "./src/classes/services/SequenceEditorEventBusService/index.ts"
+    },
+    "./classes/workers/EngineWorker": {
+      "types": "./src/classes/workers/EngineWorker/index.ts",
+      "import": "./src/classes/workers/EngineWorker/index.ts"
+    },
+    "./components/app/App": {
+      "types": "./src/components/app/App/index.ts",
+      "import": "./src/components/app/App/index.ts"
+    },
+    "./components/pages/SequenceEditorErrorPage": {
+      "types": "./src/components/pages/SequenceEditorErrorPage/index.ts",
+      "import": "./src/components/pages/SequenceEditorErrorPage/index.ts"
+    },
+    "./components/pages/SequenceEditorMainPage": {
+      "types": "./src/components/pages/SequenceEditorMainPage/index.ts",
+      "import": "./src/components/pages/SequenceEditorMainPage/index.ts"
+    },
+    "./components/ui/SequenceEditor": {
+      "types": "./src/components/ui/SequenceEditor/index.ts",
+      "import": "./src/components/ui/SequenceEditor/index.ts"
+    },
+    "./components/ui/SequenceEditorPage": {
+      "types": "./src/components/ui/SequenceEditorPage/index.ts",
+      "import": "./src/components/ui/SequenceEditorPage/index.ts"
+    },
+    "./components/ui/SequenceEditorPageDrawer": {
+      "types": "./src/components/ui/SequenceEditorPageDrawer/index.ts",
+      "import": "./src/components/ui/SequenceEditorPageDrawer/index.ts"
+    },
+    "./components/ui/SequenceEditorPageHeader": {
+      "types": "./src/components/ui/SequenceEditorPageHeader/index.ts",
+      "import": "./src/components/ui/SequenceEditorPageHeader/index.ts"
+    },
+    "./components/ui/SequenceEditorSearchBar": {
+      "types": "./src/components/ui/SequenceEditorSearchBar/index.ts",
+      "import": "./src/components/ui/SequenceEditorSearchBar/index.ts"
+    },
+    "./constants": {
+      "types": "./src/constants/index.ts",
+      "import": "./src/constants/index.ts"
+    },
+    "./constants/editor": {
+      "types": "./src/constants/editor.ts",
+      "import": "./src/constants/editor.ts"
+    },
+    "./constants/keyboard": {
+      "types": "./src/constants/keyboard.ts",
+      "import": "./src/constants/keyboard.ts"
+    },
+    "./constants/palette": {
+      "types": "./src/constants/palette.ts",
+      "import": "./src/constants/palette.ts"
+    },
+    "./models/editor": {
+      "types": "./src/models/editor.ts",
+      "import": "./src/models/editor.ts"
+    },
+    "./models/model": {
+      "types": "./src/models/model.ts",
+      "import": "./src/models/model.ts"
+    },
+    "./models/palette": {
+      "types": "./src/models/palette.ts",
+      "import": "./src/models/palette.ts"
+    },
+    "./stores/sequenceEditorStore": {
+      "types": "./src/stores/sequenceEditorStore/index.ts",
+      "import": "./src/stores/sequenceEditorStore/index.ts"
+    },
+    "./utils/EditorUtil": {
+      "types": "./src/utils/EditorUtil/index.ts",
+      "import": "./src/utils/EditorUtil/index.ts"
+    },
+    "./utils/PaletteUtil": {
+      "types": "./src/utils/PaletteUtil/index.ts",
+      "import": "./src/utils/PaletteUtil/index.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      "./classes/services/EditorWorkerService": {
+        "types": "./dist/classes/services/EditorWorkerService/index.d.ts",
+        "import": "./dist/classes/services/EditorWorkerService/index.js"
+      },
+      "./classes/services/SequenceEditorEventBusService": {
+        "types": "./dist/classes/services/SequenceEditorEventBusService/index.d.ts",
+        "import": "./dist/classes/services/SequenceEditorEventBusService/index.js"
+      },
+      "./classes/workers/EngineWorker": {
+        "types": "./dist/classes/workers/EngineWorker/index.d.ts",
+        "import": "./dist/classes/workers/EngineWorker/index.js"
+      },
+      "./components/app/App": {
+        "types": "./dist/components/app/App/index.d.ts",
+        "import": "./dist/components/app/App/index.js"
+      },
+      "./components/pages/SequenceEditorErrorPage": {
+        "types": "./dist/components/pages/SequenceEditorErrorPage/index.d.ts",
+        "import": "./dist/components/pages/SequenceEditorErrorPage/index.js"
+      },
+      "./components/pages/SequenceEditorMainPage": {
+        "types": "./dist/components/pages/SequenceEditorMainPage/index.d.ts",
+        "import": "./dist/components/pages/SequenceEditorMainPage/index.js"
+      },
+      "./components/ui/SequenceEditor": {
+        "types": "./dist/components/ui/SequenceEditor/index.d.ts",
+        "import": "./dist/components/ui/SequenceEditor/index.js"
+      },
+      "./components/ui/SequenceEditorPage": {
+        "types": "./dist/components/ui/SequenceEditorPage/index.d.ts",
+        "import": "./dist/components/ui/SequenceEditorPage/index.js"
+      },
+      "./components/ui/SequenceEditorPageDrawer": {
+        "types": "./dist/components/ui/SequenceEditorPageDrawer/index.d.ts",
+        "import": "./dist/components/ui/SequenceEditorPageDrawer/index.js"
+      },
+      "./components/ui/SequenceEditorPageHeader": {
+        "types": "./dist/components/ui/SequenceEditorPageHeader/index.d.ts",
+        "import": "./dist/components/ui/SequenceEditorPageHeader/index.js"
+      },
+      "./components/ui/SequenceEditorSearchBar": {
+        "types": "./dist/components/ui/SequenceEditorSearchBar/index.d.ts",
+        "import": "./dist/components/ui/SequenceEditorSearchBar/index.js"
+      },
+      "./constants": {
+        "types": "./dist/constants/index.d.ts",
+        "import": "./dist/constants/index.js"
+      },
+      "./constants/editor": {
+        "types": "./dist/constants/editor.d.ts",
+        "import": "./dist/constants/editor.js"
+      },
+      "./constants/keyboard": {
+        "types": "./dist/constants/keyboard.d.ts",
+        "import": "./dist/constants/keyboard.js"
+      },
+      "./constants/palette": {
+        "types": "./dist/constants/palette.d.ts",
+        "import": "./dist/constants/palette.js"
+      },
+      "./models/editor": {
+        "types": "./dist/models/editor.d.ts",
+        "import": "./dist/models/editor.js"
+      },
+      "./models/model": {
+        "types": "./dist/models/model.d.ts",
+        "import": "./dist/models/model.js"
+      },
+      "./models/palette": {
+        "types": "./dist/models/palette.d.ts",
+        "import": "./dist/models/palette.js"
+      },
+      "./stores/sequenceEditorStore": {
+        "types": "./dist/stores/sequenceEditorStore/index.d.ts",
+        "import": "./dist/stores/sequenceEditorStore/index.js"
+      },
+      "./utils/EditorUtil": {
+        "types": "./dist/utils/EditorUtil/index.d.ts",
+        "import": "./dist/utils/EditorUtil/index.js"
+      },
+      "./utils/PaletteUtil": {
+        "types": "./dist/utils/PaletteUtil/index.d.ts",
+        "import": "./dist/utils/PaletteUtil/index.js"
+      }
+    }
   }
 }

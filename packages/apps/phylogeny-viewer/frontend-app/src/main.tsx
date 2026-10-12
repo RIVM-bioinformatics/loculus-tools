@@ -1,7 +1,7 @@
-import { createRoot } from 'react-dom/client';
 import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 
-import { App } from './components/app/App/App';
+import { App } from '@rivm-loculus-tools/phylogeny-viewer/components/app/App';
 
 const container = document.getElementById('root');
 if (!container) {

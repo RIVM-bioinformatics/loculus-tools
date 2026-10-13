@@ -85,8 +85,12 @@ export const FastaDataImportDialog = withDialog<FastaDataImportDialogProps, Fast
   }, [openProps]);
 
   useEffect(() => {
-    onNoCloseButtonChange(!!openProps?.initialErrorMessage);
-    onDisableBackdropClickChange(!!openProps?.initialErrorMessage);
+    if (onNoCloseButtonChange) {
+      onNoCloseButtonChange(!!openProps?.initialErrorMessage);
+    }
+    if (onDisableBackdropClickChange) {
+      onDisableBackdropClickChange(!!openProps?.initialErrorMessage);
+    }
   }, [onDisableBackdropClickChange, onNoCloseButtonChange, openProps?.initialErrorMessage]);
 
   const onCloseError = useCallback(() => setErrorMsg(null), []);
@@ -148,7 +152,9 @@ export const FastaDataImportDialog = withDialog<FastaDataImportDialogProps, Fast
         metadataContent = metadataText.trim();
       }
       onDataChange(fastaContent, metadataContent);
-      onClose();
+      if (onClose) {
+        onClose();
+      }
     } catch (err: unknown) {
       console.error('Data import failed:', err);
       onError(err);
@@ -176,7 +182,9 @@ export const FastaDataImportDialog = withDialog<FastaDataImportDialogProps, Fast
     if (extraActions?.length) {
       actions.unshift(...extraActions);
     }
-    onActionsChange(actions);
+    if (onActionsChange) {
+      onActionsChange(actions);
+    }
   }, [onActionsChange, onClickLoadData, isLoading, extraActions]);
 
   return (

@@ -1,0 +1,21 @@
+{
+  "name": "@rivm-loculus-tools/sequence-editor-wasm",
+  "type": "module",
+  "description": "Rust-powered WebAssembly MSA engine for viral genome alignment editing",
+  "version": "0.1.4",
+  "license": "EUPL-1.2",
+  "files": [
+    "sequence_editor_bg.wasm",
+    "sequence_editor.js",
+    "sequence_editor.d.ts"
+  ],
+  "main": "sequence_editor.js",
+  "types": "sequence_editor.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RIVM-bioinformatics/loculus-tools"
+  }
+}

@@ -5,7 +5,7 @@ MindTheGap is an English-first nucleotide alignment editor for pre-aligned FASTA
 ## Layout
 
 - `engine/` — the Rust crate and native tests.
-- `wasm/` — generated `wasm-bindgen` output consumed through a workspace dependency. Do not hand-edit generated files.
+- `engine/wasm/` — generated `wasm-bindgen` output consumed through a workspace dependency. Do not hand-edit generated files.
 - `frontend/` — the React application, worker bridge, pure editor helpers, unit tests, and Playwright smoke test.
 
 Companion references:

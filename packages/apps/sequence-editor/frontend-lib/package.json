@@ -1,6 +1,6 @@
 {
   "name": "@rivm-loculus-tools/sequence-editor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "EUPL-1.2",
   "type": "module",
   "scripts": {

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v0.1.6...phylogeny-viewer-frontend-v0.1.7) (2026-10-13)
+
+
+### Bug Fixes
+
+* fix pnpm lock ([daa2a97](https://github.com/RIVM-bioinformatics/loculus-tools/commit/daa2a9756ee6df7330fde967287fcfb33b5d6506))
+
 ## [0.1.6](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v0.1.5...phylogeny-viewer-frontend-v0.1.6) (2026-10-13)
 
 

@@ -69,12 +69,10 @@
     "vite-plugin-static-copy": "4.1.1",
     "vite": "8.3.0"
   },
-  "types": "./src/index.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
-    },
     "./classes/services/FastaDataEventBusService": {
       "types": "./src/classes/services/FastaDataEventBusService/index.ts",
       "import": "./src/classes/services/FastaDataEventBusService/index.ts"
@@ -163,10 +161,6 @@
   "publishConfig": {
     "types": "./dist/index.d.ts",
     "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "import": "./dist/index.js"
-      },
       "./classes/services/FastaDataEventBusService": {
         "types": "./dist/classes/services/FastaDataEventBusService/index.d.ts",
         "import": "./dist/classes/services/FastaDataEventBusService/index.js"

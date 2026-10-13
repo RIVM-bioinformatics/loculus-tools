@@ -7,4 +7,9 @@ export type PageCommonContextData = {
   readonly setIsNoInteraction: (open: boolean) => void;
 };
 
-export const PageCommonContext = createContext<null | PageCommonContextData>(null);
+export const PageCommonContext = createContext<PageCommonContextData>({
+  isDrawerOpen: false,
+  isNoInteraction: false,
+  setIsDrawerOpen: () => null,
+  setIsNoInteraction: () => null,
+});

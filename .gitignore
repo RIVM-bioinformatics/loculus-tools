@@ -31,3 +31,5 @@ playwright-report/
 
 # Package archives
 *.tgz
+
+cert/*

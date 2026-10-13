@@ -20,9 +20,18 @@ fn loads_three_sequences() {
     let e = engine_with_sample();
     assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.get_alignment_width(), 8);
-    assert_eq!(e.get_name(0), "seq1");
+    assert_eq!(e.get_name(0), "seq1 first record");
     assert_eq!(e.get_name(1), "seq2");
-    assert_eq!(e.get_name(2), "seq3");
+    assert_eq!(e.get_name(2), "seq3 third record");
+}
+
+#[test]
+fn load_fasta_preserves_full_header() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1 this is the description\nATGCATGCATGC")
+        .expect("valid FASTA");
+
+    assert_eq!(e.get_name(0), "seq1 this is the description");
 }
 
 #[test]
@@ -217,7 +226,7 @@ fn load_fasta_allows_punctuation_and_numbers_in_headers() {
     e.load_fasta(">seq-1 description with 123 & symbols\nACGT-N")
         .unwrap();
 
-    assert_eq!(e.get_name(0), "seq-1");
+    assert_eq!(e.get_name(0), "seq-1 description with 123 & symbols");
     assert_eq!(e.get_alignment_width(), 6);
 }
 
@@ -235,7 +244,7 @@ fn load_fasta_invalid_input_preserves_engine_data_and_history() {
     assert_eq!(error.code, "InvalidAlphabet");
     assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.get_alignment_width(), 8);
-    assert_eq!(e.get_name(0), "seq1");
+    assert_eq!(e.get_name(0), "seq1 first record");
     assert_eq!(e.get_base(0, 0), b'T');
     assert_eq!(e.get_base(0, 1), b'T');
     assert_eq!(e.undo_depth(), 1);
@@ -995,8 +1004,8 @@ fn move_rows_up_swaps_with_above() {
     let err = e.move_rows_up(&[1]);
     assert_eq!(err, Ok(()));
     assert_eq!(e.get_name(0), "seq2");
-    assert_eq!(e.get_name(1), "seq1");
-    assert_eq!(e.get_name(2), "seq3");
+    assert_eq!(e.get_name(1), "seq1 first record");
+    assert_eq!(e.get_name(2), "seq3 third record");
 }
 
 #[test]
@@ -1005,8 +1014,8 @@ fn move_rows_down_swaps_with_below() {
     // Move row 1 down — swaps with row 2.
     let err = e.move_rows_down(&[1]);
     assert_eq!(err, Ok(()));
-    assert_eq!(e.get_name(0), "seq1");
-    assert_eq!(e.get_name(1), "seq3");
+    assert_eq!(e.get_name(0), "seq1 first record");
+    assert_eq!(e.get_name(1), "seq3 third record");
     assert_eq!(e.get_name(2), "seq2");
 }
 
@@ -1015,7 +1024,7 @@ fn move_rows_up_at_top_is_noop() {
     let mut e = engine_with_sample();
     let err = e.move_rows_up(&[0]);
     assert_eq!(err, Ok(()));
-    assert_eq!(e.get_name(0), "seq1");
+    assert_eq!(e.get_name(0), "seq1 first record");
 }
 
 #[test]
@@ -1023,7 +1032,7 @@ fn move_rows_down_at_bottom_is_noop() {
     let mut e = engine_with_sample();
     let err = e.move_rows_down(&[2]);
     assert_eq!(err, Ok(()));
-    assert_eq!(e.get_name(2), "seq3");
+    assert_eq!(e.get_name(2), "seq3 third record");
 }
 
 #[test]
@@ -1032,8 +1041,8 @@ fn move_rows_multiple_simultaneously() {
     // Move rows 0 and 2 up. Row 0 is at top (no-op), row 2 swaps with row 1.
     let err = e.move_rows_up(&[0, 2]);
     assert_eq!(err, Ok(()));
-    assert_eq!(e.get_name(0), "seq1"); // unchanged (was at top)
-    assert_eq!(e.get_name(1), "seq3"); // row 2 moved up
+    assert_eq!(e.get_name(0), "seq1 first record"); // unchanged (was at top)
+    assert_eq!(e.get_name(1), "seq3 third record"); // row 2 moved up
     assert_eq!(e.get_name(2), "seq2"); // row 1 moved down
 }
 
@@ -1043,7 +1052,7 @@ fn move_rows_up_undo_restores() {
     assert_eq!(e.move_rows_up(&[1]), Ok(()));
     assert_eq!(e.get_name(0), "seq2");
     assert!(e.undo());
-    assert_eq!(e.get_name(0), "seq1");
+    assert_eq!(e.get_name(0), "seq1 first record");
     assert_eq!(e.get_name(1), "seq2");
 }
 

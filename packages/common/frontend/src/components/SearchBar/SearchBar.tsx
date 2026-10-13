@@ -30,7 +30,7 @@ export type SearchBarProps = {
   truncated?: boolean;
 };
 
-export const SearchBar = ({ allowNavigation, highlightedIndex, numResults, onHighlightedIndexChange, onSearchQueryChange, searchQuery, truncated }: SearchBarProps) => {
+export const SearchBar = ({ allowNavigation, highlightedIndex, numResults = 0, onHighlightedIndexChange, onSearchQueryChange, searchQuery, truncated }: SearchBarProps) => {
   const theme = useTheme();
   const inputRef = useRef<HTMLInputElement>(null);
   const arrowUpButtonRef = useRef<HTMLButtonElement>(null);
@@ -63,7 +63,7 @@ export const SearchBar = ({ allowNavigation, highlightedIndex, numResults, onHig
     if (!numResults) {
       return;
     }
-    const newHighlightedIndex = highlightedIndex === null || isNaN(highlightedIndex) || highlightedIndex <= 0 ? numResults - 1 : highlightedIndex - 1;
+    const newHighlightedIndex = highlightedIndex === null || highlightedIndex === undefined || Number.isNaN(highlightedIndex) || highlightedIndex <= 0 ? numResults - 1 : highlightedIndex - 1;
 
     onHighlightedIndexChange?.(newHighlightedIndex);
   }, [numResults, highlightedIndex, onHighlightedIndexChange]);
@@ -73,7 +73,7 @@ export const SearchBar = ({ allowNavigation, highlightedIndex, numResults, onHig
     if (!numResults) {
       return;
     }
-    const newHighlightedIndex = highlightedIndex === null || isNaN(highlightedIndex) || highlightedIndex >= numResults - 1 ? 0 : highlightedIndex + 1;
+    const newHighlightedIndex = highlightedIndex === null || highlightedIndex === undefined || Number.isNaN(highlightedIndex) || highlightedIndex >= numResults - 1 ? 0 : highlightedIndex + 1;
     onHighlightedIndexChange?.(newHighlightedIndex);
   }, [numResults, highlightedIndex, onHighlightedIndexChange]);
 
@@ -104,9 +104,9 @@ export const SearchBar = ({ allowNavigation, highlightedIndex, numResults, onHig
     if (!searchQuery) {
       return '';
     }
-    if (searchQuery && (isNaN(numResults) || numResults <= 0)) {
+    if (searchQuery && (Number.isNaN(numResults) || numResults <= 0)) {
       return 'No results';
-    } else if (highlightedIndex === null || isNaN(highlightedIndex) || highlightedIndex < 0 || !allowNavigation) {
+    } else if (highlightedIndex === null || highlightedIndex === undefined || Number.isNaN(highlightedIndex) || highlightedIndex < 0 || !allowNavigation) {
       return `${numResults}${truncated ? '+' : ''} results`;
     } else if (allowNavigation) {
       return `${highlightedIndex + 1}/${numResults}${truncated ? '+' : ''} results`;

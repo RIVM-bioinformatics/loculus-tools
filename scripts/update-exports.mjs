@@ -51,13 +51,20 @@ const componentKeys = [...indexBasedKeys, ...flatKeys].sort();
 
 // Check for a types declaration file matching the package name (e.g., src/@types/ui-client-common.d.ts for @gen-epix/ui-client-common)
 const pkgBaseName = basename(pkg.name.replace(/^@[^/]+\//, ''));
+console.log('pkgBaseName', pkgBaseName)
 const typesDeclarationFile = join(srcDir, '@types', `${pkgBaseName}.d.ts`);
 const hasTypesEntry = existsSync(typesDeclarationFile);
+const hasRootEntry = existsSync(join(srcDir, 'index.ts'));
 const hasExportEntries = hasTypesEntry || componentKeys.length > 0;
 
 if (hasExportEntries) {
+  if (hasRootEntry) {
+    pkg.types = './src/index.ts';
+  }
+
   // exports: points to source files (used in workspace / dev)
   pkg.exports = {
+    ...(hasRootEntry ? { '.': { types: './src/index.ts', import: './src/index.ts' } } : {}),
     ...(hasTypesEntry ? { './types': { types: `./src/@types/${pkgBaseName}.d.ts`, import: `./src/@types/${pkgBaseName}.d.ts` } } : {}),
     ...Object.fromEntries(
       componentKeys.map((key) => [
@@ -73,7 +80,12 @@ if (hasExportEntries) {
 if (hasExportEntries) {
   // publishConfig.exports: points to dist files (used after publish)
   pkg.publishConfig ??= {};
+  if (hasRootEntry) {
+    pkg.publishConfig.types = './dist/index.d.ts';
+  }
+
   pkg.publishConfig.exports = {
+    ...(hasRootEntry ? { '.': { types: './dist/index.d.ts', import: './dist/index.js' } } : {}),
     ...(hasTypesEntry ? { './types': { types: `./dist/@types/${pkgBaseName}.d.ts`, import: `./dist/@types/${pkgBaseName}.d.ts` } } : {}),
     ...Object.fromEntries(
       componentKeys.map((key) => [

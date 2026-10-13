@@ -2,14 +2,19 @@
   "name": "@rivm-loculus-tools/mono-repo",
   "version": "0.0.1",
   "license": "EUPL-1.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RIVM-bioinformatics/loculus-tools"
+  },
   "private": true,
   "packageManager": "pnpm@12.8.1",
   "scripts": {
     "postinstall": "pnpm run build-wasm",
     "build-wasm": "node scripts/build-wasm.mjs",
     "prepare": "husky",
-    "start-phylo": "pnpm --filter @rivm-loculus-tools/phylogeny-viewer start",
-    "start-seq": "pnpm --filter @rivm-loculus-tools/sequence-editor start",
+    "start": "lerna run start --scope @rivm-loculus-tools/phylogeny-viewer-app --scope @rivm-loculus-tools/sequence-editor-app --stream",
+    "start-phylo": "pnpm --filter @rivm-loculus-tools/phylogeny-viewer-app start",
+    "start-seq": "pnpm --filter @rivm-loculus-tools/sequence-editor-app start",
     "update-exports": "lerna run update-exports",
     "clean": "lerna clean && rm -fr node_modules",
     "validate": "lerna run validate --stream",

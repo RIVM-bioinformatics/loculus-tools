@@ -5,7 +5,7 @@ export type SearchBarNodeCounterProps = {
 };
 
 export const SearchBarNodeCounter = ({ numResults }: SearchBarNodeCounterProps) => {
-  if (isNaN(numResults)) {
+  if (numResults === undefined || Number.isNaN(numResults)) {
     return null;
   }
 

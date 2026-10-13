@@ -1,0 +1,113 @@
+name: release-please
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      releases-created: ${{ steps.release.outputs.releases_created }}
+      common-frontend-release-created: ${{ steps.release.outputs['packages/common/frontend--release_created'] }}
+      common-frontend-tag-name: ${{ steps.release.outputs['packages/common/frontend--tag_name'] }}
+      phylogeny-viewer-release-created: ${{ steps.release.outputs['packages/apps/phylogeny-viewer/frontend-lib--release_created'] }}
+      phylogeny-viewer-tag-name: ${{ steps.release.outputs['packages/apps/phylogeny-viewer/frontend-lib--tag_name'] }}
+      sequence-editor-release-created: ${{ steps.release.outputs['packages/apps/sequence-editor/frontend-lib--release_created'] }}
+      sequence-editor-tag-name: ${{ steps.release.outputs['packages/apps/sequence-editor/frontend-lib--tag_name'] }}
+      sequence-editor-wasm-release-created: ${{ steps.release.outputs['packages/apps/sequence-editor/engine--release_created'] }}
+      sequence-editor-wasm-tag-name: ${{ steps.release.outputs['packages/apps/sequence-editor/engine--tag_name'] }}
+    steps:
+      - uses: googleapis/release-please-action@v5.0.0
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  merge-main-into-development:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.releases-created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: development
+          fetch-depth: 0
+
+      - name: Merge main into development
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-ff origin/main -m "chore: merge main into development [skip ci]"
+          git push origin development
+
+  publish:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.releases-created == 'true' }}
+    strategy:
+      matrix:
+        include:
+          - package-name: "@rivm-loculus-tools/common-frontend"
+            release-created: common-frontend-release-created
+            tag-name: common-frontend-tag-name
+            build-wasm: false
+          - package-name: "@rivm-loculus-tools/phylogeny-viewer"
+            release-created: phylogeny-viewer-release-created
+            tag-name: phylogeny-viewer-tag-name
+            build-wasm: false
+          - package-name: "@rivm-loculus-tools/sequence-editor"
+            release-created: sequence-editor-release-created
+            tag-name: sequence-editor-tag-name
+            build-wasm: true
+          - package-name: "@rivm-loculus-tools/sequence-editor-wasm"
+            release-created: sequence-editor-wasm-release-created
+            tag-name: sequence-editor-wasm-tag-name
+            build-wasm: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-node-env
+        with:
+          node-version: 24
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ needs.release-please.outputs[matrix.release-created] == 'true' && matrix.build-wasm }}
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        if: ${{ needs.release-please.outputs[matrix.release-created] == 'true' && matrix.build-wasm }}
+        run: cargo install wasm-pack --locked
+
+      - name: Install dependencies
+        if: ${{ needs.release-please.outputs[matrix.release-created] == 'true' }}
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build WASM
+        if: ${{ needs.release-please.outputs[matrix.release-created] == 'true' && matrix.build-wasm }}
+        run: pnpm run build-wasm
+
+      - name: Create .npmrc
+        if: ${{ needs.release-please.outputs[matrix.release-created] == 'true' }}
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Build
+        if: ${{ needs.release-please.outputs[matrix.release-created] == 'true' && matrix.package-name != '@rivm-loculus-tools/sequence-editor-wasm' }}
+        run: pnpm --filter ${{ matrix.package-name }} run build
+
+      - name: Publish to NPM
+        if: ${{ needs.release-please.outputs[matrix.release-created] == 'true' }}
+        run: pnpm --filter ${{ matrix.package-name }} publish --access=public --no-git-checks

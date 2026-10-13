@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.1.4...sequence-editor-wasm-v0.1.5) (2026-10-13)
+
+
+### Bug Fixes
+
+* **sequence-editor,engine:** preserve full fasta headers on load ([91a32a5](https://github.com/RIVM-bioinformatics/loculus-tools/commit/91a32a53be8a620bea6782da8b6141ce45437b10))
+
 ## [0.1.4](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.1.3...sequence-editor-wasm-v0.1.4) (2026-10-13)
 
 

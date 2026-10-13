@@ -89,6 +89,23 @@ fn empty_fasta_loads_zero() {
 }
 
 #[test]
+fn load_fasta_retains_empty_records_with_zero_length() {
+    let mut e = MsaEngine::new();
+    assert_eq!(
+        e.load_fasta(
+            ">seq1 first record\nATGCATGCATGC\n>seq2\nATGGTGCAT-TC\n>seq3 third record\n>seq4"
+        )
+        .unwrap(),
+        4
+    );
+    assert_eq!(e.get_sequence_count(), 4);
+    assert_eq!(e.get_row_length(0), 12);
+    assert_eq!(e.get_row_length(1), 12);
+    assert_eq!(e.get_row_length(2), 0);
+    assert_eq!(e.get_row_length(3), 0);
+}
+
+#[test]
 fn exports_loaded_alignment_as_unwrapped_fasta() {
     let e = engine_with_sample();
 

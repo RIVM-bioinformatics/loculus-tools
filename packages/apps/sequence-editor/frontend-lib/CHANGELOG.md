@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v0.1.4...sequence-editor-frontend-v0.1.5) (2026-10-13)
+
+
+### Bug Fixes
+
+* publish dist folders ([02cff4a](https://github.com/RIVM-bioinformatics/loculus-tools/commit/02cff4ac844a9208bdbef0a636afe15f83b3f25e))
+
 ## [0.1.4](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v0.1.3...sequence-editor-frontend-v0.1.4) (2026-10-13)
 
 

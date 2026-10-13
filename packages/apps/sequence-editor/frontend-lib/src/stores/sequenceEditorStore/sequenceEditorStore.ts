@@ -6,11 +6,11 @@ import {
 import type {
   FastaDataStoreActions,
   FastaDataStoreState,
-} from '@rivm-loculus-tools/frontend-common/stores/fastaDataStore';
+} from '@rivm-loculus-tools/common-frontend/stores/fastaDataStore';
 import {
   createFastaDataStoreActions,
   createFastaDataStoreInitialState,
-} from '@rivm-loculus-tools/frontend-common/stores/fastaDataStore';
+} from '@rivm-loculus-tools/common-frontend/stores/fastaDataStore';
 
 import type {
   AminoAcidPalette,

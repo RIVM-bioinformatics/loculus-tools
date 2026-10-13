@@ -1,7 +1,7 @@
 {
-  "name": "@rivm-loculus-tools/frontend-common",
-  "private": true,
-  "version": "1.0.0",
+  "name": "@rivm-loculus-tools/common-frontend",
+  "version": "0.0.0",
+  "license": "EUPL-1.2",
   "type": "module",
   "scripts": {
     "validate": "pnpm run lint && pnpm run check-types",

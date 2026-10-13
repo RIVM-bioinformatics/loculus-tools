@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* global console, process */
-// Builds the Rust/WASM engine for every package that has one, outputting into ../wasm
-// relative to the engine directory (e.g. packages/apps/<name>/engine -> packages/apps/<name>/wasm).
+// Builds the Rust/WASM engine for every package that has one, outputting into wasm
+// within the engine directory (e.g. packages/apps/<name>/engine/wasm).
 // Run with: node scripts/build-wasm.mjs
 
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs';
@@ -31,8 +31,14 @@ for (const packageName of packageNames) {
     continue;
   }
 
+  const wasmDir = join(engineDir, 'wasm');
+  const wasmPackageJsonPath = join(wasmDir, 'package.json');
+  const existingWasmPackageJson = existsSync(wasmPackageJsonPath)
+    ? JSON.parse(readFileSync(wasmPackageJsonPath, 'utf8'))
+    : null;
+
   console.log(`Building wasm engine for ${packageName}...`);
-  const result = spawnSync('wasm-pack', ['build', '--target', 'web', '--out-dir', '../wasm'], {
+  const result = spawnSync('wasm-pack', ['build', '--target', 'web', '--out-dir', 'wasm'], {
     cwd: engineDir,
     stdio: 'inherit',
     env,
@@ -43,9 +49,14 @@ for (const packageName of packageNames) {
     process.exit(result.status ?? 1);
   }
 
-  const wasmPackageJsonPath = join(packagesDir, packageName, 'wasm', 'package.json');
+  writeFileSync(join(wasmDir, '.gitignore'), '*\n!.gitignore\n!package.json\n');
+
   const wasmPackageJson = JSON.parse(readFileSync(wasmPackageJsonPath, 'utf8'));
   wasmPackageJson.name = `@rivm-loculus-tools/${packageName}-wasm`;
+  if (existingWasmPackageJson?.version) {
+    wasmPackageJson.version = existingWasmPackageJson.version;
+  }
+  wasmPackageJson.license = 'EUPL-1.2';
   writeFileSync(wasmPackageJsonPath, JSON.stringify(wasmPackageJson, null, 2) + '\n');
 
   rmSync(join(engineDir, 'target'), { recursive: true, force: true });

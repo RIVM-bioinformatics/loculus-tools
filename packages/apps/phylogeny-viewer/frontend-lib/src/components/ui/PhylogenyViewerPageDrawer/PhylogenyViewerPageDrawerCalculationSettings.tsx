@@ -21,7 +21,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SpeedIcon from '@mui/icons-material/Speed';
 import BiotechIcon from '@mui/icons-material/Biotech';
 import { useStore } from 'zustand/react';
-import { LOADING_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta';
+import { LOADING_STATUS } from '@rivm-loculus-tools/common-frontend/models/fasta';
 
 import { CALCULATION_STATUS } from '../../../models/calculation';
 import type {

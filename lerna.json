@@ -3,7 +3,7 @@
     "packages/apps/**/frontend",
     "packages/apps/**/frontend-lib",
     "packages/apps/**/frontend-app",
-    "packages/apps/**/wasm",
+    "packages/apps/**/engine/wasm",
     "packages/common/**"
   ],
   "version": "0.0.0",

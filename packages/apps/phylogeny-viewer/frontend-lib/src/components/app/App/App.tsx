@@ -2,10 +2,10 @@ import {
   CssBaseline,
   ThemeProvider,
 } from '@mui/material';
-import { theme } from '@rivm-loculus-tools/frontend-common/theme';
+import { theme } from '@rivm-loculus-tools/common-frontend/theme';
 import { ErrorBoundary } from 'react-error-boundary';
-import { I18nWrapper } from '@rivm-loculus-tools/frontend-common/components/I18nWrapper';
-import { PageCommonContextProvider } from '@rivm-loculus-tools/frontend-common/components/page';
+import { I18nWrapper } from '@rivm-loculus-tools/common-frontend/components/I18nWrapper';
+import { PageCommonContextProvider } from '@rivm-loculus-tools/common-frontend/components/page';
 
 import { PhylogenyViewerErrorPage } from '../../pages/PhylogenyViewerErrorPage';
 import { PhylogenyViewerPageMainPage } from '../../pages/PhylogenyViewerPageMainPage';

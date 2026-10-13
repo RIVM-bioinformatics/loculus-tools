@@ -40,7 +40,7 @@ the following package families:
 ```text
 packages/apps/**/frontend
 packages/apps/**/engine
-packages/apps/**/wasm
+packages/apps/**/engine/wasm
 ```
 
 The pnpm workspace currently includes only `frontend` and `wasm` directories:
@@ -48,7 +48,7 @@ The pnpm workspace currently includes only `frontend` and `wasm` directories:
 ```yaml
 packages:
   - packages/apps/**/frontend
-  - packages/apps/**/wasm
+  - packages/apps/**/engine/wasm
 ```
 
 The Rust `engine` directories are build inputs, not pnpm packages. Their output
@@ -162,7 +162,7 @@ Any app with an `engine/Cargo.toml` is discovered by
 
 1. Checks that `wasm-pack` is installed.
 2. Prefers `~/.cargo/bin` so rustup's toolchain is used.
-3. Runs `wasm-pack build --target web --out-dir ../wasm` from the engine.
+3. Runs `wasm-pack build --target web --out-dir wasm` from the engine.
 4. Rewrites the generated WASM package name to
    `@rivm-loculus-tools/<app>-wasm`.
 5. Removes the engine's generated `target` directory.
@@ -251,7 +251,7 @@ cargo fmt -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-Use `wasm-pack build --target web --out-dir ../wasm` there when a focused WASM
+Use `wasm-pack build --target web --out-dir wasm` there when a focused WASM
 rebuild is needed. The root script is preferred when multiple engine packages
 must be rebuilt.
 

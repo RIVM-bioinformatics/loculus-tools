@@ -11,14 +11,14 @@ import {
   Menu,
   MenuItem,
 } from '@mui/material';
-import { PageCommonHeader } from '@rivm-loculus-tools/frontend-common/components/page';
-import { FastaPageHeaderCenterComponent } from '@rivm-loculus-tools/frontend-common/components/FastaPageHeaderCenterComponent';
-import { UrlUtil } from '@rivm-loculus-tools/frontend-common/utils/UrlUtil';
+import { PageCommonHeader } from '@rivm-loculus-tools/common-frontend/components/page';
+import { FastaPageHeaderCenterComponent } from '@rivm-loculus-tools/common-frontend/components/FastaPageHeaderCenterComponent';
+import { UrlUtil } from '@rivm-loculus-tools/common-frontend/utils/UrlUtil';
 import { useStore } from 'zustand';
-import { FastaPageHeaderResetButton } from '@rivm-loculus-tools/frontend-common/components/FastaPageHeaderResetButton';
-import { FastaPageHeaderImportButton } from '@rivm-loculus-tools/frontend-common/components/FastaPageHeaderImportButton';
+import { FastaPageHeaderResetButton } from '@rivm-loculus-tools/common-frontend/components/FastaPageHeaderResetButton';
+import { FastaPageHeaderImportButton } from '@rivm-loculus-tools/common-frontend/components/FastaPageHeaderImportButton';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
-import { PageHeaderDocumentationButton } from '@rivm-loculus-tools/frontend-common/components/PageHeaderDocumentationButton';
+import { PageHeaderDocumentationButton } from '@rivm-loculus-tools/common-frontend/components/PageHeaderDocumentationButton';
 import ImageIcon from '@mui/icons-material/Image';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CodeIcon from '@mui/icons-material/Code';

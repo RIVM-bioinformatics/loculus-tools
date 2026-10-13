@@ -17,8 +17,8 @@ import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import { useStore } from 'zustand';
-import { PageCommonDrawer } from '@rivm-loculus-tools/frontend-common/components/page';
-import { FastaDataEventBusService } from '@rivm-loculus-tools/frontend-common/classes/services/FastaDataEventBusService';
+import { PageCommonDrawer } from '@rivm-loculus-tools/common-frontend/components/page';
+import { FastaDataEventBusService } from '@rivm-loculus-tools/common-frontend/classes/services/FastaDataEventBusService';
 
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 

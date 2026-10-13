@@ -1,16 +1,16 @@
 import { createStore } from 'zustand';
 import uniq from 'lodash/uniq';
-import { MetaDataUtil } from '@rivm-loculus-tools/frontend-common/utils/MetaDataUtil';
+import { MetaDataUtil } from '@rivm-loculus-tools/common-frontend/utils/MetaDataUtil';
 import type {
   FastaDataStoreActions,
   FastaDataStoreState,
-} from '@rivm-loculus-tools/frontend-common/stores/fastaDataStore';
+} from '@rivm-loculus-tools/common-frontend/stores/fastaDataStore';
 import {
   createFastaDataStoreActions,
   createFastaDataStoreInitialState,
-} from '@rivm-loculus-tools/frontend-common/stores/fastaDataStore';
-import type { FastaParseResult } from '@rivm-loculus-tools/frontend-common/models/fasta';
-import type { MetadataParseResult } from '@rivm-loculus-tools/frontend-common/models/metadata';
+} from '@rivm-loculus-tools/common-frontend/stores/fastaDataStore';
+import type { FastaParseResult } from '@rivm-loculus-tools/common-frontend/models/fasta';
+import type { MetadataParseResult } from '@rivm-loculus-tools/common-frontend/models/metadata';
 
 import type { NodeTooltipInfo } from '../../models/tree';
 import { CALCULATION_STATUS } from '../../models/calculation';

@@ -817,6 +817,19 @@ fn alignment_width_from_longest_sequence() {
 }
 
 #[test]
+fn alignment_width_uses_longest_record_flushed_at_eof() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">short1\nAT\n>short2\nATG\n>long_last\nATGCATGCA")
+        .unwrap();
+
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 9);
+    assert_eq!(e.get_row_length(0), 2);
+    assert_eq!(e.get_row_length(1), 3);
+    assert_eq!(e.get_row_length(2), 9);
+}
+
+#[test]
 fn insert_only_accepts_gap_by_default() {
     let mut e = engine_with_sample();
     // Insert at col 2 on rows 0 and 1. Only '-' is inserted.

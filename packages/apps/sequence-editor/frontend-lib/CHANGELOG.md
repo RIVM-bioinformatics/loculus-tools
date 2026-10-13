@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v0.1.3...sequence-editor-frontend-v0.1.4) (2026-10-13)
+
+
+### Bug Fixes
+
+* change version specifier for workspace packages ([b4a2d72](https://github.com/RIVM-bioinformatics/loculus-tools/commit/b4a2d72017faf76d8ebec4a77ca1142ecfb7312e))
+
 ## [0.1.3](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v0.1.2...sequence-editor-frontend-v0.1.3) (2026-10-13)
 
 

@@ -215,10 +215,10 @@ importers:
         specifier: 9.4.0
         version: 9.4.0(@types/react@19.3.0)(react@19.3.0)
       '@rivm-loculus-tools/common-frontend':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../common/frontend
       '@rivm-loculus-tools/phylogeny-viewer':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../frontend-lib
       i18next:
         specifier: 26.4.2
@@ -327,7 +327,7 @@ importers:
         specifier: 9.4.0
         version: 9.4.0(@types/react@19.3.0)(react@19.3.0)
       '@rivm-loculus-tools/common-frontend':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../common/frontend
       colorjs.io:
         specifier: 0.7.1
@@ -447,10 +447,10 @@ importers:
         specifier: 9.4.0
         version: 9.4.0(@types/react@19.3.0)(react@19.3.0)
       '@rivm-loculus-tools/common-frontend':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../common/frontend
       '@rivm-loculus-tools/sequence-editor':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../frontend-lib
       i18next:
         specifier: 26.4.2
@@ -547,10 +547,10 @@ importers:
         specifier: 9.4.0
         version: 9.4.0(@types/react@19.3.0)(react@19.3.0)
       '@rivm-loculus-tools/common-frontend':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../../../common/frontend
       '@rivm-loculus-tools/sequence-editor-wasm':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../engine/wasm
       comlink:
         specifier: ^4.4.2

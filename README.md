@@ -25,9 +25,9 @@ This is a pnpm/lerna monorepo. Each tool lives under `packages/<name>` and typic
 pnpm install
 ```
 
-This installs all workspace dependencies and, via the root `postinstall` script ([scripts/build-wasm.mjs](scripts/build-wasm.mjs)), scans every `packages/apps/*/engine` folder for a `Cargo.toml` and runs `wasm-pack build` for it, writing the output into `packages/apps/*/engine/wasm`. Those `engine/wasm` folders are consumed as `workspace:*` dependencies by the corresponding `frontend` package.
+This installs all workspace dependencies and, via the root `postinstall` script ([scripts/build-wasm.mjs](scripts/build-wasm.mjs)), scans every `packages/apps/*/engine` folder for a `Cargo.toml` and runs `wasm-pack build` for it, writing the output into `packages/apps/*/engine/wasm`. Those `engine/wasm` folders are consumed as `workspace:^` dependencies by the corresponding `frontend` package.
 
-> **Adding a new engine package:** after the first successful build, force-add the generated `packages/apps/<name>/engine/wasm/package.json` to git (`git add -f`). That folder is otherwise gitignored, but pnpm needs the `package.json` present at checkout time to resolve the `workspace:*` dependency — before `postinstall` has a chance to run the actual build.
+> **Adding a new engine package:** after the first successful build, force-add the generated `packages/apps/<name>/engine/wasm/package.json` to git (`git add -f`). That folder is otherwise gitignored, but pnpm needs the `package.json` present at checkout time to resolve the `workspace:^` dependency — before `postinstall` has a chance to run the actual build.
 
 > **`postinstall` not running?** If `pnpm install` prints `Already up to date` and finishes almost instantly, it short-circuited and skipped lifecycle scripts entirely (this can happen even after editing a script in `package.json`, since that alone doesn't invalidate pnpm's up-to-date check). Run `pnpm install --force` to force scripts (including `postinstall`) to actually execute.
 

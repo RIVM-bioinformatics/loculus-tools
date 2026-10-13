@@ -31,7 +31,7 @@
     "@mui/styled-engine": "9.4.0",
     "@mui/system": "9.4.0",
     "@mui/utils": "9.4.0",
-    "@rivm-loculus-tools/common-frontend": "workspace:*",
+    "@rivm-loculus-tools/common-frontend": "workspace:^",
     "colorjs.io": "0.7.1",
     "i18next": "26.4.2",
     "lodash": "4.18.1",

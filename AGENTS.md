@@ -53,7 +53,7 @@ packages:
 
 The Rust `engine` directories are build inputs, not pnpm packages. Their output
 is written into sibling `wasm` packages. A frontend that consumes an engine uses
-a `workspace:*` dependency on that generated package.
+a `workspace:^` dependency on that generated package.
 
 ### Application status
 
@@ -168,7 +168,7 @@ Any app with an `engine/Cargo.toml` is discovered by
 5. Removes the engine's generated `target` directory.
 
 The generated `wasm` directory is ignored by default. Its `package.json` must
-be force-added for a new engine package so pnpm can resolve its `workspace:*`
+be force-added for a new engine package so pnpm can resolve its `workspace:^`
 dependency on a fresh checkout before the first postinstall build.
 
 Do not hand-edit generated WASM JavaScript, TypeScript declarations, or binary

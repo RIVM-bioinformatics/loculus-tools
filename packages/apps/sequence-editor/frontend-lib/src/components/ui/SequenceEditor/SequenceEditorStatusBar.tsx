@@ -64,7 +64,7 @@ export const SequenceEditorStatusBar = () => {
           {`Total selected chars: ${normalizedSelection.totalSelectedChars}`}
         </Box>
         <Box>
-          {`Alignment: ${meta?.alignmentWidth ?? '0'} sequences ${meta?.sequenceCount ?? '0'} pos.`}
+          {`Alignment: ${meta?.sequenceCount ?? '0'} sequences, ${meta?.alignmentWidth ?? '0'} positions`}
         </Box>
       </Box>
     </Box>

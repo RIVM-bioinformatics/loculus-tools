@@ -1,7 +1,9 @@
 {
   "packages": [
     "packages/apps/**/frontend",
-    "packages/apps/**/wasm",
+    "packages/apps/**/frontend-lib",
+    "packages/apps/**/frontend-app",
+    "packages/apps/**/engine/wasm",
     "packages/common/**"
   ],
   "version": "0.0.0",

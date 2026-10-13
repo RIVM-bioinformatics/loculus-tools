@@ -1,0 +1,55 @@
+{
+  "name": "@rivm-loculus-tools/phylogeny-viewer-app",
+  "version": "0.0.0",
+  "license": "EUPL-1.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RIVM-bioinformatics/loculus-tools"
+  },
+  "type": "module",
+  "scripts": {
+    "validate": "pnpm run lint && pnpm run check-types",
+    "lint": "eslint ./src --report-unused-disable-directives --max-warnings 0",
+    "lint-fix": "eslint ./src --report-unused-disable-directives --max-warnings 0 --fix",
+    "check-types": "tsc --noEmit",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@gen-epix/ui-core": "3.8.1",
+    "@gen-epix/ui-core-components": "4.3.1",
+    "@gen-epix/ui-core-form": "4.3.1",
+    "@mui/icons-material": "9.4.0",
+    "@mui/material": "9.4.0",
+    "@mui/styled-engine": "9.4.0",
+    "@mui/system": "9.4.0",
+    "@mui/utils": "9.4.0",
+    "@rivm-loculus-tools/common-frontend": "workspace:^",
+    "@rivm-loculus-tools/phylogeny-viewer": "workspace:^",
+    "i18next": "26.4.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "7.88.0",
+    "react-i18next": "17.0.15"
+  },
+  "devDependencies": {
+    "@gen-epix/tools-lib": "0.3.0",
+    "@gen-epix/eslint-config": "0.7.0",
+    "@types/node": "26.6.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "eslint": "10.11.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.0",
+    "vite-plugin-dts": "5.1.1",
+    "vite-plugin-lib-inject-css": "2.2.2",
+    "vite-plugin-static-copy": "4.1.1",
+    "vite-plugin-svgr": "5.2.0",
+    "vitest": "5.0.1",
+    "vitest-browser-react": "2.3.0"
+  }
+}

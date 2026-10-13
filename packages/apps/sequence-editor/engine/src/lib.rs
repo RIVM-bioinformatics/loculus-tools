@@ -425,16 +425,10 @@ impl MsaEngine {
                     }
                 }
                 current_position = 0;
-                //todo: see issue #27, to be fixed in separate pr.
                 let header_text = header.trim();
-                let id = header_text
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or(header_text)
-                    .to_string();
-                current_name = Some(id);
+                current_name = Some(header_text.to_string());
             } else {
-                let Some(sequence_id) = current_name.as_deref() else {
+                let Some(name) = current_name.as_deref() else {
                     return Err(StructuredEngineError::with_code(
                         "InvalidFastaFormat",
                         format!(
@@ -446,6 +440,7 @@ impl MsaEngine {
                         }),
                     ));
                 };
+                let sequence_id = name.split_whitespace().next().unwrap_or(name);
 
                 for character in line.chars() {
                     if character.is_ascii_whitespace() {

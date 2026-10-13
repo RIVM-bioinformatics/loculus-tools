@@ -120,7 +120,9 @@ console.log(count); // 2
   1-based input line. A rejected load preserves the existing data and history.
 - Sequence data before the first `>` header rejects with
   `InvalidFastaFormat`.
-- The row name is the first whitespace-delimited token after the `>` header.
+- The row name is the complete trimmed header after `>`, including any
+  description. Validation diagnostics identify the sequence by its first
+  whitespace-delimited token.
 - The input is expected to be **pre-aligned**. The engine does not enforce
   uniform row length — use `meta()` and `name()` to inspect the result.
 

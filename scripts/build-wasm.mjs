@@ -57,6 +57,10 @@ for (const packageName of packageNames) {
     wasmPackageJson.version = existingWasmPackageJson.version;
   }
   wasmPackageJson.license = 'EUPL-1.2';
+  wasmPackageJson.repository = {
+    type: 'git',
+    url: 'https://github.com/RIVM-bioinformatics/loculus-tools',
+  };
   writeFileSync(wasmPackageJsonPath, JSON.stringify(wasmPackageJson, null, 2) + '\n');
 
   rmSync(join(engineDir, 'target'), { recursive: true, force: true });

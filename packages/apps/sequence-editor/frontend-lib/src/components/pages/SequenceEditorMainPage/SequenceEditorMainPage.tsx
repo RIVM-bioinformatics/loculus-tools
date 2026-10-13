@@ -3,15 +3,15 @@ import {
   useCallback,
   useMemo,
 } from 'react';
-import { FastaDataEventBusService } from '@rivm-loculus-tools/frontend-common/classes/services/FastaDataEventBusService';
-import { ErrorUtil } from '@rivm-loculus-tools/frontend-common/utils/ErrorUtil';
-import { UrlUtil } from '@rivm-loculus-tools/frontend-common/utils/UrlUtil';
+import { FastaDataEventBusService } from '@rivm-loculus-tools/common-frontend/classes/services/FastaDataEventBusService';
+import { ErrorUtil } from '@rivm-loculus-tools/common-frontend/utils/ErrorUtil';
+import { UrlUtil } from '@rivm-loculus-tools/common-frontend/utils/UrlUtil';
 import type { DialogAction } from '@gen-epix/ui-core-components/components/Dialog';
-import { FastaDataImportDialogLoader } from '@rivm-loculus-tools/frontend-common/components/FastaDataImportDialogLoader';
+import { FastaDataImportDialogLoader } from '@rivm-loculus-tools/common-frontend/components/FastaDataImportDialogLoader';
 import { BackdropSpinner } from '@gen-epix/ui-core-components/components/BackdropSpinner';
-import { FastaNotLoaded } from '@rivm-loculus-tools/frontend-common/components/FastaNotLoaded';
+import { FastaNotLoaded } from '@rivm-loculus-tools/common-frontend/components/FastaNotLoaded';
 import BiotechOutlinedIcon from '@mui/icons-material/BiotechOutlined';
-import { LOADING_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta';
+import { LOADING_STATUS } from '@rivm-loculus-tools/common-frontend/models/fasta';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditor } from '../../ui/SequenceEditor';

@@ -17,7 +17,7 @@ import { NewickUtil } from '@gen-epix/ui-phylogenetic-tree/utils/NewickUtil';
 import type { TreeNode } from '@gen-epix/ui-phylogenetic-tree/models/tree';
 import { Subject } from '@gen-epix/ui-core/classes/Subject';
 import { useStore } from 'zustand';
-import { MetaDataUtil } from '@rivm-loculus-tools/frontend-common/utils/MetaDataUtil';
+import { MetaDataUtil } from '@rivm-loculus-tools/common-frontend/utils/MetaDataUtil';
 
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import {

@@ -1,5 +1,5 @@
-import type { ErrorPageCommonProps } from '@rivm-loculus-tools/frontend-common/components/page';
-import { ErrorPageCommon } from '@rivm-loculus-tools/frontend-common/components/page';
+import type { ErrorPageCommonProps } from '@rivm-loculus-tools/common-frontend/components/page';
+import { ErrorPageCommon } from '@rivm-loculus-tools/common-frontend/components/page';
 
 import { SequenceEditorPage } from '../../ui/SequenceEditorPage';
 

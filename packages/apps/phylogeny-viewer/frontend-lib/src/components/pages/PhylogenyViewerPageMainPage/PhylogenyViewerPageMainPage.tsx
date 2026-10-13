@@ -3,7 +3,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { BackdropSpinner } from '@gen-epix/ui-core-components/components/BackdropSpinner';
-import { ErrorUtil } from '@rivm-loculus-tools/frontend-common/utils/ErrorUtil';
+import { ErrorUtil } from '@rivm-loculus-tools/common-frontend/utils/ErrorUtil';
 import {
   useCallback,
   useEffect,
@@ -14,12 +14,12 @@ import { useStore } from 'zustand';
 import type { TreeNode } from '@gen-epix/ui-phylogenetic-tree/models/tree';
 import { NewickUtil } from '@gen-epix/ui-phylogenetic-tree/utils/NewickUtil';
 import type { DialogAction } from '@gen-epix/ui-core-components/components/Dialog';
-import { UrlUtil } from '@rivm-loculus-tools/frontend-common/utils/UrlUtil';
-import { FastaDataImportDialogLoader } from '@rivm-loculus-tools/frontend-common/components/FastaDataImportDialogLoader';
-import { FastaDataEventBusService } from '@rivm-loculus-tools/frontend-common/classes/services/FastaDataEventBusService';
-import { FastaNotLoaded } from '@rivm-loculus-tools/frontend-common/components/FastaNotLoaded';
+import { UrlUtil } from '@rivm-loculus-tools/common-frontend/utils/UrlUtil';
+import { FastaDataImportDialogLoader } from '@rivm-loculus-tools/common-frontend/components/FastaDataImportDialogLoader';
+import { FastaDataEventBusService } from '@rivm-loculus-tools/common-frontend/classes/services/FastaDataEventBusService';
+import { FastaNotLoaded } from '@rivm-loculus-tools/common-frontend/components/FastaNotLoaded';
 import ForestOutlinedIcon from '@mui/icons-material/ForestOutlined';
-import { LOADING_STATUS } from '@rivm-loculus-tools/frontend-common/models/fasta';
+import { LOADING_STATUS } from '@rivm-loculus-tools/common-frontend/models/fasta';
 
 import { PhylogenyTreeView } from '../../ui/PhylogenyTreeView';
 import { LEGEND_WIDTH } from '../../../constants/view';

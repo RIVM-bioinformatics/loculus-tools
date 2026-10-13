@@ -1,0 +1,36 @@
+name: validate
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+    branches:
+      - main
+      - development
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-env
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+      - run: pnpm --filter @gen-epix/ui-client-common exec playwright install chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+      - run: pnpm --filter @gen-epix/ui-client-common exec playwright install-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+      - run: pnpm run validate

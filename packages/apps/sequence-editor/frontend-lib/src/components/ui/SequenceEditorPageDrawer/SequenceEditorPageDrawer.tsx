@@ -17,7 +17,7 @@ import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
 import InvertColorsIcon from '@mui/icons-material/InvertColors';
 import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined';
 import { useStore } from 'zustand';
-import { PageCommonDrawer } from '@rivm-loculus-tools/frontend-common/components/page';
+import { PageCommonDrawer } from '@rivm-loculus-tools/common-frontend/components/page';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import type {

@@ -1,5 +1,5 @@
 import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
-import { FastaUtil } from '@rivm-loculus-tools/frontend-common/utils/FastaUtil';
+import { FastaUtil } from '@rivm-loculus-tools/common-frontend/utils/FastaUtil';
 
 import type {
   FastTreeMLParams,

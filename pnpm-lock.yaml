@@ -214,7 +214,7 @@ importers:
       '@mui/utils':
         specifier: 9.4.0
         version: 9.4.0(@types/react@19.3.0)(react@19.3.0)
-      '@rivm-loculus-tools/frontend-common':
+      '@rivm-loculus-tools/common-frontend':
         specifier: workspace:*
         version: link:../../../common/frontend
       '@rivm-loculus-tools/phylogeny-viewer':
@@ -326,7 +326,7 @@ importers:
       '@mui/utils':
         specifier: 9.4.0
         version: 9.4.0(@types/react@19.3.0)(react@19.3.0)
-      '@rivm-loculus-tools/frontend-common':
+      '@rivm-loculus-tools/common-frontend':
         specifier: workspace:*
         version: link:../../../common/frontend
       colorjs.io:
@@ -412,6 +412,8 @@ importers:
         specifier: 2.3.0
         version: 2.3.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.1(@types/node@26.6.2)(vite@8.3.0(@types/node@26.6.2)(yaml@2.9.0)))
 
+  packages/apps/sequence-editor/engine/wasm: {}
+
   packages/apps/sequence-editor/frontend-app:
     dependencies:
       '@emotion/react':
@@ -444,7 +446,7 @@ importers:
       '@mui/utils':
         specifier: 9.4.0
         version: 9.4.0(@types/react@19.3.0)(react@19.3.0)
-      '@rivm-loculus-tools/frontend-common':
+      '@rivm-loculus-tools/common-frontend':
         specifier: workspace:*
         version: link:../../../common/frontend
       '@rivm-loculus-tools/sequence-editor':
@@ -544,12 +546,12 @@ importers:
       '@mui/utils':
         specifier: 9.4.0
         version: 9.4.0(@types/react@19.3.0)(react@19.3.0)
-      '@rivm-loculus-tools/frontend-common':
+      '@rivm-loculus-tools/common-frontend':
         specifier: workspace:*
         version: link:../../../common/frontend
       '@rivm-loculus-tools/sequence-editor-wasm':
         specifier: workspace:*
-        version: link:../wasm
+        version: link:../engine/wasm
       comlink:
         specifier: ^4.4.2
         version: 4.4.2
@@ -626,8 +628,6 @@ importers:
       vitest-browser-react:
         specifier: 2.3.0
         version: 2.3.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.1(@types/node@26.6.2)(vite@8.3.0(@types/node@26.6.2)(yaml@2.9.0)))
-
-  packages/apps/sequence-editor/wasm: {}
 
   packages/common/frontend:
     dependencies:

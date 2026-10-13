@@ -1,4 +1,4 @@
-import { PageCommon } from '@rivm-loculus-tools/frontend-common/components/page';
+import { PageCommon } from '@rivm-loculus-tools/common-frontend/components/page';
 import type { PropsWithChildren } from 'react';
 
 import { PhylogenyViewerPageHeader } from '../PhylogenyViewerPageHeader';

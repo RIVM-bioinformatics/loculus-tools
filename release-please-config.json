@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "pull-request-title-pattern": "build${scope}: release ${component} ${version}",
+  "include-component-in-tag": true,
+  "bump-minor-pre-major": true,
+  "packages": {
+    "packages/common/frontend": {
+      "package-name": "@rivm-loculus-tools/common-frontend",
+      "component": "common-frontend"
+    },
+    "packages/apps/phylogeny-viewer/frontend-lib": {
+      "package-name": "@rivm-loculus-tools/phylogeny-viewer",
+      "component": "phylogeny-viewer-frontend"
+    },
+    "packages/apps/sequence-editor/frontend-lib": {
+      "package-name": "@rivm-loculus-tools/sequence-editor",
+      "component": "sequence-editor-frontend"
+    },
+    "packages/apps/sequence-editor/engine": {
+      "release-type": "simple",
+      "package-name": "@rivm-loculus-tools/sequence-editor-wasm",
+      "component": "sequence-editor-wasm",
+      "version-file": "VERSION",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "wasm/package.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    }
+  }
+}

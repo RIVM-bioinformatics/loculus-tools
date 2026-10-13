@@ -1,7 +1,7 @@
 {
   "name": "@rivm-loculus-tools/sequence-editor-app",
-  "private": true,
-  "version": "0.1.0",
+  "version": "0.0.0",
+  "license": "EUPL-1.2",
   "type": "module",
   "scripts": {
     "validate": "pnpm run lint && pnpm run check-types",
@@ -23,7 +23,7 @@
     "@mui/styled-engine": "9.4.0",
     "@mui/system": "9.4.0",
     "@mui/utils": "9.4.0",
-    "@rivm-loculus-tools/frontend-common": "workspace:*",
+    "@rivm-loculus-tools/common-frontend": "workspace:*",
     "@rivm-loculus-tools/sequence-editor": "workspace:*",
     "i18next": "26.4.2",
     "react": "19.3.0",

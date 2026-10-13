@@ -1,4 +1,4 @@
-import { SearchBar } from '@rivm-loculus-tools/frontend-common/components/SearchBar';
+import { SearchBar } from '@rivm-loculus-tools/common-frontend/components/SearchBar';
 import { useCallback } from 'react';
 import { useStore } from 'zustand';
 

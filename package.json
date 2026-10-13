@@ -2,6 +2,10 @@
   "name": "@rivm-loculus-tools/mono-repo",
   "version": "0.0.1",
   "license": "EUPL-1.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RIVM-bioinformatics/loculust-tools"
+  },
   "private": true,
   "packageManager": "pnpm@12.8.1",
   "scripts": {

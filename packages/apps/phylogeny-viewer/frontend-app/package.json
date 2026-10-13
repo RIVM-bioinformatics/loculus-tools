@@ -2,6 +2,10 @@
   "name": "@rivm-loculus-tools/phylogeny-viewer-app",
   "version": "0.0.0",
   "license": "EUPL-1.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RIVM-bioinformatics/loculust-tools"
+  },
   "type": "module",
   "scripts": {
     "validate": "pnpm run lint && pnpm run check-types",

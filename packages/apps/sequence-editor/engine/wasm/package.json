@@ -4,6 +4,10 @@
   "description": "Rust-powered WebAssembly MSA engine for viral genome alignment editing",
   "version": "0.1.1",
   "license": "EUPL-1.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RIVM-bioinformatics/loculust-tools"
+  },
   "files": [
     "sequence_editor_bg.wasm",
     "sequence_editor.js",

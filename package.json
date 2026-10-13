@@ -4,7 +4,7 @@
   "license": "EUPL-1.2",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RIVM-bioinformatics/loculust-tools"
+    "url": "https://github.com/RIVM-bioinformatics/loculus-tools"
   },
   "private": true,
   "packageManager": "pnpm@12.8.1",

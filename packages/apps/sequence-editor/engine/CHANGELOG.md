@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.1.1...sequence-editor-wasm-v0.1.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* fix repository URL in package.json files ([b9afa16](https://github.com/RIVM-bioinformatics/loculus-tools/commit/b9afa16b4621a1ded75e908fce0d28b01cf0c8d5))
+
 ## [0.1.1](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.1.0...sequence-editor-wasm-v0.1.1) (2026-10-13)
 
 

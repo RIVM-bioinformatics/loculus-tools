@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.1.5...sequence-editor-wasm-v0.1.6) (2026-10-14)
+
+
+### Bug Fixes
+
+* **sequence-editor,engine:** Accept empty FASTA records on load with zero length ([#9](https://github.com/RIVM-bioinformatics/loculus-tools/issues/9)) ([758a41b](https://github.com/RIVM-bioinformatics/loculus-tools/commit/758a41b385e699427388bf3e820944ded925cbf5))
+
 ## [0.1.5](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.1.4...sequence-editor-wasm-v0.1.5) (2026-10-13)
 
 

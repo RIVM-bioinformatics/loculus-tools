@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v0.1.7...sequence-editor-frontend-v0.2.0) (2026-10-14)
+
+
+### Features
+
+* **frontend:** update all dependencies to latest ([49c674b](https://github.com/RIVM-bioinformatics/loculus-tools/commit/49c674b29607412ffce52743f6025dcc34e7e197))
+
+
+### Bug Fixes
+
+* **sequence-editor,engine:** correct alignment display format in status bar ([b3e4b18](https://github.com/RIVM-bioinformatics/loculus-tools/commit/b3e4b185a3d8f7452c757208b9c1c6431ef55bce))
+
 ## [0.1.7](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v0.1.6...sequence-editor-frontend-v0.1.7) (2026-10-13)
 
 

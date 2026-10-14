@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.1.4...common-frontend-v0.2.0) (2026-10-14)
+
+
+### Features
+
+* **frontend:** update all dependencies to latest ([49c674b](https://github.com/RIVM-bioinformatics/loculus-tools/commit/49c674b29607412ffce52743f6025dcc34e7e197))
+
+
+### Bug Fixes
+
+* **sequence-editor,engine:** Accept empty FASTA records on load with zero length ([#9](https://github.com/RIVM-bioinformatics/loculus-tools/issues/9)) ([758a41b](https://github.com/RIVM-bioinformatics/loculus-tools/commit/758a41b385e699427388bf3e820944ded925cbf5))
+
 ## [0.1.4](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.1.3...common-frontend-v0.1.4) (2026-10-13)
 
 

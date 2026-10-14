@@ -14,8 +14,8 @@ import { useStore } from 'zustand';
 import type {
   AutoCompleteOption,
   FormFieldDefinition,
-} from '@gen-epix/ui-core-form/models/form';
-import { FORM_FIELD_DEFINITION_TYPE } from '@gen-epix/ui-core-form/models/form';
+} from '@gen-epix/ui-core-form/models/form.models';
+import { FORM_FIELD_DEFINITION_TYPE } from '@gen-epix/ui-core-form/models/form.models';
 import { FormUtil } from '@gen-epix/ui-core-form/utils/FormUtil';
 import { useForm } from 'react-hook-form';
 import { GenericForm } from '@gen-epix/ui-core-form/components/helpers/GenericForm';

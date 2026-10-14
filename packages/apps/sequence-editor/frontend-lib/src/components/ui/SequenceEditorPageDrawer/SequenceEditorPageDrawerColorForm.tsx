@@ -5,8 +5,8 @@ import {
 } from 'react';
 import { useForm } from 'react-hook-form';
 import { GenericForm } from '@gen-epix/ui-core-form/components/helpers/GenericForm';
-import type { FormFieldDefinition } from '@gen-epix/ui-core-form/models/form';
-import { FORM_FIELD_DEFINITION_TYPE } from '@gen-epix/ui-core-form/models/form';
+import type { FormFieldDefinition } from '@gen-epix/ui-core-form/models/form.models';
+import { FORM_FIELD_DEFINITION_TYPE } from '@gen-epix/ui-core-form/models/form.models';
 
 import type {
   AminoAcidPalette,

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v0.1.7...phylogeny-viewer-frontend-v0.2.0) (2026-10-14)
+
+
+### Features
+
+* **frontend:** update all dependencies to latest ([49c674b](https://github.com/RIVM-bioinformatics/loculus-tools/commit/49c674b29607412ffce52743f6025dcc34e7e197))
+
 ## [0.1.7](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v0.1.6...phylogeny-viewer-frontend-v0.1.7) (2026-10-13)
 
 

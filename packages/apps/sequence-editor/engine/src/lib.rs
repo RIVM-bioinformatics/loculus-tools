@@ -419,10 +419,10 @@ impl MsaEngine {
             }
             if let Some(header) = line.strip_prefix('>') {
                 if let Some(name) = current_name.take() {
-                    if !current_seq.is_empty() {
-                        staged_names.push(name);
-                        staged_sequences.push(std::mem::take(&mut current_seq));
-                    }
+                    // Empty records (a header with no following sequence) are
+                    // retained with a length of zero rather than being dropped.
+                    staged_names.push(name);
+                    staged_sequences.push(std::mem::take(&mut current_seq));
                 }
                 current_position = 0;
                 let header_text = header.trim();
@@ -495,10 +495,9 @@ impl MsaEngine {
         }
 
         if let Some(name) = current_name {
-            if !current_seq.is_empty() {
-                staged_names.push(name);
-                staged_sequences.push(current_seq);
-            }
+            // Retain a trailing empty record (header with no sequence) as well.
+            staged_names.push(name);
+            staged_sequences.push(current_seq);
         }
 
         let alignment_width = staged_sequences.iter().map(Vec::len).max().unwrap_or(0);

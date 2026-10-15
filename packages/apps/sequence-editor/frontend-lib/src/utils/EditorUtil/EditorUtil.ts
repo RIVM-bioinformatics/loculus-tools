@@ -111,6 +111,8 @@ export class EditorUtil {
       const hasSearchResult = (searchResult?.positions.length ?? 0) > 0;
       const searchMatchFlags = hasSearchResult ? new Uint8Array(rows * cols) : null;
       const highlightedSearchMatchFlags = highlightedSearchHit ? new Uint8Array(rows * cols) : null;
+      const searchRowFlags = hasSearchResult ? new Uint8Array(rows) : null;
+      const highlightedSearchRowFlags = highlightedSearchHit ? new Uint8Array(rows) : null;
       const searchMatchPath = hasSearchResult ? new Path2D() : null;
       const highlightedSearchMatchPath = highlightedSearchHit ? new Path2D() : null;
       let hasSearchMatches = false;
@@ -124,25 +126,41 @@ export class EditorUtil {
           return;
         }
         const hitLength = Math.max(1, searchResult.query.length);
+        const hitRow = hit.row - startRow;
+        if (hitRow < 0 || hitRow >= rows) {
+          return;
+        }
+        if (hit.matrix_type === MATRIX_TYPE.RECORD_NAME) {
+          flags.fill(1, hitRow * cols, (hitRow + 1) * cols);
+          return;
+        }
         const hitStartCol = Math.max(startCol, hit.col);
         const hitEndCol = Math.min(startCol + cols, hit.col + hitLength);
-        const hitRow = hit.row - startRow;
-        if (
-          hitRow < 0 ||
-          hitRow >= rows ||
-          hitStartCol >= hitEndCol ||
-          !EditorUtil.searchHitContainsCell(hit, searchResult.query, hit.row, hitStartCol)
-        ) {
+        if (hitStartCol >= hitEndCol || !EditorUtil.searchHitContainsCell(hit, searchResult.query, hit.row, hitStartCol)) {
           return;
         }
         const startIndex = hitRow * cols + hitStartCol - startCol;
         flags.fill(1, startIndex, startIndex + hitEndCol - hitStartCol);
       };
 
+      const addSearchHitToRowFlags = (hit: EngineSearchResult['positions'][number], flags: Uint8Array): void => {
+        if (hit.matrix_type === MATRIX_TYPE.RECORD_NAME && hit.row >= startRow && hit.row < startRow + rows) {
+          flags[hit.row - startRow] = 1;
+        }
+      };
+
       if (searchResult && searchMatchFlags) {
         searchResult.positions.forEach((hit) => addSearchHitToFlags(hit, searchMatchFlags));
+        searchResult.positions.forEach((hit) => {
+          if (searchRowFlags) {
+            addSearchHitToRowFlags(hit, searchRowFlags);
+          }
+        });
         if (highlightedSearchHit && highlightedSearchMatchFlags) {
           addSearchHitToFlags(highlightedSearchHit, highlightedSearchMatchFlags);
+          if (highlightedSearchRowFlags) {
+            addSearchHitToRowFlags(highlightedSearchHit, highlightedSearchRowFlags);
+          }
         }
       }
 
@@ -193,16 +211,16 @@ export class EditorUtil {
           // draw path on canvas
           context.fillStyle = cellBackground;
           context.fill(rectanglePath);
-          if (matchesHighlightedSearch) {
+          if (matchesHighlightedSearch || highlightedSearchRowFlags?.[row] === 1) {
             context.fillStyle = 'rgba(255, 193, 7, 0.35)';
             context.fillRect(x + 2, y + 2, Math.max(0, cellWidth - 4), Math.max(0, cellHeight - 4));
           }
           context.fillStyle = cellForeground;
           context.fillText(label, x + cellWidth / 2, y + cellHeight / 2);
-          if (matchesSearch && searchMatchPath) {
+          if ((matchesSearch || searchRowFlags?.[row] === 1) && searchMatchPath) {
             hasSearchMatches = true;
             searchMatchPath.rect(x + 0.5, y + 0.5, cellWidth - 1, cellHeight - 1);
-            if (matchesHighlightedSearch && highlightedSearchMatchPath) {
+            if ((matchesHighlightedSearch || highlightedSearchRowFlags?.[row] === 1) && highlightedSearchMatchPath) {
               hasHighlightedSearchMatches = true;
               highlightedSearchMatchPath.rect(x + 1, y + 1, cellWidth - 2, cellHeight - 2);
             }
@@ -308,6 +326,8 @@ export class EditorUtil {
         });
         const rowNameIndex = startRow + row - rowNamesStartRow;
         const labelRow = startRow + row;
+        const matchesSearchRow = searchRowFlags?.[row] === 1;
+        const matchesHighlightedSearchRow = highlightedSearchRowFlags?.[row] === 1;
         const isLabelSelected = Boolean(selection?.cols) || Boolean(
           selection?.cells &&
           labelRow >= selection.cells.startRow &&
@@ -315,6 +335,14 @@ export class EditorUtil {
         ) || isRowSelected(labelRow);
         context.fillStyle = isLabelSelected ? '#1565c0' : '#f8fafb';
         context.fillRect(0, y, labelWidth, cellHeight);
+        if (matchesSearchRow) {
+          context.fillStyle = '#ffecb3';
+          context.fillRect(0, y, labelWidth, cellHeight);
+        }
+        if (matchesHighlightedSearchRow) {
+          context.fillStyle = 'rgba(255, 193, 7, 0.35)';
+          context.fillRect(2, y + 2, Math.max(0, labelWidth - 4), Math.max(0, cellHeight - 4));
+        }
         context.fillStyle = isLabelSelected ? '#ffffff' : '#334e68';
         context.fillText(`${padStart(String(startRow + row + 1), labelStringLength, '0')}: ${rowNames[rowNameIndex] ?? ''}`, 8, y + cellHeight / 2);
       }

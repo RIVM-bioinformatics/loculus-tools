@@ -45,8 +45,7 @@ impl SearchResult {
 }
 
 pub fn naive_search(matrix: &[Vec<u8>], query: &str, matrix_type: MatrixType) -> SearchResult {
-    let uppercase_query = query.to_uppercase();
-    let query_bytes = uppercase_query.as_bytes();
+    let query_bytes = query.as_bytes();
     let mut result = Vec::new();
     let mut truncated = false;
 

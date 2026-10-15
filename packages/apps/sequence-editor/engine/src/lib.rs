@@ -741,7 +741,7 @@ impl MsaEngine {
                 .iter()
                 .enumerate()
                 .filter_map(|(row, name)| {
-                    if name.contains(query) {
+                    if name.to_uppercase().contains(&query) {
                         Some(Match {
                             row,
                             col: 0,
@@ -763,18 +763,19 @@ impl MsaEngine {
 
     #[wasm_bindgen]
     pub fn search(&self, query: String, check_record_names: bool) -> Result<JsValue, JsValue> {
+        let search_query_uppercase = query.to_uppercase();
         console_log!(
             "Starting search with query: {}\nRecord names check: {}",
             query,
             check_record_names
         );
 
-        let nucleotide_result = self.search_nucleotide(&query);
-        let amino_acid_result = self.search_amino_acid(&query);
+        let nucleotide_result = self.search_nucleotide(&search_query_uppercase);
+        let amino_acid_result = self.search_amino_acid(&search_query_uppercase);
         let record_names_result = if check_record_names {
-            self.search_record_names(&query)
+            self.search_record_names(&search_query_uppercase)
         } else {
-            SearchResult::empty(&query)
+            SearchResult::empty(&search_query_uppercase)
         };
 
         let mut truncated = nucleotide_result.truncated
@@ -789,7 +790,7 @@ impl MsaEngine {
         }
 
         let combined_result = SearchResult {
-            query: query.to_string(),
+            query: search_query_uppercase,
             num_matches: all_positions.len(),
             truncated,
             positions: all_positions,

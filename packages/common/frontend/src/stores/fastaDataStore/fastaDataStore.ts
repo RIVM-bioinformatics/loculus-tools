@@ -50,6 +50,8 @@ export const createFastaDataStoreActions = <T extends FastaDataStore>(kwArgs: { 
     resetDataset: () => setBaseState(createFastaDataStoreInitialState()),
     setColumnMatchCounts: (counts: Record<string, number>) => setBaseState({ columnMatchCounts: counts }),
     setData: async (fasta: string, tsv?: string) => {
+      const { resetDataset } = get();
+      resetDataset();
       const parsedFasta = FastaUtil.parseFasta(fasta);
 
       if (parsedFasta.error) {

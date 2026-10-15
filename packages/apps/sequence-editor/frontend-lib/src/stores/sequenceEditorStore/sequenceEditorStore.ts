@@ -69,6 +69,11 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
       return {
         ...initialState,
         ...fastaDataStoreActions,
+        resetDataset: () => {
+          const { setSearchQuery } = get();
+          fastaDataStoreActions.resetDataset();
+          setSearchQuery('');
+        },
         setAminoAcidPalette: (palette: AminoAcidPalette) => set({ aminoAcidPalette: palette }),
         setLatestMessage: (message: null | string) => set({ latestMessage: message }),
         setMeta: (meta: EngineMeta | null) => set({ meta }),

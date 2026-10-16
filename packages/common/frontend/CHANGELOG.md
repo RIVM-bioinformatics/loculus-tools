@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.2.0...common-frontend-v0.3.0) (2026-10-16)
+
+
+### Features
+
+* setup dependency-injection ([48fd7d9](https://github.com/RIVM-bioinformatics/loculus-tools/commit/48fd7d9279e5934edf4d08f591ff9ef1383b53f9))
+
+
+### Bug Fixes
+
+* **sequence-editor:** fix reset search query and result when workspace is reset or new data is loaded ([083fbe5](https://github.com/RIVM-bioinformatics/loculus-tools/commit/083fbe5f0245ac07b40def2f8ec8bca77c899562))
+
 ## [0.2.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.1.4...common-frontend-v0.2.0) (2026-10-14)
 
 

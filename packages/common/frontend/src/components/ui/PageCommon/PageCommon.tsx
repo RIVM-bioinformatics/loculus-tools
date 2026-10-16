@@ -21,7 +21,8 @@ export type PageCommonProps = {
 
 
 export const PageCommon = ({ children, isNoInteraction, title }: PageCommonProps) => {
-  const { drawerComponent, headerComponent } = useConfig();
+  const { drawerComponent: DrawerComponent, headerComponent: HeaderComponent } = useConfig();
+
   useUpdateDocumentTitle(title);
   const theme = useTheme();
   const { isDrawerOpen, setIsNoInteraction } = use(PageCommonContext);
@@ -41,7 +42,7 @@ export const PageCommon = ({ children, isNoInteraction, title }: PageCommonProps
         width: '100vw',
       }}
     >
-      {headerComponent}
+      {HeaderComponent && <HeaderComponent />}
       {/* Main Body */}
       <Box
         sx={{
@@ -53,7 +54,7 @@ export const PageCommon = ({ children, isNoInteraction, title }: PageCommonProps
           width: '100%',
         }}
       >
-        {drawerComponent}
+        {DrawerComponent && <DrawerComponent />}
         <Box
           component={'main'}
           sx={{

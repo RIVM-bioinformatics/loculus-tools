@@ -13,6 +13,7 @@ import { DependencyContainerUtil } from '../../../utils/DependencyContainerUtil'
 import { CommonConfigContextProvider } from '../../../context/commonConfigContext';
 import { ErrorPage } from '../../../pages/ErrorPage';
 import { I18nWrapper } from '../../ui/I18nWrapper';
+import { PageCommonContextProvider } from '../../../context/pageCommonContext';
 
 export type AppProps = PropsWithChildren<{
   readonly container: DependencyContainer;
@@ -35,7 +36,9 @@ export const App = ({ children, container }: AppProps) => {
           <CssBaseline />
           <ErrorBoundary FallbackComponent={ErrorPage}>
             <I18nWrapper>
-              {children}
+              <PageCommonContextProvider>
+                {children}
+              </PageCommonContextProvider>
             </I18nWrapper>
           </ErrorBoundary>
         </ThemeProvider>

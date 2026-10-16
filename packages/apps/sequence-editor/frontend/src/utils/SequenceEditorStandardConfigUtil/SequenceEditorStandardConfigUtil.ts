@@ -1,5 +1,4 @@
 import { StandardConfigUtil } from '@rivm-loculus-tools/common-frontend/utils/StandardConfigUtil';
-import { createElement } from 'react';
 
 import type { SequenceEditorConfig } from '../../models/config.models';
 import { SequenceEditorPageDrawer } from '../../components/ui/SequenceEditorPageDrawer';
@@ -11,12 +10,12 @@ export class SequenceEditorStandardConfigUtil {
 
     const config: Omit<SequenceEditorConfig, 'theme'> = {
       ...StandardConfigUtil.createConfig(),
-      applicationName: 'Sequence Editor',
-      drawerComponent: createElement(SequenceEditorPageDrawer),
+      applicationName: 'MindTheGap',
+      drawerComponent: SequenceEditorPageDrawer,
       getTouchIconUrl: () => {
         return undefined;
       },
-      headerComponent: createElement(SequenceEditorPageHeader),
+      headerComponent: SequenceEditorPageHeader,
     };
 
     return config;

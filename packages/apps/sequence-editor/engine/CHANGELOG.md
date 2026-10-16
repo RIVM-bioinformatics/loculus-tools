@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.1.6...sequence-editor-wasm-v0.1.7) (2026-10-16)
+
+
+### Bug Fixes
+
+* **sequence-editor, engine:** ensure all search operations are case-insensitive ([4bdd1ef](https://github.com/RIVM-bioinformatics/loculus-tools/commit/4bdd1ef427c4d82be64c8614a3bb39463d9dcd99))
+
 ## [0.1.6](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.1.5...sequence-editor-wasm-v0.1.6) (2026-10-14)
 
 

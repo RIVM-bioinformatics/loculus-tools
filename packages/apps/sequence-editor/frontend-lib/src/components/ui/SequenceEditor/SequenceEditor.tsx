@@ -1,3 +1,4 @@
+import { container } from 'tsyringe';
 import type {
   MouseEvent as ReactMouseEvent,
   UIEvent,
@@ -15,9 +16,13 @@ import {
 } from '@mui/material';
 import { Subject } from '@gen-epix/ui-core/classes/Subject';
 import { useDebouncedCallback } from 'use-debounce';
-import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/DevicePixelRatioService';
-import { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
+import type { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/DevicePixelRatioService';
+import type { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
 import { useStore } from 'zustand';
+import {
+  DEVICE_PIXEL_RATIO_SERVICE_TOKEN,
+  KEYBOARD_SHORTCUT_SERVICE_TOKEN,
+} from '@rivm-loculus-tools/common-frontend/constants/config.constants';
 
 import { EditorWorkerService } from '../../../classes/services/EditorWorkerService';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
@@ -31,11 +36,11 @@ import type {
   GridRangeWithRowNames,
   GridRangeWithViewportResults,
   VisibleGridRangeWithArguments,
-} from '../../../models';
+} from '../../../models/editor.models';
 import {
   EDITOR_DIRECTION,
   EDITOR_PATH_PROPERTIES_TYPE,
-} from '../../../models';
+} from '../../../models/editor.models';
 import {
   DEFAULT_GRID_GEOMETRY,
   IUPAC_KEYS,
@@ -56,7 +61,7 @@ export const SequenceEditor = () => {
   const setMeta = useStore(sequenceEditorStore, (state) => state.setMeta);
   const setSelection = useStore(sequenceEditorStore, (state) => state.setSelection);
   const sequenceEditorGotoPositionDialogRef = useRef<null | SequenceEditorGotoPositionDialogRefMethods>(null);
-  const editorService = useMemo(() => EditorWorkerService.getInstance(), []);
+  const editorService = useMemo(() => container.resolve(EditorWorkerService), []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const editorAssemblyRef = useRef<EditorAssembly | null>(null);
   const labelResizeRef = useRef<{ startLabelWidth: number; startX: number } | null>(null);
@@ -64,7 +69,7 @@ export const SequenceEditor = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState<{ height: number; width: number }>({ height: 0, width: 0 });
-  const [devicePixelRatio, setDevicePixelRatio] = useState(() => DevicePixelRatioService.getInstance().data);
+  const [devicePixelRatio, setDevicePixelRatio] = useState(() => container.resolve<DevicePixelRatioService>(DEVICE_PIXEL_RATIO_SERVICE_TOKEN).data);
   const [verticalScrollBarSize, setVerticalScrollBarSize] = useState(0);
   const [horizontalScrollBarSize, setHorizontalScrollBarSize] = useState(0);
   const scrollSubject = useMemo(() => new Subject<{ scrollLeft: number; scrollTop: number }>({ scrollLeft: 0, scrollTop: 0 }), []);
@@ -94,7 +99,7 @@ export const SequenceEditor = () => {
   }, [geometrySubject, metaSubject]);
 
   const updateMeta = useCallback(async () => {
-    const meta = await EditorWorkerService.getInstance().getMetaData();
+    const meta = await container.resolve(EditorWorkerService).getMetaData();
     metaSubject.next(meta);
   }, [metaSubject]);
 
@@ -243,7 +248,7 @@ export const SequenceEditor = () => {
             cachedGridRange: cachedGridRangeWithViewPortResultRef.current.range,
             visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
           })) {
-            const viewportResult = await EditorWorkerService.getInstance().viewport({
+            const viewportResult = await container.resolve(EditorWorkerService).viewport({
               endCol: visibleGridRangeWithArguments.visibleGridRange.cache.endCol,
               endRow: visibleGridRangeWithArguments.visibleGridRange.cache.endRow,
               startCol: visibleGridRangeWithArguments.visibleGridRange.cache.startCol,
@@ -273,7 +278,7 @@ export const SequenceEditor = () => {
             }
             editorAssemblyRef.current = EditorUtil.drawCanvas({
               canvasElement: canvasRef.current,
-              devicePixelRatio: DevicePixelRatioService.getInstance().data,
+              devicePixelRatio: container.resolve<DevicePixelRatioService>(DEVICE_PIXEL_RATIO_SERVICE_TOKEN).data,
               geometry: visibleGridRangeWithArguments.geometry,
               meta: metaSubject.data,
               palette: sequenceEditorStore.getState().nucleotidePalette,
@@ -358,7 +363,7 @@ export const SequenceEditor = () => {
         }
       }),
       selectionSubject.subscribe(() => updateVisibleRange()),
-      DevicePixelRatioService.getInstance().subscribe((nextDevicePixelRatio) => {
+      container.resolve<DevicePixelRatioService>(DEVICE_PIXEL_RATIO_SERVICE_TOKEN).subscribe((nextDevicePixelRatio) => {
         setDevicePixelRatio(nextDevicePixelRatio);
         updateScrollbars();
         updateVisibleRange();
@@ -377,10 +382,10 @@ export const SequenceEditor = () => {
         return;
       }
       event.preventDefault();
-      SequenceEditorEventBusService.getInstance().emit('onMutateSelection', base);
+      container.resolve(SequenceEditorEventBusService).emit('onMutateSelection', base);
     };
 
-    const register = (shortcut: typeof KEYBOARD_SHORTCUTS[string]) => KeyboardShortcutService.getInstance().registerShortcut({
+    const register = (shortcut: typeof KEYBOARD_SHORTCUTS[string]) => container.resolve<KeyboardShortcutService>(KEYBOARD_SHORTCUT_SERVICE_TOKEN).registerShortcut({
       callback: shortcut.callback,
       element: containerRef.current!,
       ...shortcut.shortcut,
@@ -428,8 +433,8 @@ export const SequenceEditor = () => {
       // Goto Position Dialog (Cmd+G / Ctrl+G)
       register(KEYBOARD_SHORTCUTS.gotoPosition),
 
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: mutateSelection, element: containerRef.current! }),
-      KeyboardShortcutService.getInstance().registerShortcut({ callback: mutateSelection, element: containerRef.current!, modifiers: [['Shift']] }),
+      container.resolve<KeyboardShortcutService>(KEYBOARD_SHORTCUT_SERVICE_TOKEN).registerShortcut({ callback: mutateSelection, element: containerRef.current! }),
+      container.resolve<KeyboardShortcutService>(KEYBOARD_SHORTCUT_SERVICE_TOKEN).registerShortcut({ callback: mutateSelection, element: containerRef.current!, modifiers: [['Shift']] }),
     ];
     return () => {
       removers.forEach(callbackfn => callbackfn());
@@ -519,7 +524,7 @@ export const SequenceEditor = () => {
             await editorService.moveRowsDown(rows);
           }
         },
-        getSelectionPostCommand: () => EditorUtil.getMovedSelection(selectionSubject.data, direction, metaSubject.data!),
+        getSelectionPostCommand: () => EditorUtil.getMovedSelection(selectionSubject.data, direction, metaSubject.data),
       });
     };
 
@@ -527,7 +532,7 @@ export const SequenceEditor = () => {
       // TODO
     };
 
-    const eventBusService = SequenceEditorEventBusService.getInstance();
+    const eventBusService = container.resolve(SequenceEditorEventBusService);
     const removers = [
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onSearch', async (searchQuery) => {
@@ -668,7 +673,7 @@ export const SequenceEditor = () => {
 
     const canvas = canvasRef.current;
     const editorAssembly = editorAssemblyRef.current;
-    const currentDevicePixelRatio = DevicePixelRatioService.getInstance().data;
+    const currentDevicePixelRatio = container.resolve<DevicePixelRatioService>(DEVICE_PIXEL_RATIO_SERVICE_TOKEN).data;
     if (!canvas || !editorAssembly) {
       return;
     }
@@ -729,10 +734,10 @@ export const SequenceEditor = () => {
 
   const onScrollContainerMouseMove = useCallback((event: ReactMouseEvent<HTMLElement>) => {
     const canvas = canvasRef.current;
-    const container = containerRef.current;
-    const currentDevicePixelRatio = DevicePixelRatioService.getInstance().data;
+    const containerElement = containerRef.current;
+    const currentDevicePixelRatio = container.resolve<DevicePixelRatioService>(DEVICE_PIXEL_RATIO_SERVICE_TOKEN).data;
     const resize = labelResizeRef.current;
-    if (!container || !canvas) {
+    if (!containerElement || !canvas) {
       return;
     }
 
@@ -742,7 +747,7 @@ export const SequenceEditor = () => {
         ...geometrySubject.data,
         labelWidth,
       });
-      container.style.cursor = 'col-resize';
+      containerElement.style.cursor = 'col-resize';
       return;
     }
 
@@ -786,14 +791,14 @@ export const SequenceEditor = () => {
       event: event.nativeEvent,
     });
     if (!path) {
-      container.style.cursor = 'default';
+      containerElement.style.cursor = 'default';
       return;
     }
 
     if (path.type === EDITOR_PATH_PROPERTIES_TYPE.DIVIDER) {
-      container.style.cursor = 'col-resize';
+      containerElement.style.cursor = 'col-resize';
     } else {
-      container.style.cursor = 'default';
+      containerElement.style.cursor = 'default';
     }
   }, [geometrySubject, maxLabelWidth, selectionSubject]);
 

@@ -1,4 +1,4 @@
-import type { GridGeometry } from '../models';
+import type { GridGeometry } from '../models/editor.models';
 
 export const MIN_LABEL_WIDTH = 120;
 

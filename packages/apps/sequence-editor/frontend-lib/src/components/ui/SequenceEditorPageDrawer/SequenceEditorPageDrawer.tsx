@@ -17,13 +17,9 @@ import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
 import InvertColorsIcon from '@mui/icons-material/InvertColors';
 import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined';
 import { useStore } from 'zustand';
-import { PageCommonDrawer } from '@rivm-loculus-tools/common-frontend/components/page';
+import { PageCommonDrawer } from '@rivm-loculus-tools/common-frontend/components/ui/PageCommonDrawer';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
-import type {
-  AminoAcidPalette,
-  NucleotidePalette,
-} from '../../../models';
 import {
   ALI_VIEW_CLUSTAL_X_AMINO_ACID_PALETTE,
   ALI_VIEW_DEFAULT_AMINO_ACID_PALETTE,
@@ -32,6 +28,10 @@ import {
   ALI_VIEW_SEA_VIEW_AMINO_ACID_PALETTE,
   ALI_VIEW_SEA_VIEW_NUCLEOTIDE_PALETTE,
 } from '../../../constants';
+import type {
+  AminoAcidPalette,
+  NucleotidePalette,
+} from '../../../models/palette.models';
 
 import { SequenceEditorPageDrawerColorForm } from './SequenceEditorPageDrawerColorForm';
 import { SequenceEditorPageDrawerKeyboardShortcuts } from './SequenceEditorPageDrawerKeyboardShortcuts';

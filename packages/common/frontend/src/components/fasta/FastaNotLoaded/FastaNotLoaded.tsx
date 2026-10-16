@@ -1,3 +1,4 @@
+import { container } from 'tsyringe';
 import {
   Box,
   Button,
@@ -17,7 +18,7 @@ export type FastaNotLoadedProps = {
 
 export const FastaNotLoaded = ({ description, icon, title }: FastaNotLoadedProps) => {
   const onClickLoadData = useCallback(() => {
-    FastaDataEventBusService.getInstance().emit('onShowImportDialog');
+    container.resolve(FastaDataEventBusService).emit('onShowImportDialog');
   }, []);
 
   return (

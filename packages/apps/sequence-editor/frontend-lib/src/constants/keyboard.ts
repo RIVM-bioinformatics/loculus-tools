@@ -1,7 +1,8 @@
+import { container } from 'tsyringe';
 import type { KeyboardShortcutConfig } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
 
 import { SequenceEditorEventBusService } from '../classes/services/SequenceEditorEventBusService';
-import { EDITOR_DIRECTION } from '../models/editor';
+import { EDITOR_DIRECTION } from '../models/editor.models';
 
 
 type KeyboardShortcut = {
@@ -12,17 +13,17 @@ type KeyboardShortcut = {
 
 const emitDirection = (eventName: 'onExpandSelection' | 'onMoveCells' | 'onMoveRows' | 'onMoveRowsEnd' | 'onMoveSelection', direction: EDITOR_DIRECTION): KeyboardShortcutConfig['callback'] => (event) => {
   event.preventDefault();
-  SequenceEditorEventBusService.getInstance().emit(eventName, direction);
+  container.resolve(SequenceEditorEventBusService).emit(eventName, direction);
 };
 
 const emitVoid = (eventName: 'onDeleteBackward' | 'onGotoPosition' | 'onInsert' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo'): KeyboardShortcutConfig['callback'] => (event) => {
   event.preventDefault();
-  SequenceEditorEventBusService.getInstance().emit(eventName);
+  container.resolve(SequenceEditorEventBusService).emit(eventName);
 };
 
 const emitMutateSelection = (base: string): KeyboardShortcutConfig['callback'] => (event) => {
   event.preventDefault();
-  SequenceEditorEventBusService.getInstance().emit('onMutateSelection', base);
+  container.resolve(SequenceEditorEventBusService).emit('onMutateSelection', base);
 };
 
 export const KEYBOARD_SHORTCUTS: { [key: string]: KeyboardShortcut } = {

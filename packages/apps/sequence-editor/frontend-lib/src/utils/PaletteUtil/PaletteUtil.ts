@@ -2,7 +2,7 @@ import type {
   AminoAcidPalette,
   NucleotidePalette,
   PaletteEntry,
-} from '../../models/palette';
+} from '../../models/palette.models';
 
 export const HEX_COLOR_REGEX = /^#[0-9a-f]{6}$/i;
 

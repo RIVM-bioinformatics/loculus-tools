@@ -1,6 +1,6 @@
-import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 import { RapidNeighborJoining } from 'neighbor-joining';
 import { FastaUtil } from '@rivm-loculus-tools/common-frontend/utils/FastaUtil';
+import { singleton } from 'tsyringe';
 
 import type { AioliService } from '../../abstracts/AioliServiceAbstract';
 import { AioliServiceAbstract } from '../../abstracts/AioliServiceAbstract';
@@ -11,16 +11,10 @@ type DistanceEntry = {
   seq2: string;
 };
 
+@singleton()
 export class TN93AioliService extends AioliServiceAbstract implements AioliService {
-  private static __instance: TN93AioliService;
-
-  private constructor() {
+  public constructor() {
     super('tn93/1.0.11');
-  }
-
-  public static getInstance(): TN93AioliService {
-    TN93AioliService.__instance = HmrUtil.getHmrSingleton('tn93AioliService', TN93AioliService.__instance, () => new TN93AioliService());
-    return TN93AioliService.__instance;
   }
 
   private static buildDistanceMatrix(entries: DistanceEntry[]): { matrix: number[][]; taxa: string[] } {

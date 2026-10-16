@@ -9,7 +9,7 @@ import type {
   EngineViewportResult,
   EngineWorkerApi,
   ViewportBounds,
-} from '../../../models';
+} from '../../../models/editor.models';
 
 /**
  * MSA engine Web Worker.

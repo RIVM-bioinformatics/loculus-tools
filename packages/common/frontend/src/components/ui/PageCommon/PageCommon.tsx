@@ -10,16 +10,19 @@ import type { ReactNode } from 'react';
 
 import { DRAWER_WIDTH } from '../../../constants/page.constants';
 import { PageCommonContext } from '../../../context/pageCommonContext';
+import { useUpdateDocumentTitle } from '../../../hooks/useUpdateDocumentTitle';
+import { useConfig } from '../../../hooks/useConfig';
 
 export type PageCommonProps = {
   readonly children: ReactNode;
-  readonly drawerComponent?: ReactNode;
-  readonly headerComponent?: ReactNode;
   readonly isNoInteraction?: boolean;
+  readonly title: string;
 };
 
 
-export const PageCommon = ({ children, drawerComponent, headerComponent, isNoInteraction }: PageCommonProps) => {
+export const PageCommon = ({ children, isNoInteraction, title }: PageCommonProps) => {
+  const { drawerComponent, headerComponent } = useConfig();
+  useUpdateDocumentTitle(title);
   const theme = useTheme();
   const { isDrawerOpen, setIsNoInteraction } = use(PageCommonContext);
 

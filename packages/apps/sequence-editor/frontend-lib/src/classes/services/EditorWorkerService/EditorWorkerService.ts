@@ -1,7 +1,7 @@
-import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 import type { Remote } from 'comlink';
 import { wrap } from 'comlink';
 import { MoveDirection } from '@rivm-loculus-tools/sequence-editor-wasm';
+import { singleton } from 'tsyringe';
 
 import type {
   EngineMeta,
@@ -9,27 +9,21 @@ import type {
   EngineViewportResult,
   EngineWorkerApi,
   ViewportBounds,
-} from '../../../models';
-import { EDITOR_DIRECTION } from '../../../models/editor';
+} from '../../../models/editor.models';
+import { EDITOR_DIRECTION } from '../../../models/editor.models';
 import { EngineErrorUtil } from '../../../utils/EngineErrorUtil/EngineErrorUtil';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 
-
+@singleton()
 export class EditorWorkerService {
-  private static __instance: EditorWorkerService;
   private commandQueue: Promise<void> = Promise.resolve();
   private readonly engineWorkerProxy: Remote<EngineWorkerApi>;
 
-  private constructor() {
+  public constructor() {
     const worker = new Worker(new URL('../../workers/EngineWorker', import.meta.url), {
       type: 'module',
     });
     this.engineWorkerProxy = wrap<EngineWorkerApi>(worker);
-  }
-
-  public static getInstance(): EditorWorkerService {
-    EditorWorkerService.__instance = HmrUtil.getHmrSingleton('EditorService', EditorWorkerService.__instance, () => new EditorWorkerService());
-    return EditorWorkerService.__instance;
   }
 
   public async delete(rows: number[], col: number): Promise<void> {

@@ -37,6 +37,8 @@
     "react-hook-form": "*",
     "react-i18next": "*",
     "react": "*",
+    "reflect-metadata": "*",
+    "tsyringe": "*",
     "yup": "*"
   },
   "dependencies": {
@@ -46,6 +48,7 @@
     "i18next": "26.4.4",
     "lodash": "4.18.1",
     "neighbor-joining": "1.0.4",
+    "tsyringe": "4.10.0",
     "zustand": "5.0.15"
   },
   "devDependencies": {
@@ -53,9 +56,9 @@
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@gen-epix/eslint-config": "0.8.0",
-    "@gen-epix/ui-core-components": "4.4.0",
-    "@gen-epix/ui-core-form": "4.4.0",
-    "@gen-epix/ui-core": "3.9.0",
+    "@gen-epix/ui-core-components": "4.5.0",
+    "@gen-epix/ui-core-form": "4.4.1",
+    "@gen-epix/ui-core": "3.9.1",
     "@mui/icons-material": "9.5.0",
     "@mui/material": "9.5.0",
     "@mui/styled-engine": "9.5.0",
@@ -106,17 +109,9 @@
       "types": "./src/classes/services/TN93AioliService/index.ts",
       "import": "./src/classes/services/TN93AioliService/index.ts"
     },
-    "./components/app/App": {
-      "types": "./src/components/app/App/index.ts",
-      "import": "./src/components/app/App/index.ts"
-    },
-    "./components/pages/PhylogenyViewerErrorPage": {
-      "types": "./src/components/pages/PhylogenyViewerErrorPage/index.ts",
-      "import": "./src/components/pages/PhylogenyViewerErrorPage/index.ts"
-    },
-    "./components/pages/PhylogenyViewerPageMainPage": {
-      "types": "./src/components/pages/PhylogenyViewerPageMainPage/index.ts",
-      "import": "./src/components/pages/PhylogenyViewerPageMainPage/index.ts"
+    "./components/app/PhylogenyViewerApp": {
+      "types": "./src/components/app/PhylogenyViewerApp/index.ts",
+      "import": "./src/components/app/PhylogenyViewerApp/index.ts"
     },
     "./components/ui/AlignmentErrorDialog": {
       "types": "./src/components/ui/AlignmentErrorDialog/index.ts",
@@ -129,10 +124,6 @@
     "./components/ui/PhylogenyTreeView": {
       "types": "./src/components/ui/PhylogenyTreeView/index.ts",
       "import": "./src/components/ui/PhylogenyTreeView/index.ts"
-    },
-    "./components/ui/PhylogenyViewerPage": {
-      "types": "./src/components/ui/PhylogenyViewerPage/index.ts",
-      "import": "./src/components/ui/PhylogenyViewerPage/index.ts"
     },
     "./components/ui/PhylogenyViewerPageDrawer": {
       "types": "./src/components/ui/PhylogenyViewerPageDrawer/index.ts",
@@ -158,17 +149,25 @@
       "types": "./src/constants/view.ts",
       "import": "./src/constants/view.ts"
     },
-    "./models/calculation": {
-      "types": "./src/models/calculation.ts",
-      "import": "./src/models/calculation.ts"
+    "./models/calculation.models": {
+      "types": "./src/models/calculation.models.ts",
+      "import": "./src/models/calculation.models.ts"
     },
-    "./models/color": {
-      "types": "./src/models/color.ts",
-      "import": "./src/models/color.ts"
+    "./models/color.models": {
+      "types": "./src/models/color.models.ts",
+      "import": "./src/models/color.models.ts"
     },
-    "./models/tree": {
-      "types": "./src/models/tree.ts",
-      "import": "./src/models/tree.ts"
+    "./models/config.models": {
+      "types": "./src/models/config.models.ts",
+      "import": "./src/models/config.models.ts"
+    },
+    "./models/tree.models": {
+      "types": "./src/models/tree.models.ts",
+      "import": "./src/models/tree.models.ts"
+    },
+    "./pages/PhylogenyViewerPageMainPage": {
+      "types": "./src/pages/PhylogenyViewerPageMainPage/index.ts",
+      "import": "./src/pages/PhylogenyViewerPageMainPage/index.ts"
     },
     "./stores/phylogenyViewerStore": {
       "types": "./src/stores/phylogenyViewerStore/index.ts",
@@ -181,6 +180,10 @@
     "./utils/ExportUtil": {
       "types": "./src/utils/ExportUtil/index.ts",
       "import": "./src/utils/ExportUtil/index.ts"
+    },
+    "./utils/PhylogenyViewerStandardConfigUtil": {
+      "types": "./src/utils/PhylogenyViewerStandardConfigUtil/index.ts",
+      "import": "./src/utils/PhylogenyViewerStandardConfigUtil/index.ts"
     }
   },
   "publishConfig": {
@@ -205,17 +208,9 @@
         "types": "./dist/classes/services/TN93AioliService/index.d.ts",
         "import": "./dist/classes/services/TN93AioliService/index.js"
       },
-      "./components/app/App": {
-        "types": "./dist/components/app/App/index.d.ts",
-        "import": "./dist/components/app/App/index.js"
-      },
-      "./components/pages/PhylogenyViewerErrorPage": {
-        "types": "./dist/components/pages/PhylogenyViewerErrorPage/index.d.ts",
-        "import": "./dist/components/pages/PhylogenyViewerErrorPage/index.js"
-      },
-      "./components/pages/PhylogenyViewerPageMainPage": {
-        "types": "./dist/components/pages/PhylogenyViewerPageMainPage/index.d.ts",
-        "import": "./dist/components/pages/PhylogenyViewerPageMainPage/index.js"
+      "./components/app/PhylogenyViewerApp": {
+        "types": "./dist/components/app/PhylogenyViewerApp/index.d.ts",
+        "import": "./dist/components/app/PhylogenyViewerApp/index.js"
       },
       "./components/ui/AlignmentErrorDialog": {
         "types": "./dist/components/ui/AlignmentErrorDialog/index.d.ts",
@@ -228,10 +223,6 @@
       "./components/ui/PhylogenyTreeView": {
         "types": "./dist/components/ui/PhylogenyTreeView/index.d.ts",
         "import": "./dist/components/ui/PhylogenyTreeView/index.js"
-      },
-      "./components/ui/PhylogenyViewerPage": {
-        "types": "./dist/components/ui/PhylogenyViewerPage/index.d.ts",
-        "import": "./dist/components/ui/PhylogenyViewerPage/index.js"
       },
       "./components/ui/PhylogenyViewerPageDrawer": {
         "types": "./dist/components/ui/PhylogenyViewerPageDrawer/index.d.ts",
@@ -257,17 +248,25 @@
         "types": "./dist/constants/view.d.ts",
         "import": "./dist/constants/view.js"
       },
-      "./models/calculation": {
-        "types": "./dist/models/calculation.d.ts",
-        "import": "./dist/models/calculation.js"
+      "./models/calculation.models": {
+        "types": "./dist/models/calculation.models.d.ts",
+        "import": "./dist/models/calculation.models.js"
       },
-      "./models/color": {
-        "types": "./dist/models/color.d.ts",
-        "import": "./dist/models/color.js"
+      "./models/color.models": {
+        "types": "./dist/models/color.models.d.ts",
+        "import": "./dist/models/color.models.js"
       },
-      "./models/tree": {
-        "types": "./dist/models/tree.d.ts",
-        "import": "./dist/models/tree.js"
+      "./models/config.models": {
+        "types": "./dist/models/config.models.d.ts",
+        "import": "./dist/models/config.models.js"
+      },
+      "./models/tree.models": {
+        "types": "./dist/models/tree.models.d.ts",
+        "import": "./dist/models/tree.models.js"
+      },
+      "./pages/PhylogenyViewerPageMainPage": {
+        "types": "./dist/pages/PhylogenyViewerPageMainPage/index.d.ts",
+        "import": "./dist/pages/PhylogenyViewerPageMainPage/index.js"
       },
       "./stores/phylogenyViewerStore": {
         "types": "./dist/stores/phylogenyViewerStore/index.d.ts",
@@ -280,6 +279,10 @@
       "./utils/ExportUtil": {
         "types": "./dist/utils/ExportUtil/index.d.ts",
         "import": "./dist/utils/ExportUtil/index.js"
+      },
+      "./utils/PhylogenyViewerStandardConfigUtil": {
+        "types": "./dist/utils/PhylogenyViewerStandardConfigUtil/index.d.ts",
+        "import": "./dist/utils/PhylogenyViewerStandardConfigUtil/index.js"
       }
     }
   }

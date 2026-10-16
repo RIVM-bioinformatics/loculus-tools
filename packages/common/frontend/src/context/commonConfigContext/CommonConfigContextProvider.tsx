@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { PropsWithChildren } from 'react';
-import { UiCoreComponentsConfigContext } from '@gen-epix/ui-core-components/context/uiCoreComponentsConfigContext';
+import { CoreComponentsConfigContext } from '@gen-epix/ui-core-components/context/CoreComponentsConfigContext';
 import type { DependencyContainer } from 'tsyringe';
 
 import { DependencyContainerUtil } from '../../utils/DependencyContainerUtil';
@@ -28,10 +28,10 @@ export const CommonConfigContextProvider = (
   const CommonConfig = useMemo(() => ({ config, container, genEpixCoreComponentsConfig }), [config, container, genEpixCoreComponentsConfig]);
 
   return (
-    <UiCoreComponentsConfigContext value={genEpixCoreComponentsConfig}>
+    <CoreComponentsConfigContext value={genEpixCoreComponentsConfig}>
       <CommonConfigContext value={CommonConfig}>
         {children}
       </CommonConfigContext>
-    </UiCoreComponentsConfigContext>
+    </CoreComponentsConfigContext>
   );
 };

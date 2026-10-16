@@ -21,13 +21,13 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SpeedIcon from '@mui/icons-material/Speed';
 import BiotechIcon from '@mui/icons-material/Biotech';
 import { useStore } from 'zustand/react';
-import { LOADING_STATUS } from '@rivm-loculus-tools/common-frontend/models/fasta';
+import { LOADING_STATUS } from '@rivm-loculus-tools/common-frontend/models/fasta.models';
 
-import { CALCULATION_STATUS } from '../../../models/calculation';
+import { CALCULATION_STATUS } from '../../../models/calculation.models';
 import type {
   FastTreeMode,
   TreeEngine,
-} from '../../../models/calculation';
+} from '../../../models/calculation.models';
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import { StatusChip } from '../StatusChip';
 

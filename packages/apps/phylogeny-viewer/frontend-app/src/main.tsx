@@ -1,14 +1,23 @@
+import 'reflect-metadata';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from '@rivm-loculus-tools/phylogeny-viewer/components/app/App';
+import { PhylogenyViewerApp } from '@rivm-loculus-tools/phylogeny-viewer/components/app/PhylogenyViewerApp';
+import { DependencyContainerUtil } from '@rivm-loculus-tools/common-frontend/utils/DependencyContainerUtil';
 
-const container = document.getElementById('root');
-if (!container) {
+import { ConfigUtil } from './utils/ConfigUtil';
+
+const rootElement = document.getElementById('root');
+if (!rootElement) {
   throw new Error('Root container not found in document.');
 }
 
-createRoot(container).render(
+const config = ConfigUtil.createConfig();
+const container = DependencyContainerUtil.createContainer(config);
+
+createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <PhylogenyViewerApp
+      container={container}
+    />
   </StrictMode>,
 );

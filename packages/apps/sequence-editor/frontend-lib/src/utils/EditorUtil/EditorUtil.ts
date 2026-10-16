@@ -1,7 +1,6 @@
 import padStart from 'lodash/padStart';
 
 import type {
-  AminoAcidPalette,
   EditorAssembly,
   EditorPathProperties,
   EditorSelection,
@@ -10,19 +9,22 @@ import type {
   EngineViewportResult,
   GridGeometry,
   GridRange,
-  NucleotidePalette,
   SearchMatch,
   SearchResult,
   StatusBarSelectionStats,
   VisibleGridRange,
-} from '../../models';
+} from '../../models/editor.models';
 import {
+  EDITOR_DIRECTION,
   EDITOR_PATH_PROPERTIES_TYPE,
   MATRIX_TYPE,
-} from '../../models';
+} from '../../models/editor.models';
 import { PaletteUtil } from '../PaletteUtil';
 import { DEFAULT_GRID_GEOMETRY } from '../../constants';
-import { EDITOR_DIRECTION } from '../../models/editor';
+import type {
+  AminoAcidPalette,
+  NucleotidePalette,
+} from '../../models/palette.models';
 
 export class EditorUtil {
 
@@ -462,8 +464,8 @@ export class EditorUtil {
   }
 
 
-  public static getMovedSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta): EditorSelection | null {
-    if (!selection) {
+  public static getMovedSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta | null): EditorSelection | null {
+    if (!selection || !metaData) {
       return null;
     }
 

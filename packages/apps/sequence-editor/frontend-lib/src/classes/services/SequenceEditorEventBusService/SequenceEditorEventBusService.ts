@@ -1,7 +1,7 @@
 import { EventBusAbstract } from '@gen-epix/ui-core/classes/abstracts/EventBusAbstract';
-import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
+import { singleton } from 'tsyringe';
 
-import type { EDITOR_DIRECTION } from '../../../models/editor';
+import type { EDITOR_DIRECTION } from '../../../models/editor.models';
 
 export type SequenceEditorEventBusServiceEvent = {
   onDeleteBackward: void;
@@ -22,16 +22,9 @@ export type SequenceEditorEventBusServiceEvent = {
   onUndo: void;
 };
 
+@singleton()
 export class SequenceEditorEventBusService extends EventBusAbstract<SequenceEditorEventBusServiceEvent> {
-  private static __instance: SequenceEditorEventBusService;
-
-
-  private constructor() {
+  public constructor() {
     super();
-  }
-
-  public static getInstance(): SequenceEditorEventBusService {
-    SequenceEditorEventBusService.__instance = HmrUtil.getHmrSingleton('SequenceEditorEventBusService', SequenceEditorEventBusService.__instance, () => new SequenceEditorEventBusService());
-    return SequenceEditorEventBusService.__instance;
   }
 }

@@ -1,3 +1,4 @@
+import { container } from 'tsyringe';
 import type { DialogAction } from '@gen-epix/ui-core-components/components/Dialog';
 import {
   useCallback,
@@ -11,8 +12,8 @@ import { FastaDataEventBusService } from '../../../classes/services/FastaDataEve
 import { LOADING_STATUS } from '../../../models/fasta.models';
 import type { FastaDataStore } from '../../../stores/fastaDataStore';
 import { UrlUtil } from '../../../utils/UrlUtil';
-import type { FastaDataImportDialogRefMethods } from '../FastaDataImportDialog/FastaDataImportDialog';
-import { FastaDataImportDialog } from '../FastaDataImportDialog/FastaDataImportDialog';
+import type { FastaDataImportDialogRefMethods } from '../FastaDataImportDialog';
+import { FastaDataImportDialog } from '../FastaDataImportDialog';
 import { ErrorUtil } from '../../../utils/ErrorUtil';
 
 
@@ -29,11 +30,11 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
   useEffect(() => {
     const removers = [
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
-      FastaDataEventBusService.getInstance().addEventListener('onShowImportDialog', (initialErrorMessage?: string) => {
+      container.resolve(FastaDataEventBusService).addEventListener('onShowImportDialog', (initialErrorMessage?: string) => {
         fastaDataImportDialogRef.current?.open(initialErrorMessage ? { initialErrorMessage } : undefined);
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
-      FastaDataEventBusService.getInstance().addEventListener('onCloseImportDialog', () => {
+      container.resolve(FastaDataEventBusService).addEventListener('onCloseImportDialog', () => {
         fastaDataImportDialogRef.current?.close();
       }),
     ];
@@ -79,11 +80,11 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
         } catch (fastaErr) {
           console.error('[App] Failed to auto-load FASTA:', fastaErr);
           const message = fastaErr instanceof Error ? fastaErr.message : 'Failed to auto-load FASTA from the provided URL.';
-          FastaDataEventBusService.getInstance().emit('onShowImportDialog', message);
+          container.resolve(FastaDataEventBusService).emit('onShowImportDialog', message);
         }
       } else {
         // PV1-02: Show data loading modal if no data provided via URL query params
-        FastaDataEventBusService.getInstance().emit('onShowImportDialog');
+        container.resolve(FastaDataEventBusService).emit('onShowImportDialog');
       }
     };
 
@@ -92,7 +93,7 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
 
   const handleError = useCallback((errorMessage: string) => {
     fastaDataImportDialogRef.current?.close();
-    FastaDataEventBusService.getInstance().emit('onShowImportDialog', errorMessage);
+    container.resolve(FastaDataEventBusService).emit('onShowImportDialog', errorMessage);
   }, []);
 
   const onDataChange = useCallback(async (fastaContent: string, metadataContent?: string) => {

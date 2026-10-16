@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import type { ReactNode } from 'react';
 import type {
   CircularProgressProps,
   Theme,
@@ -12,8 +12,10 @@ export type ApplicationHeaderProps = {
 
 
 export interface ConfigBase {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  ApplicationHeader: (props: ApplicationHeaderProps) => ReactElement;
+  applicationName: string;
+  readonly drawerComponent?: ReactNode;
+  getTouchIconUrl: () => string | undefined;
+  readonly headerComponent?: ReactNode;
   nonce?: string;
   spinner: {
     DEFAULT_CIRCULAR_PROGRESS_SIZE: CircularProgressProps['size'];

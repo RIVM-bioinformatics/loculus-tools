@@ -38,23 +38,26 @@
     "react-error-boundary": "*",
     "react-hook-form": "*",
     "react-i18next": "*",
-    "react": "*"
+    "react": "*",
+    "reflect-metadata": "*",
+    "tsyringe": "*"
   },
   "dependencies": {
     "comlink": "^4.4.2",
     "lodash": "4.18.1",
     "use-debounce": "10.1.1",
-    "zustand": "5.0.15"
+    "zustand": "5.0.15",
+    "tsyringe": "4.10.0"
   },
   "devDependencies": {
     "@emotion/cache": "11.14.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@gen-epix/eslint-config": "0.8.0",
-    "@gen-epix/ui-core-components": "4.4.0",
-    "@gen-epix/ui-core-form": "4.4.0",
-    "@gen-epix/ui-core": "3.9.0",
-    "@gen-epix/ui-phylogenetic-tree": "3.5.0",
+    "@gen-epix/ui-core-components": "4.5.0",
+    "@gen-epix/ui-core-form": "4.4.1",
+    "@gen-epix/ui-core": "3.9.1",
+    "@gen-epix/ui-phylogenetic-tree": "3.5.1",
     "@mui/icons-material": "9.5.0",
     "@mui/material": "9.5.0",
     "@mui/styled-engine": "9.5.0",
@@ -73,6 +76,7 @@
     "react-i18next": "17.0.16",
     "react": "19.3.0",
     "typescript": "6.0.3",
+    "tsyringe": "4.10.0",
     "vite-plugin-dts": "5.1.2",
     "vite-plugin-lib-inject-css": "2.2.2",
     "vite-plugin-static-copy": "4.1.1",
@@ -101,21 +105,9 @@
       "types": "./src/components/app/App/index.ts",
       "import": "./src/components/app/App/index.ts"
     },
-    "./components/pages/SequenceEditorErrorPage": {
-      "types": "./src/components/pages/SequenceEditorErrorPage/index.ts",
-      "import": "./src/components/pages/SequenceEditorErrorPage/index.ts"
-    },
-    "./components/pages/SequenceEditorMainPage": {
-      "types": "./src/components/pages/SequenceEditorMainPage/index.ts",
-      "import": "./src/components/pages/SequenceEditorMainPage/index.ts"
-    },
     "./components/ui/SequenceEditor": {
       "types": "./src/components/ui/SequenceEditor/index.ts",
       "import": "./src/components/ui/SequenceEditor/index.ts"
-    },
-    "./components/ui/SequenceEditorPage": {
-      "types": "./src/components/ui/SequenceEditorPage/index.ts",
-      "import": "./src/components/ui/SequenceEditorPage/index.ts"
     },
     "./components/ui/SequenceEditorPageDrawer": {
       "types": "./src/components/ui/SequenceEditorPageDrawer/index.ts",
@@ -145,17 +137,21 @@
       "types": "./src/constants/palette.ts",
       "import": "./src/constants/palette.ts"
     },
-    "./models/editor": {
-      "types": "./src/models/editor.ts",
-      "import": "./src/models/editor.ts"
+    "./models/config.models": {
+      "types": "./src/models/config.models.ts",
+      "import": "./src/models/config.models.ts"
     },
-    "./models/model": {
-      "types": "./src/models/model.ts",
-      "import": "./src/models/model.ts"
+    "./models/editor.models": {
+      "types": "./src/models/editor.models.ts",
+      "import": "./src/models/editor.models.ts"
     },
-    "./models/palette": {
-      "types": "./src/models/palette.ts",
-      "import": "./src/models/palette.ts"
+    "./models/palette.models": {
+      "types": "./src/models/palette.models.ts",
+      "import": "./src/models/palette.models.ts"
+    },
+    "./pages/SequenceEditorMainPage": {
+      "types": "./src/pages/SequenceEditorMainPage/index.ts",
+      "import": "./src/pages/SequenceEditorMainPage/index.ts"
     },
     "./stores/sequenceEditorStore": {
       "types": "./src/stores/sequenceEditorStore/index.ts",
@@ -165,9 +161,17 @@
       "types": "./src/utils/EditorUtil/index.ts",
       "import": "./src/utils/EditorUtil/index.ts"
     },
+    "./utils/EngineErrorUtil": {
+      "types": "./src/utils/EngineErrorUtil/index.ts",
+      "import": "./src/utils/EngineErrorUtil/index.ts"
+    },
     "./utils/PaletteUtil": {
       "types": "./src/utils/PaletteUtil/index.ts",
       "import": "./src/utils/PaletteUtil/index.ts"
+    },
+    "./utils/SequenceEditorStandardConfigUtil": {
+      "types": "./src/utils/SequenceEditorStandardConfigUtil/index.ts",
+      "import": "./src/utils/SequenceEditorStandardConfigUtil/index.ts"
     }
   },
   "publishConfig": {
@@ -188,21 +192,9 @@
         "types": "./dist/components/app/App/index.d.ts",
         "import": "./dist/components/app/App/index.js"
       },
-      "./components/pages/SequenceEditorErrorPage": {
-        "types": "./dist/components/pages/SequenceEditorErrorPage/index.d.ts",
-        "import": "./dist/components/pages/SequenceEditorErrorPage/index.js"
-      },
-      "./components/pages/SequenceEditorMainPage": {
-        "types": "./dist/components/pages/SequenceEditorMainPage/index.d.ts",
-        "import": "./dist/components/pages/SequenceEditorMainPage/index.js"
-      },
       "./components/ui/SequenceEditor": {
         "types": "./dist/components/ui/SequenceEditor/index.d.ts",
         "import": "./dist/components/ui/SequenceEditor/index.js"
-      },
-      "./components/ui/SequenceEditorPage": {
-        "types": "./dist/components/ui/SequenceEditorPage/index.d.ts",
-        "import": "./dist/components/ui/SequenceEditorPage/index.js"
       },
       "./components/ui/SequenceEditorPageDrawer": {
         "types": "./dist/components/ui/SequenceEditorPageDrawer/index.d.ts",
@@ -232,17 +224,21 @@
         "types": "./dist/constants/palette.d.ts",
         "import": "./dist/constants/palette.js"
       },
-      "./models/editor": {
-        "types": "./dist/models/editor.d.ts",
-        "import": "./dist/models/editor.js"
+      "./models/config.models": {
+        "types": "./dist/models/config.models.d.ts",
+        "import": "./dist/models/config.models.js"
       },
-      "./models/model": {
-        "types": "./dist/models/model.d.ts",
-        "import": "./dist/models/model.js"
+      "./models/editor.models": {
+        "types": "./dist/models/editor.models.d.ts",
+        "import": "./dist/models/editor.models.js"
       },
-      "./models/palette": {
-        "types": "./dist/models/palette.d.ts",
-        "import": "./dist/models/palette.js"
+      "./models/palette.models": {
+        "types": "./dist/models/palette.models.d.ts",
+        "import": "./dist/models/palette.models.js"
+      },
+      "./pages/SequenceEditorMainPage": {
+        "types": "./dist/pages/SequenceEditorMainPage/index.d.ts",
+        "import": "./dist/pages/SequenceEditorMainPage/index.js"
       },
       "./stores/sequenceEditorStore": {
         "types": "./dist/stores/sequenceEditorStore/index.d.ts",
@@ -252,9 +248,17 @@
         "types": "./dist/utils/EditorUtil/index.d.ts",
         "import": "./dist/utils/EditorUtil/index.js"
       },
+      "./utils/EngineErrorUtil": {
+        "types": "./dist/utils/EngineErrorUtil/index.d.ts",
+        "import": "./dist/utils/EngineErrorUtil/index.js"
+      },
       "./utils/PaletteUtil": {
         "types": "./dist/utils/PaletteUtil/index.d.ts",
         "import": "./dist/utils/PaletteUtil/index.js"
+      },
+      "./utils/SequenceEditorStandardConfigUtil": {
+        "types": "./dist/utils/SequenceEditorStandardConfigUtil/index.d.ts",
+        "import": "./dist/utils/SequenceEditorStandardConfigUtil/index.js"
       }
     }
   }

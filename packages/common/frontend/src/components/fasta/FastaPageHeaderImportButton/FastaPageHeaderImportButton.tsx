@@ -1,3 +1,4 @@
+import { container } from 'tsyringe';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import { Button } from '@mui/material';
 import { useCallback } from 'react';
@@ -5,7 +6,7 @@ import { useCallback } from 'react';
 import { FastaDataEventBusService } from '../../../classes/services/FastaDataEventBusService';
 
 export const FastaPageHeaderImportButton = () => {
-  const onImportDataButtonClick = useCallback(() => FastaDataEventBusService.getInstance().emit('onShowImportDialog'), []);
+  const onImportDataButtonClick = useCallback(() => container.resolve(FastaDataEventBusService).emit('onShowImportDialog'), []);
 
   return (
     <Button

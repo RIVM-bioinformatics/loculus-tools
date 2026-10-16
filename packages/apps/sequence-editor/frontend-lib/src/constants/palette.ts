@@ -1,13 +1,13 @@
 import {
   AminoAcidSymbol,
   NucleotideSymbol,
-} from '../models/palette';
+} from '../models/palette.models';
 import type {
   AminoAcidPalette,
   AminoAcidPaletteColors,
   NucleotidePalette,
   NucleotidePaletteColors,
-} from '../models/palette';
+} from '../models/palette.models';
 import { PaletteUtil } from '../utils/PaletteUtil';
 
 export const NUCLEOTIDE_SYMBOLS: readonly NucleotideSymbol[] = [

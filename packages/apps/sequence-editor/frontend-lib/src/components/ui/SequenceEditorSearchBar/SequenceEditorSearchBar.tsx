@@ -1,3 +1,4 @@
+import { container } from 'tsyringe';
 import { SearchBar } from '@rivm-loculus-tools/common-frontend/components/SearchBar';
 import { useCallback } from 'react';
 import { useStore } from 'zustand';
@@ -14,7 +15,7 @@ export const SequenceEditorSearchBar = () => {
 
   const onSearchQueryChange = useCallback((query: string) => {
     setSearchQuery(query);
-    SequenceEditorEventBusService.getInstance().emit('onSearch', query);
+    container.resolve(SequenceEditorEventBusService).emit('onSearch', query);
   }, [setSearchQuery]);
 
   const onHighlightedIndexChange = useCallback((index: number) => {

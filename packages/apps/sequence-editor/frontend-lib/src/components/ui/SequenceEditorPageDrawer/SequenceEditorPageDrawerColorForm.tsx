@@ -11,7 +11,8 @@ import { FORM_FIELD_DEFINITION_TYPE } from '@gen-epix/ui-core-form/models/form.m
 import type {
   AminoAcidPalette,
   NucleotidePalette,
-} from '../../../models';
+} from '../../../models/palette.models';
+
 
 export type SequenceEditorPageDrawerColorFormProps<TPalette extends AminoAcidPalette | NucleotidePalette> = {
   currentPalette: TPalette;

@@ -13,6 +13,7 @@
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    "experimentalDecorators": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,

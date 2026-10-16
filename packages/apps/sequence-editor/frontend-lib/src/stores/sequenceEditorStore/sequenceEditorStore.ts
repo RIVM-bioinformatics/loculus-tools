@@ -13,16 +13,18 @@ import {
 } from '@rivm-loculus-tools/common-frontend/stores/fastaDataStore';
 
 import type {
-  AminoAcidPalette,
   EditorSelection,
   EngineMeta,
   EngineSearchResult,
-  NucleotidePalette,
-} from '../../models';
+} from '../../models/editor.models';
 import {
   ALI_VIEW_DEFAULT_AMINO_ACID_PALETTE,
   ALI_VIEW_DEFAULT_NUCLEOTIDE_PALETTE,
 } from '../../constants';
+import type {
+  AminoAcidPalette,
+  NucleotidePalette,
+} from '../../models/palette.models';
 
 export type SequenceEditorStore = SequenceEditorStoreActions & SequenceEditorStoreState;
 

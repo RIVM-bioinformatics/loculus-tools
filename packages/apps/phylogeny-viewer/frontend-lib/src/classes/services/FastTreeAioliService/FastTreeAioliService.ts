@@ -1,23 +1,17 @@
-import { HmrUtil } from '@gen-epix/ui-core/utils/HmrUtil';
 import { FastaUtil } from '@rivm-loculus-tools/common-frontend/utils/FastaUtil';
+import { singleton } from 'tsyringe';
 
 import type {
   FastTreeMLParams,
   FastTreeMode,
-} from '../../../models/calculation';
+} from '../../../models/calculation.models';
 import type { AioliService } from '../../abstracts/AioliServiceAbstract';
 import { AioliServiceAbstract } from '../../abstracts/AioliServiceAbstract';
 
+@singleton()
 export class FastTreeAioliService extends AioliServiceAbstract implements AioliService {
-  private static __instance: FastTreeAioliService;
-
-  private constructor() {
+  public constructor() {
     super('fasttree/2.1.11');
-  }
-
-  public static getInstance(): FastTreeAioliService {
-    FastTreeAioliService.__instance = HmrUtil.getHmrSingleton('fastTreeAioliService', FastTreeAioliService.__instance, () => new FastTreeAioliService());
-    return FastTreeAioliService.__instance;
   }
 
   private static extractNewickTree(output: string): string {

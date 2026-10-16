@@ -1,3 +1,4 @@
+import { container } from 'tsyringe';
 import {
   useCallback,
   useEffect,
@@ -17,7 +18,7 @@ import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import { useStore } from 'zustand';
-import { PageCommonDrawer } from '@rivm-loculus-tools/common-frontend/components/page';
+import { PageCommonDrawer } from '@rivm-loculus-tools/common-frontend/components/ui/PageCommonDrawer';
 import { FastaDataEventBusService } from '@rivm-loculus-tools/common-frontend/classes/services/FastaDataEventBusService';
 
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
@@ -45,7 +46,7 @@ export const PhylogenyViewerPageDrawer = () => {
     setExpandedAccordions((prev) => prev.filter((p) => p !== panel));
   }, []);
 
-  const onClickLoadData = useCallback(() => FastaDataEventBusService.getInstance().emit('onShowImportDialog'), []);
+  const onClickLoadData = useCallback(() => container.resolve(FastaDataEventBusService).emit('onShowImportDialog'), []);
   const onCalculationAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.CALCULATION), [toggleAccordion]);
   const onViewAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.VIEW), [toggleAccordion]);
   const onMetaDataAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.METADATA), [toggleAccordion]);

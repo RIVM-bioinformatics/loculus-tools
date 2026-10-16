@@ -1,3 +1,4 @@
+import { container } from 'tsyringe';
 import type { MouseEvent } from 'react';
 import {
   useCallback,
@@ -11,14 +12,14 @@ import {
   Menu,
   MenuItem,
 } from '@mui/material';
-import { PageCommonHeader } from '@rivm-loculus-tools/common-frontend/components/page';
-import { FastaPageHeaderCenterComponent } from '@rivm-loculus-tools/common-frontend/components/FastaPageHeaderCenterComponent';
+import { PageCommonHeader } from '@rivm-loculus-tools/common-frontend/components/ui/PageCommonHeader';
+import { FastaPageHeaderCenterComponent } from '@rivm-loculus-tools/common-frontend/components/fasta/FastaPageHeaderCenterComponent';
 import { UrlUtil } from '@rivm-loculus-tools/common-frontend/utils/UrlUtil';
 import { useStore } from 'zustand';
-import { FastaPageHeaderResetButton } from '@rivm-loculus-tools/common-frontend/components/FastaPageHeaderResetButton';
-import { FastaPageHeaderImportButton } from '@rivm-loculus-tools/common-frontend/components/FastaPageHeaderImportButton';
+import { FastaPageHeaderResetButton } from '@rivm-loculus-tools/common-frontend/components/fasta/FastaPageHeaderResetButton';
+import { FastaPageHeaderImportButton } from '@rivm-loculus-tools/common-frontend/components/fasta/FastaPageHeaderImportButton';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
-import { PageHeaderDocumentationButton } from '@rivm-loculus-tools/common-frontend/components/PageHeaderDocumentationButton';
+import { PageHeaderDocumentationButton } from '@rivm-loculus-tools/common-frontend/components/ui/PageHeaderDocumentationButton';
 import ImageIcon from '@mui/icons-material/Image';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CodeIcon from '@mui/icons-material/Code';
@@ -26,7 +27,7 @@ import CodeIcon from '@mui/icons-material/Code';
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import { ExportUtil } from '../../../utils/ExportUtil';
 import { PhylogenyViewerEventBusService } from '../../../classes/services/PhylogenyViewerEventBusService';
-import { TREE_DOWNLOAD_TYPE } from '../../../models/tree';
+import { TREE_DOWNLOAD_TYPE } from '../../../models/tree.models';
 
 export const PhylogenyViewerPageHeader = () => {
   const newick = useStore(phylogenyViewerStore, (state) => state.newick);
@@ -54,17 +55,17 @@ export const PhylogenyViewerPageHeader = () => {
   }, [newick, onCloseExportMenu]);
 
   const onClickExportPng = useCallback(() => {
-    PhylogenyViewerEventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.PNG);
+    container.resolve(PhylogenyViewerEventBusService).emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.PNG);
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 
   const onClickExportJpeg = useCallback(() => {
-    PhylogenyViewerEventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.JPEG);
+    container.resolve(PhylogenyViewerEventBusService).emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.JPEG);
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 
   const onClickExportSvg = useCallback(() => {
-    PhylogenyViewerEventBusService.getInstance().emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.SVG);
+    container.resolve(PhylogenyViewerEventBusService).emit('onDownloadCanvas', TREE_DOWNLOAD_TYPE.SVG);
     onCloseExportMenu();
   }, [onCloseExportMenu]);
 

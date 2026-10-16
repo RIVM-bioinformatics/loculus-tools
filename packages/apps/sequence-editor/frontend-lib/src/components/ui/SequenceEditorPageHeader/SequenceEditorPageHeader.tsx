@@ -1,7 +1,8 @@
-import { FastaPageHeaderCenterComponent } from '@rivm-loculus-tools/common-frontend/components/FastaPageHeaderCenterComponent';
-import { FastaPageHeaderImportButton } from '@rivm-loculus-tools/common-frontend/components/FastaPageHeaderImportButton';
-import { FastaPageHeaderResetButton } from '@rivm-loculus-tools/common-frontend/components/FastaPageHeaderResetButton';
-import { PageCommonHeader } from '@rivm-loculus-tools/common-frontend/components/page';
+import { container } from 'tsyringe';
+import { FastaPageHeaderCenterComponent } from '@rivm-loculus-tools/common-frontend/components/fasta/FastaPageHeaderCenterComponent';
+import { FastaPageHeaderImportButton } from '@rivm-loculus-tools/common-frontend/components/fasta/FastaPageHeaderImportButton';
+import { FastaPageHeaderResetButton } from '@rivm-loculus-tools/common-frontend/components/fasta/FastaPageHeaderResetButton';
+import { PageCommonHeader } from '@rivm-loculus-tools/common-frontend/components/ui/PageCommonHeader';
 import { useCallback } from 'react';
 import { useStore } from 'zustand';
 import BiotechOutlinedIcon from '@mui/icons-material/BiotechOutlined';
@@ -11,7 +12,7 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
-import { PageHeaderDocumentationButton } from '@rivm-loculus-tools/common-frontend/src/components/ui/PageHeaderDocumentationButton/PageHeaderDocumentationButton';
+import { PageHeaderDocumentationButton } from '@rivm-loculus-tools/common-frontend/components/ui/PageHeaderDocumentationButton';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
@@ -25,11 +26,11 @@ export const SequenceEditorPageHeader = () => {
   }, [resetDataset]);
 
   const onUndoButtonClick = useCallback(() => {
-    SequenceEditorEventBusService.getInstance().emit('onUndo');
+    container.resolve(SequenceEditorEventBusService).emit('onUndo');
   }, []);
 
   const onRedoButtonClick = useCallback(() => {
-    SequenceEditorEventBusService.getInstance().emit('onRedo');
+    container.resolve(SequenceEditorEventBusService).emit('onRedo');
   }, []);
 
   return (

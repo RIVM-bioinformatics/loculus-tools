@@ -1,3 +1,4 @@
+import { container } from 'tsyringe';
 import {
   useCallback,
   useEffect,
@@ -14,7 +15,7 @@ import type {
 } from '@gen-epix/ui-phylogenetic-tree/components/PhylogeneticTree';
 import { PhylogeneticTree } from '@gen-epix/ui-phylogenetic-tree/components/PhylogeneticTree';
 import { NewickUtil } from '@gen-epix/ui-phylogenetic-tree/utils/NewickUtil';
-import type { TreeNode } from '@gen-epix/ui-phylogenetic-tree/models/tree';
+import type { TreeNode } from '@gen-epix/ui-phylogenetic-tree/models/tree.models';
 import { Subject } from '@gen-epix/ui-core/classes/Subject';
 import { useStore } from 'zustand';
 import { MetaDataUtil } from '@rivm-loculus-tools/common-frontend/utils/MetaDataUtil';
@@ -41,7 +42,7 @@ import {
   TREE_SCALE_INCREMENTS,
 } from '../../../constants/tree';
 import { PhylogenyViewerEventBusService } from '../../../classes/services/PhylogenyViewerEventBusService';
-import { TREE_DOWNLOAD_TYPE } from '../../../models/tree';
+import { TREE_DOWNLOAD_TYPE } from '../../../models/tree.models';
 import { ExportUtil } from '../../../utils/ExportUtil';
 
 import { PhylogenyTreeViewDraggableNodeTooltip } from './PhylogenyTreeViewDraggableNodeTooltip';
@@ -189,7 +190,7 @@ export const PhylogenyTreeView = ({ newick }: PhylogenyTreeViewProps) => {
   }, []);
 
   useEffect(() => {
-    const eventBusService = PhylogenyViewerEventBusService.getInstance();
+    const eventBusService = container.resolve(PhylogenyViewerEventBusService);
     // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
     const remover = eventBusService.addEventListener('onDownloadCanvas', (type?: TREE_DOWNLOAD_TYPE) => {
       switch (type) {

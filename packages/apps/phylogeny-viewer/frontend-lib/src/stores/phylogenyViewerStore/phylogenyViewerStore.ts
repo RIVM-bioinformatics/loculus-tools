@@ -1,3 +1,4 @@
+import { container } from 'tsyringe';
 import { createStore } from 'zustand';
 import uniq from 'lodash/uniq';
 import { MetaDataUtil } from '@rivm-loculus-tools/common-frontend/utils/MetaDataUtil';
@@ -9,20 +10,20 @@ import {
   createFastaDataStoreActions,
   createFastaDataStoreInitialState,
 } from '@rivm-loculus-tools/common-frontend/stores/fastaDataStore';
-import type { FastaParseResult } from '@rivm-loculus-tools/common-frontend/models/fasta';
-import type { MetadataParseResult } from '@rivm-loculus-tools/common-frontend/models/metadata';
+import type { FastaParseResult } from '@rivm-loculus-tools/common-frontend/models/fasta.models';
+import type { MetadataParseResult } from '@rivm-loculus-tools/common-frontend/models/metadata.models';
 
-import type { NodeTooltipInfo } from '../../models/tree';
-import { CALCULATION_STATUS } from '../../models/calculation';
+import type { NodeTooltipInfo } from '../../models/tree.models';
+import { CALCULATION_STATUS } from '../../models/calculation.models';
 import type {
   FastTreeMLParams,
   FastTreeMode,
   TreeEngine,
-} from '../../models/calculation';
+} from '../../models/calculation.models';
 import { FastTreeAioliService } from '../../classes/services/FastTreeAioliService';
 import { TN93AioliService } from '../../classes/services/TN93AioliService';
 import { ColorUtil } from '../../utils/ColorUtil';
-import type { ColorMap } from '../../models/color';
+import type { ColorMap } from '../../models/color.models';
 import { PhylogenyViewerEventBusService } from '../../classes/services/PhylogenyViewerEventBusService';
 
 export type PhylogenyViewerStore = PhylogenyViewerStoreActions & PhylogenyViewerStoreState;
@@ -117,9 +118,9 @@ export const phylogenyViewerStore = createStore<PhylogenyViewerStore>((set, get)
         let generatedNewick = '';
 
         if (engine === 'tn93') {
-          generatedNewick = await TN93AioliService.getInstance().getTree(rawFasta);
+          generatedNewick = await container.resolve(TN93AioliService).getTree(rawFasta);
         } else {
-          generatedNewick = await FastTreeAioliService.getInstance().getTree(rawFasta, fastTreeMode, fastTreeParams);
+          generatedNewick = await container.resolve(FastTreeAioliService).getTree(rawFasta, fastTreeMode, fastTreeParams);
         }
 
         const durationMs = Math.round(performance.now() - startTime);
@@ -210,7 +211,7 @@ export const phylogenyViewerStore = createStore<PhylogenyViewerStore>((set, get)
 
       if (!fastaResult.isAligned) {
         set({ calculationStatus: CALCULATION_STATUS.IDLE });
-        PhylogenyViewerEventBusService.getInstance().emit('onShowAlignmentErrorDialog');
+        container.resolve(PhylogenyViewerEventBusService).emit('onShowAlignmentErrorDialog');
         throw new Error('Fasta data is not aligned');
       }
 

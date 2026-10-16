@@ -7,153 +7,153 @@ importers:
     configDependencies: {}
     packageManagerDependencies:
       pnpm:
-        specifier: 12.11.2
-        version: 12.11.2
+        specifier: 12.14.0
+        version: 12.14.0
 
 packages:
 
-  '@pnpm/exe.android-arm64@12.11.2':
-    resolution: {integrity: sha512-owLw13OfPkEoY+hLBNeeG+dCFhywr7q2d/EHPz4mNL2RhKnv8gNwMARkjkiDQu234aItVwFNDeGnmQXm+ikkAg==}
+  '@pnpm/exe.android-arm64@12.14.0':
+    resolution: {integrity: sha512-+iSh7x21C3A2hqc+Z0ZmbKTcn6YNlzrXM142PsnQH/dLj0DYxFzoBvc6XAnL/yfQ5nnH2ebBiRj/zVxr61fZbQ==}
     cpu: [arm64]
     os: [android]
 
-  '@pnpm/exe.android-x64@12.11.2':
-    resolution: {integrity: sha512-GYPkVebl4iokOA/4MPSpGoUVfFlsth7uqOCe1XiaiM23LAdvUOMJBObqHJijr89ZqjwHm9pO6vO45GRwJ2U2qA==}
+  '@pnpm/exe.android-x64@12.14.0':
+    resolution: {integrity: sha512-qT+0LqEr2wBVaxcG2T8cX/R8SSRz2Rvpp8nRR4fh8tnGUZRch87gFmsHUAoSQh7w6j1h0qTjrA384j4xi8frvw==}
     cpu: [x64]
     os: [android]
 
-  '@pnpm/exe.darwin-arm64@12.11.2':
-    resolution: {integrity: sha512-n9M4On66y8FDxUAKgMO1FXt0qihyG4e+56p3/F0uo8Bx9KplW8BwKVnXigzCJ8aNM6sVVPkOE6M9XXbeVIxnZA==}
+  '@pnpm/exe.darwin-arm64@12.14.0':
+    resolution: {integrity: sha512-tnrdUB8ecJoehuKKqi1YHCBVl61xtJ9XVGcx5EviC6fWO4DeGI8GtXrjvJxDBM3nuVjJeWistgsUp/N142x4sw==}
     cpu: [arm64]
     os: [darwin]
 
-  '@pnpm/exe.darwin-x64@12.11.2':
-    resolution: {integrity: sha512-oSW7n3sBT0c0cyk4kj10T2Y6Mpm+OFEiCAWozgX039tdoI6yqJF1uaFD3sw7ugLdu6VV3+uY0pa1TUZIPdxDWA==}
+  '@pnpm/exe.darwin-x64@12.14.0':
+    resolution: {integrity: sha512-vlBfGkruqQRsEHTW43cPwpYd7QlbIJ//cvpAdb3bVXkI8SgTPoXhCnc05m+ZNiPrrEkBsX/t7KHw9aXpkzPm3Q==}
     cpu: [x64]
     os: [darwin]
 
-  '@pnpm/exe.freebsd-x64@12.11.2':
-    resolution: {integrity: sha512-qbzc3KoDpa/Lkf8vs3jnDe6dUUbso+6eLIyssYFMiliLpYNxn8dirk11YoNnOQcdHVB50v5RFls1Yid6ttT5pg==}
+  '@pnpm/exe.freebsd-x64@12.14.0':
+    resolution: {integrity: sha512-Qg5rxBrGYl6Tfso+EyygPf84fY1Fzy55E/0or+iuYKtnf0vc0MlHJfVIlT7pBukMRntQHRik7hUi0Z4s7AlJsw==}
     cpu: [x64]
     os: [freebsd]
 
-  '@pnpm/exe.linux-arm64-musl@12.11.2':
-    resolution: {integrity: sha512-uMEYDwKRktGwANubQ+kYCwmhNwg3Ik6qK89ahsbQ5cP30R/5FVJb/T99vr9XRUBC/A7mZI6eeT92oyVas9ACyg==}
+  '@pnpm/exe.linux-arm64-musl@12.14.0':
+    resolution: {integrity: sha512-DRIe4yQkXBGA/PhVJdzlbnllxBdAtnMMvTVLLcGpsK5FvJz9kxD2Hyxtn68ovmNkVX06f6p45cQwfm3wx2jn1A==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@pnpm/exe.linux-arm64@12.11.2':
-    resolution: {integrity: sha512-6e8ZAQUwFXAWHHHv5FesWqf/kEK04wuitBv5f/gxzkC0DiBfaixr+f+6JQede8SF4Ji5LcMwVFJbzAtffpWxEg==}
+  '@pnpm/exe.linux-arm64@12.14.0':
+    resolution: {integrity: sha512-7joGShZ44Nk3WpNU+60JoOPjCXlgxhJAq11S2UiVtwCUDgTer1yTPPfxGW8pxaD6046actYLIYDbZNlubHWs0A==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@pnpm/exe.linux-ppc64@12.11.2':
-    resolution: {integrity: sha512-Ui8A4nepkVupx2VpuFfysEluMvWK6gTB5rgVts7Ss/+8dj0RD28x3F/seNeH/zSypgC6yKdV6qsKVQh/uffTuQ==}
+  '@pnpm/exe.linux-ppc64@12.14.0':
+    resolution: {integrity: sha512-gSoryn7ySdXd//gjgf3MvvA8ZerJayaSbuMZMtAWq4vb2/wlVEgpl0Kvqt54y58TRj533Qjq2txKgnxd4JyoAQ==}
     cpu: [ppc64]
     os: [linux]
     libc: [glibc]
 
-  '@pnpm/exe.linux-riscv64@12.11.2':
-    resolution: {integrity: sha512-i1yLdQ5bu+wjQ+srtFoJAaY2gN/+oXHFdjul4llCeoDxHE0rTIG3R41NhHfCjyFPW4+CpbBT58933CL9sMOCnA==}
+  '@pnpm/exe.linux-riscv64@12.14.0':
+    resolution: {integrity: sha512-EMjew1H9WqQ7pL+tYqCPwiuB+0PeCiJRV7fyWeuFw0wwYUajFBjcaPO3IGAVu9sdmJDU+e+HYv/Zey6aKae0Vw==}
     cpu: [riscv64]
     os: [linux]
     libc: [glibc]
 
-  '@pnpm/exe.linux-s390x@12.11.2':
-    resolution: {integrity: sha512-YS1/lhPjjTsN4QL50VaFZKRa3Uc/bDnhE8eKbJMFvuX06UuFS5YaiDg04APoZdfVSGqTfX27QAg7rfLMSWaqxA==}
+  '@pnpm/exe.linux-s390x@12.14.0':
+    resolution: {integrity: sha512-shYOj/SFoXD35fHe0pWr2JofwSXulC0BnEIXLj2QokDi0EF//AfKsui35yKIkTEl+s2VJybc3PO4iJNhKIj5Qw==}
     cpu: [s390x]
     os: [linux]
     libc: [glibc]
 
-  '@pnpm/exe.linux-x64-musl@12.11.2':
-    resolution: {integrity: sha512-7eIxQR05fvJxCujUSKp5KTtehJ7QqrgqP/HD1+BcB/SaV2Be4XI1PEHiOgA1zxsiMIeMvTF6E4G4dYHrFjeXRg==}
+  '@pnpm/exe.linux-x64-musl@12.14.0':
+    resolution: {integrity: sha512-btZiZ2Ot0llKK1ndSfA5i3IRX7/S0VrmzseNH/BJ4c+Cady+S81H6vvU1zByggHMyqQhC8OgxO5PiIY7D9bH0Q==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@pnpm/exe.linux-x64@12.11.2':
-    resolution: {integrity: sha512-FK7QKe24AYgppJwO3mpooYptduuvIGqKJPi5ac7MdnWkjUy46JBfYhCW0grnkWKC8YOf0x+vGviuQqJEj3SpQQ==}
+  '@pnpm/exe.linux-x64@12.14.0':
+    resolution: {integrity: sha512-F6K8e/jWxiuEYJaQtRRUG9ynBSTEHa+t7Lf86MKuOO5UA7WVVMbi+oB8nY6iKW++ncWS2yG6T9faXZGxqNsfoQ==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@pnpm/exe.win32-arm64@12.11.2':
-    resolution: {integrity: sha512-PCTjVDdJb6VvraZxrEeFv6EqEA0hhIsAySx28e95J2Tqpi88hLpgOXgNqV0vpxq9A+b8GLQfyk/D+1UlJPv/YQ==}
+  '@pnpm/exe.win32-arm64@12.14.0':
+    resolution: {integrity: sha512-DOjlkVB6TtTKeAAe0hNZXn5S7YqESmo1Z6SGbR4BZNQ4isRg31XVHjX2RFTbY8gnZq68IwzyLmPqlEjMmYxofg==}
     cpu: [arm64]
     os: [win32]
 
-  '@pnpm/exe.win32-x64@12.11.2':
-    resolution: {integrity: sha512-8sgX86OvRjJ3yZs/TvGR2L31wH9ScPZ+f+geKI3ikuB0RRiK3i4LlTRO8OXN6pdRqj8epMde4312MCjj7JsJdA==}
+  '@pnpm/exe.win32-x64@12.14.0':
+    resolution: {integrity: sha512-/LSX6mew/sLf08XqcjemuklNKf1K/Ftpgj4//hK/HKzI2dKbmxDB27a/2OaQ5a0O3/3OFzlssXDziZsi+yVBwQ==}
     cpu: [x64]
     os: [win32]
 
-  pnpm@12.11.2:
-    resolution: {integrity: sha512-JaUWUqGWeFr18ovabf6NxYLr76SsHRgCIc4TkCMcX7dmN4IupLbkYzznSs3LCnf3Ja8RutOBd/3t2u6BipVcuQ==}
+  pnpm@12.14.0:
+    resolution: {integrity: sha512-wYum2HmT09Fky16JSPMrLAbuhUSH4GzY2GeBNC+z5btGNDZwNHEehoArqpw3vqkGzhkprQjXCITJfYAd8TOJpg==}
     engines: {node: '>=18.*'}
     hasBin: true
 
 snapshots:
 
-  '@pnpm/exe.android-arm64@12.11.2':
+  '@pnpm/exe.android-arm64@12.14.0':
     optional: true
 
-  '@pnpm/exe.android-x64@12.11.2':
+  '@pnpm/exe.android-x64@12.14.0':
     optional: true
 
-  '@pnpm/exe.darwin-arm64@12.11.2':
+  '@pnpm/exe.darwin-arm64@12.14.0':
     optional: true
 
-  '@pnpm/exe.darwin-x64@12.11.2':
+  '@pnpm/exe.darwin-x64@12.14.0':
     optional: true
 
-  '@pnpm/exe.freebsd-x64@12.11.2':
+  '@pnpm/exe.freebsd-x64@12.14.0':
     optional: true
 
-  '@pnpm/exe.linux-arm64-musl@12.11.2':
+  '@pnpm/exe.linux-arm64-musl@12.14.0':
     optional: true
 
-  '@pnpm/exe.linux-arm64@12.11.2':
+  '@pnpm/exe.linux-arm64@12.14.0':
     optional: true
 
-  '@pnpm/exe.linux-ppc64@12.11.2':
+  '@pnpm/exe.linux-ppc64@12.14.0':
     optional: true
 
-  '@pnpm/exe.linux-riscv64@12.11.2':
+  '@pnpm/exe.linux-riscv64@12.14.0':
     optional: true
 
-  '@pnpm/exe.linux-s390x@12.11.2':
+  '@pnpm/exe.linux-s390x@12.14.0':
     optional: true
 
-  '@pnpm/exe.linux-x64-musl@12.11.2':
+  '@pnpm/exe.linux-x64-musl@12.14.0':
     optional: true
 
-  '@pnpm/exe.linux-x64@12.11.2':
+  '@pnpm/exe.linux-x64@12.14.0':
     optional: true
 
-  '@pnpm/exe.win32-arm64@12.11.2':
+  '@pnpm/exe.win32-arm64@12.14.0':
     optional: true
 
-  '@pnpm/exe.win32-x64@12.11.2':
+  '@pnpm/exe.win32-x64@12.14.0':
     optional: true
 
-  pnpm@12.11.2:
+  pnpm@12.14.0:
     optionalDependencies:
-      '@pnpm/exe.android-arm64': 12.11.2
-      '@pnpm/exe.android-x64': 12.11.2
-      '@pnpm/exe.darwin-arm64': 12.11.2
-      '@pnpm/exe.darwin-x64': 12.11.2
-      '@pnpm/exe.freebsd-x64': 12.11.2
-      '@pnpm/exe.linux-arm64': 12.11.2
-      '@pnpm/exe.linux-arm64-musl': 12.11.2
-      '@pnpm/exe.linux-ppc64': 12.11.2
-      '@pnpm/exe.linux-riscv64': 12.11.2
-      '@pnpm/exe.linux-s390x': 12.11.2
-      '@pnpm/exe.linux-x64': 12.11.2
-      '@pnpm/exe.linux-x64-musl': 12.11.2
-      '@pnpm/exe.win32-arm64': 12.11.2
-      '@pnpm/exe.win32-x64': 12.11.2
+      '@pnpm/exe.android-arm64': 12.14.0
+      '@pnpm/exe.android-x64': 12.14.0
+      '@pnpm/exe.darwin-arm64': 12.14.0
+      '@pnpm/exe.darwin-x64': 12.14.0
+      '@pnpm/exe.freebsd-x64': 12.14.0
+      '@pnpm/exe.linux-arm64': 12.14.0
+      '@pnpm/exe.linux-arm64-musl': 12.14.0
+      '@pnpm/exe.linux-ppc64': 12.14.0
+      '@pnpm/exe.linux-riscv64': 12.14.0
+      '@pnpm/exe.linux-s390x': 12.14.0
+      '@pnpm/exe.linux-x64': 12.14.0
+      '@pnpm/exe.linux-x64-musl': 12.14.0
+      '@pnpm/exe.win32-arm64': 12.14.0
+      '@pnpm/exe.win32-x64': 12.14.0
 
 ---
 lockfileVersion: '9.0'
@@ -191,14 +191,14 @@ importers:
         specifier: 11.14.1
         version: 11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2)
       '@gen-epix/ui-core':
-        specifier: 3.9.0
-        version: 3.9.0(react@19.3.0)
+        specifier: 3.9.1
+        version: 3.9.1(react@19.3.0)
       '@gen-epix/ui-core-components':
-        specifier: 4.4.0
-        version: 4.4.0(293405cc78bd4346cb24de0dd985613c)
+        specifier: 4.5.0
+        version: 4.5.0(acfc39140ed101e85638b1bd221c71a0)
       '@gen-epix/ui-core-form':
-        specifier: 4.4.0
-        version: 4.4.0(82d31fdf7a72e1ddc453f2bab28b858a)
+        specifier: 4.4.1
+        version: 4.4.1(04f5dfa4cbdf7e8a24c3e41bef18ed52)
       '@mui/icons-material':
         specifier: 9.5.0
         version: 9.5.0(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
@@ -235,6 +235,12 @@ importers:
       react-i18next:
         specifier: 17.0.16
         version: 17.0.16(i18next@26.4.4(typescript@6.0.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3)
+      reflect-metadata:
+        specifier: 0.2.2
+        version: 0.2.2
+      tsyringe:
+        specifier: 4.10.0
+        version: 4.10.0
     devDependencies:
       '@gen-epix/eslint-config':
         specifier: 0.8.0
@@ -289,7 +295,7 @@ importers:
         version: 3.2.3
       '@gen-epix/ui-phylogenetic-tree':
         specifier: '*'
-        version: 3.5.0(@gen-epix/ui-core@3.9.0(react@19.3.0))(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
+        version: 3.5.1(@gen-epix/ui-core@3.9.1(react@19.3.0))(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
       '@hookform/resolvers':
         specifier: 5.9.1
         version: 5.9.1(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.0))(yup@1.7.1)(zod@4.6.5)
@@ -311,6 +317,12 @@ importers:
       neighbor-joining:
         specifier: 1.0.4
         version: 1.0.4
+      reflect-metadata:
+        specifier: '*'
+        version: 0.2.2
+      tsyringe:
+        specifier: 4.10.0
+        version: 4.10.0
       zustand:
         specifier: 5.0.15
         version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
@@ -328,14 +340,14 @@ importers:
         specifier: 0.8.0
         version: 0.8.0(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.70.0(eslint@10.12.0(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint@10.12.0(supports-color@10.2.2))(supports-color@10.2.2))(eslint@10.12.0(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)(vitest@5.0.4(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(yaml@2.9.0)))
       '@gen-epix/ui-core':
-        specifier: 3.9.0
-        version: 3.9.0(react@19.3.0)
+        specifier: 3.9.1
+        version: 3.9.1(react@19.3.0)
       '@gen-epix/ui-core-components':
-        specifier: 4.4.0
-        version: 4.4.0(293405cc78bd4346cb24de0dd985613c)
+        specifier: 4.5.0
+        version: 4.5.0(acfc39140ed101e85638b1bd221c71a0)
       '@gen-epix/ui-core-form':
-        specifier: 4.4.0
-        version: 4.4.0(82d31fdf7a72e1ddc453f2bab28b858a)
+        specifier: 4.4.1
+        version: 4.4.1(04f5dfa4cbdf7e8a24c3e41bef18ed52)
       '@mui/icons-material':
         specifier: 9.5.0
         version: 9.5.0(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
@@ -423,14 +435,14 @@ importers:
         specifier: 11.14.1
         version: 11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2)
       '@gen-epix/ui-core':
-        specifier: 3.9.0
-        version: 3.9.0(react@19.3.0)
+        specifier: 3.9.1
+        version: 3.9.1(react@19.3.0)
       '@gen-epix/ui-core-components':
-        specifier: 4.4.0
-        version: 4.4.0(293405cc78bd4346cb24de0dd985613c)
+        specifier: 4.5.0
+        version: 4.5.0(acfc39140ed101e85638b1bd221c71a0)
       '@gen-epix/ui-core-form':
-        specifier: 4.4.0
-        version: 4.4.0(82d31fdf7a72e1ddc453f2bab28b858a)
+        specifier: 4.4.1
+        version: 4.4.1(04f5dfa4cbdf7e8a24c3e41bef18ed52)
       '@mui/icons-material':
         specifier: 9.5.0
         version: 9.5.0(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
@@ -467,6 +479,9 @@ importers:
       react-i18next:
         specifier: 17.0.16
         version: 17.0.16(i18next@26.4.4(typescript@6.0.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3)
+      reflect-metadata:
+        specifier: 0.2.2
+        version: 0.2.2
     devDependencies:
       '@gen-epix/eslint-config':
         specifier: 0.8.0
@@ -531,6 +546,12 @@ importers:
       lodash:
         specifier: 4.18.1
         version: 4.18.1
+      reflect-metadata:
+        specifier: '*'
+        version: 0.2.2
+      tsyringe:
+        specifier: 4.10.0
+        version: 4.10.0
       use-debounce:
         specifier: 10.1.1
         version: 10.1.1(react@19.3.0)
@@ -551,17 +572,17 @@ importers:
         specifier: 0.8.0
         version: 0.8.0(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.70.0(eslint@10.12.0(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint@10.12.0(supports-color@10.2.2))(supports-color@10.2.2))(eslint@10.12.0(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)(vitest@5.0.4(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(yaml@2.9.0)))
       '@gen-epix/ui-core':
-        specifier: 3.9.0
-        version: 3.9.0(react@19.3.0)
+        specifier: 3.9.1
+        version: 3.9.1(react@19.3.0)
       '@gen-epix/ui-core-components':
-        specifier: 4.4.0
-        version: 4.4.0(293405cc78bd4346cb24de0dd985613c)
+        specifier: 4.5.0
+        version: 4.5.0(acfc39140ed101e85638b1bd221c71a0)
       '@gen-epix/ui-core-form':
-        specifier: 4.4.0
-        version: 4.4.0(82d31fdf7a72e1ddc453f2bab28b858a)
+        specifier: 4.4.1
+        version: 4.4.1(04f5dfa4cbdf7e8a24c3e41bef18ed52)
       '@gen-epix/ui-phylogenetic-tree':
-        specifier: 3.5.0
-        version: 3.5.0(@gen-epix/ui-core@3.9.0(react@19.3.0))(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
+        specifier: 3.5.1
+        version: 3.5.1(@gen-epix/ui-core@3.9.1(react@19.3.0))(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
       '@mui/icons-material':
         specifier: 9.5.0
         version: 9.5.0(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
@@ -643,9 +664,6 @@ importers:
       lodash:
         specifier: 4.18.1
         version: 4.18.1
-      reflect-metadata:
-        specifier: 0.2.2
-        version: 0.2.2
       zustand:
         specifier: 5.0.15
         version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
@@ -663,14 +681,14 @@ importers:
         specifier: 0.8.0
         version: 0.8.0(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.70.0(eslint@10.12.0(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(eslint@10.12.0(supports-color@10.2.2))(supports-color@10.2.2))(eslint@10.12.0(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)(vitest@5.0.4(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(yaml@2.9.0)))
       '@gen-epix/ui-core':
-        specifier: 3.9.0
-        version: 3.9.0(react@19.3.0)
+        specifier: 3.9.1
+        version: 3.9.1(react@19.3.0)
       '@gen-epix/ui-core-components':
-        specifier: 4.4.0
-        version: 4.4.0(293405cc78bd4346cb24de0dd985613c)
+        specifier: 4.5.0
+        version: 4.5.0(acfc39140ed101e85638b1bd221c71a0)
       '@gen-epix/ui-core-form':
-        specifier: 4.4.0
-        version: 4.4.0(82d31fdf7a72e1ddc453f2bab28b858a)
+        specifier: 4.4.1
+        version: 4.4.1(04f5dfa4cbdf7e8a24c3e41bef18ed52)
       '@mui/icons-material':
         specifier: 9.5.0
         version: 9.5.0(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
@@ -722,6 +740,9 @@ importers:
       react-i18next:
         specifier: 17.0.16
         version: 17.0.16(i18next@26.4.4(typescript@6.0.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3)
+      reflect-metadata:
+        specifier: 0.2.2
+        version: 0.2.2
       tsyringe:
         specifier: 4.10.0
         version: 4.10.0
@@ -1130,10 +1151,10 @@ packages:
   '@gen-epix/tools-lib@0.4.0':
     resolution: {integrity: sha512-Fvu/ach3gmAtv4izKIeIpJLbgYKGDIStkI5/Qncqam9tB/uGQfoVuBAW7wp/VIFgokQpyZRjdUICVGHHbPk/6Q==}
 
-  '@gen-epix/ui-core-components@4.4.0':
-    resolution: {integrity: sha512-Z1Z7a9InPXU2Emhk02kNpORrllomurH4qsmA/i1NsNy1GY8DgieVsxa+gMEaXEHxD3JrZBPi8k8MXtQGA71Lfg==}
+  '@gen-epix/ui-core-components@4.5.0':
+    resolution: {integrity: sha512-EclbAw5Ci+MSzlexFyBrNpCaQJBc9jEzr/MHwH5S36DgsZrP/KnN6rRb3xUT4iuYfINK/iD3U3gQ5mxzawzSyg==}
     peerDependencies:
-      '@gen-epix/ui-core': ^3.9.0
+      '@gen-epix/ui-core': ^3.9.1
       '@mui/icons-material': '*'
       '@mui/material': '*'
       '@mui/utils': '*'
@@ -1142,11 +1163,11 @@ packages:
       react-hook-form: '*'
       react-i18next: '*'
 
-  '@gen-epix/ui-core-form@4.4.0':
-    resolution: {integrity: sha512-luHrFlvrVRErlwrRt4qc25Apng4BFYRHHckDeyV5b02HShqO1/gFJjOT5try3NwjhbJF1PPrIYCTCO6LrjZIwg==}
+  '@gen-epix/ui-core-form@4.4.1':
+    resolution: {integrity: sha512-S+KFo+XM3CskiV7HIM2llQbBoDuqEFrfD+o4v6FlhYCh9HXQVQGDjgI6MTLtbwn6Y6pAQNrl0D64VLzAdDcHoA==}
     peerDependencies:
-      '@gen-epix/ui-core': ^3.9.0
-      '@gen-epix/ui-core-components': ^4.4.0
+      '@gen-epix/ui-core': ^3.9.1
+      '@gen-epix/ui-core-components': ^4.4.1
       '@mui/icons-material': '*'
       '@mui/material': '*'
       '@mui/x-date-pickers': '*'
@@ -1156,15 +1177,15 @@ packages:
       react-i18next: '*'
       yup: '*'
 
-  '@gen-epix/ui-core@3.9.0':
-    resolution: {integrity: sha512-Z5PgNA5OsbXnO6TlpzTm+COPFYuFi4YJmTL1yGCDu1wyQQFFWELbccmq5nuFsq0MWz18CwbVgoPGOA7GIbF8WQ==}
+  '@gen-epix/ui-core@3.9.1':
+    resolution: {integrity: sha512-geDXFIBeewWRx2wN34eRtXy9DyT7MfIvPa5zl81O65kyv536OrWl3JduvZQeHFYSp25xGrbMsrqNrinsErkqWA==}
     peerDependencies:
       react: '*'
 
-  '@gen-epix/ui-phylogenetic-tree@3.5.0':
-    resolution: {integrity: sha512-iNH9BlqF8u6iIfukWQkIH9OaqYoczODPJDQqOvCRMrUUzMbAZBufaFGaUDVbS9ZwvGwgSSsnXw8++93xiQYSiQ==}
+  '@gen-epix/ui-phylogenetic-tree@3.5.1':
+    resolution: {integrity: sha512-zX6GTrSnHI0X6fA7RX4tRJvfsyrYB18okjGLZh41Pyy9IqcKtIpv8V+l10kAG8mXB6VD3QFoIrrMlckNbIawIQ==}
     peerDependencies:
-      '@gen-epix/ui-core': ^3.9.0
+      '@gen-epix/ui-core': ^3.9.1
       '@mui/material': '*'
       react: '*'
 
@@ -6013,9 +6034,9 @@ snapshots:
     dependencies:
       findup-sync: 5.0.0
 
-  '@gen-epix/ui-core-components@4.4.0(293405cc78bd4346cb24de0dd985613c)':
+  '@gen-epix/ui-core-components@4.5.0(acfc39140ed101e85638b1bd221c71a0)':
     dependencies:
-      '@gen-epix/ui-core': 3.9.0(react@19.3.0)
+      '@gen-epix/ui-core': 3.9.1(react@19.3.0)
       '@mui/icons-material': 9.5.0(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
       '@mui/material': 9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@mui/utils': 9.5.0(@types/react@19.3.0)(react@19.3.0)
@@ -6029,10 +6050,10 @@ snapshots:
       use-debounce: 10.1.1(react@19.3.0)
       uuid: 14.0.3
 
-  '@gen-epix/ui-core-form@4.4.0(82d31fdf7a72e1ddc453f2bab28b858a)':
+  '@gen-epix/ui-core-form@4.4.1(04f5dfa4cbdf7e8a24c3e41bef18ed52)':
     dependencies:
-      '@gen-epix/ui-core': 3.9.0(react@19.3.0)
-      '@gen-epix/ui-core-components': 4.4.0(293405cc78bd4346cb24de0dd985613c)
+      '@gen-epix/ui-core': 3.9.1(react@19.3.0)
+      '@gen-epix/ui-core-components': 4.5.0(acfc39140ed101e85638b1bd221c71a0)
       '@mui/icons-material': 9.5.0(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
       '@mui/material': 9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@mui/x-date-pickers': 9.15.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@mui/system@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -6093,15 +6114,15 @@ snapshots:
       - '@types/react-dom'
       - react-dom
 
-  '@gen-epix/ui-core@3.9.0(react@19.3.0)':
+  '@gen-epix/ui-core@3.9.1(react@19.3.0)':
     dependencies:
       lodash: 4.18.1
       react: 19.3.0
       uuid: 14.0.3
 
-  '@gen-epix/ui-phylogenetic-tree@3.5.0(@gen-epix/ui-core@3.9.0(react@19.3.0))(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)':
+  '@gen-epix/ui-phylogenetic-tree@3.5.1(@gen-epix/ui-core@3.9.1(react@19.3.0))(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@gen-epix/ui-core': 3.9.0(react@19.3.0)
+      '@gen-epix/ui-core': 3.9.1(react@19.3.0)
       '@mui/material': 9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       decimal.js: 10.6.0
       lodash: 4.18.1

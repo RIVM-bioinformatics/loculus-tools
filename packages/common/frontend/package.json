@@ -34,11 +34,11 @@
     "react-hook-form": "*",
     "react-i18next": "*",
     "react": "*",
+    "reflect-metadata": "*",
     "tsyringe": "*"
   },
   "dependencies": {
     "lodash": "4.18.1",
-    "reflect-metadata": "0.2.2",
     "zustand": "5.0.15"
   },
   "devDependencies": {
@@ -46,9 +46,9 @@
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@gen-epix/eslint-config": "0.8.0",
-    "@gen-epix/ui-core-components": "4.4.0",
-    "@gen-epix/ui-core-form": "4.4.0",
-    "@gen-epix/ui-core": "3.9.0",
+    "@gen-epix/ui-core-components": "4.5.0",
+    "@gen-epix/ui-core-form": "4.4.1",
+    "@gen-epix/ui-core": "3.9.1",
     "@mui/icons-material": "9.5.0",
     "@mui/material": "9.5.0",
     "@mui/styled-engine": "9.5.0",
@@ -66,6 +66,7 @@
     "react-hook-form": "7.90.0",
     "react-i18next": "17.0.16",
     "react": "19.3.0",
+    "reflect-metadata": "0.2.2",
     "tsyringe": "4.10.0",
     "typescript": "6.0.3",
     "vite-plugin-dts": "5.1.2",
@@ -160,6 +161,10 @@
       "types": "./src/hooks/useConfig/index.ts",
       "import": "./src/hooks/useConfig/index.ts"
     },
+    "./hooks/useUpdateDocumentTitle": {
+      "types": "./src/hooks/useUpdateDocumentTitle/index.ts",
+      "import": "./src/hooks/useUpdateDocumentTitle/index.ts"
+    },
     "./models/config.models": {
       "types": "./src/models/config.models.ts",
       "import": "./src/models/config.models.ts"
@@ -171,6 +176,10 @@
     "./models/metadata.models": {
       "types": "./src/models/metadata.models.ts",
       "import": "./src/models/metadata.models.ts"
+    },
+    "./pages/ErrorPage": {
+      "types": "./src/pages/ErrorPage/index.ts",
+      "import": "./src/pages/ErrorPage/index.ts"
     },
     "./stores/fastaDataStore": {
       "types": "./src/stores/fastaDataStore/index.ts",
@@ -199,6 +208,10 @@
     "./utils/MetaDataUtil": {
       "types": "./src/utils/MetaDataUtil/index.ts",
       "import": "./src/utils/MetaDataUtil/index.ts"
+    },
+    "./utils/StandardConfigUtil": {
+      "types": "./src/utils/StandardConfigUtil/index.ts",
+      "import": "./src/utils/StandardConfigUtil/index.ts"
     },
     "./utils/UrlUtil": {
       "types": "./src/utils/UrlUtil/index.ts",
@@ -292,6 +305,10 @@
         "types": "./dist/hooks/useConfig/index.d.ts",
         "import": "./dist/hooks/useConfig/index.js"
       },
+      "./hooks/useUpdateDocumentTitle": {
+        "types": "./dist/hooks/useUpdateDocumentTitle/index.d.ts",
+        "import": "./dist/hooks/useUpdateDocumentTitle/index.js"
+      },
       "./models/config.models": {
         "types": "./dist/models/config.models.d.ts",
         "import": "./dist/models/config.models.js"
@@ -303,6 +320,10 @@
       "./models/metadata.models": {
         "types": "./dist/models/metadata.models.d.ts",
         "import": "./dist/models/metadata.models.js"
+      },
+      "./pages/ErrorPage": {
+        "types": "./dist/pages/ErrorPage/index.d.ts",
+        "import": "./dist/pages/ErrorPage/index.js"
       },
       "./stores/fastaDataStore": {
         "types": "./dist/stores/fastaDataStore/index.d.ts",
@@ -331,6 +352,10 @@
       "./utils/MetaDataUtil": {
         "types": "./dist/utils/MetaDataUtil/index.d.ts",
         "import": "./dist/utils/MetaDataUtil/index.js"
+      },
+      "./utils/StandardConfigUtil": {
+        "types": "./dist/utils/StandardConfigUtil/index.d.ts",
+        "import": "./dist/utils/StandardConfigUtil/index.js"
       },
       "./utils/UrlUtil": {
         "types": "./dist/utils/UrlUtil/index.d.ts",

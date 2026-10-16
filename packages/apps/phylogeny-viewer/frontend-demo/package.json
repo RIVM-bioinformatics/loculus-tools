@@ -1,5 +1,5 @@
 {
-  "name": "@rivm-loculus-tools/sequence-editor-app",
+  "name": "@rivm-loculus-tools/phylogeny-viewer-demo",
   "version": "0.0.0",
   "license": "EUPL-1.2",
   "repository": {
@@ -28,13 +28,14 @@
     "@mui/system": "9.5.0",
     "@mui/utils": "9.5.0",
     "@rivm-loculus-tools/common-frontend": "workspace:^",
-    "@rivm-loculus-tools/sequence-editor": "workspace:^",
+    "@rivm-loculus-tools/phylogeny-viewer": "workspace:^",
     "i18next": "26.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-hook-form": "7.90.0",
     "react-i18next": "17.0.16",
-    "reflect-metadata": "0.2.2"
+    "reflect-metadata": "0.2.2",
+    "tsyringe": "4.10.0"
   },
   "devDependencies": {
     "@gen-epix/tools-lib": "0.4.0",

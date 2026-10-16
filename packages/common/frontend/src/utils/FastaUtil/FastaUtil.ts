@@ -1,7 +1,7 @@
 import type {
   FastaParseResult,
   FastaSequence,
-} from '../../models/fasta';
+} from '../../models/fasta.models';
 
 export class FastaUtil {
   public static parseFasta(content: string): FastaParseResult {

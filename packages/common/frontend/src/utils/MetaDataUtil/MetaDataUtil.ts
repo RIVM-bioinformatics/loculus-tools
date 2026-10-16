@@ -1,7 +1,7 @@
 import type {
   MetadataParseResult,
   MetadataRecord,
-} from '../../models/metadata';
+} from '../../models/metadata.models';
 
 export class MetaDataUtil {
   /**

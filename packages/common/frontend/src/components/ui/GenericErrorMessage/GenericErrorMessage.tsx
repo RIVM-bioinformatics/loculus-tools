@@ -4,11 +4,11 @@ import {
 } from '@mui/material';
 import { t } from 'i18next';
 
-export type ErrorPageCommonProps = {
+export type GenericErrorMessageProps = {
   error: unknown;
 };
 
-export const ErrorPageCommon = ({ error }: ErrorPageCommonProps) => {
+export const GenericErrorMessage = ({ error }: GenericErrorMessageProps) => {
   return (
     <Box
       sx={{

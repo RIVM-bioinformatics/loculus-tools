@@ -1,8 +1,8 @@
 import type { StoreApi } from 'zustand';
 
-import type { FastaParseResult } from '../../models/fasta';
-import { LOADING_STATUS } from '../../models/fasta';
-import type { MetadataParseResult } from '../../models/metadata';
+import type { FastaParseResult } from '../../models/fasta.models';
+import { LOADING_STATUS } from '../../models/fasta.models';
+import type { MetadataParseResult } from '../../models/metadata.models';
 import { FastaUtil } from '../../utils/FastaUtil';
 import { MetaDataUtil } from '../../utils/MetaDataUtil';
 

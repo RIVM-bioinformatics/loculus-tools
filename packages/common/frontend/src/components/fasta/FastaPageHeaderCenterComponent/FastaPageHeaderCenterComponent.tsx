@@ -5,7 +5,7 @@ import {
 import type { StoreApi } from 'zustand';
 import { useStore } from 'zustand';
 
-import type { FastaDataStore } from '../../stores/fastaDataStore';
+import type { FastaDataStore } from '../../../stores/fastaDataStore';
 
 
 export type FastaPageHeaderCenterComponentProps = {

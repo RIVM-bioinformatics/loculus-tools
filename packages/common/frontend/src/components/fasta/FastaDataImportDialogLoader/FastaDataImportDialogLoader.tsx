@@ -7,13 +7,13 @@ import {
 import type { StoreApi } from 'zustand';
 import { useStore } from 'zustand';
 
-import { FastaDataEventBusService } from '../../classes/services/FastaDataEventBusService';
-import { LOADING_STATUS } from '../../models/fasta';
-import type { FastaDataStore } from '../../stores/fastaDataStore';
-import { UrlUtil } from '../../utils/UrlUtil';
+import { FastaDataEventBusService } from '../../../classes/services/FastaDataEventBusService';
+import { LOADING_STATUS } from '../../../models/fasta.models';
+import type { FastaDataStore } from '../../../stores/fastaDataStore';
+import { UrlUtil } from '../../../utils/UrlUtil';
 import type { FastaDataImportDialogRefMethods } from '../FastaDataImportDialog/FastaDataImportDialog';
 import { FastaDataImportDialog } from '../FastaDataImportDialog/FastaDataImportDialog';
-import { ErrorUtil } from '../../utils/ErrorUtil';
+import { ErrorUtil } from '../../../utils/ErrorUtil';
 
 
 export type FastaDataImportDialogLoaderProps = {

@@ -7,7 +7,7 @@ import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import type { ReactNode } from 'react';
 import { useCallback } from 'react';
 
-import { FastaDataEventBusService } from '../../classes/services/FastaDataEventBusService';
+import { FastaDataEventBusService } from '../../../classes/services/FastaDataEventBusService';
 
 export type FastaNotLoadedProps = {
   description: ReactNode;

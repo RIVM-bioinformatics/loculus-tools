@@ -2,7 +2,6 @@ import { FastaPageHeaderCenterComponent } from '@rivm-loculus-tools/common-front
 import { FastaPageHeaderImportButton } from '@rivm-loculus-tools/common-frontend/components/FastaPageHeaderImportButton';
 import { FastaPageHeaderResetButton } from '@rivm-loculus-tools/common-frontend/components/FastaPageHeaderResetButton';
 import { PageCommonHeader } from '@rivm-loculus-tools/common-frontend/components/page';
-import { PageHeaderDocumentationButton } from '@rivm-loculus-tools/common-frontend/components/PageHeaderDocumentationButton';
 import { useCallback } from 'react';
 import { useStore } from 'zustand';
 import BiotechOutlinedIcon from '@mui/icons-material/BiotechOutlined';
@@ -12,6 +11,7 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
+import { PageHeaderDocumentationButton } from '@rivm-loculus-tools/common-frontend/src/components/ui/PageHeaderDocumentationButton/PageHeaderDocumentationButton';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';

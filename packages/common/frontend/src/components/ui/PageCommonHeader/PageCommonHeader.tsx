@@ -12,7 +12,8 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 
-import { PageCommonContext } from './PageCommonContext';
+import { PageCommonContext } from '../../../context/pageCommonContext';
+
 
 export type PageCommonHeaderProps = {
   readonly centerComponent?: ReactNode;

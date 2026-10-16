@@ -8,9 +8,8 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 
-import { DRAWER_WIDTH } from '../../constants/page';
-
-import { PageCommonContext } from './PageCommonContext';
+import { DRAWER_WIDTH } from '../../../constants/page.constants';
+import { PageCommonContext } from '../../../context/pageCommonContext';
 
 export type PageCommonProps = {
   readonly children: ReactNode;

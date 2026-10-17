@@ -110,51 +110,93 @@ fn exports_loaded_alignment_as_unwrapped_fasta() {
     let e = engine_with_sample();
 
     assert_eq!(
-        e.export_fasta(),
-        ">seq1\nATGCATGC\n>seq2\nATGGTG-A\n>seq3\nATGCAT-C\n"
+        e.export_gapped_fasta().unwrap().to_vec(),
+        b">seq1 first record\nATGCATGC\n>seq2\nATGGTG-A\n>seq3 third record\nATGCAT-C\n"
+    );
+}
+
+#[test]
+fn exports_loaded_alignment_as_ungapped_fasta() {
+    let e = engine_with_sample();
+
+    assert_eq!(
+        e.export_ungapped_fasta().unwrap().to_vec(),
+        b">seq1 first record\nATGCATGC\n>seq2\nATGGTGA\n>seq3 third record\nATGCATC\n"
     );
 }
 
 #[test]
 fn exports_edited_alignment() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base_subset(&[0], 0, b'G'), "");
+    assert_eq!(e.mutate_base_subset(&[0], 0, b'G'), Ok(()));
 
     assert_eq!(
-        e.export_fasta(),
-        ">seq1\nGTGCATGC\n>seq2\nATGGTG-A\n>seq3\nATGCAT-C\n"
+        e.export_gapped_fasta().unwrap().to_vec(),
+        b">seq1 first record\nGTGCATGC\n>seq2\nATGGTG-A\n>seq3 third record\nATGCAT-C\n"
+    );
+    assert_eq!(
+        e.export_ungapped_fasta().unwrap().to_vec(),
+        b">seq1 first record\nGTGCATGC\n>seq2\nATGGTGA\n>seq3 third record\nATGCATC\n"
     );
 }
 
 #[test]
 fn exports_current_row_order() {
     let mut e = engine_with_sample();
-    assert_eq!(e.move_rows_up(&[1]), "");
+    assert_eq!(e.move_rows_up(&[1]), Ok(()));
 
     assert_eq!(
-        e.export_fasta(),
-        ">seq2\nATGGTG-A\n>seq1\nATGCATGC\n>seq3\nATGCAT-C\n"
+        e.export_gapped_fasta().unwrap().to_vec(),
+        b">seq2\nATGGTG-A\n>seq1 first record\nATGCATGC\n>seq3 third record\nATGCAT-C\n"
+    );
+    assert_eq!(
+        e.export_ungapped_fasta().unwrap().to_vec(),
+        b">seq2\nATGGTGA\n>seq1 first record\nATGCATGC\n>seq3 third record\nATGCATC\n"
     );
 }
 
 #[test]
-fn exports_empty_engine_as_empty_string() {
+fn exports_empty_engine_as_empty_buffer() {
     let e = MsaEngine::new();
 
-    assert_eq!(e.export_fasta(), "");
+    assert!(e.export_gapped_fasta().unwrap().to_vec().is_empty());
+    assert!(e.export_ungapped_fasta().unwrap().to_vec().is_empty());
+}
+
+#[test]
+fn exports_ungapped_with_various_gap_distributions() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">all_gaps\n---\n>mixed\n-A-T-G-\n>no_gaps\nCGTA\n>empty\n")
+        .expect("valid FASTA");
+
+    assert_eq!(
+        e.export_gapped_fasta().unwrap().to_vec(),
+        b">all_gaps\n---\n>mixed\n-A-T-G-\n>no_gaps\nCGTA\n>empty\n\n"
+    );
+    assert_eq!(
+        e.export_ungapped_fasta().unwrap().to_vec(),
+        b">all_gaps\n\n>mixed\nATG\n>no_gaps\nCGTA\n>empty\n\n"
+    );
 }
 
 #[test]
 fn export_tracks_undo_and_redo_state() {
     let mut e = engine_with_sample();
-    let original = e.export_fasta();
+    let original = e.export_gapped_fasta().unwrap().to_vec();
+    let original_ungapped = e.export_ungapped_fasta().unwrap().to_vec();
 
-    assert_eq!(e.mutate_base_subset(&[0], 0, b'G'), "");
-    let edited = e.export_fasta();
+    assert_eq!(e.mutate_base_subset(&[0], 0, b'G'), Ok(()));
+    let edited = e.export_gapped_fasta().unwrap().to_vec();
+    let edited_ungapped = e.export_ungapped_fasta().unwrap().to_vec();
     assert!(e.undo());
-    assert_eq!(e.export_fasta(), original);
+    assert_eq!(e.export_gapped_fasta().unwrap().to_vec(), original);
+    assert_eq!(
+        e.export_ungapped_fasta().unwrap().to_vec(),
+        original_ungapped
+    );
     assert!(e.redo());
-    assert_eq!(e.export_fasta(), edited);
+    assert_eq!(e.export_gapped_fasta().unwrap().to_vec(), edited);
+    assert_eq!(e.export_ungapped_fasta().unwrap().to_vec(), edited_ungapped);
 }
 
 #[test]
@@ -189,9 +231,11 @@ fn load_fasta_rejects_invalid_alphabet_with_record_and_position_context() {
 
     assert_eq!(error.code, "InvalidAlphabet");
     assert!(error.message.contains("'Z' (0x5A)"));
-    assert!(error
-        .message
-        .contains("sequence \"bad\" at position 3, line 4"));
+    assert!(
+        error
+            .message
+            .contains("sequence \"bad\" at position 3, line 4")
+    );
     let context = error.context.unwrap();
     assert_eq!(context.sequence_id.as_deref(), Some("bad"));
     assert_eq!(context.position, Some(3));
@@ -620,10 +664,10 @@ fn redo_structural_insert_reapplies() {
 #[test]
 fn repeated_subset_inserts_undo_and_redo_without_losing_rows() {
     let mut e = engine_with_sample();
-    let original = e.export_fasta();
+    let original = e.export_gapped_fasta().unwrap().to_vec();
 
     for _ in 0..100 {
-        e.insert_at_subset(&[0, 1], 2);
+        let _ = e.insert_at_subset(&[0, 1], 2);
     }
     assert_eq!(e.get_alignment_width(), 108);
     assert_eq!(e.undo_depth(), 100);
@@ -631,7 +675,7 @@ fn repeated_subset_inserts_undo_and_redo_without_losing_rows() {
     for _ in 0..100 {
         assert!(e.undo());
     }
-    assert_eq!(e.export_fasta(), original);
+    assert_eq!(e.export_gapped_fasta().unwrap().to_vec(), original);
 
     for _ in 0..100 {
         assert!(e.redo());
@@ -690,7 +734,7 @@ fn multi_step_undo_redo_sequence() {
     assert!(e.undo()); // undo substitute
     assert_eq!(e.get_base(0, 0), b'A');
     assert!(!e.undo()); // stack empty
-                        // Redo all three.
+    // Redo all three.
     assert!(e.redo());
     assert_eq!(e.get_base(0, 0), b'T');
     assert!(e.redo());
@@ -1152,10 +1196,12 @@ fn search_record_names_matches_substring_in_every_name() {
     assert_eq!(result.positions[0].row, 0);
     assert_eq!(result.positions[1].row, 1);
     assert_eq!(result.positions[2].row, 2);
-    assert!(result
-        .positions
-        .iter()
-        .all(|m| m.matrix_type == MatrixType::RecordName));
+    assert!(
+        result
+            .positions
+            .iter()
+            .all(|m| m.matrix_type == MatrixType::RecordName)
+    );
 }
 
 #[test]

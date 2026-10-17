@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.1.7...sequence-editor-wasm-v0.2.0) (2026-10-17)
+
+
+### Features
+
+* **sequence-editor, engine:** add dedicated fast export functionality for gapped and ungapped sequences ([#51](https://github.com/RIVM-bioinformatics/loculus-tools/issues/51)) ([2a437e6](https://github.com/RIVM-bioinformatics/loculus-tools/commit/2a437e61da349de5ff27a2fe3ced12e4a52a0d58))
+
 ## [0.1.7](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.1.6...sequence-editor-wasm-v0.1.7) (2026-10-16)
 
 

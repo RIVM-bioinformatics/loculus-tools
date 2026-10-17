@@ -54,6 +54,8 @@ interface EngineClient {
   redo: () => Promise<boolean>;
   meta: () => Promise<Meta>;
   name: (row: number) => Promise<string>;
+  exportGappedFasta: () => Promise<string>;
+  exportUngappedFasta: () => Promise<string>;
 }
 ```
 
@@ -209,6 +211,27 @@ const { bytes, rows, cols } = await engine.viewport({
 // bytes.length === rows * cols
 const baseAt = (row: number, col: number) =>
   String.fromCharCode(bytes[row * cols + col]);
+```
+
+### `exportGappedFasta(): Promise<string>`
+
+Serializes the full alignment as deterministic, unwrapped gapped FASTA.
+Records are emitted in current row order with `\n` line endings. An empty
+engine resolves with an empty string.
+
+```ts
+const fasta = await engine.exportGappedFasta();
+```
+
+### `exportUngappedFasta(): Promise<string>`
+
+Serializes the full alignment as deterministic, unwrapped ungapped FASTA by
+stripping all gap characters (`-`) from every sequence. Records are emitted in
+current row order with `\n` line endings. An empty engine resolves with an empty
+string.
+
+```ts
+const ungappedFasta = await engine.exportUngappedFasta();
 ```
 
 ---
@@ -517,6 +540,8 @@ try {
 | `load` | `fasta: string` | `Promise<number>` | Parse FASTA; returns sequence count |
 | `meta` | — | `Promise<Meta>` | Alignment metadata (rows, width, undo/redo depth) |
 | `name` | `row: number` | `Promise<string>` | Row name |
+| `exportGappedFasta` | — | `Promise<string>` | Export full alignment as gapped FASTA |
+| `exportUngappedFasta` | — | `Promise<string>` | Export full alignment as ungapped FASTA |
 | `viewport` | `{startRow, endRow, startCol, endCol}` | `Promise<ViewportResult & {bytes}>` | Fetch a windowed slice |
 | `mutate` | `rows: number[], col, base: string` | `Promise<void>` | Change bases on a subset of rows (validates existing char and new base are IUPAC or `-`) |
 | `insert` | `rows: number[], col` | `Promise<void>` | Insert a `-` at col on target rows; append `-` on non-targets |

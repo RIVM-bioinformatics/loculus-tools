@@ -278,6 +278,15 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 | `undo_depth` | `(): number` | Number of commands on the undo stack. |
 | `redo_depth` | `(): number` | Number of commands on the redo stack. |
 
+### 4.5 FASTA Export
+
+| Method | Signature | Description |
+| -------- | ----------- | ------------- |
+| `export_gapped_fasta` | `(): Uint8Array` | Serialize the full matrix as deterministic, unwrapped gapped FASTA. |
+| `export_ungapped_fasta` | `(): Uint8Array` | Serialize the full matrix as deterministic, unwrapped ungapped FASTA (stripping all `-` gaps). |
+
+Both methods return a `Uint8Array` of ASCII FASTA bytes. Records are emitted in current row order with `\n` line endings. An empty engine returns an empty buffer.
+
 ---
 
 ## 5. The Mutation Core

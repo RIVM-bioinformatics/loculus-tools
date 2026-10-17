@@ -36,17 +36,16 @@ export class EngineWorker implements EngineWorkerApi {
     engine.delete_column(column);
   }
 
-  public async exportFasta(): Promise<string> {
+  public async exportGappedFasta(): Promise<string> {
     const engine = await this.requireEngine();
-    const records: string[] = [];
-    for (let row = 0; row < engine.get_sequence_count(); row += 1) {
-      const sequence: string[] = [];
-      for (let column = 0; column < engine.get_row_length(row); column += 1) {
-        sequence.push(String.fromCharCode(engine.get_base(row, column)));
-      }
-      records.push(`>${engine.get_name(row)}\n${sequence.join('')}\n`);
-    }
-    return records.join('');
+    const bytes = engine.export_gapped_fasta();
+    return new TextDecoder().decode(bytes);
+  }
+
+  public async exportUngappedFasta(): Promise<string> {
+    const engine = await this.requireEngine();
+    const bytes = engine.export_ungapped_fasta();
+    return new TextDecoder().decode(bytes);
   }
 
   /**

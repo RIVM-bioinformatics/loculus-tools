@@ -141,7 +141,8 @@ export type EngineViewportResult = {
 export interface EngineWorkerApi {
   delete: (rows: number[], column: number) => Promise<void>;
   deleteColumn: (column: number) => Promise<void>;
-  exportFasta: () => Promise<string>;
+  exportGappedFasta: () => Promise<string>;
+  exportUngappedFasta: () => Promise<string>;
   /** Idempotently initializes the WASM engine; resolves once it is ready. */
   initialize: () => Promise<void>;
   insert: (rows: number[], column: number) => Promise<void>;

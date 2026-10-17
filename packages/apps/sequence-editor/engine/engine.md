@@ -285,7 +285,7 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 | `export_gapped_fasta` | `(): Uint8Array` | Serialize the full matrix as deterministic, unwrapped gapped FASTA. |
 | `export_ungapped_fasta` | `(): Uint8Array` | Serialize the full matrix as deterministic, unwrapped ungapped FASTA (stripping all `-` gaps). |
 
-Both methods return a `Uint8Array` of ASCII FASTA bytes. Records are emitted in current row order with `\n` line endings. An empty engine returns an empty buffer.
+Both methods return a `Uint8Array` of UTF-8 encoded FASTA bytes. Headers preserve their original UTF-8 text, while nucleotide sequence bodies contain ASCII characters (`ACGTURYSWKMBDHVN` and `-`). Records are emitted in current row order with `\n` line endings. An empty engine returns an empty buffer.
 
 ---
 

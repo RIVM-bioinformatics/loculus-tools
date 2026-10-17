@@ -180,6 +180,22 @@ fn exports_ungapped_with_various_gap_distributions() {
 }
 
 #[test]
+fn exports_utf8_headers_correctly() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">sēq 1\nAT-G\n>record_čšž\nCGTA\n")
+        .expect("valid FASTA");
+
+    assert_eq!(
+        e.export_fasta_bytes(true),
+        ">sēq 1\nAT-G\n>record_čšž\nCGTA\n".as_bytes()
+    );
+    assert_eq!(
+        e.export_fasta_bytes(false),
+        ">sēq 1\nATG\n>record_čšž\nCGTA\n".as_bytes()
+    );
+}
+
+#[test]
 fn export_tracks_undo_and_redo_state() {
     let mut e = engine_with_sample();
     let original = e.export_fasta_bytes(true);

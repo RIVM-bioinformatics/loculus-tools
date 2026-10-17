@@ -981,12 +981,19 @@ impl MsaEngine {
     /// `include_gaps` determines whether gap characters (`-`) are included in the output.
     /// sequences and record-names are separated with a newline.
     fn export_fasta_bytes(&self, include_gaps: bool) -> Vec<u8> {
-        let total_len: usize = self.names.iter().map(|n| n.len() + 2).sum::<usize>()
-            + self
-                .nucleotide_sequences
+        let seq_len: usize = if include_gaps {
+            self.nucleotide_sequences
                 .iter()
                 .map(|s| s.len() + 1)
-                .sum::<usize>();
+                .sum::<usize>()
+        } else {
+            self.nucleotide_sequences
+                .iter()
+                .map(|s| s.iter().filter(|&&b| !is_gap(b)).count() + 1)
+                .sum::<usize>()
+        };
+        let header_len: usize = self.names.iter().map(|n| n.len() + 2).sum::<usize>();
+        let total_len = header_len + seq_len;
         let mut fasta = Vec::with_capacity(total_len);
 
         for (name, sequence) in self.names.iter().zip(&self.nucleotide_sequences) {

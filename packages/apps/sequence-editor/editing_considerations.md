@@ -1015,7 +1015,7 @@ The current controller wraps operations with these exact options:
 | `moveRowsDown` | `moveRowsDown`, then `meta` | `true` | `true` | No cursor/selection remapping |
 | `undo` | `undo`, then `meta` | `true` | `true` | No cursor/selection restore |
 | `redo` | `redo`, then `meta` | `true` | `true` | No cursor/selection restore |
-| `exportFasta` | `exportFasta`, then browser download | `false` | `false` | None |
+| `exportGappedFasta` / `exportUngappedFasta` | `exportGappedFasta` / `exportUngappedFasta`, then browser download | `false` | `false` | None |
 
 `loadFasta` dispatches `resetForDataset` inside its queued operation and then
 dispatches `commandSucceeded` after the operation returns. Therefore the

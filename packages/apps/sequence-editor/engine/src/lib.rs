@@ -334,11 +334,7 @@ pub enum MoveDirection {
 #[derive(Clone)]
 enum UndoCommand {
     /// Cheap character changes: store exactly what changed and where.
-    Substitutions {
-        col_idx: usize,
-        mutated_rows: Vec<usize>,
-        old_bases: Vec<u8>,
-    },
+    Substitutions { positions: Vec<(usize, usize, u8)> },
     /// Structural inserts/deletes: a lightweight clone of the full matrix.
     StructuralSnapshot {
         matrix_snapshot: Vec<Vec<u8>>,
@@ -1407,31 +1403,19 @@ impl MsaEngine {
             None => return false,
         };
         match cmd {
-            UndoCommand::Substitutions {
-                col_idx,
-                mutated_rows,
-                old_bases,
-            } => {
-                // Restore old bases; capture current bases for redo.
-                // Rebuild paired row/base vectors to keep them aligned even if
-                // malformed history data ever appears.
-                let paired_len = mutated_rows.len().min(old_bases.len());
-                let mut redo_rows: Vec<usize> = Vec::with_capacity(paired_len);
-                let mut redo_old_bases: Vec<u8> = Vec::with_capacity(paired_len);
-                for (r, old_base) in mutated_rows.into_iter().zip(old_bases.into_iter()) {
-                    if let Some(seq) = self.nucleotide_sequences.get_mut(r) {
-                        if col_idx < seq.len() {
-                            redo_rows.push(r);
-                            redo_old_bases.push(seq[col_idx]);
-                            seq[col_idx] = old_base;
+            UndoCommand::Substitutions { positions } => {
+                let mut redo_positions = Vec::with_capacity(positions.len());
+                for (row, col, old_base) in positions {
+                    if let Some(seq) = self.nucleotide_sequences.get_mut(row) {
+                        if let Some(base) = seq.get_mut(col) {
+                            redo_positions.push((row, col, *base));
+                            *base = old_base;
                         }
                     }
                 }
-                if !redo_rows.is_empty() {
+                if !redo_positions.is_empty() {
                     self.redo_stack.push(UndoCommand::Substitutions {
-                        col_idx,
-                        mutated_rows: redo_rows,
-                        old_bases: redo_old_bases,
+                        positions: redo_positions,
                     });
                 }
             }
@@ -1463,30 +1447,19 @@ impl MsaEngine {
             None => return false,
         };
         match cmd {
-            UndoCommand::Substitutions {
-                col_idx,
-                mutated_rows,
-                old_bases,
-            } => {
-                // Re-apply: old_bases here are the post-edit bases captured at
-                // undo time. Capture current (pre-redo) bases for the undo stack.
-                let paired_len = mutated_rows.len().min(old_bases.len());
-                let mut undo_rows: Vec<usize> = Vec::with_capacity(paired_len);
-                let mut undo_old_bases: Vec<u8> = Vec::with_capacity(paired_len);
-                for (r, old_base) in mutated_rows.into_iter().zip(old_bases.into_iter()) {
-                    if let Some(seq) = self.nucleotide_sequences.get_mut(r) {
-                        if col_idx < seq.len() {
-                            undo_rows.push(r);
-                            undo_old_bases.push(seq[col_idx]);
-                            seq[col_idx] = old_base;
+            UndoCommand::Substitutions { positions } => {
+                let mut undo_positions = Vec::with_capacity(positions.len());
+                for (row, col, new_base) in positions {
+                    if let Some(seq) = self.nucleotide_sequences.get_mut(row) {
+                        if let Some(base) = seq.get_mut(col) {
+                            undo_positions.push((row, col, *base));
+                            *base = new_base;
                         }
                     }
                 }
-                if !undo_rows.is_empty() {
+                if !undo_positions.is_empty() {
                     self.undo_stack.push(UndoCommand::Substitutions {
-                        col_idx,
-                        mutated_rows: undo_rows,
-                        old_bases: undo_old_bases,
+                        positions: undo_positions,
                     });
                 }
             }

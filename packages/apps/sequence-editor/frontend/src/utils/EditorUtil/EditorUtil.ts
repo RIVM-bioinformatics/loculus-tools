@@ -532,31 +532,30 @@ export class EditorUtil {
     return null;
   }
 
-  public static getMutateArguments(selection: EditorSelection | null, metaData: EngineMeta, offset: number = 0): { endCol: number; rows: number[]; startCol: number } | undefined {
+  public static getMutateArguments(selection: EditorSelection | null, metaData: EngineMeta, offset: number = 0): { columns: number[]; rows: number[] } | undefined {
     const cells = selection?.cells;
     if (cells) {
+      const startCol = cells.startCol + offset;
+      const endCol = cells.endCol + offset;
       return {
-        endCol: cells.endCol + offset,
+        columns: Array.from({ length: endCol - startCol + 1 }, (_, index) => startCol + index),
         rows: Array.from({ length: cells.endRow - cells.startRow + 1 }, (_, index) => cells.startRow + index),
-        startCol: cells.startCol + offset,
       };
     }
 
     const cols = selection?.cols;
     if (cols) {
       return {
-        endCol: cols[cols.length - 1] + offset,
+        columns: cols.map((col) => col + offset),
         rows: Array.from({ length: metaData.sequenceCount }, (_, index) => index),
-        startCol: cols[0] + offset,
       };
     }
 
     const rows = selection?.rows;
     if (rows) {
       return {
-        endCol: metaData.alignmentWidth - 1 + offset,
+        columns: Array.from({ length: metaData.alignmentWidth }, (_, index) => index + offset),
         rows,
-        startCol: 0 + offset,
       };
     }
 

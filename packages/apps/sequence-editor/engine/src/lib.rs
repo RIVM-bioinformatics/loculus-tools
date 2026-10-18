@@ -1037,65 +1037,92 @@ impl MsaEngine {
     // thread only sends a command and awaits an acknowledgment.
 
     /// Simultaneous block character change (substitution) on a subset of rows
-    /// at a single column index. Rows outside `row_indices` are untouched.
-    /// Out-of-range rows or columns are silently skipped.
+    /// and columns. Rows and columns outside `row_indices` and `col_indices`
+    /// are untouched. Out-of-range rows or columns are silently skipped.
     ///
+    /// The entire operation is recorded as a single transaction in the undo stack.
     /// Returns a typed error on validation failure; no rows are modified.
-    pub fn mutate_base_subset(
+    pub fn mutate_base(
         &mut self,
         row_indices: &[usize],
-        col_idx: usize,
+        col_indices: &[usize],
         new_base: u8,
     ) -> Result<(), StructuredEngineError> {
-        // Validate the destination base: it must be an IUPAC nucleotide or '-'
-        // (Rule 3). Mutating to any other character is not allowed.
+        // Validate the destination base: it must be an IUPAC nucleotide or '-' (Rule 3).
         if !is_iupac(new_base) && !is_gap(new_base) {
             return Err(MutateError::NewBaseNotIupac { base: new_base }.into());
         }
-        // Validate: all existing characters at the target positions must be IUPAC or '-'.
+
+        if row_indices.is_empty() || col_indices.is_empty() {
+            return Ok(());
+        }
+
+        // Deduplicate row and column indices while preserving order.
+        let mut seen_rows = std::collections::HashSet::new();
+        let mut unique_rows = Vec::new();
         for &r in row_indices {
+            if seen_rows.insert(r) {
+                unique_rows.push(r);
+            }
+        }
+
+        let mut seen_cols = std::collections::HashSet::new();
+        let mut unique_cols = Vec::new();
+        for &c in col_indices {
+            if seen_cols.insert(c) {
+                unique_cols.push(c);
+            }
+        }
+
+        // Validate: all existing characters at target positions must be IUPAC or '-'.
+        // All-or-nothing: if any in-bounds target character is invalid, fail without mutating.
+        for &r in &unique_rows {
             if let Some(seq) = self.nucleotide_sequences.get(r) {
-                if col_idx < seq.len() {
-                    let existing = seq[col_idx];
-                    if !is_iupac(existing) && !is_gap(existing) {
-                        return Err(MutateError::TargetNotIupac {
-                            row: r,
-                            col: col_idx,
-                            base: existing,
+                for &c in &unique_cols {
+                    if c < seq.len() {
+                        let existing = seq[c];
+                        if !is_iupac(existing) && !is_gap(existing) {
+                            return Err(MutateError::TargetNotIupac {
+                                row: r,
+                                col: c,
+                                base: existing,
+                            }
+                            .into());
                         }
-                        .into());
                     }
                 }
             }
         }
-        // Capture old bases for the rows we will actually touch, for undo.
-        let mut mutated_rows: Vec<usize> = Vec::new();
-        let mut old_bases: Vec<u8> = Vec::new();
-        for &r in row_indices {
+
+        // Capture old bases for the positions we will actually touch, for undo.
+        let mut positions: Vec<(usize, usize, u8)> = Vec::new();
+        for &r in &unique_rows {
             if let Some(seq) = self.nucleotide_sequences.get(r) {
-                if col_idx < seq.len() {
-                    mutated_rows.push(r);
-                    old_bases.push(seq[col_idx]);
+                for &c in &unique_cols {
+                    if c < seq.len() {
+                        positions.push((r, c, seq[c]));
+                    }
                 }
             }
         }
-        if mutated_rows.is_empty() {
+
+        if positions.is_empty() {
             return Ok(());
         }
+
         self.undo_stack.push(UndoCommand::Substitutions {
-            col_idx,
-            mutated_rows: mutated_rows.clone(),
-            old_bases,
+            positions: positions.clone(),
         });
         self.redo_stack.clear();
 
-        for &r in &mutated_rows {
-            if let Some(seq) = self.nucleotide_sequences.get_mut(r) {
-                if col_idx < seq.len() {
-                    seq[col_idx] = new_base;
-                }
+        for &(r, c, _) in &positions {
+            if let Some(seq) = self.nucleotide_sequences.get_mut(r)
+                && c < seq.len()
+            {
+                seq[c] = new_base;
             }
         }
+
         Ok(())
     }
 

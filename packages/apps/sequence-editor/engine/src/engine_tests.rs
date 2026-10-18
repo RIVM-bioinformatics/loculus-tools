@@ -128,7 +128,7 @@ fn exports_loaded_alignment_as_ungapped_fasta() {
 #[test]
 fn exports_edited_alignment() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base_subset(&[0], 0, b'G'), Ok(()));
+    assert_eq!(e.mutate_base(&[0], &[0], b'G'), Ok(()));
 
     assert_eq!(
         e.export_fasta_bytes(true),
@@ -201,7 +201,7 @@ fn export_tracks_undo_and_redo_state() {
     let original = e.export_fasta_bytes(true);
     let original_ungapped = e.export_fasta_bytes(false);
 
-    assert_eq!(e.mutate_base_subset(&[0], 0, b'G'), Ok(()));
+    assert_eq!(e.mutate_base(&[0], &[0], b'G'), Ok(()));
     let edited = e.export_fasta_bytes(true);
     let edited_ungapped = e.export_fasta_bytes(false);
     assert!(e.undo());
@@ -307,8 +307,8 @@ fn load_fasta_allows_punctuation_and_numbers_in_headers() {
 #[test]
 fn load_fasta_invalid_input_preserves_engine_data_and_history() {
     let mut e = engine_with_sample();
-    e.mutate_base_subset(&[0], 0, b'T').unwrap();
-    e.mutate_base_subset(&[0], 1, b'A').unwrap();
+    e.mutate_base(&[0], &[0], b'T').unwrap();
+    e.mutate_base(&[0], &[1], b'A').unwrap();
     assert!(e.undo());
 
     let error = e
@@ -466,19 +466,19 @@ fn viewport_pads_entirely_out_of_range_cols() {
 }
 
 #[test]
-fn mutate_base_subset_changes_only_target_rows() {
+fn mutate_base_changes_only_target_rows() {
     let mut e = engine_with_sample();
     // seq1[3] = C -> G, seq2[3] = G -> G (no-op), seq3 untouched
-    assert_eq!(e.mutate_base_subset(&[0, 1], 3, b'G'), Ok(()));
+    assert_eq!(e.mutate_base(&[0, 1], &[3], b'G'), Ok(()));
     assert_eq!(e.get_base(0, 3), b'G');
     assert_eq!(e.get_base(1, 3), b'G');
     assert_eq!(e.get_base(2, 3), b'C'); // unchanged
 }
 
 #[test]
-fn mutate_base_range_changes_one_rectangle_atomically() {
+fn mutate_base_changes_rectangle_atomically() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base_range(&[0, 1], 1, 3, b'N'), "");
+    assert_eq!(e.mutate_base(&[0, 1], &[1, 2, 3], b'N'), Ok(()));
     for row in 0..=1 {
         for col in 1..=3 {
             assert_eq!(e.get_base(row, col), b'N');
@@ -494,21 +494,65 @@ fn mutate_base_range_changes_one_rectangle_atomically() {
 }
 
 #[test]
-fn mutate_base_range_rejects_before_changing_any_position() {
+fn mutate_base_rejects_before_changing_any_position() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base_range(&[0], 0, 7, b'X'), ERR_MUTATE_NOT_IUPAC);
+    let cols: Vec<usize> = (0..=7).collect();
+    let err = e.mutate_base(&[0], &cols, b'X').unwrap_err();
+    assert_eq!(err.code, "MutateNotIupac");
     assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.get_base(0, 7), b'C');
     assert_eq!(e.undo_depth(), 0);
 }
 
 #[test]
+fn mutate_base_changes_arbitrary_shape_atomically() {
+    let mut e = engine_with_sample();
+    // Mutate rows 0 and 2 at columns 0 and 2 to 'G'
+    assert_eq!(e.mutate_base(&[0, 2], &[0, 2], b'G'), Ok(()));
+    assert_eq!(e.get_base(0, 0), b'G');
+    assert_eq!(e.get_base(0, 2), b'G');
+    assert_eq!(e.get_base(2, 0), b'G');
+    assert_eq!(e.get_base(2, 2), b'G');
+    // Row 1 untouched
+    assert_eq!(e.get_base(1, 0), b'A');
+    assert_eq!(e.undo_depth(), 1);
+
+    assert!(e.undo());
+    assert_eq!(e.get_base(0, 0), b'A');
+    assert_eq!(e.get_base(0, 2), b'G');
+    assert_eq!(e.get_base(2, 0), b'A');
+    assert_eq!(e.get_base(2, 2), b'G');
+
+    assert!(e.redo());
+    assert_eq!(e.get_base(0, 0), b'G');
+    assert_eq!(e.get_base(0, 2), b'G');
+}
+
+#[test]
+fn mutate_base_empty_inputs_is_noop() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.mutate_base(&[], &[0, 1], b'A'), Ok(()));
+    assert_eq!(e.mutate_base(&[0], &[], b'A'), Ok(()));
+    assert_eq!(e.undo_depth(), 0);
+}
+
+#[test]
+fn mutate_base_deduplicates_input_indices() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.mutate_base(&[0, 0, 0], &[1, 1], b'C'), Ok(()));
+    assert_eq!(e.get_base(0, 1), b'C');
+    assert_eq!(e.undo_depth(), 1);
+    assert!(e.undo());
+    assert_eq!(e.get_base(0, 1), b'T');
+}
+
+#[test]
 fn mutate_skips_out_of_range_rows_and_cols() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base_subset(&[0, 99], 3, b'T'), Ok(()));
+    assert_eq!(e.mutate_base(&[0, 99], &[3], b'T'), Ok(()));
     assert_eq!(e.get_base(0, 3), b'T');
     // col out of range: no-op, no panic
-    assert_eq!(e.mutate_base_subset(&[0], 999, b'T'), Ok(()));
+    assert_eq!(e.mutate_base(&[0], &[999], b'T'), Ok(()));
     assert_eq!(e.get_base(0, 0), b'A');
 }
 
@@ -516,13 +560,13 @@ fn mutate_skips_out_of_range_rows_and_cols() {
 fn mutate_records_undo_and_clears_redo() {
     let mut e = engine_with_sample();
     // Seed a redo entry by doing + undoing an edit.
-    assert_eq!(e.mutate_base_subset(&[0], 0, b'T'), Ok(()));
+    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
     assert_eq!(e.undo_depth(), 1);
     assert!(e.undo());
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 1);
     // A new mutation must clear the redo stack and push onto undo.
-    assert_eq!(e.mutate_base_subset(&[1], 1, b'G'), Ok(()));
+    assert_eq!(e.mutate_base(&[1], &[1], b'G'), Ok(()));
     assert_eq!(e.redo_depth(), 0);
     assert_eq!(e.undo_depth(), 1);
 }
@@ -632,7 +676,7 @@ fn delete_column_out_of_range_is_noop() {
 #[test]
 fn undo_substitution_restores_old_base() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base_subset(&[0, 1], 3, b'G'), Ok(()));
+    assert_eq!(e.mutate_base(&[0, 1], &[3], b'G'), Ok(()));
     assert_eq!(e.get_base(0, 3), b'G');
     assert!(e.undo());
     assert_eq!(e.get_base(0, 3), b'C'); // original
@@ -642,7 +686,7 @@ fn undo_substitution_restores_old_base() {
 #[test]
 fn redo_reapplies_substitution() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base_subset(&[0], 0, b'T'), Ok(()));
+    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
     assert!(e.undo());
     assert_eq!(e.get_base(0, 0), b'A');
     assert!(e.redo());
@@ -717,13 +761,13 @@ fn undo_on_empty_stack_returns_false() {
 #[test]
 fn new_edit_after_undo_clears_redo_stack() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base_subset(&[0], 0, b'T'), Ok(()));
-    assert_eq!(e.mutate_base_subset(&[1], 1, b'G'), Ok(()));
+    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
+    assert_eq!(e.mutate_base(&[1], &[1], b'G'), Ok(()));
     assert!(e.undo()); // undo second
     assert!(e.undo()); // undo first
     assert_eq!(e.redo_depth(), 2);
     // New edit invalidates redo branch.
-    assert_eq!(e.mutate_base_subset(&[2], 2, b'C'), Ok(()));
+    assert_eq!(e.mutate_base(&[2], &[2], b'C'), Ok(()));
     assert_eq!(e.redo_depth(), 0);
     assert_eq!(e.undo_depth(), 1);
 }
@@ -732,7 +776,7 @@ fn new_edit_after_undo_clears_redo_stack() {
 fn multi_step_undo_redo_sequence() {
     let mut e = engine_with_sample();
     // Edit 1: substitute
-    assert_eq!(e.mutate_base_subset(&[0], 0, b'T'), Ok(()));
+    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
     // Edit 2: insert
     assert_eq!(e.insert_at_subset(&[0, 1], 2), Ok(()));
     // Edit 3: delete column
@@ -758,26 +802,22 @@ fn multi_step_undo_redo_sequence() {
 }
 
 #[test]
-fn undo_redo_substitution_handles_mismatched_history_vectors() {
+fn undo_redo_substitution_handles_out_of_bounds_positions() {
     let mut e = engine_with_sample();
 
-    // Simulate malformed history data where mutated_rows.len() > old_bases.len().
-    // The engine should process only valid row/base pairs and keep stacks consistent.
+    // Simulate history data containing out-of-bounds positions (e.g. row 999 or col 999).
+    // The engine should process only valid positions and keep stacks consistent.
     e.undo_stack.push(UndoCommand::Substitutions {
-        col_idx: 0,
-        mutated_rows: vec![0, 1],
-        old_bases: vec![b'G'],
+        positions: vec![(0, 0, b'G'), (999, 0, b'T'), (0, 999, b'C')],
     });
 
     assert!(e.undo());
-    // Only row 0 should be restored from the single available old base.
+    // Only valid position (0, 0) should be restored.
     assert_eq!(e.get_base(0, 0), b'G');
-    assert_eq!(e.get_base(1, 0), b'A');
 
     assert!(e.redo());
-    // Redo must only touch row 0 and restore its previous value.
+    // Redo must only touch valid position (0, 0).
     assert_eq!(e.get_base(0, 0), b'A');
-    assert_eq!(e.get_base(1, 0), b'A');
 }
 
 // ── Constraint validation tests (Rules 1-8) ──
@@ -814,7 +854,7 @@ fn mutate_non_iupac_returns_error() {
     let mut e = engine_with_sample();
 
     // Mutating TO a non-IUPAC, non-gap character must be rejected (Rule 3).
-    let err = e.mutate_base_subset(&[0], 6, b'X').unwrap_err();
+    let err = e.mutate_base(&[0], &[6], b'X').unwrap_err();
     assert_eq!(err.code, "MutateNotIupac");
     assert_eq!(err.context.unwrap().base.as_deref(), Some("X"));
     assert_eq!(e.get_base(0, 6), b'G'); // unchanged
@@ -822,7 +862,7 @@ fn mutate_non_iupac_returns_error() {
     // Directly corrupt a cell to a non-IUPAC, non-gap character (a space),
     // then attempt to mutate it — must be rejected (source validation).
     e.nucleotide_sequences[1][6] = b' ';
-    let err = e.mutate_base_subset(&[1], 6, b'T').unwrap_err();
+    let err = e.mutate_base(&[1], &[6], b'T').unwrap_err();
     assert_eq!(err.code, "MutateNotIupac");
     let context = err.context.unwrap();
     assert_eq!(context.row, Some(1));
@@ -835,7 +875,7 @@ fn mutate_non_iupac_returns_error() {
 fn mutate_gap_is_allowed() {
     let mut e = engine_with_sample();
     // Row 1 col 6 is '-'. Mutating '-' to 'A' must succeed.
-    let err = e.mutate_base_subset(&[1], 6, b'A');
+    let err = e.mutate_base(&[1], &[6], b'A');
     assert_eq!(err, Ok(()));
     assert_eq!(e.get_base(1, 6), b'A');
 }
@@ -844,7 +884,7 @@ fn mutate_gap_is_allowed() {
 fn mutate_iupac_to_gap_is_allowed() {
     let mut e = engine_with_sample();
     // Row 0 col 0 is 'A' (IUPAC). Mutate to '-' must succeed.
-    let err = e.mutate_base_subset(&[0], 0, b'-');
+    let err = e.mutate_base(&[0], &[0], b'-');
     assert_eq!(err, Ok(()));
     assert_eq!(e.get_base(0, 0), b'-');
 }
@@ -924,7 +964,7 @@ fn move_horizontal_left_succeeds() {
     let mut e = engine_with_sample();
     // Row 0: "ATGCATGC". Move "CATG" (cols 2..=5) left into col 1 which is 'T'.
     // But col 1 is 'T' (IUPAC), not '-'. So first mutate col 1 to '-'.
-    assert_eq!(e.mutate_base_subset(&[0], 1, b'-'), Ok(()));
+    assert_eq!(e.mutate_base(&[0], &[1], b'-'), Ok(()));
     // Row 0: "A-GCATGC". Now move "GCAT" (cols 2..=5) left by 1.
     let err = e.move_horizontal(0, &[2, 3, 4, 5], MoveDirection::Left);
     assert_eq!(err, Ok(()));
@@ -1056,7 +1096,7 @@ fn structured_error_serializes_code_message_and_optional_context() {
 #[test]
 fn move_horizontal_undo_restores() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base_subset(&[0], 1, b'-'), Ok(()));
+    assert_eq!(e.mutate_base(&[0], &[1], b'-'), Ok(()));
     // Row 0: "A-GCATGC"
     assert_eq!(
         e.move_horizontal(0, &[2, 3, 4, 5], MoveDirection::Left),

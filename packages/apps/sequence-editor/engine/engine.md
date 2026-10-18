@@ -152,12 +152,10 @@ History is stored as an enum with two variants, chosen primarily for simplicity:
 enum UndoCommand {
     /// Cheap character changes: store exactly what changed and where.
     Substitutions {
-        col_idx: usize,
-        mutated_rows: Vec<usize>,
-        old_bases: Vec<u8>,
+        positions: Vec<(usize, usize, u8)>,
     },
     /// Structural inserts/deletes: a lightweight clone of the full matrix.
-StructuralSnapshot {
+    StructuralSnapshot {
         matrix_snapshot: Vec<Vec<u8>>,
         names_snapshot: Vec<String>,
         width_snapshot: usize,
@@ -358,21 +356,21 @@ constraint is violated, leaving the matrix **unchanged**
 8. **`alignment_width` from the longest sequence.** `alignment_width` is set
    from the longest sequence loaded into the matrix (not the first).
 
-### 5.1 `mutate_base_subset(rows, col, base)`
+### 5.1 `mutate_base(rows, cols, base)`
 
-Simultaneous block character change (substitution) on a subset of rows at a
-single column.
+Simultaneous block character change (substitution) on a subset of rows and
+columns.
 
-- Only the rows in `rows` are touched; all others are left unchanged.
+- Only the cells in the Cartesian product of `rows` and `cols` are touched; all others are left unchanged.
 - Out-of-range rows or columns are silently skipped.
 - **Validation (Rule 3, [section 5](#50-editing-constraints-the-ruleset)):** The existing character at each target position must
   be an IUPAC nucleotide or `-`, **and** the new base must itself be an IUPAC
   nucleotide or `-`. If any target position contains a character that is
   neither, or the new base is neither, the method returns `EditError::MutateNotIupac`
   and **no rows are modified** (all-or-nothing).
-- Records a `Substitutions` undo command capturing the old bases of the rows it
+- Records a `Substitutions` undo command capturing the old bases of the cells it
   actually changed.
-- If no rows are actually mutated (all out of range), it is a no-op and records
+- If no cells are actually mutated (all out of range or empty inputs), it is a no-op and records
   nothing.
 - Returns `Ok(())` on success, or `Err(EditError::MutateNotIupac)` on validation failure.
 
@@ -575,7 +573,7 @@ assert_eq!(e.get_sequence_count(), 2);
 assert_eq!(e.get_alignment_width(), 8);
 
 // Mutation methods return Result<(), StructuredEngineError>.
-assert_eq!(e.mutate_base_subset(&[0], 3, b'G'), Ok(()));
+assert_eq!(e.mutate_base(&[0], &[3], b'G'), Ok(()));
 assert_eq!(e.get_base(0, 3), b'G');
 assert!(e.undo());
 assert_eq!(e.get_base(0, 3), b'C');
@@ -695,7 +693,7 @@ implemented in `www/` and are described in the companion documents.
 | ------ | -------- |
 | Core data structures & memory layout | ✅ Done (`MsaEngine`, viewport buffer) |
 | WASM boundary API | ✅ Done (`load_fasta`, `update_viewport`, `update_viewport_into`, metadata getters) |
-| Mutation core | ✅ Done (`mutate_base_subset`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
+| Mutation core | ✅ Done (`mutate_base`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
 | Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
 | Web Worker bridge | ✅ Done (in `www/`, consumes the engine) |
 | MUI test harness | ✅ Done (in `www/`, consumes the engine) |

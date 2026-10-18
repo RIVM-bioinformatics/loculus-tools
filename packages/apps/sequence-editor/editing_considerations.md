@@ -264,7 +264,7 @@ startRow <= row <= endRow
 startCol <= col <= endCol
 ```
 
-The frontend `mutateRange(rows, startCol, endCol, base)` API passes a row list plus an inclusive column range. The Rust `mutate_base_range()` method uses the same inclusive column semantics.
+The frontend `mutate(rows, columns, base)` API passes row and column index lists. The Rust `mutate_base(rows, cols, base)` method operates on these row and column shapes.
 
 The row list is the authoritative row target for the engine call. For a UI
 rectangle, build it as every integer from the normalized row start through the
@@ -809,26 +809,26 @@ The JavaScript `mutate()` method sends only the first UTF-16 code unit of the
 character. A replacement API that accepts a string must either preserve this
 first-character rule or reject non-single-character input before sending it.
 
-### 7.2 Rectangular mutation
+### 7.2 Base mutation
+ 
+`mutate_base(rows, cols, new_base)`:
 
-`mutate_base_range(rows, start_col, end_col, new_base)`:
-
-- uses an inclusive column range;
+- operates across the target shape defined by rows and columns;
 - validates `new_base` before changing anything;
-- deduplicates duplicate row indices;
+- deduplicates duplicate row and column indices;
 - validates every in-range target cell before changing any target cell;
 - silently skips out-of-range rows and columns;
 - stores each changed position as `(row, col, old_base)`;
 - changes every collected position to `new_base`;
-- creates one `RangeSubstitutions` history command;
+- creates one `Substitutions` history command;
 - clears redo history after a successful recorded mutation;
 - leaves names, row order, row lengths, and alignment width unchanged.
 
-If the range is empty or no in-range positions exist, the operation is a no-op and creates no history command.
+If the shape is empty or no in-range positions exist, the operation is a no-op and creates no history command.
 
 If the new base equals the old base, the current engine still records the in-range position because it records positions rather than filtering equal-value writes. Any change to that behavior must update history tests and UI expectations.
 
-The Rust method uses an all-or-nothing validation phase. It must never mutate the first part of a rectangle and then discover an invalid character later in the rectangle.
+The Rust method uses an all-or-nothing validation phase. It must never mutate the first part of a shape and then discover an invalid character later.
 
 ### 7.3 Structural insertion
 
@@ -979,7 +979,7 @@ A range mutation request has this shape:
 
 `startCol` and `endCol` are inclusive and zero-based. `base` is the ASCII code of the uppercase one-character mutation symbol.
 
-The worker must call `mutate_base_range()` exactly once for one rectangle mutation and return the structured engine error code on rejection.
+The worker must call `mutate_base()` exactly once for one mutation operation and return the structured engine error code on rejection.
 
 ### 9.3 WASM regeneration
 
@@ -1005,8 +1005,7 @@ The current controller wraps operations with these exact options:
 | Controller method | Engine call(s) | `dirty` on success | `updateRevision` | Cursor/selection update after success |
 | --- | --- | ---: | ---: | --- |
 | `loadFasta` | `load`, then `meta` | `false` | `true` plus dataset reset | Reset by dataset reset to cell `{0, 0}` and no selection |
-| `mutate` | `mutate`, then `meta` | `true` | `true` | Caller handles single-cell cursor advance |
-| `mutateRange` | `mutateRange`, then `meta` | `true` | `true` | Caller leaves rectangle and active cell unchanged |
+| `mutate` | `mutate`, then `meta` | `true` | `true` | Mutates target shape; preserves selection |
 | `insert` | `insert`, then `meta` | `true` | `true` | Caller handles insertion transform |
 | `delete` | `delete`, then `meta` | `true` | `true` | Caller moves active cell left on success |
 | `deleteColumn` | `deleteColumn`, then `meta` | `true` | `true` | Controller clamps active cell after metadata returns |

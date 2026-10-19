@@ -464,6 +464,80 @@ export class EditorUtil {
   }
 
 
+  public static getMovedRowsEndSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta | null): EditorSelection | null {
+    if (!selection || !metaData) {
+      return null;
+    }
+
+    const cells = selection.cells;
+    if (cells) {
+      const rowCount = cells.endRow - cells.startRow + 1;
+      if (direction === EDITOR_DIRECTION.UP) {
+        return {
+          cells: {
+            ...cells,
+            endRow: rowCount - 1,
+            startRow: 0,
+          },
+        };
+      }
+      const startRow = Math.max(0, metaData.sequenceCount - rowCount);
+      return {
+        cells: {
+          ...cells,
+          endRow: metaData.sequenceCount - 1,
+          startRow,
+        },
+      };
+    }
+
+    const rows = selection.rows;
+    if (rows && rows.length > 0) {
+      const rowCount = rows.length;
+      if (direction === EDITOR_DIRECTION.UP) {
+        return {
+          rows: Array.from({ length: rowCount }, (_, idx) => idx),
+        };
+      }
+      const startRow = Math.max(0, metaData.sequenceCount - rowCount);
+      return {
+        rows: Array.from({ length: rowCount }, (_, idx) => startRow + idx),
+      };
+    }
+
+    return null;
+  }
+
+  public static getMovedRowsGroupedSelection(selection: EditorSelection | null, targetRow: number, metaData: EngineMeta | null): EditorSelection | null {
+    if (!selection || !metaData) {
+      return null;
+    }
+
+    const cells = selection.cells;
+    if (cells) {
+      const rowCount = cells.endRow - cells.startRow + 1;
+      const startRow = Math.max(0, Math.min(targetRow, metaData.sequenceCount - rowCount));
+      return {
+        cells: {
+          ...cells,
+          endRow: startRow + rowCount - 1,
+          startRow,
+        },
+      };
+    }
+
+    const rows = selection.rows;
+    if (rows && rows.length > 0) {
+      const rowCount = rows.length;
+      const startRow = Math.max(0, Math.min(targetRow, metaData.sequenceCount - rowCount));
+      return {
+        rows: Array.from({ length: rowCount }, (_, idx) => startRow + idx),
+      };
+    }
+
+    return null;
+  }
+
   public static getMovedSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta | null): EditorSelection | null {
     if (!selection || !metaData) {
       return null;
@@ -666,6 +740,36 @@ export class EditorUtil {
     if (direction === EDITOR_DIRECTION.DOWN && maxRow === metaData.sequenceCount - 1) {
       return undefined;
     }
+    return rows;
+  }
+
+  public static getRowsToMoveEnd(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta): number[] | undefined {
+    const cells = selection?.cells;
+    const rows = selection?.rows ?? (cells
+      ? Array.from({ length: cells.endRow - cells.startRow + 1 }, (_, index) => cells.startRow + index)
+      : undefined);
+    if (!rows || rows.length === 0) {
+      return undefined;
+    }
+
+    const sortedRows = [...new Set(rows)].sort((a, b) => a - b);
+    const k = sortedRows.length;
+    if (k === 0 || k === metaData.sequenceCount) {
+      return undefined;
+    }
+
+    if (direction === EDITOR_DIRECTION.UP) {
+      const alreadyAtTop = sortedRows.every((row, idx) => row === idx);
+      if (alreadyAtTop) {
+        return undefined;
+      }
+    } else if (direction === EDITOR_DIRECTION.DOWN) {
+      const alreadyAtBottom = sortedRows.every((row, idx) => row === metaData.sequenceCount - k + idx);
+      if (alreadyAtBottom) {
+        return undefined;
+      }
+    }
+
     return rows;
   }
 

@@ -546,7 +546,7 @@ export const SequenceEditor = () => {
             await editorService.moveRowsDown(rows);
           }
         },
-        getSelectionPostCommand: () => EditorUtil.getMovedSelection(selectionSubject.data, direction, metaSubject.data),
+        getSelectionPostCommand: () => EditorUtil.getMovedRowsRelativeSelection(selectionSubject.data, direction, metaSubject.data),
       });
     };
 

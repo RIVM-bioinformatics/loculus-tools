@@ -538,6 +538,81 @@ export class EditorUtil {
     return null;
   }
 
+  public static getMovedRowsRelativeSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta | null): EditorSelection | null {
+    if (!selection || !metaData) {
+      return null;
+    }
+
+    const cells = selection.cells;
+    if (cells) {
+      const canMoveUp = direction === EDITOR_DIRECTION.UP && cells.startRow > 0;
+      const canMoveDown = direction === EDITOR_DIRECTION.DOWN && cells.endRow < metaData.sequenceCount - 1;
+      if (!canMoveUp && !canMoveDown) {
+        return selection;
+      }
+      const offset = direction === EDITOR_DIRECTION.UP ? -1 : 1;
+      return {
+        cells: {
+          ...cells,
+          endRow: cells.endRow + offset,
+          startRow: cells.startRow + offset,
+        },
+      };
+    }
+
+    const rows = selection.rows;
+    if (rows && rows.length > 0) {
+      const sortedRows = [...new Set(rows)].sort((a, b) => a - b);
+      const blocks: [number, number][] = [];
+      let start = sortedRows[0];
+      let end = start;
+
+      for (let i = 1; i < sortedRows.length; i++) {
+        if (sortedRows[i] === end + 1) {
+          end = sortedRows[i];
+        } else {
+          blocks.push([start, end]);
+          start = sortedRows[i];
+          end = start;
+        }
+      }
+      blocks.push([start, end]);
+
+      const nextRows: number[] = [];
+      if (direction === EDITOR_DIRECTION.UP) {
+        for (const [bStart, bEnd] of blocks) {
+          if (bStart > 0) {
+            for (let r = bStart - 1; r <= bEnd - 1; r++) {
+              nextRows.push(r);
+            }
+          } else {
+            for (let r = bStart; r <= bEnd; r++) {
+              nextRows.push(r);
+            }
+          }
+        }
+      } else if (direction === EDITOR_DIRECTION.DOWN) {
+        for (const [bStart, bEnd] of blocks) {
+          if (bEnd + 1 < metaData.sequenceCount) {
+            for (let r = bStart + 1; r <= bEnd + 1; r++) {
+              nextRows.push(r);
+            }
+          } else {
+            for (let r = bStart; r <= bEnd; r++) {
+              nextRows.push(r);
+            }
+          }
+        }
+      } else {
+        return null;
+      }
+
+      return { rows: nextRows.sort((a, b) => a - b) };
+    }
+
+    return null;
+  }
+
   public static getMovedSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta | null): EditorSelection | null {
     if (!selection || !metaData) {
       return null;
@@ -595,12 +670,7 @@ export class EditorUtil {
       if ((direction !== EDITOR_DIRECTION.UP && direction !== EDITOR_DIRECTION.DOWN) || rows.length === 0) {
         return null;
       }
-      const min = Math.min(...rows);
-      const max = Math.max(...rows);
-      if (!canMove(min, max, metaData.sequenceCount)) {
-        return null;
-      }
-      return { rows: rows.map(row => row + offset) };
+      return EditorUtil.getMovedRowsRelativeSelection(selection, direction, metaData);
     }
 
     return null;
@@ -732,13 +802,22 @@ export class EditorUtil {
       return undefined;
     }
 
-    const minRow = Math.min(...rows);
-    const maxRow = Math.max(...rows);
-    if (direction === EDITOR_DIRECTION.UP && minRow === 0) {
+    const sortedRows = [...new Set(rows)].sort((a, b) => a - b);
+    const k = sortedRows.length;
+    if (k === 0 || k === metaData.sequenceCount) {
       return undefined;
     }
-    if (direction === EDITOR_DIRECTION.DOWN && maxRow === metaData.sequenceCount - 1) {
-      return undefined;
+
+    if (direction === EDITOR_DIRECTION.UP) {
+      const alreadyAtTop = sortedRows.every((row, idx) => row === idx);
+      if (alreadyAtTop) {
+        return undefined;
+      }
+    } else if (direction === EDITOR_DIRECTION.DOWN) {
+      const alreadyAtBottom = sortedRows.every((row, idx) => row === metaData.sequenceCount - k + idx);
+      if (alreadyAtBottom) {
+        return undefined;
+      }
     }
     return rows;
   }

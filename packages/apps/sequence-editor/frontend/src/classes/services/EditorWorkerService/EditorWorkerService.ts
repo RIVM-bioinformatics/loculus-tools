@@ -90,12 +90,6 @@ export class EditorWorkerService {
     });
   }
 
-  public async moveRowsUp(rows: number[]): Promise<void> {
-    return await this.runCommand(async () => {
-      await this.engineWorkerProxy.moveRowsUp(rows);
-    });
-  }
-
   public async moveRowsDown(rows: number[]): Promise<void> {
     return await this.runCommand(async () => {
       await this.engineWorkerProxy.moveRowsDown(rows);
@@ -123,6 +117,12 @@ export class EditorWorkerService {
   public async moveRowsToTop(rows: number[]): Promise<void> {
     return await this.runCommand(async () => {
       await this.engineWorkerProxy.moveRowsToTop(rows);
+    });
+  }
+
+  public async moveRowsUp(rows: number[]): Promise<void> {
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.moveRowsUp(rows);
     });
   }
 

@@ -96,10 +96,6 @@ export class EngineWorker implements EngineWorkerApi {
 
   public async moveRows(rows: number[], options: MoveRowsOptions): Promise<void> {
     switch (options.mode) {
-      case 'top': {
-        await this.moveRowsToTop(rows);
-        break;
-      }
       case 'bottom': {
         await this.moveRowsToBottom(rows);
         break;
@@ -112,6 +108,10 @@ export class EngineWorker implements EngineWorkerApi {
         await this.moveRowsRelative(rows, options.delta);
         break;
       }
+      case 'top': {
+        await this.moveRowsToTop(rows);
+        break;
+      }
       default: {
         break;
       }
@@ -121,11 +121,6 @@ export class EngineWorker implements EngineWorkerApi {
   public async moveRowsDown(rows: number[]): Promise<void> {
     const engine = await this.requireEngine();
     engine.move_rows_down(this.toRowIndices(rows));
-  }
-
-  public async moveRowsUp(rows: number[]): Promise<void> {
-    const engine = await this.requireEngine();
-    engine.move_rows_up(this.toRowIndices(rows));
   }
 
   public async moveRowsGrouped(rows: number[], targetRow: number): Promise<void> {
@@ -146,6 +141,11 @@ export class EngineWorker implements EngineWorkerApi {
   public async moveRowsToTop(rows: number[]): Promise<void> {
     const engine = await this.requireEngine();
     engine.move_rows_to_top(this.toRowIndices(rows));
+  }
+
+  public async moveRowsUp(rows: number[]): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.move_rows_up(this.toRowIndices(rows));
   }
 
   public async mutate(rows: number[], columns: number[], base: string): Promise<void> {

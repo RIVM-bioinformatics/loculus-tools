@@ -95,9 +95,9 @@ export class EditorWorkerService {
     });
   }
 
-  public async mutate(rows: number[], col: number, base: string): Promise<void> {
+  public async mutate(rows: number[], cols: number[], base: string): Promise<void> {
     return await this.runCommand(async () => {
-      await this.engineWorkerProxy.mutate(rows, col, base);
+      await this.engineWorkerProxy.mutate(rows, cols, base);
     });
   }
 

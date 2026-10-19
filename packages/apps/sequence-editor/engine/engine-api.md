@@ -270,20 +270,22 @@ one of them is rejected with an error code (see [section 9](#9-error-handling)) 
 8. **`alignment_width` from the longest sequence.** The alignment width is set
    from the longest loaded sequence.
 
-### `mutate(rows: number[], col: number, base: string): Promise<void>`
+### `mutate(rows: number[], columns: number[], base: string): Promise<void>`
 
-Changes the base at a single column on a **subset** of rows. Rows not listed are
+Changes the base across a target shape defined by a subset of rows and columns. Rows and columns not listed are
 untouched.
 
 ```ts
-await engine.mutate([0, 1], 3, "G"); // set col 3 to 'G' on rows 0 and 1
+await engine.mutate([0, 1], [3], "G"); // set col 3 to 'G' on rows 0 and 1
+await engine.mutate([0, 1], [1, 2, 3], "N"); // set cols 1..=3 to 'N' on rows 0 and 1
 ```
 
 - `rows` — array of row indices to change.
-- `col` — the column index.
+- `columns` — array of column indices to change.
 - `base` — a single character (e.g. `"A"`, `"G"`, `"-"`). Only the first
   character's code is used.
 - Out-of-range rows/columns are silently skipped.
+- The entire operation is recorded as a single transaction in the undo stack.
 
 **Validation (Rule 3, [section 5](#50-editing-constraints-the-ruleset)):** The existing character at each target position must be
 an IUPAC nucleotide (`A`, `C`, `G`, `T`, `U`, `R`, `Y`, `S`, `W`, `K`, `M`,
@@ -455,7 +457,7 @@ function AlignmentView() {
   }
 
   async function onEdit() {
-    await engine.mutate([0, 1], 3, "G");
+    await engine.mutate([0, 1], [3], "G");
     await refreshSlice(); // refetch to see the change
   }
 

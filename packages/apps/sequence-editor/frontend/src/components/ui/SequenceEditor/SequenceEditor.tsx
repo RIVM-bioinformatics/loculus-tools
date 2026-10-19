@@ -465,15 +465,13 @@ export const SequenceEditor = () => {
       if (!metaSubject.data) {
         return;
       }
-      const mutateRangeArguments = EditorUtil.getMutateArguments(selectionSubject.data, metaSubject.data);
-      if (!mutateRangeArguments) {
+      const mutateArguments = EditorUtil.getMutateArguments(selectionSubject.data, metaSubject.data);
+      if (!mutateArguments) {
         return;
       }
       await execute({
         command: async () => {
-          for (let column = mutateRangeArguments.startCol; column <= mutateRangeArguments.endCol; column += 1) {
-            await editorService.mutate(mutateRangeArguments.rows, column, base);
-          }
+          await editorService.mutate(mutateArguments.rows, mutateArguments.columns, base);
         },
       });
     };

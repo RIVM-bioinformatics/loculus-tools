@@ -151,7 +151,7 @@ export interface EngineWorkerApi {
   moveHorizontal: (row: number, columns: number[], direction: MoveDirection) => Promise<void>;
   moveRowsDown: (rows: number[]) => Promise<void>;
   moveRowsUp: (rows: number[]) => Promise<void>;
-  mutate: (rows: number[], column: number, base: string) => Promise<void>;
+  mutate: (rows: number[], columns: number[], base: string) => Promise<void>;
   name: (row: number) => Promise<string>;
   redo: () => Promise<boolean>;
   search: (query: string, checkRecordNames: boolean) => Promise<EngineSearchResult>;

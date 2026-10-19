@@ -103,9 +103,9 @@ export class EngineWorker implements EngineWorkerApi {
     engine.move_rows_up(this.toRowIndices(rows));
   }
 
-  public async mutate(rows: number[], column: number, base: string): Promise<void> {
+  public async mutate(rows: number[], columns: number[], base: string): Promise<void> {
     const engine = await this.requireEngine();
-    engine.mutate_base_subset(this.toRowIndices(rows), column, base.charCodeAt(0));
+    engine.mutate_base(this.toRowIndices(rows), this.toRowIndices(columns), base.charCodeAt(0));
   }
 
   public async name(row: number): Promise<string> {

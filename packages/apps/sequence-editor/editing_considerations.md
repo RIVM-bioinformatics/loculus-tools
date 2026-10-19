@@ -139,7 +139,7 @@ an exact replacement does not silently become a behavior change:
 - A single-cell mutation advances the active cell by one column, including when
   multiple rows were selected through the name gutter but no cell rectangle
   exists.
-- A rectangle `-`/Delete mutation uses `mutateRange`; it does not use the
+- A rectangle `-`/Delete mutation uses `mutate`; it does not use the
   structural engine `delete()` method.
 - A rectangle insertion shifts the rectangle and active cell right by one
   column. It does not widen the rectangle.
@@ -264,7 +264,7 @@ startRow <= row <= endRow
 startCol <= col <= endCol
 ```
 
-The frontend `mutateRange(rows, startCol, endCol, base)` API passes a row list plus an inclusive column range. The Rust `mutate_base_range()` method uses the same inclusive column semantics.
+The frontend `mutate(rows, columns, base)` API passes row and column index lists. The Rust `mutate_base(rows, cols, base)` method operates on these row and column shapes.
 
 The row list is the authoritative row target for the engine call. For a UI
 rectangle, build it as every integer from the normalized row start through the
@@ -622,7 +622,7 @@ When a rectangle exists:
 
 - target rows are every row in the normalized block;
 - target columns are every column from `startCol` through `endCol`, inclusive;
-- the engine uses one `mutateRange` operation;
+- the engine uses one `mutate` operation;
 - the operation is atomic and creates one history entry;
 - the active cell does not advance;
 - the rectangle remains anchored to the same coordinates because mutation does not change alignment structure.
@@ -668,7 +668,7 @@ Without a rectangle:
 
 With a rectangle:
 
-- mutate every selected row and every selected column to `-` using one `mutateRange` call;
+- mutate every selected row and every selected column to `-` using one `mutate` call;
 - do not structurally remove any column;
 - do not shift the rectangle;
 - do not advance the active cell.
@@ -790,17 +790,22 @@ the behavior change and update its tests and this document.
 
 The Rust engine is the authoritative validator. All mutation methods validate before changing any sequence. A validation failure must leave every targeted and non-targeted cell unchanged.
 
-### 7.1 Single-column mutation
+### 7.1 Base mutation
+ 
+`mutate_base(rows, cols, new_base)`:
 
-`mutate_base_subset(rows, col, new_base)`:
-
-- validates `new_base` before inspecting or changing rows;
-- validates every in-range target cell before changing any cell;
-- changes only in-range target rows at one column;
+- operates across the target shape defined by rows and columns;
+- validates `new_base` before changing anything;
+- deduplicates duplicate row and column indices;
+- validates every in-range target cell before changing any target cell;
 - silently skips out-of-range rows and columns;
-- records old bases for one substitution history command when at least one in-range cell exists;
+- stores each changed position as `(row, col, old_base)`;
+- changes every collected position to `new_base`;
+- creates one `Substitutions` history command;
 - clears redo history after a successful recorded mutation;
-- does not change row length or alignment width.
+- leaves names, row order, row lengths, and alignment width unchanged.
+
+If the shape is empty or no in-range positions exist, the operation is a no-op and creates no history command.
 
 If a target row/column is out of range, that position is skipped rather than treated as padding and rather than causing an error.
 
@@ -809,28 +814,11 @@ The JavaScript `mutate()` method sends only the first UTF-16 code unit of the
 character. A replacement API that accepts a string must either preserve this
 first-character rule or reject non-single-character input before sending it.
 
-### 7.2 Rectangular mutation
-
-`mutate_base_range(rows, start_col, end_col, new_base)`:
-
-- uses an inclusive column range;
-- validates `new_base` before changing anything;
-- deduplicates duplicate row indices;
-- validates every in-range target cell before changing any target cell;
-- silently skips out-of-range rows and columns;
-- stores each changed position as `(row, col, old_base)`;
-- changes every collected position to `new_base`;
-- creates one `RangeSubstitutions` history command;
-- clears redo history after a successful recorded mutation;
-- leaves names, row order, row lengths, and alignment width unchanged.
-
-If the range is empty or no in-range positions exist, the operation is a no-op and creates no history command.
-
 If the new base equals the old base, the current engine still records the in-range position because it records positions rather than filtering equal-value writes. Any change to that behavior must update history tests and UI expectations.
 
-The Rust method uses an all-or-nothing validation phase. It must never mutate the first part of a rectangle and then discover an invalid character later in the rectangle.
+The Rust method uses an all-or-nothing validation phase. It must never mutate the first part of a shape and then discover an invalid character later.
 
-### 7.3 Structural insertion
+### 7.2 Structural insertion
 
 `insert_at_subset(rows, col)`:
 
@@ -856,7 +844,7 @@ Additional engine edge cases:
   width. The result is an appended gap in target rows and a width increase of
   one.
 
-### 7.4 Structural subset deletion
+### 7.3 Structural subset deletion
 
 `delete_at_subset(rows, col)`:
 
@@ -877,7 +865,7 @@ Additional engine edge cases:
 - An out-of-range column is ignored for each row; it does not count as a
   non-gap and does not produce `DeleteNotGap`.
 
-### 7.5 Whole-column deletion
+### 7.4 Whole-column deletion
 
 `delete_column(col)`:
 
@@ -888,7 +876,7 @@ Additional engine edge cases:
 - records a full structural snapshot for a valid operation;
 - clears redo history.
 
-### 7.6 Horizontal movement
+### 7.5 Horizontal movement
 
 `move_horizontal(row, cols, direction)`:
 
@@ -900,7 +888,7 @@ Additional engine edge cases:
 - records a structural snapshot;
 - returns `MoveNotIupac` or `MoveNoGapTarget` on failure without modifying anything.
 
-### 7.7 Row reordering
+### 7.6 Row reordering
 
 `move_rows_up(rows)` and `move_rows_down(rows)`:
 
@@ -962,24 +950,15 @@ The controller's `runCommand()` queue is mandatory for edits.
 
 ### 9.2 Worker request representation
 
-Rows are transmitted as `Uint32Array`, not ordinary arrays, because the WASM binding accepts typed row vectors.
+Rows and columns are converted to `Uint32Array` when passed across the WASM boundary because the WASM binding accepts typed vectors.
 
-A range mutation request has this shape:
+A mutation operation is passed to the worker with target row and column arrays and the replacement base:
 
 ```ts
-{
-  type: 'mutateRange',
-  rows: Uint32Array,
-  startCol: number,
-  endCol: number,
-  base: number,
-  reqId: number,
-}
+await worker.mutate(rows, columns, base);
 ```
 
-`startCol` and `endCol` are inclusive and zero-based. `base` is the ASCII code of the uppercase one-character mutation symbol.
-
-The worker must call `mutate_base_range()` exactly once for one rectangle mutation and return the structured engine error code on rejection.
+The worker must call `mutate_base()` exactly once for one mutation operation and return the structured engine error code on rejection.
 
 ### 9.3 WASM regeneration
 
@@ -1005,8 +984,7 @@ The current controller wraps operations with these exact options:
 | Controller method | Engine call(s) | `dirty` on success | `updateRevision` | Cursor/selection update after success |
 | --- | --- | ---: | ---: | --- |
 | `loadFasta` | `load`, then `meta` | `false` | `true` plus dataset reset | Reset by dataset reset to cell `{0, 0}` and no selection |
-| `mutate` | `mutate`, then `meta` | `true` | `true` | Caller handles single-cell cursor advance |
-| `mutateRange` | `mutateRange`, then `meta` | `true` | `true` | Caller leaves rectangle and active cell unchanged |
+| `mutate` | `mutate`, then `meta` | `true` | `true` | Mutates target shape; preserves selection |
 | `insert` | `insert`, then `meta` | `true` | `true` | Caller handles insertion transform |
 | `delete` | `delete`, then `meta` | `true` | `true` | Caller moves active cell left on success |
 | `deleteColumn` | `deleteColumn`, then `meta` | `true` | `true` | Controller clamps active cell after metadata returns |

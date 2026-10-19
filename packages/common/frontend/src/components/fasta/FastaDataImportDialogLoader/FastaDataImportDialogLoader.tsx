@@ -18,7 +18,7 @@ import { ErrorUtil } from '../../../utils/ErrorUtil';
 
 
 export type FastaDataImportDialogLoaderProps = {
-  extraActions: DialogAction[];
+  extraActions?: DialogAction[];
   store: StoreApi<FastaDataStore>;
 };
 

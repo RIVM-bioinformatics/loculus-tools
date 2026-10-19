@@ -13,8 +13,7 @@ import {
 import type { ConfigBase } from '../../models/config.models';
 
 export class DependencyContainerUtil {
-  public static createContainer<TConfig extends ConfigBase>(config: TConfig): DependencyContainer {
-    container.register(CONFIG_TOKEN, { useValue: config });
+  public static createContainer(): DependencyContainer {
     container.registerInstance(WINDOW_SERVICE_TOKEN, WindowService.getInstance());
     container.registerInstance(DEVICE_PIXEL_RATIO_SERVICE_TOKEN, DevicePixelRatioService.getInstance());
     container.registerInstance(KEYBOARD_SHORTCUT_SERVICE_TOKEN, KeyboardShortcutService.getInstance());

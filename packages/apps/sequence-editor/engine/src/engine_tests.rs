@@ -505,6 +505,30 @@ fn mutate_base_rejects_before_changing_any_position() {
 }
 
 #[test]
+fn mutate_base_rejects_atomically_when_later_target_is_invalid() {
+    let mut e = engine_with_sample();
+    // Early targets (row 0, cols 0 and 2) are valid IUPAC.
+    // Later target (row 1, col 2) is corrupted to a non-IUPAC/non-gap byte (space).
+    e.nucleotide_sequences[1][2] = b' ';
+
+    let err = e.mutate_base(&[0, 1], &[0, 2], b'T').unwrap_err();
+    assert_eq!(err.code, "MutateNotIupac");
+    let context = err.context.unwrap();
+    assert_eq!(context.row, Some(1));
+    assert_eq!(context.col, Some(2));
+    assert_eq!(context.base.as_deref(), Some(" "));
+
+    // Early targets must remain completely untouched
+    assert_eq!(e.get_base(0, 0), b'A');
+    assert_eq!(e.get_base(0, 2), b'G');
+    assert_eq!(e.get_base(1, 0), b'A');
+    assert_eq!(e.get_base(1, 2), b' ');
+
+    // Undo stack must remain untouched
+    assert_eq!(e.undo_depth(), 0);
+}
+
+#[test]
 fn mutate_base_changes_arbitrary_shape_atomically() {
     let mut e = engine_with_sample();
     // Mutate rows 0 and 2 at columns 0 and 2 to 'G'

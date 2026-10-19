@@ -457,7 +457,7 @@ function AlignmentView() {
   }
 
   async function onEdit() {
-    await engine.mutate([0, 1], 3, "G");
+    await engine.mutate([0, 1], [3], "G");
     await refreshSlice(); // refetch to see the change
   }
 

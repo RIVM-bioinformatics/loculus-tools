@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.0 (2026-10-19)
+
+
+### Features
+
+* **sequence-editor, engine:** add dedicated fast export functionality for gapped and ungapped sequences ([#51](https://github.com/RIVM-bioinformatics/loculus-tools/issues/51)) ([2a437e6](https://github.com/RIVM-bioinformatics/loculus-tools/commit/2a437e61da349de5ff27a2fe3ced12e4a52a0d58))
+* setup dependency-injection ([48fd7d9](https://github.com/RIVM-bioinformatics/loculus-tools/commit/48fd7d9279e5934edf4d08f591ff9ef1383b53f9))
+
+
+### Bug Fixes
+
+* fix release please config and trigger release ([d44f2b2](https://github.com/RIVM-bioinformatics/loculus-tools/commit/d44f2b27e68797d5bf2f70d21f1a1b2b238378d8))
+
 ## [0.2.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v0.1.7...sequence-editor-frontend-v0.2.0) (2026-10-14)
 
 

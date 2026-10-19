@@ -10,7 +10,7 @@ mod alphabets;
 mod search_algorithms;
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
-use search_algorithms::{naive_search, MAX_SEARCH_RESULTS, Match, MatrixType, SearchResult};
+use search_algorithms::{MAX_SEARCH_RESULTS, Match, MatrixType, SearchResult, naive_search};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
@@ -279,7 +279,9 @@ impl From<MoveError> for StructuredEngineError {
                 direction,
             } => Self::new(
                 EditError::MoveNoGapTarget,
-                format!("Cannot move {direction:?} from row {row}, column {col}; alignment boundary reached"),
+                format!(
+                    "Cannot move {direction:?} from row {row}, column {col}; alignment boundary reached"
+                ),
                 Some(ErrorContext {
                     row: Some(row),
                     col: Some(col),
@@ -973,6 +975,63 @@ impl MsaEngine {
             .get(row)
             .map(|seq| seq.len())
             .unwrap_or(0)
+    }
+
+    /// Returns the full matrix as a fasta byte vector.
+    /// `include_gaps` determines whether gap characters (`-`) are included in the output.
+    /// sequences and record-names are separated with a newline.
+    fn export_fasta_bytes(&self, include_gaps: bool) -> Vec<u8> {
+        let seq_len: usize = if include_gaps {
+            self.nucleotide_sequences
+                .iter()
+                .map(|s| s.len() + 1)
+                .sum::<usize>()
+        } else {
+            self.nucleotide_sequences
+                .iter()
+                .map(|s| s.iter().filter(|&&b| !is_gap(b)).count() + 1)
+                .sum::<usize>()
+        };
+        let header_len: usize = self.names.iter().map(|n| n.len() + 2).sum::<usize>();
+        let total_len = header_len + seq_len;
+        let mut fasta = Vec::with_capacity(total_len);
+
+        for (name, sequence) in self.names.iter().zip(&self.nucleotide_sequences) {
+            fasta.push(b'>');
+            fasta.extend_from_slice(name.as_bytes());
+            fasta.push(b'\n');
+            if include_gaps {
+                fasta.extend_from_slice(sequence);
+            } else {
+                for &byte in sequence {
+                    if !is_gap(byte) {
+                        fasta.push(byte);
+                    }
+                }
+            }
+            fasta.push(b'\n');
+        }
+
+        fasta
+    }
+
+    /// Serialize the full matrix as a gapped FASTA.
+    /// Returns the bytes wrapped in a `js_sys::Uint8Array`.
+    /// Each record is emitted in its current row order and ends with a newline.
+    /// An empty engine exports an empty buffer.
+    pub fn export_gapped_fasta(&self) -> Result<js_sys::Uint8Array, StructuredEngineError> {
+        let bytes = self.export_fasta_bytes(true);
+        Ok(js_sys::Uint8Array::from(&bytes[..]))
+    }
+
+    /// Serialize the current full matrix as an ungapped FASTA.
+    /// Meaning that all gap characters (`-`) are stripped from every sequence.
+    /// Returns the bytes wrapped in a `js_sys::Uint8Array`.
+    /// Each record is emitted in its current row order and ends with a newline.
+    /// An empty engine exports an empty buffer.
+    pub fn export_ungapped_fasta(&self) -> Result<js_sys::Uint8Array, StructuredEngineError> {
+        let bytes = self.export_fasta_bytes(false);
+        Ok(js_sys::Uint8Array::from(&bytes[..]))
     }
 
     // mutation methods.

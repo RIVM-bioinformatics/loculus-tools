@@ -38,9 +38,15 @@ export class EditorWorkerService {
     });
   }
 
-  public async exportFasta(): Promise<string> {
+  public async exportGappedFasta(): Promise<string> {
     return await this.runCommand(async () => {
-      return await this.engineWorkerProxy.exportFasta();
+      return await this.engineWorkerProxy.exportGappedFasta();
+    });
+  }
+
+  public async exportUngappedFasta(): Promise<string> {
+    return await this.runCommand(async () => {
+      return await this.engineWorkerProxy.exportUngappedFasta();
     });
   }
 

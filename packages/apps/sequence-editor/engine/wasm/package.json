@@ -2,7 +2,7 @@
   "name": "@rivm-loculus-tools/sequence-editor-wasm",
   "type": "module",
   "description": "Rust-powered WebAssembly MSA engine for viral genome alignment editing",
-  "version": "0.1.7",
+  "version": "0.2.0",
   "license": "EUPL-1.2",
   "files": [
     "sequence_editor_bg.wasm",

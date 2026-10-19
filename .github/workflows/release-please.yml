@@ -17,10 +17,10 @@ jobs:
       releases-created: ${{ steps.release.outputs.releases_created }}
       common-frontend-release-created: ${{ steps.release.outputs['packages/common/frontend--release_created'] }}
       common-frontend-tag-name: ${{ steps.release.outputs['packages/common/frontend--tag_name'] }}
-      phylogeny-viewer-release-created: ${{ steps.release.outputs['packages/apps/phylogeny-viewer/frontend-lib--release_created'] }}
-      phylogeny-viewer-tag-name: ${{ steps.release.outputs['packages/apps/phylogeny-viewer/frontend-lib--tag_name'] }}
-      sequence-editor-release-created: ${{ steps.release.outputs['packages/apps/sequence-editor/frontend-lib--release_created'] }}
-      sequence-editor-tag-name: ${{ steps.release.outputs['packages/apps/sequence-editor/frontend-lib--tag_name'] }}
+      phylogeny-viewer-release-created: ${{ steps.release.outputs['packages/apps/phylogeny-viewer/frontend--release_created'] }}
+      phylogeny-viewer-tag-name: ${{ steps.release.outputs['packages/apps/phylogeny-viewer/frontend--tag_name'] }}
+      sequence-editor-release-created: ${{ steps.release.outputs['packages/apps/sequence-editor/frontend--release_created'] }}
+      sequence-editor-tag-name: ${{ steps.release.outputs['packages/apps/sequence-editor/frontend--tag_name'] }}
       sequence-editor-wasm-release-created: ${{ steps.release.outputs['packages/apps/sequence-editor/engine--release_created'] }}
       sequence-editor-wasm-tag-name: ${{ steps.release.outputs['packages/apps/sequence-editor/engine--tag_name'] }}
     steps:

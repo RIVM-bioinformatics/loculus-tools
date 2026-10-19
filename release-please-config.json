@@ -10,11 +10,11 @@
       "package-name": "@rivm-loculus-tools/common-frontend",
       "component": "common-frontend"
     },
-    "packages/apps/phylogeny-viewer/frontend-lib": {
+    "packages/apps/phylogeny-viewer/frontend": {
       "package-name": "@rivm-loculus-tools/phylogeny-viewer",
       "component": "phylogeny-viewer-frontend"
     },
-    "packages/apps/sequence-editor/frontend-lib": {
+    "packages/apps/sequence-editor/frontend": {
       "package-name": "@rivm-loculus-tools/sequence-editor",
       "component": "sequence-editor-frontend"
     },

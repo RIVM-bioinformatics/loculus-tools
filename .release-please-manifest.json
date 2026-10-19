@@ -1,1 +1,6 @@
-{"packages/common/frontend":"0.3.0","packages/apps/phylogeny-viewer/frontend-lib":"0.3.0","packages/apps/sequence-editor/frontend-lib":"0.3.0","packages/apps/sequence-editor/engine":"0.2.0","packages/apps/phylogeny-viewer/frontend":"1.0.0","packages/apps/sequence-editor/frontend":"1.0.0"}
+{
+  "packages/common/frontend": "0.3.0",
+  "packages/apps/sequence-editor/engine": "0.2.0",
+  "packages/apps/phylogeny-viewer/frontend": "1.0.0",
+  "packages/apps/sequence-editor/frontend": "1.0.0"
+}

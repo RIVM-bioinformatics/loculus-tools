@@ -1374,31 +1374,87 @@ impl MsaEngine {
         Ok(())
     }
 
-    /// Move the specified rows down by 1 position. Each specified row swaps
-    /// with the row immediately below it. Rows already at the bottom are
-    /// silently skipped. Multiple rows may be moved simultaneously.
-    /// Returns success.
-    pub fn move_rows_down(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
+
+    /// Move the specified rows and simultaneously group them into a contiguous
+    /// block placed starting at `target_row`. Selected rows preserve their
+    /// relative order within the group. Unselected rows preserve their relative
+    /// order around the inserted group.
+    ///
+    /// Clamps `target_row` to `0..=(N - selected_count)`.
+    /// Records at most ONE `StructuralSnapshot` on the undo stack, and NO snapshot
+    /// if the resulting order is unchanged.
+    pub fn move_rows_grouped(
+        &mut self,
+        row_indices: &[usize],
+        target_row: usize,
+    ) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || self.nucleotide_sequences.len() < 2 {
+            return Ok(());
+        }
+
+        let n = self.nucleotide_sequences.len();
+        let mut selected: Vec<usize> = row_indices.iter().copied().filter(|&r| r < n).collect();
+        selected.sort_unstable();
+        selected.dedup();
+
+        let k = selected.len();
+        if k == 0 || k == n {
+            return Ok(());
+        }
+
+        let mut unselected = Vec::with_capacity(n - k);
+        let mut sel_iter = selected.iter().copied().peekable();
+        for r in 0..n {
+            if sel_iter.peek() == Some(&r) {
+                sel_iter.next();
+            } else {
+                unselected.push(r);
+            }
+        }
+
+        let start_pos = target_row.min(n - k);
+        let mut new_order = Vec::with_capacity(n);
+        new_order.extend_from_slice(&unselected[..start_pos]);
+        new_order.extend_from_slice(&selected);
+        new_order.extend_from_slice(&unselected[start_pos..]);
+
+        let has_changed = new_order.iter().enumerate().any(|(i, &orig)| i != orig);
+        if !has_changed {
             return Ok(());
         }
 
         self.record_structural_undo();
 
-        // Sort descending so swaps don't interfere with each other.
-        let mut indices: Vec<usize> = row_indices.to_vec();
-        indices.sort_unstable_by(|a, b| b.cmp(a));
-        indices.dedup();
+        let mut old_sequences = std::mem::take(&mut self.nucleotide_sequences);
+        let mut old_names = std::mem::take(&mut self.names);
+        let mut new_sequences = Vec::with_capacity(n);
+        let mut new_names = Vec::with_capacity(n);
 
-        for &r in &indices {
-            if r + 1 >= self.nucleotide_sequences.len() {
-                continue;
-            }
-            self.nucleotide_sequences.swap(r, r + 1);
-            self.names.swap(r, r + 1);
+        for &idx in &new_order {
+            new_sequences.push(std::mem::take(&mut old_sequences[idx]));
+            new_names.push(std::mem::take(&mut old_names[idx]));
         }
 
+        self.nucleotide_sequences = new_sequences;
+        self.names = new_names;
+
         Ok(())
+    }
+
+    /// Snap the specified rows to the top (index 0) as a grouped contiguous block,
+    /// preserving their relative order.
+    pub fn move_rows_to_top(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
+        self.move_rows_grouped(row_indices, 0)
+    }
+
+    /// Snap the specified rows to the bottom as a grouped contiguous block,
+    /// preserving their relative order.
+    pub fn move_rows_to_bottom(
+        &mut self,
+        row_indices: &[usize],
+    ) -> Result<(), StructuredEngineError> {
+        let last_pos = self.nucleotide_sequences.len().saturating_sub(1);
+        self.move_rows_grouped(row_indices, last_pos)
     }
 
     /// transactional history with undo/redo stacks.

@@ -323,6 +323,27 @@ fn inclusive_range_len(start: usize, end: usize) -> Option<usize> {
     end.checked_sub(start)?.checked_add(1)
 }
 
+/// Partition sorted, deduplicated indices into contiguous inclusive blocks `[start, end]`.
+fn partition_into_blocks(indices: &[usize]) -> Vec<(usize, usize)> {
+    if indices.is_empty() {
+        return Vec::new();
+    }
+    let mut blocks = Vec::new();
+    let mut start = indices[0];
+    let mut end = indices[0];
+    for &idx in &indices[1..] {
+        if idx == end + 1 {
+            end = idx;
+        } else {
+            blocks.push((start, end));
+            start = idx;
+            end = idx;
+        }
+    }
+    blocks.push((start, end));
+    blocks
+}
+
 /// Direction for horizontal character movement.
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

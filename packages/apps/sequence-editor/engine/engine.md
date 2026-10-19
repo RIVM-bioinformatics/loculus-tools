@@ -427,20 +427,23 @@ calls for multi-position moves.
 - Out-of-range rows are a no-op.
 - Records a `StructuralSnapshot` undo command.
 
-### 5.6 `move_rows_up(row_indices)` / `move_rows_down(row_indices)`
+### 5.6 Row reordering (`move_rows_relative`, `move_rows_grouped`, `move_rows_to_top`, `move_rows_to_bottom`, `move_rows_up`, `move_rows_down`)
 
-Reorder rows by swapping each specified row with its immediate neighbour.
+Reorder rows without character constraints, updating both `sequences` and `names` together.
 
-- `move_rows_up`: each specified row swaps with the row above (row-1). Rows at
-  index 0 are silently skipped.
-- `move_rows_down`: each specified row swaps with the row below (row+1). Rows
-  at the bottom are silently skipped.
-- Multiple rows can be moved simultaneously. Indices are sorted (ascending for
-  up, descending for down) so swaps don't interfere.
-- No character constraints — rows can be reordered regardless of content.
-- Both `sequences` and `names` are swapped together.
-- Records a `StructuralSnapshot` undo command (which now captures `names`
-  as well, so undo/redo of row reorder correctly restores names).
+- `move_rows_relative(row_indices, delta)`:
+  - Shifts each specified row by `delta` positions (`+` for down, `-` for up).
+  - Partitions selection into contiguous blocks. Disjoint rows (e.g. `[1, 3, 8]` with delta `+1` -> `[2, 4, 9]`) preserve their spacing. Joined blocks (e.g. `[1, 2, 3]` with delta `+1` -> `[2, 3, 4]`) move as a unit.
+  - Rows hitting boundaries are pinned while other unconstrained blocks continue shifting.
+- `move_rows_up(row_indices)`: convenience wrapper calling `move_rows_relative(row_indices, -1)`.
+- `move_rows_down(row_indices)`: convenience wrapper calling `move_rows_relative(row_indices, 1)`.
+- `move_rows_grouped(row_indices, target_row)`:
+  - Gathers the selected rows into a contiguous block placed starting at `target_row` (e.g. rows `[4, 5, 10]` with target `6` move to `6, 7, 8`).
+  - Selected rows retain their relative internal order; surrounding unselected rows retain their relative order around the group.
+  - Clamps `target_row` to `0..=(sequence_count - selected_count)`.
+- `move_rows_to_top(row_indices)`: snaps and groups the selected rows at the top (index `0`).
+- `move_rows_to_bottom(row_indices)`: snaps and groups the selected rows at the bottom (index `sequence_count - selected_count`).
+- **Undo History & No-Op Rule**: Every row movement records at most **one** `StructuralSnapshot` undo command (capturing both sequences and names). If the resulting order is identical to the current order (e.g. attempting to move rows already at boundary), no snapshot is recorded.
 - Returns `Ok(())`.
 
 ### 5.7 Structured errors
@@ -693,7 +696,7 @@ implemented in `www/` and are described in the companion documents.
 | ------ | -------- |
 | Core data structures & memory layout | ✅ Done (`MsaEngine`, viewport buffer) |
 | WASM boundary API | ✅ Done (`load_fasta`, `update_viewport`, `update_viewport_into`, metadata getters) |
-| Mutation core | ✅ Done (`mutate_base`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
+| Mutation core | ✅ Done (`mutate_base`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_relative`, `move_rows_grouped`, `move_rows_to_top`, `move_rows_to_bottom`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
 | Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
 | Web Worker bridge | ✅ Done (in `www/`, consumes the engine) |
 | MUI test harness | ✅ Done (in `www/`, consumes the engine) |

@@ -1396,8 +1396,13 @@ impl MsaEngine {
         let mut order: Vec<usize> = (0..n).collect();
         let mut curr_indices = indices;
 
+        let max_steps = n.saturating_sub(curr_indices.len());
+        let steps = delta.unsigned_abs().min(max_steps);
+        if steps == 0 {
+            return Ok(());
+        }
+
         if delta > 0 {
-            let steps = delta as usize;
             for _ in 0..steps {
                 let blocks = partition_into_blocks(&curr_indices);
                 for &(start, end) in blocks.iter().rev() {
@@ -1413,10 +1418,12 @@ impl MsaEngine {
                         next_indices.extend(start..=end);
                     }
                 }
+                if next_indices == curr_indices {
+                    break;
+                }
                 curr_indices = next_indices;
             }
         } else {
-            let steps = (-delta) as usize;
             for _ in 0..steps {
                 let blocks = partition_into_blocks(&curr_indices);
                 for &(start, end) in &blocks {
@@ -1431,6 +1438,9 @@ impl MsaEngine {
                     } else {
                         next_indices.extend(start..=end);
                     }
+                }
+                if next_indices == curr_indices {
+                    break;
                 }
                 curr_indices = next_indices;
             }
@@ -1458,7 +1468,6 @@ impl MsaEngine {
 
         Ok(())
     }
-
 
     /// Move the specified rows and simultaneously group them into a contiguous
     /// block placed starting at `target_row`. Selected rows preserve their

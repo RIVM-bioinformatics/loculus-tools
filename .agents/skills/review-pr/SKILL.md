@@ -38,12 +38,26 @@ when no PR can be resolved.
      `cargo clippy --all-targets --all-features -- -D warnings`.
    - When WASM bindings or exports change, verify `pnpm run build-wasm` and
      `pnpm update-exports`.
-   Report actual results and stop on a failing required gate.
+   Report actual results. Record failing required gates prominently, but do not
+   truncate semantic and architectural analysis so all actionable findings can
+   be addressed together.
 3. Analyze changed code and tests for:
    - task fulfillment and unrelated scope, when a task was supplied;
    - correctness, boundary cases, error handling, and security implications;
+   - domain suitability of reused helpers: when callers reuse polymorphic
+     helpers (e.g., selection converters or coordinate mappers), verify that
+     input variants (such as full-row, full-column, or empty selections) are
+     semantically valid in the new context and explicitly guarded when not;
+   - regression coverage and test fixture preconditions: audit test fixture
+     dimensions and contents against the edge cases claimed by test names (e.g.
+     ragged-row tests must use sequences strictly shorter than the target
+     column, boundary tests must exercise true boundary positions);
+   - documentation drift and signature consistency: when an API signature,
+     parameter type, or behavior changes, audit entire modified documents and
+     related markdown specifications for stale references, outdated tables, or
+     contradictory signatures;
    - the architecture and backend-parity rules in `AGENTS.md`;
-   - regression coverage and consistency with nearby implementation patterns.
+   - consistency with nearby implementation patterns.
 4. Report only actionable findings, ordered by severity. Give each finding a
    file and diff line, concrete evidence, impact, and a concise correction. Do
    not invent repository conventions. State explicitly when no findings remain.

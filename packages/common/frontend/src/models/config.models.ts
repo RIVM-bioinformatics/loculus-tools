@@ -4,19 +4,15 @@ import type {
   Theme,
 } from '@mui/material';
 
-export type ApplicationHeaderProps = {
-  readonly fullHeight?: boolean;
-  readonly fullWidth?: boolean;
-  readonly singleAction?: boolean;
-};
-
+import type { PageCommonConfig } from '../context/pageCommonContext';
 
 export interface ConfigBase {
   applicationName: string;
   readonly drawerComponent?: () => ReactElement;
-  getTouchIconUrl: () => string | undefined;
+  getTouchIconUrl?: () => string | undefined;
   readonly headerComponent?: () => ReactElement;
   nonce?: string;
+  pageConfig?: PageCommonConfig;
   spinner: {
     DEFAULT_CIRCULAR_PROGRESS_SIZE: CircularProgressProps['size'];
     DEFAULT_TAKING_LONGER_TIMEOUT_MS: number;

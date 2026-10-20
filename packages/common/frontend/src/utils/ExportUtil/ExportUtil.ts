@@ -1,7 +1,6 @@
 import { DownloadUtil } from '@gen-epix/ui-core/utils/DownloadUtil';
 
 export class ExportUtil {
-
   public static downloadCanvasAsImage(
     canvas: HTMLCanvasElement | null,
     format: 'jpeg' | 'png',
@@ -52,6 +51,13 @@ export class ExportUtil {
 </svg>`;
 
     const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    DownloadUtil.createDownloadUrl(url, filename);
+    URL.revokeObjectURL(url);
+  }
+
+  public static downloadFastaFile(fasta: string, filename = 'sequence.fasta'): void {
+    const blob = new Blob([fasta], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     DownloadUtil.createDownloadUrl(url, filename);
     URL.revokeObjectURL(url);

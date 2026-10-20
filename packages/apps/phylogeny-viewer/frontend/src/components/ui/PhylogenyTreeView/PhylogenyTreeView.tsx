@@ -19,6 +19,7 @@ import type { TreeNode } from '@gen-epix/ui-phylogenetic-tree/models/tree.models
 import { Subject } from '@gen-epix/ui-core/classes/Subject';
 import { useStore } from 'zustand';
 import { MetaDataUtil } from '@rivm-loculus-tools/common-frontend/utils/MetaDataUtil';
+import { ExportUtil } from '@rivm-loculus-tools/common-frontend/utils/ExportUtil';
 
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
 import {
@@ -43,7 +44,6 @@ import {
 } from '../../../constants/tree';
 import { PhylogenyViewerEventBusService } from '../../../classes/services/PhylogenyViewerEventBusService';
 import { TREE_DOWNLOAD_TYPE } from '../../../models/tree.models';
-import { ExportUtil } from '../../../utils/ExportUtil';
 
 import { PhylogenyTreeViewDraggableNodeTooltip } from './PhylogenyTreeViewDraggableNodeTooltip';
 

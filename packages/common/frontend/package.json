@@ -117,6 +117,10 @@
       "types": "./src/components/fasta/FastaPageHeaderResetButton/index.ts",
       "import": "./src/components/fasta/FastaPageHeaderResetButton/index.ts"
     },
+    "./components/ui/ButtonWithMenu": {
+      "types": "./src/components/ui/ButtonWithMenu/index.ts",
+      "import": "./src/components/ui/ButtonWithMenu/index.ts"
+    },
     "./components/ui/GenericErrorMessage": {
       "types": "./src/components/ui/GenericErrorMessage/index.ts",
       "import": "./src/components/ui/GenericErrorMessage/index.ts"
@@ -136,10 +140,6 @@
     "./components/ui/PageCommonHeader": {
       "types": "./src/components/ui/PageCommonHeader/index.ts",
       "import": "./src/components/ui/PageCommonHeader/index.ts"
-    },
-    "./components/ui/PageHeaderDocumentationButton": {
-      "types": "./src/components/ui/PageHeaderDocumentationButton/index.ts",
-      "import": "./src/components/ui/PageHeaderDocumentationButton/index.ts"
     },
     "./constants/config.constants": {
       "types": "./src/constants/config.constants.ts",
@@ -201,6 +201,10 @@
       "types": "./src/utils/ErrorUtil/index.ts",
       "import": "./src/utils/ErrorUtil/index.ts"
     },
+    "./utils/ExportUtil": {
+      "types": "./src/utils/ExportUtil/index.ts",
+      "import": "./src/utils/ExportUtil/index.ts"
+    },
     "./utils/FastaUtil": {
       "types": "./src/utils/FastaUtil/index.ts",
       "import": "./src/utils/FastaUtil/index.ts"
@@ -261,6 +265,10 @@
         "types": "./dist/components/fasta/FastaPageHeaderResetButton/index.d.ts",
         "import": "./dist/components/fasta/FastaPageHeaderResetButton/index.js"
       },
+      "./components/ui/ButtonWithMenu": {
+        "types": "./dist/components/ui/ButtonWithMenu/index.d.ts",
+        "import": "./dist/components/ui/ButtonWithMenu/index.js"
+      },
       "./components/ui/GenericErrorMessage": {
         "types": "./dist/components/ui/GenericErrorMessage/index.d.ts",
         "import": "./dist/components/ui/GenericErrorMessage/index.js"
@@ -280,10 +288,6 @@
       "./components/ui/PageCommonHeader": {
         "types": "./dist/components/ui/PageCommonHeader/index.d.ts",
         "import": "./dist/components/ui/PageCommonHeader/index.js"
-      },
-      "./components/ui/PageHeaderDocumentationButton": {
-        "types": "./dist/components/ui/PageHeaderDocumentationButton/index.d.ts",
-        "import": "./dist/components/ui/PageHeaderDocumentationButton/index.js"
       },
       "./constants/config.constants": {
         "types": "./dist/constants/config.constants.d.ts",
@@ -344,6 +348,10 @@
       "./utils/ErrorUtil": {
         "types": "./dist/utils/ErrorUtil/index.d.ts",
         "import": "./dist/utils/ErrorUtil/index.js"
+      },
+      "./utils/ExportUtil": {
+        "types": "./dist/utils/ExportUtil/index.d.ts",
+        "import": "./dist/utils/ExportUtil/index.js"
       },
       "./utils/FastaUtil": {
         "types": "./dist/utils/FastaUtil/index.d.ts",

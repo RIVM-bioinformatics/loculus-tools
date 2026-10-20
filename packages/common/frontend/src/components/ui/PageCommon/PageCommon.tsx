@@ -25,7 +25,7 @@ export const PageCommon = ({ children, isNoInteraction, title }: PageCommonProps
 
   useUpdateDocumentTitle(title);
   const theme = useTheme();
-  const { isDrawerOpen, setIsNoInteraction } = use(PageCommonContext);
+  const { drawerContainerId, isDrawerOpen, setIsNoInteraction } = use(PageCommonContext);
 
   useEffect(() => {
     setIsNoInteraction(!!isNoInteraction);
@@ -34,8 +34,8 @@ export const PageCommon = ({ children, isNoInteraction, title }: PageCommonProps
   return (
     <Box
       sx={{
-        display: 'flex',
-        flexDirection: 'column',
+        display: 'grid',
+        gridTemplateRows: 'max-content auto',
         height: '100vh',
         overflow: 'hidden',
         position: 'relative',
@@ -43,12 +43,12 @@ export const PageCommon = ({ children, isNoInteraction, title }: PageCommonProps
       }}
     >
       {HeaderComponent && <HeaderComponent />}
-      {/* Main Body */}
       <Box
+        id={drawerContainerId}
         sx={{
           display: 'flex',
           flex: 1,
-          height: 'calc(100vh - 56px)',
+          height: '100%',
           overflow: 'hidden',
           position: 'relative',
           width: '100%',

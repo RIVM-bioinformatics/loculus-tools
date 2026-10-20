@@ -122,7 +122,7 @@ export const theme = createTheme({
     MuiDivider: {
       styleOverrides: {
         root: {
-          backgroundColor: '#c9defc',
+          backgroundColor: '#323946',
         },
       },
     },
@@ -136,7 +136,7 @@ export const theme = createTheme({
     MuiFilledInput: {
       styleOverrides: {
         input: {
-          color: '#282245',
+          color: '#323946',
         },
         root: {
           '&:hover': {
@@ -189,7 +189,7 @@ export const theme = createTheme({
     MuiFormControlLabel: {
       styleOverrides: {
         label: {
-          color: '#282245',
+          color: '#323946',
         },
       },
     },
@@ -202,7 +202,7 @@ export const theme = createTheme({
           '&.Mui-warning': {
             color: 'rgb(119,80,21)',
           },
-          color: '#453e6d',
+          color: '#323946',
         },
       },
     },
@@ -218,7 +218,7 @@ export const theme = createTheme({
           '&.Mui-warning': {
             color: 'rgb(119,80,21)',
           },
-          color: '#453e6d',
+          color: '#323946',
         },
       },
     },
@@ -231,7 +231,7 @@ export const theme = createTheme({
           '&.Mui-warning': {
             color: 'rgb(119,80,21)',
           },
-          color: '#453e6d',
+          color: '#323946',
         },
       },
     },
@@ -265,7 +265,7 @@ export const theme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderColor: '#c9defc',
+          borderColor: '#323946',
         },
       },
     },
@@ -289,32 +289,32 @@ export const theme = createTheme({
           fontStyle: 'italic',
         },
         h1: {
-          color: '#171c42',
+          color: '#323946',
           fontSize: '2.143rem', // 30
           fontWeight: 700,
         },
         h2: {
-          color: '#171c42',
+          color: '#323946',
           fontSize: '1.857rem', // 26
           fontWeight: 400,
         },
         h3: {
-          color: '#171c42',
+          color: '#323946',
           fontSize: '1.714rem', // 24
           fontWeight: 700,
         },
         h4: {
-          color: '#171c42',
+          color: '#323946',
           fontSize: '1.429rem', // 20
           fontWeight: 700,
         },
         h5: {
-          color: '#171c42',
+          color: '#323946',
           fontSize: '1.286rem', // 16
           fontWeight: 700,
         },
         h6: {
-          color: '#171c42',
+          color: '#323946',
           fontSize: '1.143rem', // 16
           fontWeight: 400,
         },
@@ -324,7 +324,7 @@ export const theme = createTheme({
           fontWeight: 400,
         },
         subtitle2: {
-          color: '#171c42',
+          color: '#323946',
           fontSize: '1.143rem', // 16
           fontWeight: 700,
         },
@@ -344,11 +344,11 @@ export const theme = createTheme({
     mode: 'light',
     primary: {
       contrastText: '#fff',
-      main: '#154273',
+      main: '#5160ab',
     },
     secondary: {
-      contrastText: '#fff',
-      main: '#2a2b33',
+      contrastText: '#323946',
+      main: '#f8f9fa',
     },
     success: {
       contrastText: '#fff',

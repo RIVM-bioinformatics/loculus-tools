@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { SequenceEditorDemoApp } from './SequenceEditorDemoApp';
+import { SequenceEditorDemoApp } from './components/app/SequenceEditorDemoApp';
 
 const container = document.getElementById('root');
 if (!container) {

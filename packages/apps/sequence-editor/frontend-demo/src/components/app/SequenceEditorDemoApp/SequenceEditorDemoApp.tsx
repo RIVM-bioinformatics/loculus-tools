@@ -1,5 +1,6 @@
 import { DependencyContainerUtil } from '@rivm-loculus-tools/common-frontend/utils/DependencyContainerUtil';
 import { theme } from '@rivm-loculus-tools/common-frontend/theme';
+import BiotechOutlinedIcon from '@mui/icons-material/BiotechOutlined';
 import { SequenceEditorStandardConfigUtil } from '@rivm-loculus-tools/sequence-editor/utils/SequenceEditorStandardConfigUtil';
 import {
   useCallback,
@@ -13,10 +14,34 @@ import { useStore } from 'zustand';
 import { CONFIG_TOKEN } from '@rivm-loculus-tools/common-frontend/constants/config.constants';
 import { SequenceEditorApp } from '@rivm-loculus-tools/sequence-editor/components/app/App';
 import { sequenceEditorStore } from '@rivm-loculus-tools/sequence-editor/stores/sequenceEditorStore';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
+import {
+  Box,
+  IconButton,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 
 export const SequenceEditorDemoApp = () => {
   const container = useMemo(() => DependencyContainerUtil.createContainer(), []);
   const setData = useStore(sequenceEditorStore, (state) => state.setData);
+
+  const onDocumentationButtonClick = useCallback(() => {
+    window.open('https://github.com/RIVM-bioinformatics/loculus-tools', '_blank');
+  }, []);
+
+  const afterAppBarRightComponent = useMemo(() => (
+    <Tooltip title={'Documentation & Specifications'}>
+      <IconButton
+        color={'inherit'}
+        onClick={onDocumentationButtonClick}
+        size={'small'}
+        sx={{ opacity: 0.85 }}
+      >
+        <HelpOutlineIcon fontSize={'small'} />
+      </IconButton>
+    </Tooltip>
+  ), [onDocumentationButtonClick]);
 
   const onClickLoadDemoData = useCallback(async () => {
     try {
@@ -45,12 +70,41 @@ export const SequenceEditorDemoApp = () => {
   ], [onClickLoadDemoData]);
 
   const config = useMemo(() => {
+    const standardConfig = SequenceEditorStandardConfigUtil.createConfig();
     return {
-      ...SequenceEditorStandardConfigUtil.createConfig(),
+      ...standardConfig,
       fastaImportExtraActions: extraFastaDataImportDialogLoaderActions,
+      getTouchIconUrl: () => '/assets/favicon.svg',
+      pageConfig: {
+        ...standardConfig.pageConfig,
+        afterAppBarRightComponent,
+        appBarIcon: <BiotechOutlinedIcon sx={{ fontSize: 24 }} />,
+        beforeAppBarComponent: (
+          <Box
+            sx={{
+              alignItems: 'center',
+              display: 'flex',
+              gap: 1,
+              height: 48,
+              paddingLeft: 2,
+            }}
+          >
+            <Typography
+              component={'h1'}
+              sx={{
+                color: 'primary.main',
+                fontSize: '1.5rem',
+                fontWeight: 600,
+              }}
+            >
+              {'Loculus'}
+            </Typography>
+          </Box>
+        ),
+      },
       theme,
     };
-  }, [extraFastaDataImportDialogLoaderActions]);
+  }, [afterAppBarRightComponent, extraFastaDataImportDialogLoaderActions]);
 
   // Note: do not run this in a useEffect, as it should be executed synchronously during component initialization
   container.register(CONFIG_TOKEN, { useValue: config });

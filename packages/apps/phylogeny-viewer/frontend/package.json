@@ -177,10 +177,6 @@
       "types": "./src/utils/ColorUtil/index.ts",
       "import": "./src/utils/ColorUtil/index.ts"
     },
-    "./utils/ExportUtil": {
-      "types": "./src/utils/ExportUtil/index.ts",
-      "import": "./src/utils/ExportUtil/index.ts"
-    },
     "./utils/PhylogenyViewerStandardConfigUtil": {
       "types": "./src/utils/PhylogenyViewerStandardConfigUtil/index.ts",
       "import": "./src/utils/PhylogenyViewerStandardConfigUtil/index.ts"
@@ -275,10 +271,6 @@
       "./utils/ColorUtil": {
         "types": "./dist/utils/ColorUtil/index.d.ts",
         "import": "./dist/utils/ColorUtil/index.js"
-      },
-      "./utils/ExportUtil": {
-        "types": "./dist/utils/ExportUtil/index.d.ts",
-        "import": "./dist/utils/ExportUtil/index.js"
       },
       "./utils/PhylogenyViewerStandardConfigUtil": {
         "types": "./dist/utils/PhylogenyViewerStandardConfigUtil/index.d.ts",

@@ -10,21 +10,24 @@ export type PageCommonDrawerProps = {
 };
 
 export const PageCommonDrawer = ({ children }: PageCommonDrawerProps) => {
-  const { isDrawerOpen } = use(PageCommonContext);
+  const { drawerContainerId, isDrawerOpen } = use(PageCommonContext);
 
   return (
     <Drawer
       anchor={'left'}
+      ModalProps={{
+        container: () => document.getElementById(drawerContainerId),
+        style: { position: 'absolute' }, // Forces modal overlay to stay inside the container
+      }}
       open={isDrawerOpen}
       sx={{
         '& .MuiDrawer-paper': {
-          height: 'calc(100% - 56px)',
+          flexShrink: 0,
+          height: '100%',
           overflowY: 'auto',
-          top: '56px',
-          width: DRAWER_WIDTH,
+          position: 'absolute',
+          width: isDrawerOpen ? DRAWER_WIDTH : 0,
         },
-        flexShrink: 0,
-        width: isDrawerOpen ? DRAWER_WIDTH : 0,
       }}
       variant={'persistent'}
     >

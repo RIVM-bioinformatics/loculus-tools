@@ -48,6 +48,11 @@ interface EngineClient {
   delete: (rows: number[], col: number) => Promise<void>;
   deleteColumn: (col: number) => Promise<void>;
   moveHorizontal: (row: number, cols: number[], direction: "Left" | "Right") => Promise<void>;
+  moveRows: (rows: number[], options: MoveRowsOptions) => Promise<void>;
+  moveRowsRelative: (rows: number[], delta: number) => Promise<void>;
+  moveRowsGrouped: (rows: number[], targetRow: number) => Promise<void>;
+  moveRowsToTop: (rows: number[]) => Promise<void>;
+  moveRowsToBottom: (rows: number[]) => Promise<void>;
   moveRowsUp: (rows: number[]) => Promise<void>;
   moveRowsDown: (rows: number[]) => Promise<void>;
   undo: () => Promise<boolean>;
@@ -356,24 +361,48 @@ gap (`-`). If either condition fails, the promise rejects with error code
 `"MoveNotIupac"` or `"MoveNoGapTarget"` and **no rows are modified**
 (all-or-nothing).
 
+### `moveRows(rows: number[], options: MoveRowsOptions): Promise<void>`
+
+Standardized vertical move command supporting all reordering modes:
+- `{ mode: 'relative', delta: number }`: relative in-place shift.
+- `{ mode: 'grouped', targetRow: number }`: grouped move to destination index.
+- `{ mode: 'top' }`: snap and group to row 0.
+- `{ mode: 'bottom' }`: snap and group to the bottom.
+
+### `moveRowsRelative(rows: number[], delta: number): Promise<void>`
+
+Shifts each specified row by `delta` positions (`-` for up, `+` for down). Disjoint rows (e.g. `[1, 3, 8]` with delta `+1` -> `[2, 4, 9]`) preserve their spacing. Contiguous joined blocks (e.g. `[1, 2, 3]` with delta `+1` -> `[2, 3, 4]`) move together as a solid unit. Rows hitting alignment boundaries remain pinned while other unconstrained rows continue shifting.
+
 ### `moveRowsUp(rows: number[]): Promise<void>`
 
-Moves the specified rows **up by 1 position**. Each row swaps with the row
-immediately above it. Rows already at the top (index 0) are silently skipped.
-Multiple rows may be moved simultaneously.
-
-```ts
-await engine.moveRowsUp([1, 2]); // swap row 1 with 0, row 2 with 1
-```
+Convenience method calling `moveRowsRelative(rows, -1)`.
 
 ### `moveRowsDown(rows: number[]): Promise<void>`
 
-Moves the specified rows **down by 1 position**. Each row swaps with the row
-immediately below it. Rows already at the bottom are silently skipped.
-Multiple rows may be moved simultaneously.
+Convenience method calling `moveRowsRelative(rows, 1)`.
+
+### `moveRowsGrouped(rows: number[], targetRow: number): Promise<void>`
+
+Moves the specified rows and groups them into a contiguous block starting at `targetRow`. The selected rows preserve their relative order within the group; surrounding unselected rows shift cleanly around the group.
 
 ```ts
-await engine.moveRowsDown([0]); // swap row 0 with 1
+await engine.moveRowsGrouped([4, 5, 10], 6); // rows 4, 5, 10 move to 6, 7, 8
+```
+
+### `moveRowsToTop(rows: number[]): Promise<void>`
+
+Snaps the specified rows to the top (index `0`) as a contiguous group, preserving their relative internal order.
+
+```ts
+await engine.moveRowsToTop([2, 4]); // rows 2 and 4 become rows 0 and 1
+```
+
+### `moveRowsToBottom(rows: number[]): Promise<void>`
+
+Snaps the specified rows to the bottom as a contiguous group, preserving their relative internal order.
+
+```ts
+await engine.moveRowsToBottom([1, 3]); // rows 1 and 3 become the last rows
 ```
 
 ---

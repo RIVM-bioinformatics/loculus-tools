@@ -890,19 +890,22 @@ Additional engine edge cases:
 
 ### 7.6 Row reordering
 
-`move_rows_up(rows)` and `move_rows_down(rows)`:
+Row reordering provides three distinct modes:
+1. Relative shift (`move_rows_relative(rows, delta)`, `move_rows_up`, `move_rows_down`):
+   - Shifts each selected row in-place by `delta` positions (`-` for up, `+` for down).
+   - Preserves spacing between disjoint rows (e.g. `[1, 3, 8]` with delta `+1` -> `[2, 4, 9]`).
+   - Moves joined contiguous blocks as a solid unit (e.g. `[1, 2, 3]` with delta `+1` -> `[2, 3, 4]`).
+   - Pins boundary blocks without internal swapping; unconstrained rows continue shifting.
+2. Grouped move to target index (`move_rows_grouped(rows, target_row)`):
+   - Groups selected rows into a contiguous block starting at `target_row`, preserving internal relative order.
+   - Surrounding unselected rows retain their relative order around the group.
+3. Snap-and-group to top or bottom (`move_rows_to_top`, `move_rows_to_bottom`):
+   - Snaps selected rows into a contiguous block at the top (`0..k-1`) or bottom (`N-k..N-1`).
 
-- move by exactly one row per call;
-- move names and sequences together;
-- tolerate boundary rows as no-ops;
-- create structural snapshots according to current engine behavior;
-- do not change sequence bytes within a row.
-
-`move_rows_up()` and `move_rows_down()` return success without a history entry
-when the engine is empty or the row list is empty. On a non-empty engine with
-at least two rows, the current implementation records a structural snapshot
-even when every requested row is out of range or already at the relevant
-boundary.
+**History & No-Op Behavior**:
+- All row reordering commands move names and sequences together without changing sequence bytes within a row.
+- Each user-visible move operation records exactly **one** `StructuralSnapshot` on the undo stack.
+- Operations that result in no actual row movements (e.g. empty inputs, moving rows that are already at the boundary) are clean no-ops and **do not record** an undo history entry.
 
 ## 8. History rules
 

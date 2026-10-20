@@ -502,8 +502,32 @@ export const SequenceEditor = () => {
       }
     };
 
-    const moveRowsEnd = async (_direction: EDITOR_DIRECTION) => {
-      // TODO
+    const moveRowsEnd = async (direction: EDITOR_DIRECTION) => {
+      if (!metaSubject.data) {
+        return;
+      }
+      const rows = EditorUtil.getRowsToMove(selectionSubject.data, direction, metaSubject.data);
+      if (!rows) {
+        return;
+      }
+      await execute({
+        command: async () => {
+          if (direction === EDITOR_DIRECTION.UP) {
+            await editorService.moveRowsToTop(rows);
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollTop = 0;
+            }
+          } else {
+            await editorService.moveRowsToBottom(rows);
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollTop =
+                scrollContainerRef.current.scrollHeight - scrollContainerRef.current.clientHeight;
+            }
+          }
+        },
+        getSelectionPostCommand: () =>
+          EditorUtil.getMovedRowsEndSelection(selectionSubject.data, direction, metaSubject.data),
+      });
     };
 
     const moveRows = async (direction: EDITOR_DIRECTION) => {
@@ -522,7 +546,7 @@ export const SequenceEditor = () => {
             await editorService.moveRowsDown(rows);
           }
         },
-        getSelectionPostCommand: () => EditorUtil.getMovedSelection(selectionSubject.data, direction, metaSubject.data),
+        getSelectionPostCommand: () => EditorUtil.getMovedRowsRelativeSelection(selectionSubject.data, direction, metaSubject.data),
       });
     };
 

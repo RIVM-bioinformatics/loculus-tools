@@ -149,7 +149,12 @@ export interface EngineWorkerApi {
   load: (fastaContent: string) => Promise<number>;
   meta: () => Promise<EngineMeta>;
   moveHorizontal: (row: number, columns: number[], direction: MoveDirection) => Promise<void>;
+  moveRows: (rows: number[], options: MoveRowsOptions) => Promise<void>;
   moveRowsDown: (rows: number[]) => Promise<void>;
+  moveRowsGrouped: (rows: number[], targetRow: number) => Promise<void>;
+  moveRowsRelative: (rows: number[], delta: number) => Promise<void>;
+  moveRowsToBottom: (rows: number[]) => Promise<void>;
+  moveRowsToTop: (rows: number[]) => Promise<void>;
   moveRowsUp: (rows: number[]) => Promise<void>;
   mutate: (rows: number[], columns: number[], base: string) => Promise<void>;
   name: (row: number) => Promise<string>;
@@ -159,6 +164,16 @@ export interface EngineWorkerApi {
   undo: () => Promise<boolean>;
   viewport: (bounds: ViewportBounds) => Promise<EngineViewportResult>;
 }
+
+export type GridGeometry = {
+  cellHeight: number;
+  cellWidth: number;
+  dividerWidth: number;
+  labelWidth: number;
+  numOverscanCols: number;
+  numOverscanRows: number;
+  rulerHeight: number;
+};
 
 
 /**
@@ -183,16 +198,6 @@ export interface EngineWorkerApi {
 // ---------------------------------------------------------------------------
 // Shared types
 // ---------------------------------------------------------------------------
-
-export type GridGeometry = {
-  cellHeight: number;
-  cellWidth: number;
-  dividerWidth: number;
-  labelWidth: number;
-  numOverscanCols: number;
-  numOverscanRows: number;
-  rulerHeight: number;
-};
 
 export type GridPoint = {
   col: number;
@@ -223,6 +228,12 @@ export type Meta = {
   undoDepth: number;
   width: number;
 };
+
+export type MoveRowsOptions =
+  | { delta: number; mode: 'relative' }
+  | { mode: 'bottom' }
+  | { mode: 'grouped'; targetRow: number }
+  | { mode: 'top' };
 
 // ---------------------------------------------------------------------------
 // Main → Worker requests

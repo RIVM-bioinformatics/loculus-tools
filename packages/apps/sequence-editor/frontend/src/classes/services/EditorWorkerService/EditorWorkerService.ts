@@ -8,6 +8,7 @@ import type {
   EngineSearchResult,
   EngineViewportResult,
   EngineWorkerApi,
+  MoveRowsOptions,
   ViewportBounds,
 } from '../../../models/editor.models';
 import { EDITOR_DIRECTION } from '../../../models/editor.models';
@@ -83,9 +84,39 @@ export class EditorWorkerService {
     });
   }
 
+  public async moveRows(rows: number[], options: MoveRowsOptions): Promise<void> {
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.moveRows(rows, options);
+    });
+  }
+
   public async moveRowsDown(rows: number[]): Promise<void> {
     return await this.runCommand(async () => {
       await this.engineWorkerProxy.moveRowsDown(rows);
+    });
+  }
+
+  public async moveRowsGrouped(rows: number[], targetRow: number): Promise<void> {
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.moveRowsGrouped(rows, targetRow);
+    });
+  }
+
+  public async moveRowsRelative(rows: number[], delta: number): Promise<void> {
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.moveRowsRelative(rows, delta);
+    });
+  }
+
+  public async moveRowsToBottom(rows: number[]): Promise<void> {
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.moveRowsToBottom(rows);
+    });
+  }
+
+  public async moveRowsToTop(rows: number[]): Promise<void> {
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.moveRowsToTop(rows);
     });
   }
 

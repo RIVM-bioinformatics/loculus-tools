@@ -464,6 +464,84 @@ export class EditorUtil {
   }
 
 
+  public static getMovedRowsEndSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta | null): EditorSelection | null {
+    if (!selection || !metaData) {
+      return null;
+    }
+
+    const targetRow = direction === EDITOR_DIRECTION.UP ? 0 : metaData.sequenceCount;
+    return EditorUtil.getMovedRowsGroupedSelection(selection, targetRow, metaData);
+  }
+
+  public static getMovedRowsGroupedSelection(selection: EditorSelection | null, targetRow: number, metaData: EngineMeta | null): EditorSelection | null {
+    if (!selection || !metaData) {
+      return null;
+    }
+
+    const cells = selection.cells;
+    if (cells) {
+      const rowCount = cells.endRow - cells.startRow + 1;
+      const startRow = Math.max(0, Math.min(targetRow, metaData.sequenceCount - rowCount));
+      return {
+        cells: {
+          ...cells,
+          endRow: startRow + rowCount - 1,
+          startRow,
+        },
+      };
+    }
+
+    const rows = selection.rows;
+    if (rows && rows.length > 0) {
+      const rowCount = rows.length;
+      const startRow = Math.max(0, Math.min(targetRow, metaData.sequenceCount - rowCount));
+      return {
+        rows: Array.from({ length: rowCount }, (_, idx) => startRow + idx),
+      };
+    }
+
+    return null;
+  }
+
+  public static getMovedRowsRelativeSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta | null): EditorSelection | null {
+    if (!selection || !metaData) {
+      return null;
+    }
+
+    const cells = selection.cells;
+    if (cells) {
+      const canMoveUp = direction === EDITOR_DIRECTION.UP && cells.startRow > 0;
+      const canMoveDown = direction === EDITOR_DIRECTION.DOWN && cells.endRow < metaData.sequenceCount - 1;
+      if (!canMoveUp && !canMoveDown) {
+        return selection;
+      }
+      const offset = direction === EDITOR_DIRECTION.UP ? -1 : 1;
+      return {
+        cells: {
+          ...cells,
+          endRow: cells.endRow + offset,
+          startRow: cells.startRow + offset,
+        },
+      };
+    }
+
+    const rows = selection.rows;
+    if (rows && rows.length > 0) {
+      const sortedRows = [...new Set(rows)].sort((a, b) => a - b);
+      const k = sortedRows.length;
+      if (direction === EDITOR_DIRECTION.UP) {
+        return { rows: sortedRows.map((r, i) => Math.max(i, r - 1)) };
+      }
+      if (direction === EDITOR_DIRECTION.DOWN) {
+        const maxBase = metaData.sequenceCount - k;
+        return { rows: sortedRows.map((r, i) => Math.min(maxBase + i, r + 1)) };
+      }
+      return null;
+    }
+
+    return null;
+  }
+
   public static getMovedSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta | null): EditorSelection | null {
     if (!selection || !metaData) {
       return null;
@@ -521,12 +599,7 @@ export class EditorUtil {
       if ((direction !== EDITOR_DIRECTION.UP && direction !== EDITOR_DIRECTION.DOWN) || rows.length === 0) {
         return null;
       }
-      const min = Math.min(...rows);
-      const max = Math.max(...rows);
-      if (!canMove(min, max, metaData.sequenceCount)) {
-        return null;
-      }
-      return { rows: rows.map(row => row + offset) };
+      return EditorUtil.getMovedRowsRelativeSelection(selection, direction, metaData);
     }
 
     return null;
@@ -658,13 +731,22 @@ export class EditorUtil {
       return undefined;
     }
 
-    const minRow = Math.min(...rows);
-    const maxRow = Math.max(...rows);
-    if (direction === EDITOR_DIRECTION.UP && minRow === 0) {
+    const sortedRows = [...new Set(rows)].sort((a, b) => a - b);
+    const k = sortedRows.length;
+    if (k === 0 || k === metaData.sequenceCount) {
       return undefined;
     }
-    if (direction === EDITOR_DIRECTION.DOWN && maxRow === metaData.sequenceCount - 1) {
-      return undefined;
+
+    if (direction === EDITOR_DIRECTION.UP) {
+      const alreadyAtTop = sortedRows.every((row, idx) => row === idx);
+      if (alreadyAtTop) {
+        return undefined;
+      }
+    } else if (direction === EDITOR_DIRECTION.DOWN) {
+      const alreadyAtBottom = sortedRows.every((row, idx) => row === metaData.sequenceCount - k + idx);
+      if (alreadyAtBottom) {
+        return undefined;
+      }
     }
     return rows;
   }

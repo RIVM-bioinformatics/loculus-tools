@@ -1464,6 +1464,31 @@ fn move_rows_relative_mixed_boundary_up_and_down() {
 }
 
 #[test]
+fn move_rows_relative_large_selection_and_delta_executes_efficiently() {
+    let n = 10_000;
+    let mut e = engine_with_n_rows(n);
+    // Select first 5,000 rows, move down by 2,500
+    let selected: Vec<usize> = (0..5000).collect();
+    assert_eq!(e.move_rows_relative(&selected, 2500), Ok(()));
+    // Rows 0..2500 are now unselected (originally 5000..7500)
+    assert_eq!(e.get_name(0), "seq5000");
+    assert_eq!(e.get_name(2499), "seq7499");
+    // Rows 2500..7500 are selected (originally 0..5000)
+    assert_eq!(e.get_name(2500), "seq0");
+    assert_eq!(e.get_name(7499), "seq4999");
+    // Rows 7500..10000 remain unselected (originally 7500..10000)
+    assert_eq!(e.get_name(7500), "seq7500");
+    assert_eq!(e.get_name(9999), "seq9999");
+
+    // Move back up by 2500
+    let new_selected: Vec<usize> = (2500..7500).collect();
+    assert_eq!(e.move_rows_relative(&new_selected, -2500), Ok(()));
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(4999), "seq4999");
+    assert_eq!(e.get_name(5000), "seq5000");
+}
+
+#[test]
 fn private_edit_errors_map_to_stable_categories() {
     assert_eq!(
         EditError::from(MutateError::NewBaseNotIupac { base: b'X' }),

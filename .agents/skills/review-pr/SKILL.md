@@ -28,14 +28,17 @@ when no PR can be resolved.
 1. Read `AGENTS.md`, applicable scoped instructions, and any task description.
    Fetch the exact PR diff with `gh pr diff <number>` rather than assuming the
    local branch matches the PR.
-2. Run quality checks appropriate to the changed scope. The repository-wide
-   gates are:
-   - `isort --check-only --diff .`
-   - `black --check --diff .`
-   - `python run.py test_all --include_e2e=False`
-   A documented `python run.py test_<app>_<scope>` method or precise pytest
-   selection is acceptable for a narrow review. Report actual results and stop
-   on a failing required gate.
+2. Run quality checks appropriate to the changed scope:
+   - For frontend packages: inspect `package.json` for available scripts; run
+     `pnpm --filter <package> lint` and `pnpm --filter <package> check-types`
+     (or `pnpm --filter <package> validate` if provided).
+   - For Rust engine packages (`packages/apps/<app>/engine`):
+     `cargo fmt -- --check`,
+     `cargo test`, and
+     `cargo clippy --all-targets --all-features -- -D warnings`.
+   - When WASM bindings or exports change, verify `pnpm run build-wasm` and
+     `pnpm update-exports`.
+   Report actual results and stop on a failing required gate.
 3. Analyze changed code and tests for:
    - task fulfillment and unrelated scope, when a task was supplied;
    - correctness, boundary cases, error handling, and security implications;

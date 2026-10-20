@@ -41,19 +41,20 @@ Only after assessment:
 
 ## 3. Create baseline and implement and test
 
-1. Unless the user declines a baseline, use the `run-pytest` skill to capture
-   `python run.py test_all --include_e2e=False`. Record its exit status, summary,
-   and existing failures. Run E2E or specialized external-service tests only
-   when the issue requires them.
+1. Unless the user declines a baseline, capture a baseline check on the relevant
+   target packages (e.g. `pnpm --filter <package> validate`, `cargo test` in
+   the engine, or `pnpm validate` if repository-wide). Record exit status and
+   existing failures. Run E2E or specialized external-service tests only when
+   the issue requires them.
 2. Stop for related baseline failures. Continue past unrelated failures only
    when they can be preserved and reported explicitly.
 3. Determine the smallest coherent work items. Implement each work item separately.
-   Add focused tests for changed behavior and important error paths, following 
+   Add focused tests for changed behavior and important error paths, following
    `AGENTS.md`.
-4. After each work item, run the narrowest relevant named suite or precise
-   pytest selection using the `run-pytest` skill. Repair failures in that slice
-   before continuing. Commit each work item separately with a clear message once
-   relevant tests pass.
+4. After each work item, run the narrowest relevant package check or focused test
+   selection (`cargo test <target>` or `pnpm --filter <package> <test/lint script>`).
+   Repair failures in that slice before continuing. Commit each work item separately
+   with a clear message once relevant checks pass.
 
 ## 4. Deliver
 

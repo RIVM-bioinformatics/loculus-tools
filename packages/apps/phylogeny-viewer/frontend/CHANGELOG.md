@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.0.1...phylogeny-viewer-frontend-v1.1.0) (2026-10-20)
+
+
+### Features
+
+* **frontend:** allow demo impor buttons to be set through the config ([160ac88](https://github.com/RIVM-bioinformatics/loculus-tools/commit/160ac88617c627ab51d406d2d09cb8df314c7bae))
+* **frontend:** allow page customization ([#61](https://github.com/RIVM-bioinformatics/loculus-tools/issues/61)) ([6268b9e](https://github.com/RIVM-bioinformatics/loculus-tools/commit/6268b9ed4c57dd056753c74190763eb6e602376b))
+
 ## [1.0.1](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.0.0...phylogeny-viewer-frontend-v1.0.1) (2026-10-19)
 
 

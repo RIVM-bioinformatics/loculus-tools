@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.2.0...sequence-editor-wasm-v0.3.0) (2026-10-20)
+
+
+### Features
+
+* **sequence-editor, engine:** mutate bases in multi-row and multi-column ranges as a single operation ([4c4aa64](https://github.com/RIVM-bioinformatics/loculus-tools/commit/4c4aa64ed0cbf06a78f196645535e9508427a2b2))
+
 ## [0.2.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.1.7...sequence-editor-wasm-v0.2.0) (2026-10-17)
 
 

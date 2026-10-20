@@ -1206,6 +1206,288 @@ fn move_rows_preserves_sequence_data() {
     assert_eq!(e.get_base(1, 3), b'C'); // seq1[3] = 'C'
 }
 
+fn engine_with_n_rows(n: usize) -> MsaEngine {
+    let mut e = MsaEngine::new();
+    let mut fasta = String::new();
+    for i in 0..n {
+        fasta.push_str(&format!(">seq{}\nATGC\n", i));
+    }
+    e.load_fasta(&fasta).expect("valid fasta");
+    e
+}
+
+#[test]
+fn move_rows_relative_preserves_spacing_down() {
+    let mut e = engine_with_n_rows(12);
+    // Rows 1, 3, 8 moved down by 1 -> should become 2, 4, 9
+    assert_eq!(e.move_rows_relative(&[1, 3, 8], 1), Ok(()));
+    assert_eq!(e.get_name(2), "seq1");
+    assert_eq!(e.get_name(4), "seq3");
+    assert_eq!(e.get_name(9), "seq8");
+    assert_eq!(e.get_name(1), "seq2"); // shifted up
+    assert_eq!(e.get_name(3), "seq4"); // shifted up
+    assert_eq!(e.get_name(8), "seq9"); // shifted up
+
+    // Undo restores
+    assert_eq!(e.undo_depth(), 1);
+    assert!(e.undo());
+    assert_eq!(e.get_name(1), "seq1");
+    assert_eq!(e.get_name(3), "seq3");
+    assert_eq!(e.get_name(8), "seq8");
+}
+
+#[test]
+fn move_rows_relative_preserves_spacing_up() {
+    let mut e = engine_with_n_rows(12);
+    // Rows 2, 4, 9 moved up by 1 -> should become 1, 3, 8
+    assert_eq!(e.move_rows_relative(&[2, 4, 9], -1), Ok(()));
+    assert_eq!(e.get_name(1), "seq2");
+    assert_eq!(e.get_name(3), "seq4");
+    assert_eq!(e.get_name(8), "seq9");
+    assert_eq!(e.get_name(2), "seq1");
+    assert_eq!(e.get_name(4), "seq3");
+    assert_eq!(e.get_name(9), "seq8");
+}
+
+#[test]
+fn move_rows_relative_joined_block_down() {
+    let mut e = engine_with_n_rows(6);
+    // Rows 1, 2, 3 moved down by 1 -> should become 2, 3, 4 as a solid unit
+    assert_eq!(e.move_rows_relative(&[1, 2, 3], 1), Ok(()));
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(1), "seq4"); // jumped above the block
+    assert_eq!(e.get_name(2), "seq1");
+    assert_eq!(e.get_name(3), "seq2");
+    assert_eq!(e.get_name(4), "seq3");
+    assert_eq!(e.get_name(5), "seq5");
+
+    assert_eq!(e.undo_depth(), 1);
+    assert!(e.undo());
+    assert_eq!(e.get_name(1), "seq1");
+    assert_eq!(e.get_name(2), "seq2");
+    assert_eq!(e.get_name(3), "seq3");
+    assert_eq!(e.get_name(4), "seq4");
+}
+
+#[test]
+fn move_rows_relative_joined_block_up() {
+    let mut e = engine_with_n_rows(6);
+    // Rows 2, 3, 4 moved up by 1 -> should become 1, 2, 3 as a solid unit
+    assert_eq!(e.move_rows_relative(&[2, 3, 4], -1), Ok(()));
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(1), "seq2");
+    assert_eq!(e.get_name(2), "seq3");
+    assert_eq!(e.get_name(3), "seq4");
+    assert_eq!(e.get_name(4), "seq1"); // jumped below the block
+    assert_eq!(e.get_name(5), "seq5");
+}
+
+#[test]
+fn move_rows_relative_boundary_pinned_block_does_not_scramble() {
+    let mut e = engine_with_n_rows(6);
+    // Boundary block at top [0, 1] moving up is a complete no-op: rows 0 and 1 must NOT swap!
+    assert_eq!(e.move_rows_relative(&[0, 1], -1), Ok(()));
+    assert_eq!(e.undo_depth(), 0);
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(1), "seq1");
+
+    // Mixed: [0, 1] pinned at top, [3, 4] can move up to [2, 3]
+    assert_eq!(e.move_rows_relative(&[0, 1, 3, 4], -1), Ok(()));
+    assert_eq!(e.undo_depth(), 1);
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(1), "seq1");
+    assert_eq!(e.get_name(2), "seq3");
+    assert_eq!(e.get_name(3), "seq4");
+    assert_eq!(e.get_name(4), "seq2"); // jumped below [3, 4]
+    assert_eq!(e.get_name(5), "seq5");
+}
+
+#[test]
+fn move_rows_relative_multi_step_creates_single_undo() {
+    let mut e = engine_with_n_rows(12);
+    // Shift rows 1, 3 down by 2 steps in one action
+    assert_eq!(e.move_rows_relative(&[1, 3], 2), Ok(()));
+    assert_eq!(e.get_name(3), "seq1");
+    assert_eq!(e.get_name(5), "seq3");
+    assert_eq!(e.undo_depth(), 1);
+    assert!(e.undo());
+    assert_eq!(e.get_name(1), "seq1");
+    assert_eq!(e.get_name(3), "seq3");
+    assert_eq!(e.undo_depth(), 0);
+}
+
+#[test]
+fn move_rows_grouped_to_target_index() {
+    let mut e = engine_with_n_rows(12);
+    // Rows 4, 5, 10 moved and grouped starting at target row 6 -> become rows 6, 7, 8
+    assert_eq!(e.move_rows_grouped(&[4, 5, 10], 6), Ok(()));
+    assert_eq!(e.get_name(6), "seq4");
+    assert_eq!(e.get_name(7), "seq5");
+    assert_eq!(e.get_name(8), "seq10");
+
+    // Unselected rows around the group maintain relative order:
+    // Original unselected: 0, 1, 2, 3, 6, 7, 8, 9, 11
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(1), "seq1");
+    assert_eq!(e.get_name(2), "seq2");
+    assert_eq!(e.get_name(3), "seq3");
+    assert_eq!(e.get_name(4), "seq6");
+    assert_eq!(e.get_name(5), "seq7");
+    assert_eq!(e.get_name(9), "seq8");
+    assert_eq!(e.get_name(10), "seq9");
+    assert_eq!(e.get_name(11), "seq11");
+
+    // 1 atomic undo restores everything
+    assert_eq!(e.undo_depth(), 1);
+    assert!(e.undo());
+    assert_eq!(e.get_name(4), "seq4");
+    assert_eq!(e.get_name(5), "seq5");
+    assert_eq!(e.get_name(10), "seq10");
+}
+
+#[test]
+fn move_rows_to_top_groups_arbitrary_selection_at_top() {
+    let mut e = engine_with_n_rows(6);
+    // Rows 2 and 4 moved to top
+    assert_eq!(e.move_rows_to_top(&[2, 4]), Ok(()));
+    assert_eq!(e.get_name(0), "seq2");
+    assert_eq!(e.get_name(1), "seq4");
+    assert_eq!(e.get_name(2), "seq0");
+    assert_eq!(e.get_name(3), "seq1");
+    assert_eq!(e.get_name(4), "seq3");
+    assert_eq!(e.get_name(5), "seq5");
+
+    assert_eq!(e.undo_depth(), 1);
+    assert!(e.undo());
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(2), "seq2");
+    assert_eq!(e.get_name(4), "seq4");
+}
+
+#[test]
+fn move_rows_to_bottom_groups_arbitrary_selection_at_bottom() {
+    let mut e = engine_with_n_rows(6);
+    // Rows 1 and 3 moved to bottom
+    assert_eq!(e.move_rows_to_bottom(&[1, 3]), Ok(()));
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(1), "seq2");
+    assert_eq!(e.get_name(2), "seq4");
+    assert_eq!(e.get_name(3), "seq5");
+    assert_eq!(e.get_name(4), "seq1");
+    assert_eq!(e.get_name(5), "seq3");
+
+    assert_eq!(e.undo_depth(), 1);
+    assert!(e.undo());
+    assert_eq!(e.get_name(1), "seq1");
+    assert_eq!(e.get_name(3), "seq3");
+}
+
+#[test]
+fn move_rows_no_op_does_not_create_undo_entry() {
+    let mut e = engine_with_n_rows(6);
+    assert_eq!(e.undo_depth(), 0);
+
+    // Rows 0 and 1 are already at top
+    assert_eq!(e.move_rows_to_top(&[0, 1]), Ok(()));
+    assert_eq!(e.undo_depth(), 0);
+
+    // Rows 4 and 5 are already at bottom
+    assert_eq!(e.move_rows_to_bottom(&[4, 5]), Ok(()));
+    assert_eq!(e.undo_depth(), 0);
+
+    // Row 0 moving up is already at boundary
+    assert_eq!(e.move_rows_up(&[0]), Ok(()));
+    assert_eq!(e.undo_depth(), 0);
+
+    // Row 5 moving down is already at boundary
+    assert_eq!(e.move_rows_down(&[5]), Ok(()));
+    assert_eq!(e.undo_depth(), 0);
+}
+
+#[test]
+fn move_rows_relative_with_isize_min_does_not_panic_and_pins_to_top() {
+    let mut e = engine_with_n_rows(6);
+    // Rows 2 and 4 moved with delta = isize::MIN should shift all the way to top without panicking
+    assert_eq!(e.move_rows_relative(&[2, 4], isize::MIN), Ok(()));
+    assert_eq!(e.get_name(0), "seq2");
+    assert_eq!(e.get_name(1), "seq4");
+    assert_eq!(e.get_name(2), "seq0");
+    assert_eq!(e.get_name(3), "seq1");
+    assert_eq!(e.get_name(4), "seq3");
+    assert_eq!(e.get_name(5), "seq5");
+
+    assert_eq!(e.undo_depth(), 1);
+    assert!(e.undo());
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(2), "seq2");
+    assert_eq!(e.get_name(4), "seq4");
+}
+
+#[test]
+fn move_rows_relative_with_isize_max_does_not_hang_and_pins_to_bottom() {
+    let mut e = engine_with_n_rows(6);
+    // Rows 1 and 3 moved with delta = isize::MAX should shift all the way to bottom without hanging
+    assert_eq!(e.move_rows_relative(&[1, 3], isize::MAX), Ok(()));
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(1), "seq2");
+    assert_eq!(e.get_name(2), "seq4");
+    assert_eq!(e.get_name(3), "seq5");
+    assert_eq!(e.get_name(4), "seq1");
+    assert_eq!(e.get_name(5), "seq3");
+
+    assert_eq!(e.undo_depth(), 1);
+    assert!(e.undo());
+    assert_eq!(e.get_name(1), "seq1");
+    assert_eq!(e.get_name(3), "seq3");
+}
+
+#[test]
+fn move_rows_relative_mixed_boundary_up_and_down() {
+    let mut e = engine_with_n_rows(6);
+    // [0, 3] moved up by 1: row 0 remains at 0, row 3 moves to 2 (swaps with 2)
+    assert_eq!(e.move_rows_relative(&[0, 3], -1), Ok(()));
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(1), "seq1");
+    assert_eq!(e.get_name(2), "seq3");
+    assert_eq!(e.get_name(3), "seq2");
+    assert_eq!(e.get_name(4), "seq4");
+    assert_eq!(e.get_name(5), "seq5");
+
+    // [1, 5] moved down by 1: row 5 remains at 5, row 1 moves to 2 (swaps with 2 which is seq3)
+    assert_eq!(e.move_rows_relative(&[1, 5], 1), Ok(()));
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(1), "seq3");
+    assert_eq!(e.get_name(2), "seq1");
+    assert_eq!(e.get_name(3), "seq2");
+    assert_eq!(e.get_name(4), "seq4");
+    assert_eq!(e.get_name(5), "seq5");
+}
+
+#[test]
+fn move_rows_relative_large_selection_and_delta_executes_efficiently() {
+    let n = 10_000;
+    let mut e = engine_with_n_rows(n);
+    // Select first 5,000 rows, move down by 2,500
+    let selected: Vec<usize> = (0..5000).collect();
+    assert_eq!(e.move_rows_relative(&selected, 2500), Ok(()));
+    // Rows 0..2500 are now unselected (originally 5000..7500)
+    assert_eq!(e.get_name(0), "seq5000");
+    assert_eq!(e.get_name(2499), "seq7499");
+    // Rows 2500..7500 are selected (originally 0..5000)
+    assert_eq!(e.get_name(2500), "seq0");
+    assert_eq!(e.get_name(7499), "seq4999");
+    // Rows 7500..10000 remain unselected (originally 7500..10000)
+    assert_eq!(e.get_name(7500), "seq7500");
+    assert_eq!(e.get_name(9999), "seq9999");
+
+    // Move back up by 2500
+    let new_selected: Vec<usize> = (2500..7500).collect();
+    assert_eq!(e.move_rows_relative(&new_selected, -2500), Ok(()));
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(4999), "seq4999");
+    assert_eq!(e.get_name(5000), "seq5000");
+}
+
 #[test]
 fn private_edit_errors_map_to_stable_categories() {
     assert_eq!(

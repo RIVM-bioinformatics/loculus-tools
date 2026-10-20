@@ -8,6 +8,7 @@ import type {
   EngineSearchResult,
   EngineViewportResult,
   EngineWorkerApi,
+  MoveRowsOptions,
   ViewportBounds,
 } from '../../../models/editor.models';
 
@@ -93,9 +94,53 @@ export class EngineWorker implements EngineWorkerApi {
     engine.move_horizontal(row, this.toRowIndices(columns), direction);
   }
 
+  public async moveRows(rows: number[], options: MoveRowsOptions): Promise<void> {
+    switch (options.mode) {
+      case 'bottom': {
+        await this.moveRowsToBottom(rows);
+        break;
+      }
+      case 'grouped': {
+        await this.moveRowsGrouped(rows, options.targetRow);
+        break;
+      }
+      case 'relative': {
+        await this.moveRowsRelative(rows, options.delta);
+        break;
+      }
+      case 'top': {
+        await this.moveRowsToTop(rows);
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+  }
+
   public async moveRowsDown(rows: number[]): Promise<void> {
     const engine = await this.requireEngine();
     engine.move_rows_down(this.toRowIndices(rows));
+  }
+
+  public async moveRowsGrouped(rows: number[], targetRow: number): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.move_rows_grouped(this.toRowIndices(rows), targetRow);
+  }
+
+  public async moveRowsRelative(rows: number[], delta: number): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.move_rows_relative(this.toRowIndices(rows), delta);
+  }
+
+  public async moveRowsToBottom(rows: number[]): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.move_rows_to_bottom(this.toRowIndices(rows));
+  }
+
+  public async moveRowsToTop(rows: number[]): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.move_rows_to_top(this.toRowIndices(rows));
   }
 
   public async moveRowsUp(rows: number[]): Promise<void> {

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.3.0...common-frontend-v0.4.0) (2026-10-20)
+
+
+### Features
+
+* **frontend:** allow demo impor buttons to be set through the config ([160ac88](https://github.com/RIVM-bioinformatics/loculus-tools/commit/160ac88617c627ab51d406d2d09cb8df314c7bae))
+* **frontend:** allow page customization ([#61](https://github.com/RIVM-bioinformatics/loculus-tools/issues/61)) ([6268b9e](https://github.com/RIVM-bioinformatics/loculus-tools/commit/6268b9ed4c57dd056753c74190763eb6e602376b))
+
 ## [0.3.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.2.0...common-frontend-v0.3.0) (2026-10-16)
 
 

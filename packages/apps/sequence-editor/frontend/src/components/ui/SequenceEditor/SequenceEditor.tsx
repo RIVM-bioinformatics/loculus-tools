@@ -506,7 +506,7 @@ export const SequenceEditor = () => {
       if (!metaSubject.data) {
         return;
       }
-      const rows = EditorUtil.getRowsToMoveEnd(selectionSubject.data, direction, metaSubject.data);
+      const rows = EditorUtil.getRowsToMove(selectionSubject.data, direction, metaSubject.data);
       if (!rows) {
         return;
       }

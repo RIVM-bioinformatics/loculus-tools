@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <style>
+    /* Default styling for Light Mode tabs */
+    .bg { fill: none; }
+    .grid-line { stroke: #0f172a; stroke-width: 4; stroke-linejoin: round; }
+    .node-a { fill: #0ea5e9; } /* Vibrant blue */
+    .node-b { fill: #0d9488; } /* Teal cell */
+    .node-c { fill: #6366f1; } /* Indigo cell */
+    
+    /* Dynamic adaptive styling for Dark Mode tabs */
+    @media (prefers-color-scheme: dark) {
+      .grid-line { stroke: #e2e8f0; }
+      .node-a { fill: #38bdf8; }
+      .node-b { fill: #2dd4bf; }
+      .node-c { fill: #818cf8; }
+    }
+  </style>
+
+  <!-- Outer bounding box for context -->
+  <rect class="bg" width="100%" height="100%" rx="16" />
+
+  <!-- Stylized isometric compartment cluster (Loculus concept) -->
+  <g transform="translate(0, 2)">
+    <!-- Top-left Compartment -->
+    <rect x="22" y="22" width="24" height="24" rx="6" class="node-a" />
+    <!-- Top-right Compartment -->
+    <rect x="54" y="22" width="24" height="24" rx="6" class="node-b" />
+    <!-- Bottom-left Compartment -->
+    <rect x="22" y="54" width="24" height="24" rx="6" class="node-c" />
+    <!-- Bottom-right Data Node -->
+    <circle cx="66" cy="66" r="10" class="node-a" />
+
+    <!-- Interconnecting vector grid paths -->
+    <path d="M46,34 L54,34 M34,46 L34,54 M46,66 L56,66 M66,46 L66,56" class="grid-line"
+      stroke-linecap="round" />
+  </g>
+</svg>

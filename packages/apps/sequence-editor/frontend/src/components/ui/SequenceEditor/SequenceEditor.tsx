@@ -23,6 +23,7 @@ import {
   DEVICE_PIXEL_RATIO_SERVICE_TOKEN,
   KEYBOARD_SHORTCUT_SERVICE_TOKEN,
 } from '@rivm-loculus-tools/common-frontend/constants/config.constants';
+import { ExportUtil } from '@rivm-loculus-tools/common-frontend/utils/ExportUtil';
 
 import { EditorWorkerService } from '../../../classes/services/EditorWorkerService';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
@@ -662,6 +663,18 @@ export const SequenceEditor = () => {
           command: async () => editorService.redo(),
           getSelectionPostCommand: () => null,
         });
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onExportGappedFasta', async () => {
+        console.log('Exporting gapped fasta');
+        const fasta = await editorService.exportGappedFasta();
+        ExportUtil.downloadFastaFile(fasta, 'sequence.gapped.fasta');
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onExportUngappedFasta', async () => {
+        console.log('Exporting ungapped fasta');
+        const fasta = await editorService.exportUngappedFasta();
+        ExportUtil.downloadFastaFile(fasta, 'sequence.ungapped.fasta');
       }),
     ];
     return () => {

@@ -6,19 +6,12 @@ import { SequenceEditorPageHeader } from '../../components/ui/SequenceEditorPage
 
 
 export class SequenceEditorStandardConfigUtil {
-  public static createConfig(): Omit<SequenceEditorConfig, 'theme'> {
-
-    const config: Omit<SequenceEditorConfig, 'theme'> = {
+  public static createConfig(): Pick<SequenceEditorConfig, 'applicationName' | 'drawerComponent' | 'headerComponent'> & ReturnType<typeof StandardConfigUtil.createConfig> {
+    return {
       ...StandardConfigUtil.createConfig(),
       applicationName: 'MindTheGap',
       drawerComponent: SequenceEditorPageDrawer,
-      getTouchIconUrl: () => {
-        return undefined;
-      },
       headerComponent: SequenceEditorPageHeader,
     };
-
-    return config;
   }
-
 }

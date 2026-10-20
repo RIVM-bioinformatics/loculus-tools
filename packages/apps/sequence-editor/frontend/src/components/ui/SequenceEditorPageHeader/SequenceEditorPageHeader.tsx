@@ -3,16 +3,22 @@ import { FastaPageHeaderCenterComponent } from '@rivm-loculus-tools/common-front
 import { FastaPageHeaderImportButton } from '@rivm-loculus-tools/common-frontend/components/fasta/FastaPageHeaderImportButton';
 import { FastaPageHeaderResetButton } from '@rivm-loculus-tools/common-frontend/components/fasta/FastaPageHeaderResetButton';
 import { PageCommonHeader } from '@rivm-loculus-tools/common-frontend/components/ui/PageCommonHeader';
-import { useCallback } from 'react';
+import {
+  useCallback,
+  useMemo,
+} from 'react';
+import CodeIcon from '@mui/icons-material/Code';
+import PublishIcon from '@mui/icons-material/Publish';
 import { useStore } from 'zustand';
-import BiotechOutlinedIcon from '@mui/icons-material/BiotechOutlined';
 import UndoIcon from '@mui/icons-material/Undo';
 import RedoIcon from '@mui/icons-material/Redo';
 import {
   IconButton,
   Tooltip,
 } from '@mui/material';
-import { PageHeaderDocumentationButton } from '@rivm-loculus-tools/common-frontend/components/ui/PageHeaderDocumentationButton';
+import { ButtonWithMenu } from '@rivm-loculus-tools/common-frontend/components/ui/ButtonWithMenu';
+import type { ButtonWithMenuProps } from '@rivm-loculus-tools/common-frontend/components/ui/ButtonWithMenu';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
@@ -33,13 +39,41 @@ export const SequenceEditorPageHeader = () => {
     container.resolve(SequenceEditorEventBusService).emit('onRedo');
   }, []);
 
+  const onClickExportFasta = useCallback(() => {
+    container.resolve(SequenceEditorEventBusService).emit('onExportUngappedFasta');
+  }, []);
+
+  const onClickExportGappedFasta = useCallback(() => {
+    container.resolve(SequenceEditorEventBusService).emit('onExportGappedFasta');
+  }, []);
+
+  const onClickUploadToLoculus = useCallback(() => {
+    alert('Not implemented');
+  }, []);
+
+  const exportExportMenuItems: ButtonWithMenuProps['items'] = useMemo(() => [
+    {
+      icon: <PublishIcon fontSize={'small'} />,
+      label: 'Export to loculus',
+      onClick: onClickUploadToLoculus,
+    },
+    {
+      icon: <CodeIcon fontSize={'small'} />,
+      label: 'Save as Ungapped Fasta (.fasta)',
+      onClick: onClickExportFasta,
+    },
+    {
+      icon: <CodeIcon fontSize={'small'} />,
+      label: 'Save as Gapped Fasta (.fasta)',
+      onClick: onClickExportGappedFasta,
+    },
+  ], [onClickExportFasta, onClickExportGappedFasta, onClickUploadToLoculus]);
+
   return (
     <PageCommonHeader
       centerComponent={<FastaPageHeaderCenterComponent store={sequenceEditorStore} />}
-      icon={<BiotechOutlinedIcon sx={{ fontSize: 24 }} />}
       rightComponent={(
         <>
-          <FastaPageHeaderImportButton />
           <Tooltip title={'Undo last action'}>
             <IconButton
               color={'inherit'}
@@ -63,7 +97,12 @@ export const SequenceEditorPageHeader = () => {
             </IconButton>
           </Tooltip>
           <FastaPageHeaderResetButton onReset={onReset} />
-          <PageHeaderDocumentationButton />
+          <FastaPageHeaderImportButton />
+          <ButtonWithMenu
+            items={exportExportMenuItems}
+            label={'Export'}
+            startIcon={<FileDownloadOutlinedIcon />}
+          />
         </>
       )}
       title={'Sequence Editor'}

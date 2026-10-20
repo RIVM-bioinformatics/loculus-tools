@@ -6,19 +6,12 @@ import { PhylogenyViewerPageHeader } from '../../components/ui/PhylogenyViewerPa
 
 
 export class PhylogenyViewerStandardConfigUtil {
-  public static createConfig(): Omit<PhylogenyViewerConfig, 'theme'> {
-
-    const config: Omit<PhylogenyViewerConfig, 'theme'> = {
+  public static createConfig(): Pick<PhylogenyViewerConfig, 'applicationName' | 'drawerComponent' | 'headerComponent'> & ReturnType<typeof StandardConfigUtil.createConfig> {
+    return {
       ...StandardConfigUtil.createConfig(),
       applicationName: 'Phylogeny Viewer',
       drawerComponent: PhylogenyViewerPageDrawer,
-      getTouchIconUrl: () => {
-        return undefined;
-      },
       headerComponent: PhylogenyViewerPageHeader,
     };
-
-    return config;
   }
-
 }

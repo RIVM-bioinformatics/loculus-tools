@@ -21,8 +21,8 @@ export type AppProps = PropsWithChildren<{
 
 export const App = ({ children, container }: AppProps) => {
   const config = DependencyContainerUtil.resolveConfig<ConfigBase>(container);
-
-  const touchIconUrl = config.getTouchIconUrl();
+  const { pageConfig } = config;
+  const touchIconUrl = config.getTouchIconUrl?.();
   if (touchIconUrl) {
     document.querySelector('link[rel="icon"]')?.setAttribute('href', touchIconUrl);
   }
@@ -36,7 +36,7 @@ export const App = ({ children, container }: AppProps) => {
           <CssBaseline />
           <ErrorBoundary FallbackComponent={ErrorPage}>
             <I18nWrapper>
-              <PageCommonContextProvider>
+              <PageCommonContextProvider {...pageConfig}>
                 {children}
               </PageCommonContextProvider>
             </I18nWrapper>

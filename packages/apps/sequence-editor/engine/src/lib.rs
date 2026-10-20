@@ -323,27 +323,6 @@ fn inclusive_range_len(start: usize, end: usize) -> Option<usize> {
     end.checked_sub(start)?.checked_add(1)
 }
 
-/// Partition sorted, deduplicated indices into contiguous inclusive blocks `[start, end]`.
-fn partition_into_blocks(indices: &[usize]) -> Vec<(usize, usize)> {
-    if indices.is_empty() {
-        return Vec::new();
-    }
-    let mut blocks = Vec::new();
-    let mut start = indices[0];
-    let mut end = indices[0];
-    for &idx in &indices[1..] {
-        if idx == end + 1 {
-            end = idx;
-        } else {
-            blocks.push((start, end));
-            start = idx;
-            end = idx;
-        }
-    }
-    blocks.push((start, end));
-    blocks
-}
-
 /// Direction for horizontal character movement.
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1368,6 +1347,23 @@ impl MsaEngine {
 
     // vertical moves and reordering of rows
 
+    fn apply_row_reorder(&mut self, order: &[usize]) {
+        self.record_structural_undo();
+
+        let mut old_sequences = std::mem::take(&mut self.nucleotide_sequences);
+        let mut old_names = std::mem::take(&mut self.names);
+        let mut new_sequences = Vec::with_capacity(order.len());
+        let mut new_names = Vec::with_capacity(order.len());
+
+        for &idx in order {
+            new_sequences.push(std::mem::take(&mut old_sequences[idx]));
+            new_names.push(std::mem::take(&mut old_names[idx]));
+        }
+
+        self.nucleotide_sequences = new_sequences;
+        self.names = new_names;
+    }
+
     /// Move the specified rows relative to their current positions by `delta`
     /// steps (+ for down, - for up). Disjoint rows preserve their relative spacing
     /// unless blocked by alignment boundaries. Rows hitting boundaries remain at
@@ -1389,82 +1385,54 @@ impl MsaEngine {
         indices.sort_unstable();
         indices.dedup();
 
-        if indices.is_empty() || indices.len() == n {
+        let k = indices.len();
+        if k == 0 || k == n {
             return Ok(());
         }
 
-        let mut order: Vec<usize> = (0..n).collect();
-        let mut curr_indices = indices;
-
-        let max_steps = n.saturating_sub(curr_indices.len());
-        let steps = delta.unsigned_abs().min(max_steps);
-        if steps == 0 {
-            return Ok(());
-        }
-
-        if delta > 0 {
-            for _ in 0..steps {
-                let blocks = partition_into_blocks(&curr_indices);
-                for &(start, end) in blocks.iter().rev() {
-                    if end + 1 < n {
-                        order[start..=end + 1].rotate_right(1);
-                    }
-                }
-                let mut next_indices = Vec::with_capacity(curr_indices.len());
-                for (start, end) in blocks {
-                    if end + 1 < n {
-                        next_indices.extend((start + 1)..=(end + 1));
-                    } else {
-                        next_indices.extend(start..=end);
-                    }
-                }
-                if next_indices == curr_indices {
-                    break;
-                }
-                curr_indices = next_indices;
-            }
+        let steps = delta.unsigned_abs();
+        let new_positions: Vec<usize> = if delta > 0 {
+            let max_base = n - k;
+            indices
+                .iter()
+                .enumerate()
+                .map(|(i, &r)| (r.saturating_add(steps)).min(max_base + i))
+                .collect()
         } else {
-            for _ in 0..steps {
-                let blocks = partition_into_blocks(&curr_indices);
-                for &(start, end) in &blocks {
-                    if start > 0 {
-                        order[start - 1..=end].rotate_left(1);
-                    }
-                }
-                let mut next_indices = Vec::with_capacity(curr_indices.len());
-                for (start, end) in blocks {
-                    if start > 0 {
-                        next_indices.extend((start - 1)..=(end - 1));
-                    } else {
-                        next_indices.extend(start..=end);
-                    }
-                }
-                if next_indices == curr_indices {
-                    break;
-                }
-                curr_indices = next_indices;
-            }
-        }
+            indices
+                .iter()
+                .enumerate()
+                .map(|(i, &r)| (r.saturating_sub(steps)).max(i))
+                .collect()
+        };
 
-        let has_changed = order.iter().enumerate().any(|(i, &orig)| i != orig);
-        if !has_changed {
+        if new_positions == indices {
             return Ok(());
         }
 
-        self.record_structural_undo();
-
-        let mut old_sequences = std::mem::take(&mut self.nucleotide_sequences);
-        let mut old_names = std::mem::take(&mut self.names);
-        let mut new_sequences = Vec::with_capacity(n);
-        let mut new_names = Vec::with_capacity(n);
-
-        for &idx in &order {
-            new_sequences.push(std::mem::take(&mut old_sequences[idx]));
-            new_names.push(std::mem::take(&mut old_names[idx]));
+        let mut is_selected_dest = vec![false; n];
+        for &p in &new_positions {
+            is_selected_dest[p] = true;
         }
 
-        self.nucleotide_sequences = new_sequences;
-        self.names = new_names;
+        let mut is_selected_orig = vec![false; n];
+        for &r in &indices {
+            is_selected_orig[r] = true;
+        }
+
+        let mut selected_iter = indices.iter().copied();
+        let mut unselected_iter = (0..n).filter(|&r| !is_selected_orig[r]);
+
+        let mut order = Vec::with_capacity(n);
+        for dest in 0..n {
+            if is_selected_dest[dest] {
+                order.push(selected_iter.next().unwrap());
+            } else {
+                order.push(unselected_iter.next().unwrap());
+            }
+        }
+
+        self.apply_row_reorder(&order);
 
         Ok(())
     }
@@ -1517,20 +1485,7 @@ impl MsaEngine {
             return Ok(());
         }
 
-        self.record_structural_undo();
-
-        let mut old_sequences = std::mem::take(&mut self.nucleotide_sequences);
-        let mut old_names = std::mem::take(&mut self.names);
-        let mut new_sequences = Vec::with_capacity(n);
-        let mut new_names = Vec::with_capacity(n);
-
-        for &idx in &new_order {
-            new_sequences.push(std::mem::take(&mut old_sequences[idx]));
-            new_names.push(std::mem::take(&mut old_names[idx]));
-        }
-
-        self.nucleotide_sequences = new_sequences;
-        self.names = new_names;
+        self.apply_row_reorder(&new_order);
 
         Ok(())
     }

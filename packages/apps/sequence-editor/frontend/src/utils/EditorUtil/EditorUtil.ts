@@ -563,51 +563,15 @@ export class EditorUtil {
     const rows = selection.rows;
     if (rows && rows.length > 0) {
       const sortedRows = [...new Set(rows)].sort((a, b) => a - b);
-      const blocks: [number, number][] = [];
-      let start = sortedRows[0];
-      let end = start;
-
-      for (let i = 1; i < sortedRows.length; i++) {
-        if (sortedRows[i] === end + 1) {
-          end = sortedRows[i];
-        } else {
-          blocks.push([start, end]);
-          start = sortedRows[i];
-          end = start;
-        }
-      }
-      blocks.push([start, end]);
-
-      const nextRows: number[] = [];
+      const k = sortedRows.length;
       if (direction === EDITOR_DIRECTION.UP) {
-        for (const [bStart, bEnd] of blocks) {
-          if (bStart > 0) {
-            for (let r = bStart - 1; r <= bEnd - 1; r++) {
-              nextRows.push(r);
-            }
-          } else {
-            for (let r = bStart; r <= bEnd; r++) {
-              nextRows.push(r);
-            }
-          }
-        }
-      } else if (direction === EDITOR_DIRECTION.DOWN) {
-        for (const [bStart, bEnd] of blocks) {
-          if (bEnd + 1 < metaData.sequenceCount) {
-            for (let r = bStart + 1; r <= bEnd + 1; r++) {
-              nextRows.push(r);
-            }
-          } else {
-            for (let r = bStart; r <= bEnd; r++) {
-              nextRows.push(r);
-            }
-          }
-        }
-      } else {
-        return null;
+        return { rows: sortedRows.map((r, i) => Math.max(i, r - 1)) };
       }
-
-      return { rows: nextRows.sort((a, b) => a - b) };
+      if (direction === EDITOR_DIRECTION.DOWN) {
+        const maxBase = metaData.sequenceCount - k;
+        return { rows: sortedRows.map((r, i) => Math.min(maxBase + i, r + 1)) };
+      }
+      return null;
     }
 
     return null;

@@ -159,16 +159,15 @@ printf "%s\n" "$body" > "$temp_body_file"
 trap 'rm -f "$temp_body_file"' EXIT
 
 build_gh_args() {
-  local -n ref_args=$1
-  ref_args=(--title "$title" --body-file "$temp_body_file")
+  cmd_args=(--title "$title" --body-file "$temp_body_file")
   for l in "${labels[@]}"; do
-    ref_args+=(--label "$l")
+    cmd_args+=(--label "$l")
   done
   if [[ -n "$assignee" ]]; then
-    ref_args+=(--assignee "$assignee")
+    cmd_args+=(--assignee "$assignee")
   fi
 }
 
 cmd_args=()
-build_gh_args cmd_args
+build_gh_args
 gh issue create "${cmd_args[@]}"

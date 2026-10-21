@@ -1,7 +1,7 @@
 ---
 name: "Frontend Application and Component Guidelines"
 description: "Use for React, Vite, TypeScript, and styling changes across frontend packages in the monorepo."
-applyTo: "packages/apps/**/frontend/**/*.{ts,tsx,js,jsx,json,html}"
+applyTo: "{packages/apps/**/frontend,packages/apps/**/frontend-demo,packages/common/frontend}/**/*.{ts,tsx,js,jsx,json,html}"
 ---
 
 - Respect package heterogeneity: always inspect the package manifest (`package.json`) before executing scripts (`lint`, `check-types`, `validate`, `build`, `start`, `preview`, `test`). Do not assume every application defines identical script names.

@@ -102,9 +102,13 @@ if [[ -z "$body" ]]; then
   exit 1
 fi
 
-# Ensure proper AI attribution is appended if not already present
-if [[ "$body" != *"$ai_attribution"* ]]; then
-  body="$body
+# Ensure proper AI attribution footer is present as suffix if not already present
+expected_footer="---
+$ai_attribution"
+trimmed_body="${body%"${body##*[![:space:]]}"}"
+
+if [[ "$trimmed_body" != "$expected_footer" && "$trimmed_body" != *$'\n'"$expected_footer" ]]; then
+  body="$trimmed_body
 
 ---
 $ai_attribution"

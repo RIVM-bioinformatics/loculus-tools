@@ -11,7 +11,7 @@ Keep reusable guidance in `.agents/`:
 - `.agents/prompts/` contains short, task-specific `*.prompt.md` templates. Prompts are entry points, not duplicate skill bodies.
 - `.agents/instructions/` contains conditional `*.instructions.md` rules with `applyTo` globs for specific languages, directories, or package types.
 - `.agents/agents/` contains Antigravity-native custom-agent adapters; portable role procedures belong in `.agents/skills/`.
-- `.agents/references/` contains detailed material loaded only when a skill needs it.
+- `.agents/skills/<name>/references/` contains detailed material loaded only when a skill needs it.
 - `.agents/scripts/` contains deterministic helpers (e.g. PR creation and commenting scripts). Audit scripts before using them.
 
 ## Monorepo Considerations

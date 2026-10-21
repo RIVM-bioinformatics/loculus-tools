@@ -37,7 +37,7 @@ Use standard Rustdoc formatting (`///` for items, `//!` for module-level):
 
 - Provide a concise one-line summary followed by details when necessary.
 - Include `# Arguments` or `# Returns` when parameters require elaboration.
-- Add `# Panics` or `# Errors` sections for functions that can panic or return `Result::Err`.
+- Add `# Panics` or `# Errors` sections for functions that can panic or return `Result::Err`; document non-panicking empty or error results for invalid/out-of-bounds inputs.
 - Document coordinate conventions (inclusive 0-indexed bounds) and byte packing invariants.
 
 Example:
@@ -49,8 +49,8 @@ Example:
 /// # Invariant
 /// The returned vector has length `(end_row - start_row + 1) * (end_col - start_col + 1)`.
 ///
-/// # Panics
-/// Panics if `start_row > end_row` or `start_col > end_col`.
+/// # Returns
+/// Returns an empty vector if the matrix is empty, `start_row > end_row`, or `start_col > end_col`.
 ```
 
 ## Procedure

@@ -34,7 +34,7 @@ Engine crates are native Rust crates with `Cargo.toml`.
    ```
 4. **Hermeticity**: Keep engine tests pure and native; do not rely on DOM, network, or filesystem paths outside `tmp_dir` if needed.
 
-### 2. Frontend Packages (`packages/apps/**/frontend`)
+### 2. Frontend Packages (`packages/apps/**/frontend`, `packages/apps/**/frontend-demo`, `packages/common/frontend`)
 
 Frontend packages are React/Vite applications managed by pnpm.
 
@@ -43,9 +43,16 @@ Frontend packages are React/Vite applications managed by pnpm.
    - Focus tests on pure domain logic: stores (Zustand), services, utilities (FASTA parsing, metadata parsing, color palettes, export formatters), and worker RPC serialization.
    - Mock browser-only globals (Canvas, Web Workers, fetch) where needed.
 3. **Execution**:
-   ```bash
-   pnpm --filter <package-name> test -- <test-file>
-   ```
+   - When a test runner is configured in `package.json`:
+     ```bash
+     pnpm --filter <package-name> test -- <test-file>
+     ```
+   - When no automated unit test runner is configured, execute static validation instead:
+     ```bash
+     pnpm --filter <package-name> validate
+     # or separately:
+     pnpm --filter <package-name> check-types
+     ```
 
 ## General Workflow
 

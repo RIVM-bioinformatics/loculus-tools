@@ -51,7 +51,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --assignee)
-      assignee="$2"
+      assignee="${2?missing value for --assignee}"
       shift 2
       ;;
     --dry-run)

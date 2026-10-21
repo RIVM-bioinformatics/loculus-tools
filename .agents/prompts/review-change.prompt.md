@@ -9,7 +9,7 @@ Use the [deep-dive researcher skill](../skills/deep-dive-researcher/SKILL.md) fo
 Review scope: ${input:scope:Provide a PR number, diff, issue, review comments, or packages/files to inspect.}
 
 1. Read the relevant package implementations, callers, tests, configuration, and history before judging a change.
-2. Trace the complete runtime path across monorepo boundaries (UI components -> worker RPC -> WASM engine -> Rust alignment matrix).
+2. Trace the complete runtime path across monorepo boundaries according to the affected package's architecture (e.g. sequence-editor: UI components -> worker RPC -> WASM engine -> Rust alignment matrix; phylogeny-viewer: UI components -> services/workers -> Aioli/Biowasm/Gen-EpiX; tooling: scripts/config -> target packages).
 3. Classify each finding as valid, invalid, or requiring clarification. Separate confirmed facts from assumptions.
 4. Check supported edge cases, failure behavior, security implications, and the narrowest validation command.
 5. Apply a Poka-yoke footgun lens to monorepo and computational changes:

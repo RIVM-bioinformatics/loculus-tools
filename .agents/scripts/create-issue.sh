@@ -85,9 +85,6 @@ require_command() {
   fi
 }
 
-require_command git
-require_command gh
-
 if [[ -n "$body_file" ]]; then
   if [[ ! -f "$body_file" ]]; then
     echo "Body file not found: $body_file" >&2
@@ -123,23 +120,6 @@ if [[ -z "$title" ]]; then
   exit 1
 fi
 
-gh auth status >/dev/null
-
-temp_body_file="$(mktemp "${TMPDIR:-/tmp}/gh-issue-body.XXXXXX.md")"
-printf "%s\n" "$body" > "$temp_body_file"
-trap 'rm -f "$temp_body_file"' EXIT
-
-build_gh_args() {
-  local -n ref_args=$1
-  ref_args=(--title "$title" --body-file "$temp_body_file")
-  for l in "${labels[@]}"; do
-    ref_args+=(--label "$l")
-  done
-  if [[ -n "$assignee" ]]; then
-    ref_args+=(--assignee "$assignee")
-  fi
-}
-
 if [[ "$print_command" == true ]]; then
   printf "gh issue create \\\\\n"
   printf "  --title %q \\\\\n" "$title"
@@ -161,10 +141,29 @@ if [[ "$dry_run" == true ]]; then
   echo "Labels:   ${labels[*]:-<none>}"
   echo "Body:"
   echo "----------------------------------------"
-  cat "$temp_body_file"
+  printf "%s\n" "$body"
   echo "----------------------------------------"
   exit 0
 fi
+
+require_command git
+require_command gh
+gh auth status >/dev/null
+
+temp_body_file="$(mktemp "${TMPDIR:-/tmp}/gh-issue-body.XXXXXX.md")"
+printf "%s\n" "$body" > "$temp_body_file"
+trap 'rm -f "$temp_body_file"' EXIT
+
+build_gh_args() {
+  local -n ref_args=$1
+  ref_args=(--title "$title" --body-file "$temp_body_file")
+  for l in "${labels[@]}"; do
+    ref_args+=(--label "$l")
+  done
+  if [[ -n "$assignee" ]]; then
+    ref_args+=(--assignee "$assignee")
+  fi
+}
 
 cmd_args=()
 build_gh_args cmd_args

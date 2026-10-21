@@ -34,21 +34,24 @@ as the shared source of truth for Copilot, Codex, Cursor, and other agents.
 
 ## Package and Workspace Model
 
-The root `package.json` uses pnpm `12.3.4` and Lerna `10.0.1`. Lerna discovers
-the following package families:
+The root `package.json` uses pnpm `12.14.0` and Lerna `10.1.1`. Lerna and the
+pnpm workspace discover the following package families:
 
 ```text
 packages/apps/**/frontend
-packages/apps/**/engine
+packages/apps/**/frontend-demo
 packages/apps/**/engine/wasm
+packages/common/**
 ```
 
-The pnpm workspace currently includes only `frontend` and `wasm` directories:
+The pnpm workspace includes:
 
 ```yaml
 packages:
   - packages/apps/**/frontend
+  - packages/apps/**/frontend-demo
   - packages/apps/**/engine/wasm
+  - packages/common/**
 ```
 
 The Rust `engine` directories are build inputs, not pnpm packages. Their output
@@ -57,11 +60,22 @@ a `workspace:^` dependency on that generated package.
 
 ### Application status
 
-- `packages/apps/phylogeny-viewer/frontend` is a complete React/Vite package
-  with lint, type-check, build, start, and preview scripts.
+- `packages/apps/phylogeny-viewer/frontend` is a reusable React/Vite library
+  package (`@rivm-loculus-tools/phylogeny-viewer`) with validate, lint,
+  lint-fix, update-exports, check-types, build, and preview scripts.
+- `packages/apps/phylogeny-viewer/frontend-demo` is a standalone React/Vite demo
+  application (`@rivm-loculus-tools/phylogeny-viewer-demo`) with start, build,
+  preview, and validation scripts.
 - `packages/apps/sequence-editor/engine` is a Rust crate compiled for native
-  tests and WebAssembly. Its `frontend` package is a React/Vite test harness and
-  UI consumer of the generated WASM package.
+  tests and WebAssembly.
+- `packages/apps/sequence-editor/frontend` is a reusable React/Vite UI component
+  and library package (`@rivm-loculus-tools/sequence-editor`) with validate,
+  lint, lint-fix, update-exports, check-types, start, build, and preview scripts.
+- `packages/apps/sequence-editor/frontend-demo` is a standalone React/Vite demo
+  application (`@rivm-loculus-tools/sequence-editor-demo`) mounting
+  `SequenceEditorDemoApp`, with start, build, preview, and validation scripts.
+- `packages/common/frontend` is a shared frontend foundation package
+  (`@rivm-loculus-tools/common-frontend`).
 - `packages/apps/mst-viewer` currently contains only `.gitkeep` files in its
   `frontend`, `engine`, and `wasm` directories. Do not assume it is buildable.
 - `packages/apps/record-merger` currently contains only `.gitkeep` files in its
@@ -91,8 +105,9 @@ worker, or engine boundary instead of being spread through view components.
 
 ### Phylogeny viewer
 
-`phylogeny-viewer/frontend/src/main.tsx` mounts the React `App` under
-`StrictMode`. The source tree is organized into:
+`packages/apps/phylogeny-viewer/frontend-demo/src/main.tsx` mounts the demo
+application `PhylogenyViewerDemoApp` under `StrictMode`. The reusable library source
+tree under `packages/apps/phylogeny-viewer/frontend/src/` is organized into:
 
 - `components/app` and `components/pages` for application/page composition.
 - `components/dialogs` for import and validation feedback flows.
@@ -150,10 +165,10 @@ contracts are documented in:
 - `packages/apps/sequence-editor/engine/engine.md` for Rust implementation and
   data-structure details.
 
-The current frontend entry point mounts `TestHarness` with Material UI's
-`CssBaseline`. `ScrollingViewport`, `BenchmarkPanel`, and `TestHarness` are
-experimental/test-harness surfaces; changes to the worker protocol should be
-validated against them.
+The standalone demo entry point in `packages/apps/sequence-editor/frontend-demo/src/main.tsx`
+mounts `SequenceEditorDemoApp`, while `packages/apps/sequence-editor/frontend`
+exposes the production-facing library components (`SequenceEditor`, `SequenceEditorApp`),
+services, and state stores.
 
 ### Rust/WASM build boundary
 
@@ -184,7 +199,7 @@ otherwise.
 Prerequisites:
 
 - Node.js 18 or newer.
-- pnpm 12.3.4, as pinned by the root `packageManager` field.
+- pnpm 12.14.0, as pinned by the root `packageManager` field.
 - Rust via rustup and `wasm-pack` for the sequence editor or any Rust engine.
 
 ```bash
@@ -205,13 +220,13 @@ dependency graph.
 
 ```bash
 pnpm build-wasm              # Build every discovered Rust engine to WASM
-pnpm start-phylogeny-viewer # Start phylogeny-viewer through its workspace filter
-pnpm start-seq              # Start sequence-editor through its workspace filter
+pnpm start-phylo             # Start phylogeny-viewer demo through its workspace filter
+pnpm start-seq               # Start sequence-editor demo through its workspace filter
 pnpm update-exports          # Run export-map generation across Lerna packages
 pnpm validate                # Run each package's validate script with streaming
 pnpm lint                    # Run each package's lint script
 pnpm lint-fix                # Auto-fix lint issues package-wide
-pnpm check-types            # Type-check packages that expose this script
+pnpm check-types             # Type-check packages that expose this script
 pnpm test                    # Run packages' test-run scripts
 pnpm build                   # Build packages that expose build scripts
 pnpm add-missing-translations
@@ -227,19 +242,21 @@ reliably. The root currently has no application runtime or backend server.
 Use pnpm filters to avoid running unrelated packages:
 
 ```bash
-pnpm --filter @rivm-loculus-tools/phylogeny-viewer start
+pnpm --filter @rivm-loculus-tools/phylogeny-viewer-demo start
 pnpm --filter @rivm-loculus-tools/phylogeny-viewer lint
 pnpm --filter @rivm-loculus-tools/phylogeny-viewer check-types
 pnpm --filter @rivm-loculus-tools/phylogeny-viewer build
 pnpm --filter @rivm-loculus-tools/phylogeny-viewer preview
 
-pnpm --filter @rivm-loculus-tools/sequence-editor start
+pnpm --filter @rivm-loculus-tools/sequence-editor-demo start
+pnpm --filter @rivm-loculus-tools/sequence-editor lint
+pnpm --filter @rivm-loculus-tools/sequence-editor check-types
 pnpm --filter @rivm-loculus-tools/sequence-editor build
 ```
 
-The phylogeny viewer's `validate` script is `lint` followed by `check-types`.
-The sequence editor currently exposes start, build, and preview scripts but no
-package-level lint or test script.
+Both the phylogeny viewer and sequence editor packages define `validate`, `lint`,
+and `check-types` scripts (`validate` executes `lint` followed by `check-types`).
+Neither frontend package currently defines an automated unit test runner script (`test-run`).
 
 ### Rust checks
 

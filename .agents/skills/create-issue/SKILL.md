@@ -85,8 +85,8 @@ gh issue create \
 
 The repository provides `.agents/scripts/create-issue.sh`:
 - Automatically appends the required AI attribution footer if omitted.
-- Validates CLI prerequisites (`git`, `gh`).
-- Supports `--dry-run`, `--print-command`, and `--body-only` inspection flags.
+- Validates CLI prerequisites (`git`, `gh`) and authentication only when executing issue creation.
+- Supports `--dry-run`, `--print-command`, and `--body-only` inspection flags without requiring `gh` installation or authentication.
 
 ## Safety Rules
 

@@ -10,6 +10,7 @@ mod alphabets;
 mod search_algorithms;
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
+use mafft::{AlignmentMode, MafftEngine, ScoringModel, SeqType, Sequence, SequenceSet};
 use search_algorithms::{MAX_SEARCH_RESULTS, Match, MatrixType, SearchResult, naive_search};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
@@ -1520,6 +1521,92 @@ impl MsaEngine {
         self.move_rows_relative(row_indices, 1)
     }
 
+    /// Re-align all sequences in the matrix using MAFFT FFT-NS-1.
+    /// To use FFT-NS-1, initialize the MAFFT engine with `AlignmentMode::FftNs2` and set `with_retree(1)`.
+    /// This forces the number of tree build steps to 1, ensuring FFT-NS-1 behavior.
+    ///
+    /// Captures a structural snapshot before modification so that the
+    /// entire re-alignment can be undone and redone via `undo()` and `redo()`.
+    ///
+    /// If there are fewer than 2 sequences, this is a safe no-op.
+    pub fn realign(&mut self) -> Result<(), StructuredEngineError> {
+        if self.nucleotide_sequences.len() < 2 {
+            return Ok(());
+        }
+
+        // MAFFT requires non-empty sequences; a sequence with 0 non-gap residues
+        // would cause the progressive aligner to collapse all rows into empty strings.
+        if let Some((idx, name)) = self
+            .names
+            .iter()
+            .zip(&self.nucleotide_sequences)
+            .enumerate()
+            .find(|(_, (_, seq))| !seq.iter().any(|&c| is_iupac(c)))
+            .map(|(idx, (name, _))| (idx, name))
+        {
+            return Err(StructuredEngineError::with_code(
+                "EmptySequence",
+                format!(
+                    "Cannot re-align: sequence '{name}' at index {idx} contains no nucleotide residues"
+                ),
+                Some(ErrorContext {
+                    sequence_id: Some(name.clone()),
+                    ..ErrorContext::default()
+                }),
+            ));
+        }
+
+        let input = SequenceSet {
+            sequences: self
+                .names
+                .iter()
+                .zip(&self.nucleotide_sequences)
+                .map(|(name, data)| Sequence {
+                    name: name.clone(),
+                    data: data.clone(),
+                })
+                .collect(),
+            seq_type: SeqType::Dna,
+        };
+
+        let engine = MafftEngine::new(AlignmentMode::FftNs2)
+            .with_scoring_model(ScoringModel::Dna)
+            .with_retree(1);
+        let msa = engine.align(&input);
+
+        if msa.sequences.len() != self.nucleotide_sequences.len()
+            || msa.names.len() != self.names.len()
+            || msa.sequences.iter().any(|s| s.is_empty())
+            || msa
+                .sequences
+                .iter()
+                .any(|s| s.len() != msa.sequences[0].len())
+        {
+            return Err(StructuredEngineError::with_code(
+                "AlignmentFailed",
+                "MAFFT alignment failed to produce a valid aligned sequence set".to_string(),
+                None,
+            ));
+        }
+
+        self.record_structural_undo();
+
+        self.nucleotide_sequences = msa.sequences;
+        for seq in &mut self.nucleotide_sequences {
+            seq.make_ascii_uppercase();
+        }
+        self.names = msa.names;
+        self.alignment_width = self
+            .nucleotide_sequences
+            .iter()
+            .map(|seq| seq.len())
+            .max()
+            .unwrap_or(0);
+        self.aminoacid_sequences.clear();
+
+        Ok(())
+    }
+
     /// transactional history with undo/redo stacks.
     /// Snapshot the full matrix + width for structural undo. Cheap given the
     /// ~16MB max footprint.
@@ -1582,6 +1669,7 @@ impl MsaEngine {
                 self.redo_stack.push(redo_snapshot);
             }
         }
+        self.aminoacid_sequences.clear();
         true
     }
 
@@ -1625,6 +1713,7 @@ impl MsaEngine {
                 self.undo_stack.push(undo_snapshot);
             }
         }
+        self.aminoacid_sequences.clear();
         true
     }
 

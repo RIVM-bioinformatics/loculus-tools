@@ -551,8 +551,26 @@ export const SequenceEditor = () => {
       });
     };
 
-    const moveCells = async (_direction: EDITOR_DIRECTION) => {
-      // TODO
+    const moveCells = async (direction: EDITOR_DIRECTION) => {
+      if (!metaSubject.data) {
+        return;
+      }
+      if (direction !== EDITOR_DIRECTION.LEFT && direction !== EDITOR_DIRECTION.RIGHT) {
+        return;
+      }
+      if (selectionSubject.data?.rows && !selectionSubject.data.cells && !selectionSubject.data.cols) {
+        return;
+      }
+      const mutateArguments = EditorUtil.getMutateArguments(selectionSubject.data, metaSubject.data);
+      if (!mutateArguments) {
+        return;
+      }
+      await execute({
+        command: async () => {
+          await editorService.moveHorizontal(mutateArguments.rows, mutateArguments.columns, direction);
+        },
+        getSelectionPostCommand: () => EditorUtil.getPostUpsertSelection(selectionSubject.data, direction),
+      });
     };
 
     const eventBusService = container.resolve(SequenceEditorEventBusService);

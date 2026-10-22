@@ -721,8 +721,8 @@ Alt+Left and Alt+Right, and the matching toolbar buttons, invoke `moveHorizontal
 
 - The engine moves by exactly one column per command.
 - The selected columns are normalized from the current block if one exists; otherwise only the active column is used.
-- The engine operation is row-specific.
-- The current implementation applies the move to the active row, not every row of a multi-row rectangle.
+- The engine operation accepts multiple row indices.
+- The move applies to every specified row in a multi-row rectangle in a single history transaction.
 - All moved characters must be IUPAC symbols, not gaps.
 - The adjacent destination must be a gap.
 - The move is rejected atomically with `MoveNotIupac` or `MoveNoGapTarget` when invalid.
@@ -878,15 +878,17 @@ Additional engine edge cases:
 
 ### 7.5 Horizontal movement
 
-`move_horizontal(row, cols, direction)`:
+`move_horizontal(row_indices, col_indices, direction)`:
 
-- reduces `cols` to the inclusive range from its minimum to maximum value;
-- requires every character in that range to be IUPAC, not `-`;
-- requires a gap immediately outside the range in the requested direction;
-- rotates the block by one position;
+- accepts multiple row indices, deduplicating them while preserving order;
+- skips out-of-range rows or rows shorter than the selected column range;
+- reduces `col_indices` to the inclusive range from its minimum to maximum value;
+- requires every character in that range to be IUPAC, not `-`, across all target rows;
+- requires a gap immediately outside the range in the requested direction across all target rows;
+- rotates the block by one position across all target rows;
 - does not change row length or global width;
-- records a structural snapshot;
-- returns `MoveNotIupac` or `MoveNoGapTarget` on failure without modifying anything.
+- records a single structural snapshot for the entire multi-row operation;
+- returns `MoveNotIupac` or `MoveNoGapTarget` on failure without modifying anything (all-or-nothing).
 
 ### 7.6 Row reordering
 
@@ -991,7 +993,7 @@ The current controller wraps operations with these exact options:
 | `insert` | `insert`, then `meta` | `true` | `true` | Caller handles insertion transform |
 | `delete` | `delete`, then `meta` | `true` | `true` | Caller moves active cell left on success |
 | `deleteColumn` | `deleteColumn`, then `meta` | `true` | `true` | Controller clamps active cell after metadata returns |
-| `moveHorizontal` | `moveHorizontal`, then `meta` | `true` | `true` | Caller moves active cell one column in the direction |
+| `moveHorizontal` | `moveHorizontal`, then `meta` | `true` | `true` | Caller shifts selected columns of cell block or column selection by one position |
 | `moveRowsUp` | `moveRowsUp`, then `meta` | `true` | `true` | No cursor/selection remapping |
 | `moveRowsDown` | `moveRowsDown`, then `meta` | `true` | `true` | No cursor/selection remapping |
 | `undo` | `undo`, then `meta` | `true` | `true` | No cursor/selection restore |

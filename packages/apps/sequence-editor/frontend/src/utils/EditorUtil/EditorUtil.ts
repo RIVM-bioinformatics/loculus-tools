@@ -691,15 +691,24 @@ export class EditorUtil {
       return null;
     }
 
+    if (direction !== EDITOR_DIRECTION.LEFT && direction !== EDITOR_DIRECTION.RIGHT) {
+      return selection;
+    }
+
     const offset = direction === EDITOR_DIRECTION.LEFT ? -1 : 1;
 
     const cells = selection.cells;
     if (cells) {
+      const nextStartCol = cells.startCol + offset;
+      const nextEndCol = cells.endCol + offset;
+      if (nextStartCol < 0) {
+        return selection;
+      }
       return {
         cells: {
-          endCol: cells.endCol + offset,
+          endCol: nextEndCol,
           endRow: cells.endRow,
-          startCol: cells.startCol + offset,
+          startCol: nextStartCol,
           startRow: cells.startRow,
         },
       };
@@ -707,8 +716,12 @@ export class EditorUtil {
 
     const cols = selection.cols;
     if (cols) {
+      const nextCols = cols.map(col => col + offset);
+      if (nextCols.some(col => col < 0)) {
+        return selection;
+      }
       return {
-        cols: cols.map(col => col + offset),
+        cols: nextCols,
       };
     }
 

@@ -1191,7 +1191,7 @@ fn move_horizontal_empty_rows_or_cols_is_noop() {
 }
 
 #[test]
-fn move_horizontal_skips_out_of_range_or_short_rows() {
+fn move_horizontal_skips_out_of_range_rows() {
     let mut e = engine_with_sample();
     // Row 999 is out-of-range, row 1 is valid
     assert_eq!(

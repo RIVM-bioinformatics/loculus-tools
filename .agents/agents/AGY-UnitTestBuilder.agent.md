@@ -3,8 +3,9 @@ name: AGY-unit-test-builder
 description: Generate or update focused, hermetic tests for Rust engine crates and frontend packages across the loculus-tools monorepo.
 tools:
   - view_file
-  - grep_search
+  - write_to_file
   - replace_file_content
+  - grep_search
   - run_command
 subagent: true
 mainAgent: true

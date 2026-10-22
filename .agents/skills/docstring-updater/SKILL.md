@@ -42,15 +42,17 @@ Use standard Rustdoc formatting (`///` for items, `//!` for module-level):
 
 Example:
 ```rust
-/// Returns an inclusive rectangular viewport slice of the sequence matrix.
+/// Extracts an inclusive rectangular viewport slice of the sequence matrix.
 ///
-/// Columns beyond the sequence length are padded with ASCII space (`0x20`).
+/// Rows are clamped to loaded sequences. Columns beyond sequence length
+/// are padded with ASCII space (`0x20`).
 ///
 /// # Invariant
-/// The returned vector has length `(end_row - start_row + 1) * (end_col - start_col + 1)`.
+/// The returned slice has length `rows * cols` bytes, maintaining a row-major stride.
 ///
 /// # Returns
-/// Returns an empty vector if the matrix is empty, `start_row > end_row`, or `start_col > end_col`.
+/// Returns an empty buffer (`0` bytes) if the matrix is empty, `start_row > clamped_end_row`,
+/// or `start_col > end_col`.
 ```
 
 ## Procedure

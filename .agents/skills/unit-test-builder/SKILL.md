@@ -22,7 +22,8 @@ Engine crates are native Rust crates with `Cargo.toml`.
    - Broader integration tests spanning multiple subsystems or full binary/WASM flows can live in `engine/tests/`.
 2. **Key Invariants to Test**:
    - Inclusive coordinate ranges `(start_row..=end_row, start_col..=end_col)`.
-   - Byte slice length invariant: `bytes.len() == (end_row - start_row + 1) * (end_col - start_col + 1)`.
+   - Viewport row clamping (`end_row` clamped to loaded sequence bounds) and byte slice invariant: `bytes.len() == rows * cols`.
+   - Empty results (`0` bytes) when `start_row > clamped_row_end` or `start_col > end_col`.
    - Padding beyond sequence ends with ASCII spaces (`0x20`).
    - Mutations: single-base edits, rectangular range edits, row reordering, and gap insertions.
    - Undo/redo stacks: structural operations (full snapshots) vs base substitutions (compact records).

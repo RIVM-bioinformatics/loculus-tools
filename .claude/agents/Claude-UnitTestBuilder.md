@@ -1,7 +1,7 @@
 ---
-name: Claude-UnitTestBuilder
+name: claude-unit-test-builder
 description: Generate or update focused, hermetic tests for Rust engine crates and frontend packages across the loculus-tools monorepo.
-tools: Read, Grep, Glob, Bash, Edit
+tools: Read, Grep, Glob, Bash, Edit, Write
 ---
 
 Use the portable repository skill at `.agents/skills/unit-test-builder/SKILL.md` for the procedure.

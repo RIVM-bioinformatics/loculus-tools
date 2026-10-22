@@ -51,7 +51,7 @@ Keep the boundaries strict:
 - **Symlinked Entrypoints**: Root `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md` symlink to `.agents/AGENTS.md` so that VS Code Copilot, Claude Code, Antigravity, and other clients receive the canonical project guide directly without content duplication or unexpanded `@` directives.
 - **Agent Adapters**: Adapters use client-identifying prefixes so users know which harness they belong to:
   - `.github/agents/GH-<Name>.agent.md`: GitHub Copilot adapters in VS Code with native Copilot tools (`[execute, read, edit, search, todo]`).
-  - `.claude/agents/Claude-<Name>.md`: Claude Code adapters with native Claude tools (`Read, Grep, Glob, Bash, Edit`).
-  - `.agents/agents/AGY-<Name>.agent.md`: Antigravity adapters with native Antigravity tools (`view_file, grep_search, replace_file_content, run_command`).
+  - `.claude/agents/Claude-<Name>.md`: Claude Code adapters with native Claude tools (`Read, Grep, Glob, Bash, Edit, Write`).
+  - `.agents/agents/AGY-<Name>.agent.md`: Antigravity adapters with native Antigravity tools (`view_file, write_to_file, replace_file_content, grep_search, find_by_name, list_dir, run_command`).
 - **VS Code Settings**: `.vscode/settings.json` points `chat.instructionsFilesLocations` and `chat.promptFilesLocations` to `.agents/instructions` and `.agents/prompts` for native VS Code Copilot discovery.
 - **Thin Wrappers**: All agent adapters remain thin wrappers pointing to the reusable functional procedure in `.agents/skills/<name>/SKILL.md`.

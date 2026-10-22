@@ -8,9 +8,10 @@ applyTo: "packages/apps/**/engine/**/*.{rs,toml}"
 - Target compatibility: engines compile for `wasm32-unknown-unknown`. Avoid native-only APIs such as direct filesystem operations (`std::fs`), host network calls, or unsupported multi-threading primitives.
 - Coordinate system & slice invariants:
   - Coordinate ranges are 0-indexed and **inclusive** `[start_row, end_row]` and `[start_col, end_col]`.
-  - The returned byte slice length invariant is strictly `bytes.len() == (end_row - start_row + 1) * (end_col - start_col + 1)`.
-  - Out-of-bounds or invalid ranges must return empty results or error results, never partially filled or corrupt buffers.
-  - Columns extending past a sequence's end must be padded with ASCII space (`0x20`).
+  - Viewport row ranges clamp to loaded sequence bounds (`row_end = end_row.min(sequences.len().saturating_sub(1))`).
+  - The returned byte invariant is `bytes.len() == rows * cols`, where `rows` and `cols` represent the actual slice dimensions.
+  - Invalid ranges (such as `start_row > clamped_end_row` or `start_col > end_col`) or empty alignments return an empty slice (`0` bytes).
+  - Columns extending past a sequence's end are padded with ASCII space (`0x20`).
 - State mutations and history:
   - Differentiate structural edits (row insertion/deletion/reordering, full alignment shifts) from single base substitutions.
   - Preserve undo/redo history invariants according to the engine design documentation (`packages/apps/sequence-editor/engine/engine.md`).

@@ -3,8 +3,9 @@ name: AGY-docstring-updater
 description: Add or update concise documentation comments in TypeScript/React frontend packages (TSDoc) and Rust engine crates (Rustdoc).
 tools:
   - view_file
-  - grep_search
+  - write_to_file
   - replace_file_content
+  - grep_search
   - run_command
 subagent: true
 mainAgent: true

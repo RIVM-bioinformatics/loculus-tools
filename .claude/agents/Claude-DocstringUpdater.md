@@ -1,5 +1,5 @@
 ---
-name: Claude-DocstringUpdater
+name: claude-docstring-updater
 description: Add or update concise documentation comments in TypeScript/React frontend packages (TSDoc) and Rust engine crates (Rustdoc).
 tools: Read, Grep, Glob, Bash, Edit
 ---

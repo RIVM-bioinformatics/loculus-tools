@@ -1,5 +1,5 @@
 ---
-name: Claude-DeepDiveResearcher
+name: claude-deep-dive-researcher
 description: Investigate monorepo behavior, issues, PRs, and failures to find root causes and produce evidence-backed recommendations.
 tools: Read, Grep, Glob, Bash
 ---

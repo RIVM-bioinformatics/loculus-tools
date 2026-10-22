@@ -4,6 +4,8 @@ description: Investigate monorepo behavior, issues, PRs, and failures to find ro
 tools:
   - view_file
   - grep_search
+  - find_by_name
+  - list_dir
   - run_command
 subagent: true
 mainAgent: true

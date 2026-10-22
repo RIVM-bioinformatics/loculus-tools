@@ -10,4 +10,10 @@
   "rust-analyzer.procMacro.enable": true,
   // Enable build scripts so generated wasm-bindgen bindings are visible.
   "rust-analyzer.cargo.buildScripts.enable": true,
+  "chat.instructionsFilesLocations": {
+    ".agents/instructions": true
+  },
+  "chat.promptFilesLocations": {
+    ".agents/prompts": true
+  }
 }

@@ -138,6 +138,12 @@ export class EditorWorkerService {
     });
   }
 
+  public async realign(): Promise<void> {
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.realign();
+    });
+  }
+
   public async redo(): Promise<void> {
     return await this.runCommand(async () => {
       await this.engineWorkerProxy.redo();

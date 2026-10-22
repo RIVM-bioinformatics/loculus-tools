@@ -10,9 +10,11 @@ import {
 import CodeIcon from '@mui/icons-material/Code';
 import PublishIcon from '@mui/icons-material/Publish';
 import { useStore } from 'zustand';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import UndoIcon from '@mui/icons-material/Undo';
 import RedoIcon from '@mui/icons-material/Redo';
 import {
+  CircularProgress,
   IconButton,
   Tooltip,
 } from '@mui/material';
@@ -24,6 +26,7 @@ import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
 
 export const SequenceEditorPageHeader = () => {
+  const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const resetDataset = useStore(sequenceEditorStore, (state) => state.resetDataset);
   const meta = useStore(sequenceEditorStore, (state) => state.meta);
 
@@ -38,6 +41,13 @@ export const SequenceEditorPageHeader = () => {
   const onRedoButtonClick = useCallback(() => {
     container.resolve(SequenceEditorEventBusService).emit('onRedo');
   }, []);
+
+  const onRealignButtonClick = useCallback(() => {
+    if (isRealigning) {
+      return;
+    }
+    container.resolve(SequenceEditorEventBusService).emit('onRealign');
+  }, [isRealigning]);
 
   const onClickExportFasta = useCallback(() => {
     container.resolve(SequenceEditorEventBusService).emit('onExportUngappedFasta');
@@ -95,6 +105,26 @@ export const SequenceEditorPageHeader = () => {
             >
               <RedoIcon fontSize={'small'} />
             </IconButton>
+          </Tooltip>
+          <Tooltip title={isRealigning ? 'Re-aligning sequences...' : 'Re-align all sequences (MAFFT FFT-NS-2)'}>
+            <span>
+              <IconButton
+                color={'inherit'}
+                disabled={isRealigning || (meta?.sequenceCount ?? 0) < 2}
+                onClick={onRealignButtonClick}
+                size={'small'}
+                sx={{ opacity: 0.85 }}
+              >
+                {isRealigning ? (
+                  <CircularProgress
+                    color={'inherit'}
+                    size={18}
+                  />
+                ) : (
+                  <AutoFixHighIcon fontSize={'small'} />
+                )}
+              </IconButton>
+            </span>
           </Tooltip>
           <FastaPageHeaderResetButton onReset={onReset} />
           <FastaPageHeaderImportButton />

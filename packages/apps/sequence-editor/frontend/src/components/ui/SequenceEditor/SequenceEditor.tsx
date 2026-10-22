@@ -58,6 +58,7 @@ import { SequenceEditorGotoPositionDialog } from './SequenceEditorGotoPositionDi
 
 export const SequenceEditor = () => {
   const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
+  const setIsRealigning = useStore(sequenceEditorStore, (state) => state.setIsRealigning);
   const setLatestMessage = useStore(sequenceEditorStore, (state) => state.setLatestMessage);
   const setMeta = useStore(sequenceEditorStore, (state) => state.setMeta);
   const setSelection = useStore(sequenceEditorStore, (state) => state.setSelection);
@@ -658,6 +659,23 @@ export const SequenceEditor = () => {
         });
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onRealign', () => {
+        const store = sequenceEditorStore.getState();
+        store.setIsRealigning(true);
+        store.setLatestMessage('Re-aligning sequences with MAFFT (FFT-NS-1)...');
+        void execute({
+          command: async () => {
+            try {
+              await editorService.realign();
+              sequenceEditorStore.getState().setLatestMessage('Re-alignment completed successfully');
+            } finally {
+              sequenceEditorStore.getState().setIsRealigning(false);
+            }
+          },
+          getSelectionPostCommand: () => null,
+        });
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onRedo', () => {
         void execute({
           command: async () => editorService.redo(),
@@ -680,7 +698,7 @@ export const SequenceEditor = () => {
     return () => {
       removers.forEach(remover => remover());
     };
-  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject]);
+  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject, setIsRealigning, setLatestMessage]);
 
   useEffect(() => {
     updateVisibleRange();

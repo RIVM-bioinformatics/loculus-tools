@@ -1,5 +1,6 @@
 import {
   Box,
+  CircularProgress,
   darken,
   useTheme,
 } from '@mui/material';
@@ -11,6 +12,7 @@ import { EditorUtil } from '../../../utils/EditorUtil';
 
 export const SequenceEditorStatusBar = () => {
   const theme = useTheme();
+  const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const latestMessage = useStore(sequenceEditorStore, (state) => state.latestMessage);
   const meta = useStore(sequenceEditorStore, (state) => state.meta);
   const selection = useStore(sequenceEditorStore, (state) => state.selection);
@@ -48,7 +50,13 @@ export const SequenceEditorStatusBar = () => {
           paddingRight: theme.spacing(1),
         }}
       >
-        <Box>
+        <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
+          {isRealigning && (
+            <CircularProgress
+              color={'inherit'}
+              size={12}
+            />
+          )}
           {latestMessage ?? ''}
         </Box>
         <Box>

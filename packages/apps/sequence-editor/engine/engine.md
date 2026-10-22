@@ -103,6 +103,9 @@ js-sys = "0.3.77"                 # requires 0.3.x; "0.2" resolves to an ancient
 serde-wasm-bindgen = "0.6"
 fm-index = "0.3.1"
 mafft = "0.2.0"                   # pure-Rust MAFFT v7.526 implementation
+serde-wasm-bindgen = "0.6"
+fm-index = "0.3.1"
+mafft = "0.2.0"                   # pure-Rust MAFFT v7.526 implementation
 
 [dependencies.serde]
 version = "1.0"

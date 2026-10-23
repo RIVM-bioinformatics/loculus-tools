@@ -47,7 +47,7 @@ interface EngineClient {
   insert: (rows: number[], col: number) => Promise<void>;
   delete: (rows: number[], col: number) => Promise<void>;
   deleteColumn: (col: number) => Promise<void>;
-  moveHorizontal: (row: number, cols: number[], direction: "Left" | "Right") => Promise<void>;
+  moveHorizontal: (rows: number[], cols: number[], direction: "Left" | "Right") => Promise<void>;
   moveRows: (rows: number[], options: MoveRowsOptions) => Promise<void>;
   moveRowsRelative: (rows: number[], delta: number) => Promise<void>;
   moveRowsGrouped: (rows: number[], targetRow: number) => Promise<void>;
@@ -341,27 +341,27 @@ the width-shrinking inverse of a full-column insert.
 await engine.deleteColumn(4);
 ```
 
-### `moveHorizontal(row: number, cols: number[], direction: "Left" | "Right"): Promise<void>`
+### `moveHorizontal(rows: number[], cols: number[], direction: "Left" | "Right"): Promise<void>`
 
 Moves a contiguous block of IUPAC characters horizontally by **1 position**
-within a single row. Each call moves exactly 1 position; issue multiple calls
+across one or more rows. Each call moves exactly 1 position; issue multiple calls
 for multi-position moves.
 
 ```ts
-await engine.moveHorizontal(0, [2, 3, 4, 5], "Left");
+await engine.moveHorizontal([0], [2, 3, 4, 5], "Left");
 // Row 0: "A-GCATGC" → "AGCAT-GC"
 ```
 
-- `row` — the row index to operate on.
+- `rows` — row indices to operate on. Duplicate row indices are deduplicated.
 - `cols` — column indices forming the block to move. Non-contiguous indices are
   treated as the range `[min, max]`.
 - `direction` — `"Left"` or `"Right"`.
 
 **Validation (Rule 4, [section 5](#50-editing-constraints-the-ruleset)):** All characters in the selected block must be IUPAC
 nucleotides (not `-`). The adjacent position in the move direction must be a
-gap (`-`). If either condition fails, the promise rejects with error code
+gap (`-`). If either condition fails on any target row, the promise rejects with error code
 `"MoveNotIupac"` or `"MoveNoGapTarget"` and **no rows are modified**
-(all-or-nothing).
+(all-or-nothing). A single undo snapshot records the entire multi-row move.
 
 ### `moveRows(rows: number[], options: MoveRowsOptions): Promise<void>`
 
@@ -605,7 +605,7 @@ try {
 | `insert` | `rows: number[], col` | `Promise<void>` | Insert a `-` at col on target rows; append `-` on non-targets |
 | `delete` | `rows: number[], col` | `Promise<void>` | Delete a column on a subset (validates target is `-`; non-targets untouched) |
 | `deleteColumn` | `col: number` | `Promise<void>` | Delete a column from all rows |
-| `moveHorizontal` | `row, cols: number[], direction` | `Promise<void>` | Move IUPAC block 1 position left/right within a row |
+| `moveHorizontal` | `rows: number[], cols: number[], direction` | `Promise<void>` | Move IUPAC block 1 position left/right within specified rows |
 | `moveRowsUp` | `rows: number[]` | `Promise<void>` | Move specified rows up by 1 |
 | `moveRowsDown` | `rows: number[]` | `Promise<void>` | Move specified rows down by 1 |
 | `realign` | — | `Promise<void>` | Re-align all sequences using MAFFT FFT-NS-1 |

@@ -153,7 +153,7 @@ export interface EngineWorkerApi {
   insert: (rows: number[], column: number) => Promise<void>;
   load: (fastaContent: string) => Promise<number>;
   meta: () => Promise<EngineMeta>;
-  moveHorizontal: (row: number, columns: number[], direction: MoveDirection) => Promise<void>;
+  moveHorizontal: (rows: number[], columns: number[], direction: MoveDirection) => Promise<void>;
   moveRows: (rows: number[], options: MoveRowsOptions) => Promise<void>;
   moveRowsDown: (rows: number[]) => Promise<void>;
   moveRowsGrouped: (rows: number[], targetRow: number) => Promise<void>;

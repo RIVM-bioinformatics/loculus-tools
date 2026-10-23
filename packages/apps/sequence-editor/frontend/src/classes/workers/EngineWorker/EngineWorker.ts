@@ -94,9 +94,9 @@ export class EngineWorker implements EngineWorkerApi {
     };
   }
 
-  public async moveHorizontal(row: number, columns: number[], direction: MoveDirection): Promise<void> {
+  public async moveHorizontal(rows: number[], columns: number[], direction: MoveDirection): Promise<void> {
     const engine = await this.requireEngine();
-    engine.move_horizontal(row, this.toRowIndices(columns), direction);
+    engine.move_horizontal(this.toRowIndices(rows), this.toRowIndices(columns), direction);
   }
 
   public async moveRows(rows: number[], options: MoveRowsOptions): Promise<void> {

@@ -90,12 +90,12 @@ export class EditorWorkerService {
     });
   }
 
-  public async moveHorizontal(row: number, cols: number[], direction: EDITOR_DIRECTION): Promise<void> {
+  public async moveHorizontal(rows: number[], cols: number[], direction: EDITOR_DIRECTION): Promise<void> {
     if (direction !== EDITOR_DIRECTION.LEFT && direction !== EDITOR_DIRECTION.RIGHT) {
       throw new Error('Invalid horizontal move direction');
     }
     return await this.runCommand(async () => {
-      await this.engineWorkerProxy.moveHorizontal(row, cols, direction === EDITOR_DIRECTION.LEFT ? MoveDirection.Left : MoveDirection.Right);
+      await this.engineWorkerProxy.moveHorizontal(rows, cols, direction === EDITOR_DIRECTION.LEFT ? MoveDirection.Left : MoveDirection.Right);
     });
   }
 

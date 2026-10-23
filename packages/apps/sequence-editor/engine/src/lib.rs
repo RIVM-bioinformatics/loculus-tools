@@ -1241,7 +1241,7 @@ impl MsaEngine {
     // Horizontal moves of character blocks
 
     /// Move a contiguous block of IUPAC characters horizontally by 1 position
-    /// within a single row. Each call moves exactly 1 position; callers must
+    /// across one or more rows. Each call moves exactly 1 position; callers must
     /// issue multiple calls for multi-position moves.
     ///
     /// `col_indices` is treated as a range `[min, max]`, non-contiguous
@@ -1253,97 +1253,125 @@ impl MsaEngine {
     /// **Right move:** validates the selected chars are IUPAC and the position
     /// to the right is `-`, then rotates the block right by 1.
     ///
+    /// The entire operation is recorded as a single transaction in the undo stack.
     /// Returns a typed error on failure; the operation is all-or-nothing.
     pub fn move_horizontal(
         &mut self,
-        row: usize,
+        row_indices: &[usize],
         col_indices: &[usize],
         direction: MoveDirection,
     ) -> Result<(), StructuredEngineError> {
-        let seq = match self.nucleotide_sequences.get(row) {
-            Some(s) => s,
-            None => return Ok(()), // out-of-range row is a no-op
-        };
-
-        if col_indices.is_empty() {
+        if row_indices.is_empty() || col_indices.is_empty() {
             return Ok(());
         }
 
         let start = *col_indices.iter().min().unwrap();
         let end = *col_indices.iter().max().unwrap();
 
-        if end >= seq.len() {
-            return Ok(()); // out of range
-        }
-
-        // Validate: all selected characters must be IUPAC (not '-').
-        for (offset, &base) in seq[start..=end].iter().enumerate() {
-            if !is_iupac(base) {
-                return Err(MoveError::BlockNotIupac {
-                    row,
-                    col: start + offset,
-                    base,
-                }
-                .into());
+        // Deduplicate row indices while preserving order.
+        let mut seen_rows = std::collections::HashSet::new();
+        let mut unique_rows = Vec::new();
+        for &r in row_indices {
+            if seen_rows.insert(r) {
+                unique_rows.push(r);
             }
         }
 
-        match direction {
-            MoveDirection::Left => {
-                if start == 0 {
-                    return Err(MoveError::BoundaryReached {
-                        row,
-                        col: 0,
-                        direction: MoveDirection::Left,
-                    }
-                    .into());
+        // Filter rows that are in-bounds and long enough to contain the block.
+        // Out-of-range rows or shorter rows are safely skipped.
+        let target_rows: Vec<usize> = unique_rows
+            .into_iter()
+            .filter(|&r| {
+                if let Some(seq) = self.nucleotide_sequences.get(r) {
+                    end < seq.len()
+                } else {
+                    false
                 }
-                if !is_gap(seq[start - 1]) {
-                    return Err(MoveError::TargetNotGap {
-                        row,
-                        col: start - 1,
-                        base: seq[start - 1],
-                        direction: MoveDirection::Left,
+            })
+            .collect();
+
+        if target_rows.is_empty() {
+            return Ok(());
+        }
+
+        // Validate all target rows first: all-or-nothing.
+        // Pass 1: all selected characters must be IUPAC (not '-').
+        for &r in &target_rows {
+            let seq = &self.nucleotide_sequences[r];
+            for (offset, &base) in seq[start..=end].iter().enumerate() {
+                if !is_iupac(base) {
+                    return Err(MoveError::BlockNotIupac {
+                        row: r,
+                        col: start + offset,
+                        base,
                     }
                     .into());
                 }
             }
-            MoveDirection::Right => {
-                if end + 1 >= seq.len() {
-                    return Err(MoveError::BoundaryReached {
-                        row,
-                        col: seq.len(),
-                        direction: MoveDirection::Right,
+        }
+
+        // Pass 2: destination position in move direction must be a gap.
+        for &r in &target_rows {
+            let seq = &self.nucleotide_sequences[r];
+            match direction {
+                MoveDirection::Left => {
+                    if start == 0 {
+                        return Err(MoveError::BoundaryReached {
+                            row: r,
+                            col: 0,
+                            direction: MoveDirection::Left,
+                        }
+                        .into());
                     }
-                    .into());
+                    if !is_gap(seq[start - 1]) {
+                        return Err(MoveError::TargetNotGap {
+                            row: r,
+                            col: start - 1,
+                            base: seq[start - 1],
+                            direction: MoveDirection::Left,
+                        }
+                        .into());
+                    }
                 }
-                if !is_gap(seq[end + 1]) {
-                    return Err(MoveError::TargetNotGap {
-                        row,
-                        col: end + 1,
-                        base: seq[end + 1],
-                        direction: MoveDirection::Right,
+                MoveDirection::Right => {
+                    if end + 1 >= seq.len() {
+                        return Err(MoveError::BoundaryReached {
+                            row: r,
+                            col: seq.len(),
+                            direction: MoveDirection::Right,
+                        }
+                        .into());
                     }
-                    .into());
+                    if !is_gap(seq[end + 1]) {
+                        return Err(MoveError::TargetNotGap {
+                            row: r,
+                            col: end + 1,
+                            base: seq[end + 1],
+                            direction: MoveDirection::Right,
+                        }
+                        .into());
+                    }
                 }
             }
         }
 
         self.record_structural_undo();
 
-        let seq = &mut self.nucleotide_sequences[row];
-        match direction {
-            MoveDirection::Left => {
-                // Rotate [start-1, end] left by 1: the '-' at start-1 moves to end.
-                let gap = seq[start - 1];
-                seq.copy_within(start..=end, start - 1);
-                seq[end] = gap;
-            }
-            MoveDirection::Right => {
-                // Rotate [start, end+1] right by 1: the '-' at end+1 moves to start.
-                let gap = seq[end + 1];
-                seq.copy_within(start..=end, start + 1);
-                seq[start] = gap;
+        for &r in &target_rows {
+            let seq = &mut self.nucleotide_sequences[r];
+            match direction {
+                MoveDirection::Left => {
+                    // Rotate [start-1, end] left by 1: the '-' at start-1 moves to end.
+                    let gap = seq[start - 1];
+                    seq.copy_within(start..=end, start - 1);
+                    seq[end] = gap;
+                }
+                MoveDirection::Right => {
+                    // Rotate [start, end+1] right by 1: the '-' at end+1 moves to start.
+                    let gap = seq[end + 1];
+                    seq.copy_within(start..=end, start + 1);
+                    seq[start] = gap;
+                }
             }
         }
 

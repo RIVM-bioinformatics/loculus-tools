@@ -411,14 +411,16 @@ Delete a column from **every** row, shrinking `alignment_width` by 1.
 - Records a `StructuralSnapshot` undo command.
 - Returns `Ok(())`.
 
-### 5.5 `move_horizontal(row, col_indices, direction)`
+### 5.5 `move_horizontal(row_indices, col_indices, direction)`
 
 Move a contiguous block of IUPAC characters horizontally by **1 position**
-within a single row. Each call moves exactly 1 position; callers issue multiple
+across one or more rows. Each call moves exactly 1 position; callers issue multiple
 calls for multi-position moves.
 
 - `col_indices` is treated as the range `[min, max]` — non-contiguous indices
   are clamped to their min/max.
+- `row_indices` specifies the rows to move. Duplicate row indices are deduplicated
+  while preserving order.
 - **Left move:** validates all selected chars are IUPAC and the position to the
   left is `-`, then rotates the block left by 1 (the `-` moves to the end of
   the block).
@@ -426,9 +428,10 @@ calls for multi-position moves.
   right is `-`, then rotates the block right by 1 (the `-` moves to the start
   of the block).
 - Returns `Err(EditError::MoveNotIupac)` if any selected character is not IUPAC,
-  or `Err(EditError::MoveNoGapTarget)` if the adjacent position is not `-` (all-or-nothing).
-- Out-of-range rows are a no-op.
-- Records a `StructuralSnapshot` undo command.
+  or `Err(EditError::MoveNoGapTarget)` if the adjacent position is not `-` (all-or-nothing:
+  if any target row fails validation, no row is modified).
+- Out-of-range rows or rows shorter than the selected column range are skipped.
+- Records a single `StructuralSnapshot` undo command for the entire multi-row operation.
 
 ### 5.6 Row reordering (`move_rows_relative`, `move_rows_grouped`, `move_rows_to_top`, `move_rows_to_bottom`, `move_rows_up`, `move_rows_down`)
 

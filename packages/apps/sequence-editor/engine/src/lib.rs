@@ -16,6 +16,7 @@ use wasm_bindgen::prelude::*;
 
 // Bound to the JS `console.log`, so this works in both the main thread and
 // Web Worker (the engine's actual home) — both expose a global `console`.
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
@@ -24,8 +25,16 @@ extern "C" {
 
 /// `println!`-style logging that shows up in the browser/worker devtools
 /// console. Use like `console_log!("query={:?} rows={}", query, n);`.
+#[cfg(target_arch = "wasm32")]
 macro_rules! console_log {
     ($($arg:tt)*) => { log(&format!($($arg)*)) };
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+macro_rules! console_log {
+    ($($arg:tt)*) => {
+        let _ = format!($($arg)*);
+    };
 }
 
 #[wasm_bindgen]
@@ -101,7 +110,7 @@ pub struct StructuredEngineError {
     pub code: String,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub context: Option<ErrorContext>,
+    pub context: Option<Box<ErrorContext>>,
 }
 
 impl std::fmt::Display for StructuredEngineError {
@@ -120,11 +129,15 @@ impl From<StructuredEngineError> for JsValue {
 }
 
 impl StructuredEngineError {
-    fn new(code: EditError, message: String, context: Option<ErrorContext>) -> Self {
+    fn new(code: EditError, message: String, context: Option<Box<ErrorContext>>) -> Self {
         Self::with_code(code.as_str(), message, context)
     }
 
-    fn with_code(code: impl Into<String>, message: String, context: Option<ErrorContext>) -> Self {
+    fn with_code(
+        code: impl Into<String>,
+        message: String,
+        context: Option<Box<ErrorContext>>,
+    ) -> Self {
         Self {
             code: code.into(),
             message,
@@ -154,10 +167,10 @@ impl From<MutateError> for StructuredEngineError {
                     "Invalid replacement character '{}' (0x{base:02X}); must be an IUPAC nucleotide or '-'",
                     base as char
                 ),
-                Some(ErrorContext {
+                Some(Box::new(ErrorContext {
                     base: Some((base as char).to_string()),
                     ..ErrorContext::default()
-                }),
+                })),
             ),
             MutateError::TargetNotIupac { row, col, base } => Self::new(
                 error.into(),
@@ -165,12 +178,12 @@ impl From<MutateError> for StructuredEngineError {
                     "Target base '{}' at row {row}, column {col} is not an IUPAC nucleotide or '-'",
                     base as char
                 ),
-                Some(ErrorContext {
+                Some(Box::new(ErrorContext {
                     row: Some(row),
                     col: Some(col),
                     base: Some((base as char).to_string()),
                     ..ErrorContext::default()
-                }),
+                })),
             ),
         }
     }
@@ -196,12 +209,12 @@ impl From<DeleteError> for StructuredEngineError {
                     "Cannot delete non-gap character '{}' at row {row}, column {col}. Mutate it to '-' first.",
                     base as char
                 ),
-                Some(ErrorContext {
+                Some(Box::new(ErrorContext {
                     row: Some(row),
                     col: Some(col),
                     base: Some((base as char).to_string()),
                     ..ErrorContext::default()
-                }),
+                })),
             ),
         }
     }
@@ -247,12 +260,12 @@ impl From<MoveError> for StructuredEngineError {
                     "Selected block contains non-IUPAC character '{}' at row {row}, column {col}",
                     base as char
                 ),
-                Some(ErrorContext {
+                Some(Box::new(ErrorContext {
                     row: Some(row),
                     col: Some(col),
                     base: Some((base as char).to_string()),
                     ..ErrorContext::default()
-                }),
+                })),
             ),
             MoveError::TargetNotGap {
                 row,
@@ -265,13 +278,13 @@ impl From<MoveError> for StructuredEngineError {
                     "Destination column {col} in row {row} is occupied by '{}'; moving {direction:?} requires an adjacent '-' gap",
                     base as char
                 ),
-                Some(ErrorContext {
+                Some(Box::new(ErrorContext {
                     row: Some(row),
                     col: Some(col),
                     base: Some((base as char).to_string()),
                     direction: Some(format!("{direction:?}")),
                     ..ErrorContext::default()
-                }),
+                })),
             ),
             MoveError::BoundaryReached {
                 row,
@@ -282,12 +295,12 @@ impl From<MoveError> for StructuredEngineError {
                 format!(
                     "Cannot move {direction:?} from row {row}, column {col}; alignment boundary reached"
                 ),
-                Some(ErrorContext {
+                Some(Box::new(ErrorContext {
                     row: Some(row),
                     col: Some(col),
                     direction: Some(format!("{direction:?}")),
                     ..ErrorContext::default()
-                }),
+                })),
             ),
         }
     }
@@ -304,10 +317,10 @@ impl From<TranslateError> for StructuredEngineError {
             TranslateError::InvalidReadingFrame { frame } => Self {
                 code: "InvalidReadingFrame".to_owned(),
                 message: format!("Invalid reading frame {frame}; expected frame 0, 1, or 2"),
-                context: Some(ErrorContext {
+                context: Some(Box::new(ErrorContext {
                     frame: Some(frame),
                     ..ErrorContext::default()
-                }),
+                })),
             },
         }
     }
@@ -432,10 +445,10 @@ impl MsaEngine {
                         format!(
                             "Sequence data appears before a FASTA header on line {line_number}"
                         ),
-                        Some(ErrorContext {
+                        Some(Box::new(ErrorContext {
                             line: Some(line_number),
                             ..ErrorContext::default()
-                        }),
+                        })),
                     ));
                 };
                 let sequence_id = name.split_whitespace().next().unwrap_or(name);
@@ -480,7 +493,7 @@ impl MsaEngine {
             return Err(StructuredEngineError::with_code(
                 "InvalidAlphabet",
                 message,
-                Some(ErrorContext {
+                Some(Box::new(ErrorContext {
                     sequence_id: Some(first.sequence_id.clone()),
                     position: Some(first.position),
                     line: Some(first.line),
@@ -488,7 +501,7 @@ impl MsaEngine {
                     byte: first.byte,
                     invalid_characters: Some(invalid_characters),
                     ..ErrorContext::default()
-                }),
+                })),
             ));
         }
 
@@ -581,9 +594,8 @@ impl MsaEngine {
                         .extend_from_slice(&seq[start_col..][..seq_cols]);
                 }
                 // Pad the remainder of the row with spaces.
-                for _ in seq_cols..cols {
-                    self.viewport_buffer.push(b' ');
-                }
+                self.viewport_buffer
+                    .resize(self.viewport_buffer.len() + cols - seq_cols, b' ');
             }
         }
 
@@ -677,6 +689,9 @@ impl MsaEngine {
     /// create a function for checking the query input
     /// It should be in the alphabet of the sequences, otherwise return an error message
     fn is_valid_nucleotide_query(&self, query: &str) -> bool {
+        if query.is_empty() {
+            return false;
+        }
         for b in query.bytes().map(|byte| byte.to_ascii_uppercase()) {
             if !is_iupac(b) && !is_gap(b) {
                 return false;
@@ -686,6 +701,9 @@ impl MsaEngine {
     }
 
     fn is_valid_amino_acid_query(&self, query: &str) -> bool {
+        if query.is_empty() {
+            return false;
+        }
         for b in query.bytes().map(|byte| byte.to_ascii_uppercase()) {
             if !is_amino(b) && !is_gap(b) {
                 return false;
@@ -695,13 +713,12 @@ impl MsaEngine {
     }
 
     fn is_valid_record_name_query(&self, query: &str) -> bool {
-        for b in query.bytes() {
-            // Allow all ASCII characters for record names
-            if b > 127 {
-                return false;
-            }
+        if query.is_empty() {
+            return false;
         }
-        true
+        // Record names can contain arbitrary UTF-8 characters (e.g. internationalized headers).
+        // Disallow newlines and null bytes which cannot appear in FASTA headers.
+        !query.chars().any(|c| c == '\n' || c == '\r' || c == '\0')
     }
 
     fn search_nucleotide(&self, query: &str) -> SearchResult {
@@ -734,46 +751,38 @@ impl MsaEngine {
         if self.names.is_empty() || !self.is_valid_record_name_query(query) {
             SearchResult::empty(query)
         } else {
-            let positions: Vec<Match> = self
-                .names
-                .iter()
-                .enumerate()
-                .filter_map(|(row, name)| {
-                    if name.to_uppercase().contains(&query) {
-                        Some(Match {
-                            row,
-                            col: 0,
-                            matrix_type: MatrixType::RecordName,
-                        })
-                    } else {
-                        None
+            let query_uppercase = query.to_uppercase();
+            let mut positions = Vec::new();
+            let mut truncated = false;
+            for (row, name) in self.names.iter().enumerate() {
+                if name.to_uppercase().contains(&query_uppercase) {
+                    if positions.len() == MAX_SEARCH_RESULTS {
+                        truncated = true;
+                        break;
                     }
-                })
-                .collect();
+                    positions.push(Match {
+                        row,
+                        col: 0,
+                        matrix_type: MatrixType::RecordName,
+                    });
+                }
+            }
             SearchResult {
                 query: query.to_string(),
                 num_matches: positions.len(),
-                truncated: false,
+                truncated,
                 positions,
             }
         }
     }
 
-    #[wasm_bindgen]
-    pub fn search(&self, query: String, check_record_names: bool) -> Result<JsValue, JsValue> {
-        let search_query_uppercase = query.to_uppercase();
-        console_log!(
-            "Starting search with query: {}\nRecord names check: {}",
-            query,
-            check_record_names
-        );
-
-        let nucleotide_result = self.search_nucleotide(&search_query_uppercase);
-        let amino_acid_result = self.search_amino_acid(&search_query_uppercase);
+    fn search_all(&self, query: &str, check_record_names: bool) -> SearchResult {
+        let nucleotide_result = self.search_nucleotide(query);
+        let amino_acid_result = self.search_amino_acid(query);
         let record_names_result = if check_record_names {
-            self.search_record_names(&search_query_uppercase)
+            self.search_record_names(query)
         } else {
-            SearchResult::empty(&search_query_uppercase)
+            SearchResult::empty(query)
         };
 
         let mut truncated = nucleotide_result.truncated
@@ -787,12 +796,23 @@ impl MsaEngine {
             truncated = true;
         }
 
-        let combined_result = SearchResult {
-            query: search_query_uppercase,
+        SearchResult {
+            query: query.to_string(),
             num_matches: all_positions.len(),
             truncated,
             positions: all_positions,
-        };
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn search(&self, query: String, check_record_names: bool) -> Result<JsValue, JsValue> {
+        console_log!(
+            "Starting search with query: {}\nRecord names check: {}",
+            query,
+            check_record_names
+        );
+
+        let combined_result = self.search_all(&query, check_record_names);
 
         console_log!("Number of matches: {}", combined_result.num_matches);
 
@@ -880,12 +900,12 @@ impl MsaEngine {
             message: format!(
                 "Translate bounds must fit within {MAX_VIEWPORT_BYTES} bytes and memory must be available"
             ),
-            context: Some(ErrorContext {
+            context: Some(Box::new(ErrorContext {
                 row: Some(start_row),
                 col: Some(start_col),
                 frame: Some(reading_frame),
                 ..ErrorContext::default()
-            }),
+            })),
         };
         let rows = inclusive_range_len(start_row, row_end).ok_or_else(invalid_viewport)?;
         let cols = inclusive_range_len(start_col, end_col).ok_or_else(invalid_viewport)?;
@@ -915,9 +935,7 @@ impl MsaEngine {
                 viewport.extend_from_slice(&frame[start_col..start_col + frame_cols]);
             }
             // Pad the remainder of the row with spaces, same as `update_viewport`.
-            for _ in frame_cols..cols {
-                viewport.push(b' ');
-            }
+            viewport.resize(viewport.len() + cols - frame_cols, b' ');
         }
 
         Ok(js_sys::Uint8Array::from(&viewport[..]))
@@ -1183,15 +1201,16 @@ impl MsaEngine {
     ) -> Result<(), StructuredEngineError> {
         // Validate: all target positions must be '-'.
         for &r in row_indices {
-            if let Some(seq) = self.nucleotide_sequences.get(r) {
-                if col_idx < seq.len() && !is_gap(seq[col_idx]) {
-                    return Err(DeleteError::TargetNotGap {
-                        row: r,
-                        col: col_idx,
-                        base: seq[col_idx],
-                    }
-                    .into());
+            if let Some(seq) = self.nucleotide_sequences.get(r)
+                && col_idx < seq.len()
+                && !is_gap(seq[col_idx])
+            {
+                return Err(DeleteError::TargetNotGap {
+                    row: r,
+                    col: col_idx,
+                    base: seq[col_idx],
                 }
+                .into());
             }
         }
 
@@ -1201,12 +1220,9 @@ impl MsaEngine {
 
         for r in 0..self.nucleotide_sequences.len() {
             let seq = &mut self.nucleotide_sequences[r];
-            if col_idx < seq.len() {
-                if target_rows.contains(&r) {
-                    seq.remove(col_idx);
-                    seq.push(b'-'); // Pad at end to keep width unchanged
-                }
-                // Non-target rows: completely untouched
+            if col_idx < seq.len() && target_rows.contains(&r) {
+                seq.remove(col_idx);
+                seq.push(b'-'); // Pad at end to keep width unchanged
             }
         }
         // Width unchanged
@@ -1452,8 +1468,8 @@ impl MsaEngine {
         let mut unselected_iter = (0..n).filter(|&r| !is_selected_orig[r]);
 
         let mut order = Vec::with_capacity(n);
-        for dest in 0..n {
-            if is_selected_dest[dest] {
+        for &selected in &is_selected_dest {
+            if selected {
                 order.push(selected_iter.next().unwrap());
             } else {
                 order.push(unselected_iter.next().unwrap());
@@ -1580,11 +1596,11 @@ impl MsaEngine {
             UndoCommand::Substitutions { positions } => {
                 let mut redo_positions = Vec::with_capacity(positions.len());
                 for (row, col, old_base) in positions {
-                    if let Some(seq) = self.nucleotide_sequences.get_mut(row) {
-                        if let Some(base) = seq.get_mut(col) {
-                            redo_positions.push((row, col, *base));
-                            *base = old_base;
-                        }
+                    if let Some(seq) = self.nucleotide_sequences.get_mut(row)
+                        && let Some(base) = seq.get_mut(col)
+                    {
+                        redo_positions.push((row, col, *base));
+                        *base = old_base;
                     }
                 }
                 if !redo_positions.is_empty() {
@@ -1624,11 +1640,11 @@ impl MsaEngine {
             UndoCommand::Substitutions { positions } => {
                 let mut undo_positions = Vec::with_capacity(positions.len());
                 for (row, col, new_base) in positions {
-                    if let Some(seq) = self.nucleotide_sequences.get_mut(row) {
-                        if let Some(base) = seq.get_mut(col) {
-                            undo_positions.push((row, col, *base));
-                            *base = new_base;
-                        }
+                    if let Some(seq) = self.nucleotide_sequences.get_mut(row)
+                        && let Some(base) = seq.get_mut(col)
+                    {
+                        undo_positions.push((row, col, *base));
+                        *base = new_base;
                     }
                 }
                 if !undo_positions.is_empty() {

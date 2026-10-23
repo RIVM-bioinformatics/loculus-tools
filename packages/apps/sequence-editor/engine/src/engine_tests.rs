@@ -1900,3 +1900,72 @@ fn realign_with_duplicate_record_names() {
     assert_eq!(e.get_row_length(0), e.get_alignment_width());
     assert_eq!(e.get_row_length(1), e.get_alignment_width());
 }
+
+#[test]
+fn align_fasta_aligns_unaligned_sequences() {
+    let unaligned = ">seq1\nATGCGATC\n>seq2\nATGCATCGATCGATC";
+    let aligned = crate::align_fasta(unaligned).expect("alignment succeeds");
+    assert!(aligned.contains(">seq1\n"));
+    assert!(aligned.contains(">seq2\n"));
+    let lines: Vec<&str> = aligned.lines().collect();
+    assert_eq!(lines.len(), 4);
+    assert_eq!(lines[0], ">seq1");
+    assert_eq!(lines[2], ">seq2");
+    assert_eq!(lines[1].len(), lines[3].len());
+    assert!(lines[1].len() >= 15);
+}
+
+#[test]
+fn align_fasta_fewer_than_two_sequences_returns_input() {
+    let single = ">seq1\nATGCGATC\n";
+    let aligned = crate::align_fasta(single).expect("single sequence returns input");
+    assert_eq!(aligned, single);
+}
+
+#[test]
+fn align_fasta_rejects_empty_sequence() {
+    let input = ">seq1\n----\n>seq2\nATGC";
+    let res = crate::align_fasta(input);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "EmptySequence");
+}
+
+#[test]
+fn apply_aligned_fasta_updates_matrix_and_supports_undo_redo() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+    let orig_width = e.get_alignment_width();
+
+    let aligned_fasta = ">seq1\nATG--C\n>seq2\nATGCAT\n";
+    e.apply_aligned_fasta(aligned_fasta)
+        .expect("apply succeeds");
+    assert_eq!(e.get_alignment_width(), 6);
+    assert_eq!(e.get_row_length(0), 6);
+    assert_eq!(e.get_row_length(1), 6);
+    assert_eq!(e.undo_depth(), 1);
+
+    // Undo restores original matrix and width
+    assert!(e.undo());
+    assert_eq!(e.get_alignment_width(), orig_width);
+    assert_eq!(e.get_row_length(0), 4);
+    assert_eq!(e.get_row_length(1), 4);
+
+    // Redo re-applies aligned matrix
+    assert!(e.redo());
+    assert_eq!(e.get_alignment_width(), 6);
+    assert_eq!(e.get_row_length(0), 6);
+    assert_eq!(e.get_row_length(1), 6);
+}
+
+#[test]
+fn apply_aligned_fasta_mismatch_sequence_count_rejected() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+
+    let mismatched_fasta = ">seq1\nATGC\n";
+    let res = e.apply_aligned_fasta(mismatched_fasta);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "AlignmentMismatch");
+}

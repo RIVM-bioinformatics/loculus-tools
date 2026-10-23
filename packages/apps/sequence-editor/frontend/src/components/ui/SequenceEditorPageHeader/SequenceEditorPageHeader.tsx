@@ -106,7 +106,7 @@ export const SequenceEditorPageHeader = () => {
               <RedoIcon fontSize={'small'} />
             </IconButton>
           </Tooltip>
-          <Tooltip title={isRealigning ? 'Re-aligning sequences...' : 'Re-align all sequences (MAFFT FFT-NS-2)'}>
+          <Tooltip title={isRealigning ? 'Re-aligning sequences...' : 'Re-align all sequences (MAFFT FFT-NS-1)'}>
             <span>
               <IconButton
                 color={'inherit'}

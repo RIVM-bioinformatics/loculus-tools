@@ -4,6 +4,7 @@ import { MoveDirection } from '@rivm-loculus-tools/sequence-editor-wasm';
 import { singleton } from 'tsyringe';
 
 import type {
+  AlignerWorkerApi,
   EngineMeta,
   EngineSearchResult,
   EngineViewportResult,
@@ -17,6 +18,8 @@ import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 
 @singleton()
 export class EditorWorkerService {
+  private activeAlignerWorker: null | Worker = null;
+  private alignerReject: ((reason?: unknown) => void) | null = null;
   private commandQueue: Promise<void> = Promise.resolve();
   private readonly engineWorkerProxy: Remote<EngineWorkerApi>;
 
@@ -25,6 +28,18 @@ export class EditorWorkerService {
       type: 'module',
     });
     this.engineWorkerProxy = wrap<EngineWorkerApi>(worker);
+  }
+
+  public cancelRealign(): void {
+    if (this.activeAlignerWorker) {
+      this.activeAlignerWorker.terminate();
+      this.activeAlignerWorker = null;
+      const reject = this.alignerReject;
+      this.alignerReject = null;
+      if (reject) {
+        reject(new DOMException('Alignment cancelled by user', 'AbortError'));
+      }
+    }
   }
 
   public async delete(rows: number[], col: number): Promise<void> {
@@ -138,10 +153,53 @@ export class EditorWorkerService {
     });
   }
 
-  public async realign(): Promise<void> {
-    return await this.runCommand(async () => {
-      await this.engineWorkerProxy.realign();
+  public async realign(signal?: AbortSignal): Promise<void> {
+    if (this.activeAlignerWorker) {
+      throw new Error('Alignment is already in progress');
+    }
+
+    if (signal?.aborted) {
+      throw new DOMException('Alignment aborted before start', 'AbortError');
+    }
+
+    const fasta = await this.exportGappedFasta();
+
+    if (signal?.aborted) {
+      throw new DOMException('Alignment aborted before start', 'AbortError');
+    }
+
+    const worker = new Worker(new URL('../../workers/AlignerWorker/AlignerWorker', import.meta.url), {
+      type: 'module',
     });
+    this.activeAlignerWorker = worker;
+
+    try {
+      const alignerProxy = wrap<AlignerWorkerApi>(worker);
+      const alignPromise = alignerProxy.align(fasta);
+
+      const abortPromise = new Promise<never>((_, reject) => {
+        this.alignerReject = reject;
+        signal?.addEventListener(
+          'abort',
+          () => {
+            reject(new DOMException('Alignment cancelled by user', 'AbortError'));
+          },
+          { once: true },
+        );
+      });
+
+      const alignedFasta = await Promise.race([alignPromise, abortPromise]);
+
+      await this.runCommand(async () => {
+        await this.engineWorkerProxy.applyAlignedFasta(alignedFasta);
+      });
+    } finally {
+      worker.terminate();
+      if (this.activeAlignerWorker === worker) {
+        this.activeAlignerWorker = null;
+        this.alignerReject = null;
+      }
+    }
   }
 
   public async redo(): Promise<void> {

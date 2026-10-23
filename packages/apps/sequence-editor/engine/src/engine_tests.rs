@@ -1882,9 +1882,13 @@ fn search_all_combines_nucleotide_and_record_name_matches() {
 fn search_all_truncates_at_max_limit_across_sources() {
     let mut e = MsaEngine::new();
     let mut fasta = String::new();
-    // 6,000 records named "rec_...", each with sequence "AAAA" (which will match "A" 4 times = 24,000 matches)
+    // 6,000 records named "a_rec_...", each with sequence "ATGC".
+    // Query "A" matches each header once (6,000 header hits < 10,000)
+    // and each sequence once (6,000 nucleotide hits < 10,000).
+    // Neither individual source is truncated, but their combined 12,000 hits
+    // exceed MAX_SEARCH_RESULTS, exercising cross-source truncation in search_all.
     for i in 0..6_000 {
-        fasta.push_str(&format!(">rec_{i}\nAAAA\n"));
+        fasta.push_str(&format!(">a_rec_{i}\nATGC\n"));
     }
     e.load_fasta(&fasta).expect("valid FASTA");
 
@@ -1892,4 +1896,18 @@ fn search_all_truncates_at_max_limit_across_sources() {
     assert_eq!(result.num_matches, MAX_SEARCH_RESULTS);
     assert!(result.truncated);
     assert_eq!(result.positions.len(), MAX_SEARCH_RESULTS);
+
+    // Verify both sources contributed to the combined result before truncation
+    let nucleotide_count = result
+        .positions
+        .iter()
+        .filter(|m| m.matrix_type == MatrixType::Nucleotide)
+        .count();
+    let record_name_count = result
+        .positions
+        .iter()
+        .filter(|m| m.matrix_type == MatrixType::RecordName)
+        .count();
+    assert_eq!(nucleotide_count, 6_000);
+    assert_eq!(record_name_count, 4_000);
 }

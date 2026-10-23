@@ -2,7 +2,7 @@ use serde::Serialize;
 
 pub const MAX_SEARCH_RESULTS: usize = 10_000;
 
-#[derive(Serialize, Clone, PartialEq)]
+#[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum MatrixType {
     Nucleotide,
@@ -14,7 +14,7 @@ pub enum MatrixType {
 /// object (`{ row, col }`) when it crosses the wasm-bindgen boundary.
 /// `Clone` is needed so `[Vec<Match>; 3].concat()` can merge the per-matrix
 /// search results in `MsaEngine::search`.
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct Match {
     /// Row (sequence) index of the match.
     pub row: usize,
@@ -22,7 +22,7 @@ pub struct Match {
     pub col: usize,
     pub matrix_type: MatrixType,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
 pub struct SearchResult {
     pub query: String,
     pub num_matches: usize,
@@ -43,6 +43,9 @@ impl SearchResult {
 }
 
 pub fn naive_search(matrix: &[Vec<u8>], query: &str, matrix_type: MatrixType) -> SearchResult {
+    if query.is_empty() {
+        return SearchResult::empty(query);
+    }
     let query_bytes = query.as_bytes();
     let mut result = Vec::new();
     let mut truncated = false;
@@ -51,7 +54,7 @@ pub fn naive_search(matrix: &[Vec<u8>], query: &str, matrix_type: MatrixType) ->
         let mut col_idx = 0;
 
         while col_idx + query_bytes.len() <= seq.len() {
-            if &seq[col_idx..col_idx + query_bytes.len()] == query_bytes {
+            if seq[col_idx..col_idx + query_bytes.len()].eq_ignore_ascii_case(query_bytes) {
                 if result.len() == MAX_SEARCH_RESULTS {
                     truncated = true;
                     break;
@@ -59,7 +62,7 @@ pub fn naive_search(matrix: &[Vec<u8>], query: &str, matrix_type: MatrixType) ->
                 result.push(Match {
                     row: row_idx,
                     col: col_idx,
-                    matrix_type: matrix_type.clone(),
+                    matrix_type,
                 });
             }
             col_idx += 1;

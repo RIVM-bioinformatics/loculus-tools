@@ -1611,6 +1611,48 @@ impl MsaEngine {
         Ok(())
     }
 
+    /// Apply an externally aligned FASTA into the engine, recording a single
+    /// structural undo transaction so the alignment can be undone and redone
+    /// via `undo()` and `redo()`.
+    ///
+    /// Validates that the number of sequences in `fasta_content` matches the
+    /// currently loaded sequence count. The sequences in `fasta_content` must
+    /// be a valid multiple sequence alignment.
+    pub fn apply_aligned_fasta(
+        &mut self,
+        fasta_content: &str,
+    ) -> Result<(), StructuredEngineError> {
+        let (names, sequences) = parse_fasta_records(fasta_content)?;
+        if sequences.len() != self.nucleotide_sequences.len() {
+            return Err(StructuredEngineError::with_code(
+                "AlignmentMismatch",
+                format!(
+                    "Aligned sequence count ({}) does not match current matrix ({})",
+                    sequences.len(),
+                    self.nucleotide_sequences.len()
+                ),
+                None,
+            ));
+        }
+
+        self.record_structural_undo();
+
+        self.nucleotide_sequences = sequences;
+        for seq in &mut self.nucleotide_sequences {
+            seq.make_ascii_uppercase();
+        }
+        self.names = names;
+        self.alignment_width = self
+            .nucleotide_sequences
+            .iter()
+            .map(|seq| seq.len())
+            .max()
+            .unwrap_or(0);
+        self.aminoacid_sequences.clear();
+
+        Ok(())
+    }
+
     /// transactional history with undo/redo stacks.
     /// Snapshot the full matrix + width for structural undo. Cheap given the
     /// ~16MB max footprint.
@@ -1736,6 +1778,83 @@ impl Default for MsaEngine {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Standalone sequence alignment function for off-thread execution (e.g. AlignerWorker).
+/// Takes a FASTA string (gapped or ungapped), re-aligns all sequences using MAFFT FFT-NS-1,
+/// and returns the aligned result as a gapped FASTA string.
+#[wasm_bindgen]
+pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError> {
+    let (names, sequences) = parse_fasta_records(fasta_content)?;
+    if sequences.len() < 2 {
+        let mut out = String::new();
+        for (name, seq) in names.iter().zip(&sequences) {
+            out.push('>');
+            out.push_str(name);
+            out.push('\n');
+            out.push_str(std::str::from_utf8(seq).unwrap_or(""));
+            out.push('\n');
+        }
+        return Ok(out);
+    }
+
+    if let Some((idx, name)) = names
+        .iter()
+        .zip(&sequences)
+        .enumerate()
+        .find(|(_, (_, seq))| !seq.iter().any(|&c| is_iupac(c)))
+        .map(|(idx, (name, _))| (idx, name))
+    {
+        return Err(StructuredEngineError::with_code(
+            "EmptySequence",
+            format!(
+                "Cannot re-align: sequence '{name}' at index {idx} contains no nucleotide residues"
+            ),
+            Some(ErrorContext {
+                sequence_id: Some(name.clone()),
+                ..ErrorContext::default()
+            }),
+        ));
+    }
+
+    let input = SequenceSet {
+        sequences: names
+            .into_iter()
+            .zip(sequences)
+            .map(|(name, data)| Sequence { name, data })
+            .collect(),
+        seq_type: SeqType::Dna,
+    };
+
+    let engine = MafftEngine::new(AlignmentMode::FftNs2)
+        .with_scoring_model(ScoringModel::Dna)
+        .with_retree(1);
+    let msa = engine.align(&input);
+
+    if msa.sequences.len() != input.sequences.len()
+        || msa.names.len() != input.sequences.len()
+        || msa.sequences.iter().any(|s| s.is_empty())
+        || msa
+            .sequences
+            .iter()
+            .any(|s| s.len() != msa.sequences[0].len())
+    {
+        return Err(StructuredEngineError::with_code(
+            "AlignmentFailed",
+            "MAFFT alignment failed to produce a valid aligned sequence set".to_string(),
+            None,
+        ));
+    }
+
+    let mut out = String::new();
+    for (name, seq) in msa.names.iter().zip(&msa.sequences) {
+        out.push('>');
+        out.push_str(name);
+        out.push('\n');
+        out.push_str(std::str::from_utf8(seq).unwrap_or(""));
+        out.push('\n');
+    }
+    Ok(out)
 }
 
 // Unit tests live in separate files to keep the implementation modules focused

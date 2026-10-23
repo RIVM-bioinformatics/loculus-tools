@@ -56,6 +56,7 @@ interface EngineClient {
   moveRowsUp: (rows: number[]) => Promise<void>;
   moveRowsDown: (rows: number[]) => Promise<void>;
   realign: () => Promise<void>;
+  applyAlignedFasta: (fasta: string) => Promise<void>;
   undo: () => Promise<boolean>;
   redo: () => Promise<boolean>;
   meta: () => Promise<Meta>;
@@ -419,6 +420,18 @@ await engine.realign();
 - Captures a structural undo snapshot so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()`.
 - Invalidates the amino-acid translation cache.
 
+### `applyAlignedFasta(fasta: string): Promise<void>`
+
+Applies an externally aligned FASTA (e.g. calculated off-thread in an `AlignerWorker`) to the engine matrix.
+
+```ts
+await engine.applyAlignedFasta(alignedFasta);
+```
+
+- Validates that the number of sequences in the aligned FASTA matches the matrix.
+- Captures a structural undo snapshot so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()`.
+- Updates `alignment_width` and matrix sequences, invalidating the amino-acid translation cache.
+
 ---
 
 ## 6. Undo / Redo
@@ -595,7 +608,8 @@ try {
 | `moveHorizontal` | `row, cols: number[], direction` | `Promise<void>` | Move IUPAC block 1 position left/right within a row |
 | `moveRowsUp` | `rows: number[]` | `Promise<void>` | Move specified rows up by 1 |
 | `moveRowsDown` | `rows: number[]` | `Promise<void>` | Move specified rows down by 1 |
-| `realign` | — | `Promise<void>` | Re-align all sequences using MAFFT FFT-NS-2 |
+| `realign` | — | `Promise<void>` | Re-align all sequences using MAFFT FFT-NS-1 |
+| `applyAlignedFasta` | `fasta: string` | `Promise<void>` | Apply aligned FASTA with structural undo snapshot |
 | `undo` | — | `Promise<boolean>` | Undo last edit |
 | `redo` | — | `Promise<boolean>` | Redo last undone edit |
 

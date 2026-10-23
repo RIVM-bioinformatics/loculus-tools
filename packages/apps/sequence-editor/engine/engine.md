@@ -460,7 +460,13 @@ Re-aligns all loaded sequences across the whole matrix using the pure-Rust `maff
 - Invalidates and clears `aminoacid_sequences` cache so subsequent translated views reflect the new alignment coordinates.
 - Returns `Ok(())`.
 
-### 5.8 Structured errors
+### 5.8 External alignment integration (`apply_aligned_fasta` & `align_fasta`)
+
+To support non-blocking and cancelable sequence re-alignment, the engine provides:
+- Standalone `align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>`: Computes MAFFT FFT-NS-1 on an unaligned or gapped FASTA string, suitable for execution inside an ephemeral worker without initializing the full engine.
+- Method `apply_aligned_fasta(&mut self, fasta_content: &str) -> Result<(), StructuredEngineError>`: Validates sequence counts, takes a `StructuralSnapshot` onto `undo_stack`, replaces the nucleotide matrix, updates `alignment_width`, and clears `aminoacid_sequences`.
+
+### 5.9 Structured errors
 
 WASM-facing edit methods and `load_fasta` return
 `Result<_, StructuredEngineError>`. The

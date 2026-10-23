@@ -370,6 +370,105 @@ pub struct MsaEngine {
     redo_stack: Vec<UndoCommand>,
 }
 
+fn parse_fasta_records(
+    fasta_content: &str,
+) -> Result<(Vec<String>, Vec<Vec<u8>>), StructuredEngineError> {
+    let mut staged_sequences = Vec::new();
+    let mut staged_names = Vec::new();
+    let mut current_name: Option<String> = None;
+    let mut current_seq: Vec<u8> = Vec::new();
+    let mut current_position = 0;
+    let mut invalid_characters = Vec::new();
+
+    for (line_index, raw_line) in fasta_content.lines().enumerate() {
+        let line_number = line_index + 1;
+        let line = raw_line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(header) = line.strip_prefix('>') {
+            if let Some(name) = current_name.take() {
+                // Empty records (a header with no following sequence) are
+                // retained with a length of zero rather than being dropped.
+                staged_names.push(name);
+                staged_sequences.push(std::mem::take(&mut current_seq));
+            }
+            current_position = 0;
+            let header_text = header.trim();
+            current_name = Some(header_text.to_string());
+        } else {
+            let Some(name) = current_name.as_deref() else {
+                return Err(StructuredEngineError::with_code(
+                    "InvalidFastaFormat",
+                    format!("Sequence data appears before a FASTA header on line {line_number}"),
+                    Some(ErrorContext {
+                        line: Some(line_number),
+                        ..ErrorContext::default()
+                    }),
+                ));
+            };
+            let sequence_id = name.split_whitespace().next().unwrap_or(name);
+
+            for character in line.chars() {
+                if character.is_ascii_whitespace() {
+                    continue;
+                }
+                current_position += 1;
+                let uppercase = character.to_ascii_uppercase();
+                if !uppercase.is_ascii() || (!is_iupac(uppercase as u8) && !is_gap(uppercase as u8))
+                {
+                    invalid_characters.push(InvalidCharacterContext {
+                        sequence_id: sequence_id.to_owned(),
+                        position: current_position,
+                        line: line_number,
+                        invalid_char: character.to_string(),
+                        byte: character.is_ascii().then_some(character as u8),
+                    });
+                    continue;
+                }
+                current_seq.push(uppercase as u8);
+            }
+        }
+    }
+
+    if let Some(first) = invalid_characters.first() {
+        let byte_description = first
+            .byte
+            .map(|byte| format!(" (0x{byte:02X})"))
+            .unwrap_or_default();
+        let message = format!(
+            "Found {} invalid FASTA character(s). First: '{}'{} in sequence {:?} at position {}, line {}; see context.invalidCharacters for all occurrences. Expected an IUPAC nucleotide or '-'",
+            invalid_characters.len(),
+            first.invalid_char,
+            byte_description,
+            first.sequence_id,
+            first.position,
+            first.line
+        );
+        return Err(StructuredEngineError::with_code(
+            "InvalidAlphabet",
+            message,
+            Some(ErrorContext {
+                sequence_id: Some(first.sequence_id.clone()),
+                position: Some(first.position),
+                line: Some(first.line),
+                invalid_char: Some(first.invalid_char.clone()),
+                byte: first.byte,
+                invalid_characters: Some(invalid_characters),
+                ..ErrorContext::default()
+            }),
+        ));
+    }
+
+    if let Some(name) = current_name {
+        // Retain a trailing empty record (header with no sequence) as well.
+        staged_names.push(name);
+        staged_sequences.push(current_seq);
+    }
+
+    Ok((staged_names, staged_sequences))
+}
+
 #[wasm_bindgen]
 impl MsaEngine {
     /// Construct an empty engine.
@@ -403,102 +502,7 @@ impl MsaEngine {
     /// Returns the sequence count on success. Invalid sequence characters
     /// reject the load without changing the current engine state.
     pub fn load_fasta(&mut self, fasta_content: &str) -> Result<usize, StructuredEngineError> {
-        let mut staged_sequences = Vec::new();
-        let mut staged_names = Vec::new();
-        let mut current_name: Option<String> = None;
-        let mut current_seq: Vec<u8> = Vec::new();
-        let mut current_position = 0;
-        let mut invalid_characters = Vec::new();
-
-        for (line_index, raw_line) in fasta_content.lines().enumerate() {
-            let line_number = line_index + 1;
-            let line = raw_line.trim();
-            if line.is_empty() {
-                continue;
-            }
-            if let Some(header) = line.strip_prefix('>') {
-                if let Some(name) = current_name.take() {
-                    // Empty records (a header with no following sequence) are
-                    // retained with a length of zero rather than being dropped.
-                    staged_names.push(name);
-                    staged_sequences.push(std::mem::take(&mut current_seq));
-                }
-                current_position = 0;
-                let header_text = header.trim();
-                current_name = Some(header_text.to_string());
-            } else {
-                let Some(name) = current_name.as_deref() else {
-                    return Err(StructuredEngineError::with_code(
-                        "InvalidFastaFormat",
-                        format!(
-                            "Sequence data appears before a FASTA header on line {line_number}"
-                        ),
-                        Some(ErrorContext {
-                            line: Some(line_number),
-                            ..ErrorContext::default()
-                        }),
-                    ));
-                };
-                let sequence_id = name.split_whitespace().next().unwrap_or(name);
-
-                for character in line.chars() {
-                    if character.is_ascii_whitespace() {
-                        continue;
-                    }
-                    current_position += 1;
-                    let uppercase = character.to_ascii_uppercase();
-                    if !uppercase.is_ascii()
-                        || (!is_iupac(uppercase as u8) && !is_gap(uppercase as u8))
-                    {
-                        invalid_characters.push(InvalidCharacterContext {
-                            sequence_id: sequence_id.to_owned(),
-                            position: current_position,
-                            line: line_number,
-                            invalid_char: character.to_string(),
-                            byte: character.is_ascii().then_some(character as u8),
-                        });
-                        continue;
-                    }
-                    current_seq.push(uppercase as u8);
-                }
-            }
-        }
-
-        if let Some(first) = invalid_characters.first() {
-            let byte_description = first
-                .byte
-                .map(|byte| format!(" (0x{byte:02X})"))
-                .unwrap_or_default();
-            let message = format!(
-                "Found {} invalid FASTA character(s). First: '{}'{} in sequence {:?} at position {}, line {}; see context.invalidCharacters for all occurrences. Expected an IUPAC nucleotide or '-'",
-                invalid_characters.len(),
-                first.invalid_char,
-                byte_description,
-                first.sequence_id,
-                first.position,
-                first.line
-            );
-            return Err(StructuredEngineError::with_code(
-                "InvalidAlphabet",
-                message,
-                Some(ErrorContext {
-                    sequence_id: Some(first.sequence_id.clone()),
-                    position: Some(first.position),
-                    line: Some(first.line),
-                    invalid_char: Some(first.invalid_char.clone()),
-                    byte: first.byte,
-                    invalid_characters: Some(invalid_characters),
-                    ..ErrorContext::default()
-                }),
-            ));
-        }
-
-        if let Some(name) = current_name {
-            // Retain a trailing empty record (header with no sequence) as well.
-            staged_names.push(name);
-            staged_sequences.push(current_seq);
-        }
-
+        let (staged_names, staged_sequences) = parse_fasta_records(fasta_content)?;
         let alignment_width = staged_sequences.iter().map(Vec::len).max().unwrap_or(0);
         let sequence_count = staged_sequences.len();
 

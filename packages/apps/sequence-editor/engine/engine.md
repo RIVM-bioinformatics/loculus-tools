@@ -483,7 +483,7 @@ frame in context instead of silently selecting frame 0.
 pub struct StructuredEngineError {
   pub code: String,
   pub message: String,
-  pub context: Option<ErrorContext>,
+  pub context: Option<Box<ErrorContext>>,
 }
 
 pub struct ErrorContext {
@@ -511,7 +511,9 @@ pub struct InvalidCharacterContext {
 ```
 
 The types derive `serde::Serialize`; `From<StructuredEngineError> for JsValue`
-uses `serde_wasm_bindgen` so wasm-bindgen throws the structured object. Optional
+uses `serde_wasm_bindgen` so wasm-bindgen throws the structured object. Context is
+boxed (`Option<Box<ErrorContext>>`) to keep the error type compact and avoid
+oversized `Result` types, while serializing identically to JavaScript. Optional
 context fields are omitted when absent. The worker normalizes that thrown value
 and posts `{ ok: false, error }` for edit, load, translation, and viewport
 failures; unexpected exceptions use code `UnexpectedRuntimeError`. Invalid or

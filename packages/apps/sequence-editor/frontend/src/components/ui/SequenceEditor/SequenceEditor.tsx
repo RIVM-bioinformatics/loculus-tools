@@ -102,6 +102,7 @@ export const SequenceEditor = () => {
   const updateMeta = useCallback(async () => {
     const meta = await container.resolve(EditorWorkerService).getMetaData();
     metaSubject.next(meta);
+    return meta;
   }, [metaSubject]);
 
   const updateVisibleRange = useCallback(() => {
@@ -447,12 +448,16 @@ export const SequenceEditor = () => {
     const execute = async (args: { command: () => Promise<void>; getSelectionPostCommand?: () => EditorSelection | null }) => {
       const { command, getSelectionPostCommand } = args;
       try {
+        const previousUndoDepth = metaSubject.data?.undoDepth;
         await command();
         cachedGridRangeWithViewPortResultRef.current = null;
         cachedGridRangeWithRowNamesRef.current = null;
-        await updateMeta();
+        const nextMeta = await updateMeta();
         updateVisibleRange();
         if (getSelectionPostCommand) {
+          if (previousUndoDepth !== undefined && nextMeta?.undoDepth === previousUndoDepth) {
+            return;
+          }
           const selection = getSelectionPostCommand();
           selectionSubject.next(selection);
           initialSelectionRef.current = selection;
@@ -551,8 +556,26 @@ export const SequenceEditor = () => {
       });
     };
 
-    const moveCells = async (_direction: EDITOR_DIRECTION) => {
-      // TODO
+    const moveCells = async (direction: EDITOR_DIRECTION) => {
+      if (!metaSubject.data) {
+        return;
+      }
+      if (direction !== EDITOR_DIRECTION.LEFT && direction !== EDITOR_DIRECTION.RIGHT) {
+        return;
+      }
+      if (!selectionSubject.data?.cells && (!selectionSubject.data?.cols || selectionSubject.data.cols.length === 0)) {
+        return;
+      }
+      const mutateArguments = EditorUtil.getMutateArguments(selectionSubject.data, metaSubject.data);
+      if (!mutateArguments || mutateArguments.columns.length === 0 || mutateArguments.rows.length === 0) {
+        return;
+      }
+      await execute({
+        command: async () => {
+          await editorService.moveHorizontal(mutateArguments.rows, mutateArguments.columns, direction);
+        },
+        getSelectionPostCommand: () => EditorUtil.getPostUpsertSelection(selectionSubject.data, direction),
+      });
     };
 
     const eventBusService = container.resolve(SequenceEditorEventBusService);

@@ -990,7 +990,7 @@ fn move_horizontal_left_succeeds() {
     // But col 1 is 'T' (IUPAC), not '-'. So first mutate col 1 to '-'.
     assert_eq!(e.mutate_base(&[0], &[1], b'-'), Ok(()));
     // Row 0: "A-GCATGC". Now move "GCAT" (cols 2..=5) left by 1.
-    let err = e.move_horizontal(0, &[2, 3, 4, 5], MoveDirection::Left);
+    let err = e.move_horizontal(&[0], &[2, 3, 4, 5], MoveDirection::Left);
     assert_eq!(err, Ok(()));
     // After left move: "AGCAT-GC"
     assert_eq!(e.get_base(0, 0), b'A');
@@ -1007,7 +1007,7 @@ fn move_horizontal_left_succeeds() {
 fn move_horizontal_right_succeeds() {
     let mut e = engine_with_sample();
     // Row 1: "ATGGTG-A". Move "GGTG" (cols 2..=5) right into col 6 which is '-'.
-    let err = e.move_horizontal(1, &[2, 3, 4, 5], MoveDirection::Right);
+    let err = e.move_horizontal(&[1], &[2, 3, 4, 5], MoveDirection::Right);
     assert_eq!(err, Ok(()));
     // After right move: "AT-GGTGA"
     assert_eq!(e.get_base(1, 0), b'A');
@@ -1025,7 +1025,7 @@ fn move_horizontal_no_gap_target_returns_error() {
     let mut e = engine_with_sample();
     // Row 0: "ATGCATGC". Try to move "ATGC" (cols 0..=3) left — no space to left.
     let err = e
-        .move_horizontal(0, &[0, 1, 2, 3], MoveDirection::Left)
+        .move_horizontal(&[0], &[0, 1, 2, 3], MoveDirection::Left)
         .unwrap_err();
     assert_eq!(err.code, "MoveNoGapTarget");
     let context = err.context.unwrap();
@@ -1034,7 +1034,7 @@ fn move_horizontal_no_gap_target_returns_error() {
     assert_eq!(context.direction.as_deref(), Some("Left"));
     // Row 0: "ATGCATGC". Try to move "CATG" (cols 4..=7) right — no space to right.
     let err = e
-        .move_horizontal(0, &[4, 5, 6, 7], MoveDirection::Right)
+        .move_horizontal(&[0], &[4, 5, 6, 7], MoveDirection::Right)
         .unwrap_err();
     assert_eq!(err.code, "MoveNoGapTarget");
     assert_eq!(err.context.unwrap().direction.as_deref(), Some("Right"));
@@ -1045,7 +1045,7 @@ fn move_horizontal_not_iupac_returns_error() {
     let mut e = engine_with_sample();
     // Row 1 col 6 is '-'. Try to move a block that includes '-'.
     let err = e
-        .move_horizontal(1, &[5, 6], MoveDirection::Left)
+        .move_horizontal(&[1], &[5, 6], MoveDirection::Left)
         .unwrap_err();
     // col 5 is 'G' (IUPAC), col 6 is '-' (not IUPAC) — should fail.
     assert_eq!(err.code, "MoveNotIupac");
@@ -1053,6 +1053,188 @@ fn move_horizontal_not_iupac_returns_error() {
     assert_eq!(context.row, Some(1));
     assert_eq!(context.col, Some(6));
     assert_eq!(context.base.as_deref(), Some("-"));
+}
+
+#[test]
+fn move_horizontal_multi_row_left_succeeds() {
+    let mut e = engine_with_sample();
+    // Row 0: "ATGCATGC", Row 2: "ATGCAT-C"
+    // Mutate col 1 to '-' in both rows:
+    assert_eq!(e.mutate_base(&[0, 2], &[1], b'-'), Ok(()));
+    // Row 0: "A-GCATGC", Row 2: "A-GCAT-C"
+    // Move cols 2..=5 left across rows 0 and 2
+    let err = e.move_horizontal(&[0, 2], &[2, 3, 4, 5], MoveDirection::Left);
+    assert_eq!(err, Ok(()));
+    // Row 0: "AGCAT-GC"
+    assert_eq!(e.get_base(0, 0), b'A');
+    assert_eq!(e.get_base(0, 1), b'G');
+    assert_eq!(e.get_base(0, 2), b'C');
+    assert_eq!(e.get_base(0, 3), b'A');
+    assert_eq!(e.get_base(0, 4), b'T');
+    assert_eq!(e.get_base(0, 5), b'-');
+    assert_eq!(e.get_base(0, 6), b'G');
+    assert_eq!(e.get_base(0, 7), b'C');
+    // Row 2: "AGCAT--C"
+    assert_eq!(e.get_base(2, 0), b'A');
+    assert_eq!(e.get_base(2, 1), b'G');
+    assert_eq!(e.get_base(2, 2), b'C');
+    assert_eq!(e.get_base(2, 3), b'A');
+    assert_eq!(e.get_base(2, 4), b'T');
+    assert_eq!(e.get_base(2, 5), b'-');
+    assert_eq!(e.get_base(2, 6), b'-');
+    assert_eq!(e.get_base(2, 7), b'C');
+    // Row 1 untouched: "ATGGTG-A"
+    assert_eq!(e.get_base(1, 1), b'T');
+}
+
+#[test]
+fn move_horizontal_multi_row_right_succeeds() {
+    let mut e = engine_with_sample();
+    // Row 1: "ATGGTG-A" (col 6 is '-')
+    // Row 2: "ATGCAT-C" (col 6 is '-')
+    let err = e.move_horizontal(&[1, 2], &[2, 3, 4, 5], MoveDirection::Right);
+    assert_eq!(err, Ok(()));
+    // Row 1: "AT-GGTGA"
+    assert_eq!(e.get_base(1, 2), b'-');
+    assert_eq!(e.get_base(1, 3), b'G');
+    assert_eq!(e.get_base(1, 4), b'G');
+    assert_eq!(e.get_base(1, 5), b'T');
+    assert_eq!(e.get_base(1, 6), b'G');
+    assert_eq!(e.get_base(1, 7), b'A');
+    // Row 2: "AT-GCATC"
+    assert_eq!(e.get_base(2, 2), b'-');
+    assert_eq!(e.get_base(2, 3), b'G');
+    assert_eq!(e.get_base(2, 4), b'C');
+    assert_eq!(e.get_base(2, 5), b'A');
+    assert_eq!(e.get_base(2, 6), b'T');
+    assert_eq!(e.get_base(2, 7), b'C');
+    // Row 0 untouched
+    assert_eq!(e.get_base(0, 2), b'G');
+}
+
+#[test]
+fn move_horizontal_multi_row_atomic_on_target_not_gap() {
+    let mut e = engine_with_sample();
+    // Row 0 col 1 mutated to '-' -> "A-GCATGC"
+    assert_eq!(e.mutate_base(&[0], &[1], b'-'), Ok(()));
+    // Row 1 is "ATGGTG-A" (col 1 is 'T', not '-')
+    let err = e
+        .move_horizontal(&[0, 1], &[2, 3, 4, 5], MoveDirection::Left)
+        .unwrap_err();
+    assert_eq!(err.code, "MoveNoGapTarget");
+    let context = err.context.unwrap();
+    assert_eq!(context.row, Some(1));
+    assert_eq!(context.col, Some(1));
+    // Atomic: Row 0 MUST NOT have moved
+    assert_eq!(e.get_base(0, 1), b'-');
+    assert_eq!(e.get_base(0, 2), b'G');
+    // And no undo command was created for the move
+    assert_eq!(e.undo_depth(), 1); // only the mutate_base
+}
+
+#[test]
+fn move_horizontal_multi_row_atomic_on_not_iupac() {
+    let mut e = engine_with_sample();
+    // Row 0: "ATGCATGC", Row 1: "ATGGTG-A" (col 6 is '-')
+    let err = e
+        .move_horizontal(&[0, 1], &[5, 6], MoveDirection::Left)
+        .unwrap_err();
+    assert_eq!(err.code, "MoveNotIupac");
+    let context = err.context.unwrap();
+    assert_eq!(context.row, Some(1));
+    assert_eq!(context.col, Some(6));
+    // Row 0 untouched
+    assert_eq!(e.get_base(0, 5), b'T');
+}
+
+#[test]
+fn move_horizontal_multi_row_single_undo_restores_all() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.mutate_base(&[0, 2], &[1], b'-'), Ok(()));
+    assert_eq!(
+        e.move_horizontal(&[0, 2], &[2, 3, 4, 5], MoveDirection::Left),
+        Ok(())
+    );
+    assert_eq!(e.get_base(0, 1), b'G');
+    assert_eq!(e.get_base(2, 1), b'G');
+    // A single undo call restores both rows
+    assert!(e.undo());
+    assert_eq!(e.get_base(0, 1), b'-');
+    assert_eq!(e.get_base(0, 2), b'G');
+    assert_eq!(e.get_base(2, 1), b'-');
+    assert_eq!(e.get_base(2, 2), b'G');
+    // Single redo re-applies both
+    assert!(e.redo());
+    assert_eq!(e.get_base(0, 1), b'G');
+    assert_eq!(e.get_base(2, 1), b'G');
+}
+
+#[test]
+fn move_horizontal_multi_row_deduplicates_rows() {
+    let mut e = engine_with_sample();
+    // Row 1: "ATGGTG-A". Pass row 1 multiple times.
+    assert_eq!(
+        e.move_horizontal(&[1, 1, 1], &[2, 3, 4, 5], MoveDirection::Right),
+        Ok(())
+    );
+    // After single move: "AT-GGTGA"
+    assert_eq!(e.get_base(1, 2), b'-');
+    assert_eq!(e.get_base(1, 3), b'G');
+}
+
+#[test]
+fn move_horizontal_empty_rows_or_cols_is_noop() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.move_horizontal(&[], &[2, 3], MoveDirection::Left), Ok(()));
+    assert_eq!(e.move_horizontal(&[0], &[], MoveDirection::Left), Ok(()));
+    assert_eq!(e.undo_depth(), 0);
+}
+
+#[test]
+fn move_horizontal_skips_out_of_range_rows() {
+    let mut e = engine_with_sample();
+    // Row 999 is out-of-range, row 1 is valid
+    assert_eq!(
+        e.move_horizontal(&[999, 1], &[2, 3, 4, 5], MoveDirection::Right),
+        Ok(())
+    );
+    assert_eq!(e.get_base(1, 2), b'-');
+    assert_eq!(e.get_base(1, 3), b'G');
+}
+
+#[test]
+fn move_horizontal_skips_short_rows_in_ragged_alignment() {
+    let mut e = MsaEngine::new();
+    let fasta = ">seq0\nATGCAT-C\n>seq1\nATG\n";
+    assert_eq!(e.load_fasta(fasta), Ok(2));
+
+    // When all target rows are short rows, move is a clean no-op
+    let undo_depth = e.undo_depth();
+    assert_eq!(
+        e.move_horizontal(&[1], &[2, 3, 4, 5], MoveDirection::Right),
+        Ok(())
+    );
+    assert_eq!(e.undo_depth(), undo_depth);
+
+    // Row 0 has len 8 (end < 8 -> valid target).
+    // Row 1 has len 3 (end >= 3 -> short row, skipped).
+    assert_eq!(
+        e.move_horizontal(&[0, 1], &[2, 3, 4, 5], MoveDirection::Right),
+        Ok(())
+    );
+    // Row 0 rotated right: "AT-GCATC"
+    assert_eq!(e.get_base(0, 1), b'T');
+    assert_eq!(e.get_base(0, 2), b'-');
+    assert_eq!(e.get_base(0, 3), b'G');
+    assert_eq!(e.get_base(0, 4), b'C');
+    assert_eq!(e.get_base(0, 5), b'A');
+    assert_eq!(e.get_base(0, 6), b'T');
+    assert_eq!(e.get_base(0, 7), b'C');
+
+    // Row 1 is untouched: "ATG"
+    assert_eq!(e.get_base(1, 0), b'A');
+    assert_eq!(e.get_base(1, 1), b'T');
+    assert_eq!(e.get_base(1, 2), b'G');
 }
 
 #[test]
@@ -1123,7 +1305,7 @@ fn move_horizontal_undo_restores() {
     assert_eq!(e.mutate_base(&[0], &[1], b'-'), Ok(()));
     // Row 0: "A-GCATGC"
     assert_eq!(
-        e.move_horizontal(0, &[2, 3, 4, 5], MoveDirection::Left),
+        e.move_horizontal(&[0], &[2, 3, 4, 5], MoveDirection::Left),
         Ok(())
     );
     assert_eq!(e.get_base(0, 1), b'G');

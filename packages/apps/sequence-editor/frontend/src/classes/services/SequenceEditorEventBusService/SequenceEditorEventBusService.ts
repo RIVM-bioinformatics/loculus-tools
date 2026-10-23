@@ -4,6 +4,7 @@ import { singleton } from 'tsyringe';
 import type { EDITOR_DIRECTION } from '../../../models/editor.models';
 
 export type SequenceEditorEventBusServiceEvent = {
+  onCancelRealign: void;
   onDeleteBackward: void;
   onExpandSelection: EDITOR_DIRECTION;
   onExportGappedFasta: void;

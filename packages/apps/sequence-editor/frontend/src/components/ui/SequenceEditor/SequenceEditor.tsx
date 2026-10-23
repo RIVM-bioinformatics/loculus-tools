@@ -51,6 +51,7 @@ import {
 import { EditorUtil } from '../../../utils/EditorUtil';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorSearchBar } from '../SequenceEditorSearchBar';
+import { SequenceEditorRealignModal } from '../SequenceEditorRealignModal';
 
 import { SequenceEditorStatusBar } from './SequenceEditorStatusBar';
 import type { SequenceEditorGotoPositionDialogRefMethods } from './SequenceEditorGotoPositionDialog';
@@ -659,20 +660,32 @@ export const SequenceEditor = () => {
         });
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onCancelRealign', () => {
+        editorService.cancelRealign();
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onRealign', () => {
         const store = sequenceEditorStore.getState();
         store.setIsRealigning(true);
         store.setLatestMessage('Re-aligning sequences with MAFFT (FFT-NS-1)...');
+        let wasCancelled = false;
         void execute({
           command: async () => {
             try {
               await editorService.realign();
               sequenceEditorStore.getState().setLatestMessage('Re-alignment completed successfully');
+            } catch (error) {
+              if (error instanceof DOMException && error.name === 'AbortError') {
+                wasCancelled = true;
+                sequenceEditorStore.getState().setLatestMessage('Re-alignment cancelled');
+              } else {
+                throw error;
+              }
             } finally {
               sequenceEditorStore.getState().setIsRealigning(false);
             }
           },
-          getSelectionPostCommand: () => null,
+          getSelectionPostCommand: () => (wasCancelled ? selectionSubject.data : null),
         });
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
@@ -697,6 +710,7 @@ export const SequenceEditor = () => {
     ];
     return () => {
       removers.forEach(remover => remover());
+      editorService.cancelRealign();
     };
   }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject, setIsRealigning, setLatestMessage]);
 
@@ -949,6 +963,7 @@ export const SequenceEditor = () => {
         onGotoPosition={onGotoPosition}
         ref={sequenceEditorGotoPositionDialogRef}
       />
+      <SequenceEditorRealignModal />
     </Box>
   );
 };

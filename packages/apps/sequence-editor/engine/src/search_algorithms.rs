@@ -1,5 +1,3 @@
-#[cfg(test)]
-use fm_index::{FMIndexMultiPiecesWithLocate, MatchWithLocate, MatchWithPieceId, Search, Text};
 use serde::Serialize;
 
 pub const MAX_SEARCH_RESULTS: usize = 10_000;
@@ -70,53 +68,6 @@ pub fn naive_search(matrix: &[Vec<u8>], query: &str, matrix_type: MatrixType) ->
             break;
         }
     }
-    SearchResult {
-        query: query.to_string(),
-        num_matches: result.len(),
-        truncated,
-        positions: result,
-    }
-}
-
-#[cfg(test)]
-pub fn fm_index_search(
-    matrix: &Vec<Vec<u8>>,
-    query: &str,
-    matrix_type: MatrixType,
-) -> SearchResult {
-    // We need a Text representation of the matrix for the FM-index, with '\0' as row separators.
-    let mut concatenated: Vec<u8> = Vec::new();
-    let mut row_offsets = Vec::new();
-    for seq in matrix.iter() {
-        row_offsets.push(concatenated.len());
-        concatenated.extend_from_slice(seq);
-        concatenated.push(b'\0'); // unique separator
-    }
-
-    let text = Text::new(&concatenated);
-    let fm_index = FMIndexMultiPiecesWithLocate::new(&text, 0).unwrap();
-    let uppercase_query = query.to_uppercase();
-    let query_bytes = uppercase_query.as_bytes();
-    let mut result = Vec::new();
-    let mut truncated = false;
-
-    let search_result = fm_index.search(query_bytes);
-    for m in search_result.iter_matches() {
-        if result.len() == MAX_SEARCH_RESULTS {
-            truncated = true;
-            break;
-        }
-        // Find the row corresponding to this position
-        let pos = m.locate();
-        let row = m.piece_id().into();
-        let col = pos - row_offsets[row];
-        result.push(Match {
-            row,
-            col,
-            matrix_type: matrix_type.clone(),
-        });
-    }
-
     SearchResult {
         query: query.to_string(),
         num_matches: result.len(),

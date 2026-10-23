@@ -11,7 +11,6 @@ mod search_algorithms;
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
 use mafft::{AlignmentMode, MafftEngine, ScoringModel, SeqType, Sequence, SequenceSet};
-use mafft::{AlignmentMode, MafftEngine, ScoringModel, SeqType, Sequence, SequenceSet};
 use search_algorithms::{MAX_SEARCH_RESULTS, Match, MatrixType, SearchResult, naive_search};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
@@ -1855,10 +1854,10 @@ pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>
             format!(
                 "Cannot re-align: sequence '{name}' at index {idx} contains no nucleotide residues"
             ),
-            Some(ErrorContext {
+            Some(Box::new(ErrorContext {
                 sequence_id: Some(name.clone()),
                 ..ErrorContext::default()
-            }),
+            })),
         ));
     }
 

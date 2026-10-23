@@ -77,7 +77,11 @@ fn nucleotide_search_accepts_lowercase_queries() {
     let result = e.search_nucleotide("atgc");
 
     assert_eq!(result.query, "atgc");
-    assert_eq!(result.num_matches, 4);
+    assert_eq!(result.num_matches, 3);
+    assert_eq!(result.positions.len(), 3);
+    assert_eq!((result.positions[0].row, result.positions[0].col), (0, 0));
+    assert_eq!((result.positions[1].row, result.positions[1].col), (0, 4));
+    assert_eq!((result.positions[2].row, result.positions[2].col), (2, 0));
 }
 
 #[test]
@@ -1262,12 +1266,12 @@ fn translate_rejects_oversized_and_overflowing_viewports_with_context() {
         assert!(error.message.contains(&MAX_VIEWPORT_BYTES.to_string()));
         assert_eq!(
             error.context,
-            Some(ErrorContext {
+            Some(Box::new(ErrorContext {
                 row: Some(start_row),
                 col: Some(start_col),
                 frame: Some(2),
                 ..ErrorContext::default()
-            })
+            }))
         );
     }
 }
@@ -1763,4 +1767,129 @@ fn search_record_names_returns_empty_when_no_sequences_loaded() {
 
     assert_eq!(result.num_matches, 0);
     assert!(result.positions.is_empty());
+}
+
+#[test]
+fn search_record_names_empty_query_returns_empty() {
+    let e = engine_with_sample();
+
+    let result = e.search_record_names("");
+
+    assert_eq!(result.num_matches, 0);
+    assert!(!result.truncated);
+    assert!(result.positions.is_empty());
+}
+
+#[test]
+fn search_record_names_case_insensitive_matching() {
+    let e = engine_with_sample(); // names: "seq1 first record", "seq2", "seq3 third record"
+
+    // Uppercase query
+    let upper = e.search_record_names("SEQ");
+    assert_eq!(upper.num_matches, 3);
+
+    // Mixed case query
+    let mixed = e.search_record_names("sEq");
+    assert_eq!(mixed.num_matches, 3);
+
+    // Substring in header description
+    let desc = e.search_record_names("RECORD");
+    assert_eq!(desc.num_matches, 2);
+    assert_eq!(desc.positions[0].row, 0);
+    assert_eq!(desc.positions[1].row, 2);
+}
+
+#[test]
+fn search_record_names_limits_high_frequency_matches() {
+    let mut e = MsaEngine::new();
+    let mut fasta = String::new();
+    for i in 0..(MAX_SEARCH_RESULTS + 5) {
+        fasta.push_str(&format!(">seq_{i}\nATGC\n"));
+    }
+    e.load_fasta(&fasta).expect("valid FASTA");
+
+    let result = e.search_record_names("seq_");
+    assert_eq!(result.num_matches, MAX_SEARCH_RESULTS);
+    assert!(result.truncated);
+    assert_eq!(result.positions.len(), MAX_SEARCH_RESULTS);
+}
+
+#[test]
+fn search_record_names_utf8_queries() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">sēq 1 first record\nATGC\n>record_čšž\nATGC\n")
+        .expect("valid FASTA");
+
+    let result = e.search_record_names("sēq");
+    assert_eq!(result.query, "sēq");
+    assert_eq!(result.num_matches, 1);
+    assert_eq!(result.positions[0].row, 0);
+
+    let result_upper = e.search_record_names("ČŠŽ");
+    assert_eq!(result_upper.query, "ČŠŽ");
+    assert_eq!(result_upper.num_matches, 1);
+    assert_eq!(result_upper.positions[0].row, 1);
+}
+
+#[test]
+fn search_record_names_rejects_newlines_and_null_bytes() {
+    let e = engine_with_sample();
+
+    let newline_result = e.search_record_names("seq\n1");
+    assert_eq!(newline_result.num_matches, 0);
+    assert!(!newline_result.truncated);
+    assert!(newline_result.positions.is_empty());
+
+    let null_result = e.search_record_names("seq\0name");
+    assert_eq!(null_result.num_matches, 0);
+    assert!(!null_result.truncated);
+    assert!(null_result.positions.is_empty());
+}
+
+#[test]
+fn search_all_empty_query_returns_empty_result() {
+    let e = engine_with_sample();
+
+    let result = e.search_all("", true);
+    assert_eq!(result.query, "");
+    assert_eq!(result.num_matches, 0);
+    assert!(!result.truncated);
+    assert!(result.positions.is_empty());
+}
+
+#[test]
+fn search_all_combines_nucleotide_and_record_name_matches() {
+    let e = engine_with_sample(); // names: "seq1 ...", "seq2", "seq3 ..."; seqs: "ATGC...", "ATGC...", "ATGC..."
+
+    // Check with check_record_names = true: should find record names
+    let with_names = e.search_all("seq", true);
+    assert_eq!(with_names.num_matches, 3);
+    assert_eq!(with_names.positions.len(), 3);
+    assert!(
+        with_names
+            .positions
+            .iter()
+            .all(|m| m.matrix_type == MatrixType::RecordName)
+    );
+
+    // Check with check_record_names = false: should not find record names
+    let without_names = e.search_all("seq", false);
+    assert_eq!(without_names.num_matches, 0);
+    assert!(without_names.positions.is_empty());
+}
+
+#[test]
+fn search_all_truncates_at_max_limit_across_sources() {
+    let mut e = MsaEngine::new();
+    let mut fasta = String::new();
+    // 6,000 records named "rec_...", each with sequence "AAAA" (which will match "A" 4 times = 24,000 matches)
+    for i in 0..6_000 {
+        fasta.push_str(&format!(">rec_{i}\nAAAA\n"));
+    }
+    e.load_fasta(&fasta).expect("valid FASTA");
+
+    let result = e.search_all("A", true);
+    assert_eq!(result.num_matches, MAX_SEARCH_RESULTS);
+    assert!(result.truncated);
+    assert_eq!(result.positions.len(), MAX_SEARCH_RESULTS);
 }

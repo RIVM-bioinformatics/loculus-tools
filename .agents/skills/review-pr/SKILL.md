@@ -61,9 +61,18 @@ when no PR can be resolved.
 4. Report only actionable findings, ordered by severity. Give each finding a
    file and diff line, concrete evidence, impact, and a concise correction. Do
    not invent repository conventions. State explicitly when no findings remain.
-5. Show proposed inline comments and obtain approval for all or selected
+5. **Triage Scope & Cross-Reference Secondary Issues**:
+   - Classify findings into:
+     - **In-Scope (Current PR)**: Immediate defects, correctness bugs, test omissions, or broken invariants introduced by the PR. These must be addressed in the PR.
+     - **Out-of-Scope (Secondary Development Track)**: Pre-existing technical debt, larger architectural refactors, or feature ideas discovered during review that exceed the PR's core goal.
+   - For Out-of-Scope / Secondary Track items:
+     - Highlight and comment on them clearly in the review summary.
+     - Cross-reference open issues (`gh issue list --search "<keyword>" --state open`).
+     - If an issue exists, link it in the comment.
+     - If untracked, propose or open a new focused GitHub issue via the `create-issue` skill so the secondary work is tracked independently without bloating the current PR.
+6. Show proposed inline comments and obtain approval for all or selected
    comments. Approval to review is not approval to post.
-6. Post only approved comments through
+7. Post only approved comments through
    `.agents/scripts/post-pr-comments.sh`. The helper uses `gh api` to create
    inline comments and appends its AI-generated attribution. Report partial
    failures from its JSON result; do not silently retry writes.

@@ -19,5 +19,8 @@ Review scope: ${input:scope:Provide a PR number, diff, issue, review comments, o
    - Monorepo exports: missing `pnpm update-exports` after modifying exported surface.
    - Build artifacts: accidental commits in `wasm/`, `dist/`, or `target/` directories.
 6. For each material risk, state the failure mode and the smallest guard or validation that would catch it.
+7. Classify findings into **In-Scope (Current PR/Change)** vs. **Out-of-Scope (Secondary Development Track)**:
+   - In-Scope: Bugs, broken invariants, test gaps, or regressions in the current change.
+   - Out-of-Scope: Pre-existing debt or broader architectural proposals. Cross-reference open issues (`gh issue list --search "<keyword>" --state open`) or use the `create-issue` skill to open a dedicated tracking issue.
 
-Return findings first, ordered by severity, with file links and concrete evidence. Then list open questions, missing tests, and a concise change summary. Do not edit files unless the request explicitly asks for implementation.
+Return findings first, ordered by severity and scope classification, with file links and concrete evidence. Then list open questions, missing tests, and a concise change summary. Do not edit files unless the request explicitly asks for implementation.

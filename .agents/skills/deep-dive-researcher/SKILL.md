@@ -27,10 +27,16 @@ Investigate one concrete question deeply enough to reach a decision across the `
    - Memory and performance: large alignments, transferred ArrayBuffers, WASM allocations, worker serialization overhead.
    - Coordinates: inclusive 0-indexed column/row ranges, boundary conditions, ASCII padding.
    - Package boundaries: build dependencies, export maps, and cross-package version sync.
-6. **Choose a cheap discriminating check**:
+6. **Classify Scope & Cross-Reference Existing Issues**:
+   - Separate immediate correctness defects/invariants from secondary architectural suggestions, broader refactoring, or pre-existing technical debt.
+   - Query open issues (`gh issue list --search "<keyword>" --state open`) and linked PR issues.
+   - Triage development tracks:
+     - **In-Scope (Current Task/PR)**: The minimal change necessary to satisfy correctness and safety invariants.
+     - **Secondary Development Track**: Broader architectural ideas, multi-package refactorings, or new public APIs. If tracked, link and comment on the existing issue. If untracked, scope and open a new dedicated issue via the `create-issue` skill.
+7. **Choose a cheap discriminating check**:
    - A focused unit test (`cargo test <target>` or package test runner), a minimal Node/browser script, or direct call-site inspection.
-7. **Run the check** when execution is requested and use its result to confirm or revise the hypothesis.
-8. **Produce one conclusion and a concrete next action**. Do not repeat an unchanged investigation without new evidence.
+8. **Run the check** when execution is requested and use its result to confirm or revise the hypothesis.
+9. **Produce one conclusion and a concrete next action**. Explicitly separate in-scope fixes from deferred/tracked secondary issues. Do not repeat an unchanged investigation without new evidence.
 
 ## Output Structure
 
@@ -48,6 +54,10 @@ Use this structure when useful:
 - Observed: [actual behavior, error, or defect]
 - Affected Packages / Layers: [e.g. packages/apps/sequence-editor/engine]
 - Smallest Reproducer: [minimal reproducer or why unavailable]
+
+## Scope Boundary & Issue Triage
+- In-Scope (Current Task/PR): [narrowest localized fix required for correctness]
+- Secondary Track / Out-of-Scope: [broader suggestions deferred; linked existing issue #X or newly opened issue]
 
 ## Evidence
 - [Code or test evidence]

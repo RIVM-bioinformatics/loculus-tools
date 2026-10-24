@@ -341,6 +341,13 @@ When behavior crosses the worker/WASM boundary, validate both the Rust engine
 and the consuming frontend. Pay particular attention to request ordering,
 buffer ownership, viewport dimensions, and error propagation.
 
+### PR Review & Scope Guarding
+
+- **Defect vs. Architectural Enhancement**: In reviews or when resolving review findings, strictly separate immediate defects and broken invariants from secondary architectural proposals or pre-existing technical debt.
+- **Triage Development Tracks**: Keep PR changes minimal, localized, and focused exclusively on the PR's original scope. Never implement new subsystems or expand public APIs merely because a review comment suggested it as a possible enhancement.
+- **Cross-Reference Existing Issues**: Before designing solutions for broader problems discovered during review, check open issues (`gh issue list --search "<keyword>" --state open`). If already tracked, link and comment on the existing issue with the new findings.
+- **Open New Issues for Secondary Tracks**: If a valid architectural limitation or technical debt is discovered during review that is best resolved on a separate track, highlight it in the review and use the `create-issue` skill to open a new, well-scoped GitHub issue.
+
 ## Important Operational Pitfalls
 
 - A successful no-op `pnpm install` may skip root lifecycle scripts. Use

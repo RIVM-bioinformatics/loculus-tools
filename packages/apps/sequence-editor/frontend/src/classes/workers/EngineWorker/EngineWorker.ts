@@ -27,6 +27,11 @@ export class EngineWorker implements EngineWorkerApi {
   private engine: MsaEngine | null = null;
   private initialization: null | Promise<void> = null;
 
+  public async applyAlignedFasta(fasta: string): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.apply_aligned_fasta(fasta);
+  }
+
   public async delete(rows: number[], column: number): Promise<void> {
     const engine = await this.requireEngine();
     engine.delete_at_subset(this.toRowIndices(rows), column);
@@ -156,6 +161,11 @@ export class EngineWorker implements EngineWorkerApi {
   public async name(row: number): Promise<string> {
     const engine = await this.requireEngine();
     return engine.get_name(row);
+  }
+
+  public async realign(): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.realign();
   }
 
   public async redo(): Promise<boolean> {

@@ -30,6 +30,7 @@ export type SequenceEditorStore = SequenceEditorStoreActions & SequenceEditorSto
 
 export interface SequenceEditorStoreActions extends FastaDataStoreActions {
   setAminoAcidPalette: (palette: AminoAcidPalette) => void;
+  setIsRealigning: (isRealigning: boolean) => void;
   setLatestMessage: (message: null | string) => void;
   setMeta: (meta: EngineMeta | null) => void;
   setNucleotidePalette: (palette: NucleotidePalette) => void;
@@ -41,6 +42,7 @@ export interface SequenceEditorStoreActions extends FastaDataStoreActions {
 
 export interface SequenceEditorStoreState extends FastaDataStoreState {
   aminoAcidPalette: AminoAcidPalette;
+  isRealigning: boolean;
   latestMessage: null | string;
   meta: EngineMeta | null;
   nucleotidePalette: NucleotidePalette;
@@ -53,6 +55,7 @@ export interface SequenceEditorStoreState extends FastaDataStoreState {
 const createSequenceEditorStoreInitialState = (): SequenceEditorStoreState => ({
   ...createFastaDataStoreInitialState(),
   aminoAcidPalette: ALI_VIEW_DEFAULT_AMINO_ACID_PALETTE,
+  isRealigning: false,
   latestMessage: null,
   meta: null,
   nucleotidePalette: ALI_VIEW_DEFAULT_NUCLEOTIDE_PALETTE,
@@ -77,6 +80,7 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
           setSearchQuery('');
         },
         setAminoAcidPalette: (palette: AminoAcidPalette) => set({ aminoAcidPalette: palette }),
+        setIsRealigning: (isRealigning: boolean) => set({ isRealigning }),
         setLatestMessage: (message: null | string) => set({ latestMessage: message }),
         setMeta: (meta: EngineMeta | null) => set({ meta }),
         setNucleotidePalette: (palette: NucleotidePalette) => set({ nucleotidePalette: palette }),

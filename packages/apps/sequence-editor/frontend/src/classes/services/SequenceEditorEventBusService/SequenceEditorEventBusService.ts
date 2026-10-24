@@ -4,6 +4,7 @@ import { singleton } from 'tsyringe';
 import type { EDITOR_DIRECTION } from '../../../models/editor.models';
 
 export type SequenceEditorEventBusServiceEvent = {
+  onCancelRealign: void;
   onDeleteBackward: void;
   onExpandSelection: EDITOR_DIRECTION;
   onExportGappedFasta: void;
@@ -15,6 +16,7 @@ export type SequenceEditorEventBusServiceEvent = {
   onMoveRowsEnd: EDITOR_DIRECTION;
   onMoveSelection: EDITOR_DIRECTION;
   onMutateSelection: string;
+  onRealign: void;
   onRedo: void;
   onScrollPageDown: void;
   onScrollPageUp: void;

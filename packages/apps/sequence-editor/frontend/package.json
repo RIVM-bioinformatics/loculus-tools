@@ -97,6 +97,10 @@
       "types": "./src/classes/services/SequenceEditorEventBusService/index.ts",
       "import": "./src/classes/services/SequenceEditorEventBusService/index.ts"
     },
+    "./classes/workers/AlignerWorker": {
+      "types": "./src/classes/workers/AlignerWorker/index.ts",
+      "import": "./src/classes/workers/AlignerWorker/index.ts"
+    },
     "./classes/workers/EngineWorker": {
       "types": "./src/classes/workers/EngineWorker/index.ts",
       "import": "./src/classes/workers/EngineWorker/index.ts"
@@ -116,6 +120,10 @@
     "./components/ui/SequenceEditorPageHeader": {
       "types": "./src/components/ui/SequenceEditorPageHeader/index.ts",
       "import": "./src/components/ui/SequenceEditorPageHeader/index.ts"
+    },
+    "./components/ui/SequenceEditorRealignModal": {
+      "types": "./src/components/ui/SequenceEditorRealignModal/index.ts",
+      "import": "./src/components/ui/SequenceEditorRealignModal/index.ts"
     },
     "./components/ui/SequenceEditorSearchBar": {
       "types": "./src/components/ui/SequenceEditorSearchBar/index.ts",
@@ -184,6 +192,10 @@
         "types": "./dist/classes/services/SequenceEditorEventBusService/index.d.ts",
         "import": "./dist/classes/services/SequenceEditorEventBusService/index.js"
       },
+      "./classes/workers/AlignerWorker": {
+        "types": "./dist/classes/workers/AlignerWorker/index.d.ts",
+        "import": "./dist/classes/workers/AlignerWorker/index.js"
+      },
       "./classes/workers/EngineWorker": {
         "types": "./dist/classes/workers/EngineWorker/index.d.ts",
         "import": "./dist/classes/workers/EngineWorker/index.js"
@@ -203,6 +215,10 @@
       "./components/ui/SequenceEditorPageHeader": {
         "types": "./dist/components/ui/SequenceEditorPageHeader/index.d.ts",
         "import": "./dist/components/ui/SequenceEditorPageHeader/index.js"
+      },
+      "./components/ui/SequenceEditorRealignModal": {
+        "types": "./dist/components/ui/SequenceEditorRealignModal/index.d.ts",
+        "import": "./dist/components/ui/SequenceEditorRealignModal/index.js"
       },
       "./components/ui/SequenceEditorSearchBar": {
         "types": "./dist/components/ui/SequenceEditorSearchBar/index.d.ts",

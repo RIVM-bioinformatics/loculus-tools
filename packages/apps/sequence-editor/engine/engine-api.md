@@ -416,7 +416,9 @@ await engine.realign();
 ```
 
 - Safe no-op if fewer than 2 sequences are loaded.
-- Requires every sequence to contain at least one non-gap IUPAC nucleotide residue. Rejects with an `EngineStructuredError` code of `EmptySequence` without mutating the matrix or recording an undo snapshot if any sequence has no residues.
+- Enforces size limits (`MAX_ALIGNMENT_SEQUENCES = 1,000`, `MAX_ALIGNMENT_TOTAL_RESIDUES = 5,000,000`), rejecting with an `EngineStructuredError` code of `InputTooLarge` if exceeded.
+- Strips existing gaps prior to progressive alignment while preserving all-gap rows mid-edit as padded gap rows with length matching the new aligned width.
+- Requires at least 2 sequences containing non-gap nucleotide residues. Rejects with an `EngineStructuredError` code of `EmptySequence` without mutating the matrix or recording an undo snapshot if fewer than 2 sequences contain residues.
 - Captures a structural undo snapshot so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()`.
 - Invalidates the amino-acid translation cache.
 
@@ -429,6 +431,9 @@ await engine.applyAlignedFasta(alignedFasta);
 ```
 
 - Validates that the number of sequences in the aligned FASTA matches the matrix.
+- Validates that all aligned rows have uniform, equal row lengths.
+- Validates that sequence headers and row ordering strictly match the matrix.
+- Validates that ungapped nucleotide residue identities are strictly conserved across every sequence.
 - Captures a structural undo snapshot so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()`.
 - Updates `alignment_width` and matrix sequences, invalidating the amino-acid translation cache.
 

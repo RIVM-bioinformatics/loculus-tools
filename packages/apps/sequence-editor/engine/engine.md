@@ -456,7 +456,10 @@ Reorder rows without character constraints, updating both `sequences` and `names
 Re-aligns all loaded sequences across the whole matrix using the pure-Rust `mafft` crate (`AlignmentMode::FftNs2` with `ScoringModel::Dna` and `with_retree(1)` for FFT-NS-1).
 
 - Safe no-op when fewer than 2 sequences are loaded (no snapshot recorded).
-- Validates that each sequence has at least one non-gap IUPAC nucleotide residue; rejects with `EmptySequence` error before capturing an undo snapshot if any sequence is empty.
+- Enforces size bounds (`MAX_ALIGNMENT_SEQUENCES = 1,000`, `MAX_ALIGNMENT_TOTAL_RESIDUES = 5,000,000`) returning `InputTooLarge` if exceeded to prevent WASM linear memory exhaustion.
+- Strips existing gap characters (`-`) prior to invoking MAFFT progressive alignment.
+- Preserves all-gap or empty rows mid-edit, emitting them as uniform all-gap rows with length equal to the aligned width.
+- Requires at least 2 sequences containing non-gap nucleotide residues; rejects with `EmptySequence` error before capturing an undo snapshot if fewer than 2 sequences have residues.
 - Unaligned/ragged sequences are progressively aligned; `alignment_width` is updated to the maximum sequence length after alignment.
 - Captures a `StructuralSnapshot` prior to mutating matrix, names, and width, enabling complete multi-level transactional `undo()` and `redo()`.
 - Invalidates and clears `aminoacid_sequences` cache so subsequent translated views reflect the new alignment coordinates.
@@ -465,8 +468,8 @@ Re-aligns all loaded sequences across the whole matrix using the pure-Rust `maff
 ### 5.8 External alignment integration (`apply_aligned_fasta` & `align_fasta`)
 
 To support non-blocking and cancelable sequence re-alignment, the engine provides:
-- Standalone `align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>`: Computes MAFFT FFT-NS-1 on an unaligned or gapped FASTA string, suitable for execution inside an ephemeral worker without initializing the full engine.
-- Method `apply_aligned_fasta(&mut self, fasta_content: &str) -> Result<(), StructuredEngineError>`: Validates sequence counts, takes a `StructuralSnapshot` onto `undo_stack`, replaces the nucleotide matrix, updates `alignment_width`, and clears `aminoacid_sequences`.
+- Standalone `align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>`: Computes MAFFT FFT-NS-1 on an unaligned or gapped FASTA string, suitable for execution inside an ephemeral worker without initializing the full engine. Preserves all-gap rows and returns formatted FASTA or returns `StructuredEngineError` if UTF-8 encoding or validation fails.
+- Method `apply_aligned_fasta(&mut self, fasta_content: &str) -> Result<(), StructuredEngineError>`: Validates that sequence counts match, all aligned rows have uniform equal lengths, sequence headers and order match the current matrix, and ungapped residue identities are strictly conserved. Takes a `StructuralSnapshot` onto `undo_stack`, replaces the nucleotide matrix, updates `alignment_width`, and clears `aminoacid_sequences`.
 
 ### 5.9 Structured errors
 

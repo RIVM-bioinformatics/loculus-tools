@@ -1643,9 +1643,16 @@ impl MsaEngine {
         for (idx, (aligned_seq, current_seq)) in
             sequences.iter().zip(&self.nucleotide_sequences).enumerate()
         {
-            let aligned_ungapped = aligned_seq.iter().copied().filter(|&b| is_iupac(b));
-            let current_ungapped = current_seq.iter().copied().filter(|&b| is_iupac(b));
-            if !aligned_ungapped.eq(current_ungapped) {
+            let mut aligned_iter = aligned_seq.iter().copied().filter(|&b| is_iupac(b));
+            let mut current_iter = current_seq.iter().copied().filter(|&b| is_iupac(b));
+            let is_same = loop {
+                match (aligned_iter.next(), current_iter.next()) {
+                    (Some(a), Some(b)) if a.eq_ignore_ascii_case(&b) => continue,
+                    (None, None) => break true,
+                    _ => break false,
+                }
+            };
+            if !is_same {
                 return Err(StructuredEngineError::with_code(
                     "AlignmentMismatch",
                     format!(
@@ -1876,7 +1883,7 @@ pub fn run_mafft_alignment(
             let name = &names[single_idx];
             (
                 format!(
-                    "Cannot re-align: sequence '{name}' at index {single_idx} contains no nucleotide residues"
+                    "Cannot re-align: at least 2 sequences with nucleotide residues are required (only sequence '{name}' at index {single_idx} contains residues)"
                 ),
                 Some(Box::new(ErrorContext {
                     row: Some(single_idx),

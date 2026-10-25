@@ -2348,6 +2348,53 @@ fn apply_aligned_fasta_modified_residues_rejected() {
 }
 
 #[test]
+fn apply_aligned_fasta_accepts_lowercase_mutated_residues_case_insensitively() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+
+    // Mutate base at seq2, col 0 with lowercase 'a'
+    e.mutate_base(&[1], &[0], b'a').expect("mutate ok");
+    assert_eq!(e.get_base(1, 0), b'a');
+
+    // Aligned FASTA with uppercase residues
+    let aligned = ">seq1\nAT--GC\n>seq2\nA-T-GC\n";
+    let res = e.apply_aligned_fasta(aligned);
+    assert!(
+        res.is_ok(),
+        "case-insensitive comparison should succeed: {:?}",
+        res.err()
+    );
+    assert_eq!(e.get_alignment_width(), 6);
+    assert_eq!(e.get_base(1, 0), b'A');
+
+    // Undo restores the mutated state
+    assert!(e.undo());
+    assert_eq!(e.get_base(1, 0), b'a');
+}
+
+#[test]
+fn realign_single_non_empty_sequence_reports_clear_error_context() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\n----\n>seq3\n----")
+        .expect("valid FASTA");
+
+    let err = e
+        .realign()
+        .expect_err("must reject single non-empty sequence");
+    assert_eq!(err.code, "EmptySequence");
+    assert!(
+        err.message
+            .contains("at least 2 sequences with nucleotide residues are required"),
+        "unexpected message: {}",
+        err.message
+    );
+    assert!(err.message.contains("seq1"));
+    let ctx = err.context.expect("context present");
+    assert_eq!(ctx.row, Some(0));
+    assert_eq!(ctx.sequence_id, Some("seq1".to_string()));
+}
+
+#[test]
 fn realign_preserves_all_gap_rows_mid_edit() {
     let mut e = MsaEngine::new();
     e.load_fasta(">seq1\nATGC\n>seq2\n----\n>seq3\nATGCGATC")

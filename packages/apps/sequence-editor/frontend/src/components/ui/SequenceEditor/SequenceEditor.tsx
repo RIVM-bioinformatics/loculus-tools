@@ -49,6 +49,7 @@ import {
   MIN_LABEL_WIDTH,
 } from '../../../constants';
 import { EditorUtil } from '../../../utils/EditorUtil';
+import { EngineErrorUtil } from '../../../utils/EngineErrorUtil';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorSearchBar } from '../SequenceEditorSearchBar';
 import { SequenceEditorRealignModal } from '../SequenceEditorRealignModal';
@@ -702,6 +703,7 @@ export const SequenceEditor = () => {
                 wasCancelled = true;
                 sequenceEditorStore.getState().setLatestMessage('Re-alignment cancelled');
               } else {
+                sequenceEditorStore.getState().setLatestMessage(EngineErrorUtil.getEngineErrorMessage(error));
                 throw error;
               }
             } finally {

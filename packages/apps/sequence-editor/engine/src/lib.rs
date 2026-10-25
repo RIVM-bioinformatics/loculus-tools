@@ -1573,6 +1573,10 @@ impl MsaEngine {
     /// To use FFT-NS-1, initialize the MAFFT engine with `AlignmentMode::FftNs2` and set `with_retree(1)`.
     /// This forces the number of tree build steps to 1, ensuring FFT-NS-1 behavior.
     ///
+    /// Preserves all-gap or empty rows mid-edit by padding them with gaps to the resulting
+    /// alignment width. Explicitly strips existing gaps from sequences containing nucleotide
+    /// residues before progressive alignment.
+    ///
     /// Captures a structural snapshot before modification so that the
     /// entire re-alignment can be undone and redone via `undo()` and `redo()`.
     ///
@@ -1582,76 +1586,10 @@ impl MsaEngine {
             return Ok(());
         }
 
-        // MAFFT requires non-empty sequences; a sequence with 0 non-gap residues
-        // would cause the progressive aligner to collapse all rows into empty strings.
-        if let Some((idx, name)) = self
-            .names
-            .iter()
-            .zip(&self.nucleotide_sequences)
-            .enumerate()
-            .find(|(_, (_, seq))| !seq.iter().any(|&c| is_iupac(c)))
-            .map(|(idx, (name, _))| (idx, name))
-        {
-            return Err(StructuredEngineError::with_code(
-                "EmptySequence",
-                format!(
-                    "Cannot re-align: sequence '{name}' at index {idx} contains no nucleotide residues"
-                ),
-                Some(Box::new(ErrorContext {
-                    sequence_id: Some(name.clone()),
-                    ..ErrorContext::default()
-                })),
-            ));
-        }
+        let (aligned_names, aligned_sequences) =
+            run_mafft_alignment(&self.names, &self.nucleotide_sequences)?;
 
-        let input = SequenceSet {
-            sequences: self
-                .names
-                .iter()
-                .zip(&self.nucleotide_sequences)
-                .map(|(name, data)| Sequence {
-                    name: name.clone(),
-                    data: data.clone(),
-                })
-                .collect(),
-            seq_type: SeqType::Dna,
-        };
-
-        let engine = MafftEngine::new(AlignmentMode::FftNs2)
-            .with_scoring_model(ScoringModel::Dna)
-            .with_retree(1);
-        let msa = engine.align(&input);
-
-        if msa.sequences.len() != self.nucleotide_sequences.len()
-            || msa.names.len() != self.names.len()
-            || msa.sequences.iter().any(|s| s.is_empty())
-            || msa
-                .sequences
-                .iter()
-                .any(|s| s.len() != msa.sequences[0].len())
-        {
-            return Err(StructuredEngineError::with_code(
-                "AlignmentFailed",
-                "MAFFT alignment failed to produce a valid aligned sequence set".to_string(),
-                None,
-            ));
-        }
-
-        self.record_structural_undo();
-
-        self.nucleotide_sequences = msa.sequences;
-        for seq in &mut self.nucleotide_sequences {
-            seq.make_ascii_uppercase();
-        }
-        self.names = msa.names;
-        self.alignment_width = self
-            .nucleotide_sequences
-            .iter()
-            .map(|seq| seq.len())
-            .max()
-            .unwrap_or(0);
-        self.aminoacid_sequences.clear();
-
+        self.replace_matrix_with_undo(aligned_names, aligned_sequences);
         Ok(())
     }
 
@@ -1659,9 +1597,11 @@ impl MsaEngine {
     /// structural undo transaction so the alignment can be undone and redone
     /// via `undo()` and `redo()`.
     ///
-    /// Validates that the number of sequences in `fasta_content` matches the
-    /// currently loaded sequence count. The sequences in `fasta_content` must
-    /// be a valid multiple sequence alignment.
+    /// Enforces strict validation:
+    /// - Sequence count must match the currently loaded matrix.
+    /// - All rows in the aligned FASTA must have equal length (uniform alignment width).
+    /// - Sequence headers and ordering must strictly match `self.names`.
+    /// - Ungapped nucleotide residue identities must be conserved for each sequence.
     pub fn apply_aligned_fasta(
         &mut self,
         fasta_content: &str,
@@ -1679,22 +1619,60 @@ impl MsaEngine {
             ));
         }
 
-        self.record_structural_undo();
-
-        self.nucleotide_sequences = sequences;
-        for seq in &mut self.nucleotide_sequences {
-            seq.make_ascii_uppercase();
+        if sequences.is_empty() {
+            return Ok(());
         }
-        self.names = names;
-        self.alignment_width = self
-            .nucleotide_sequences
-            .iter()
-            .map(|seq| seq.len())
-            .max()
-            .unwrap_or(0);
-        self.aminoacid_sequences.clear();
 
+        let expected_len = sequences[0].len();
+        if sequences.iter().any(|s| s.len() != expected_len) {
+            return Err(StructuredEngineError::with_code(
+                "AlignmentMismatch",
+                "Aligned sequences must all have equal row lengths".to_string(),
+                None,
+            ));
+        }
+
+        if names != self.names {
+            return Err(StructuredEngineError::with_code(
+                "AlignmentMismatch",
+                "Aligned sequence headers or order do not match current matrix".to_string(),
+                None,
+            ));
+        }
+
+        for (idx, (aligned_seq, current_seq)) in
+            sequences.iter().zip(&self.nucleotide_sequences).enumerate()
+        {
+            let aligned_ungapped = aligned_seq.iter().copied().filter(|&b| is_iupac(b));
+            let current_ungapped = current_seq.iter().copied().filter(|&b| is_iupac(b));
+            if !aligned_ungapped.eq(current_ungapped) {
+                return Err(StructuredEngineError::with_code(
+                    "AlignmentMismatch",
+                    format!(
+                        "Cannot apply alignment: sequence '{}' at index {idx} has modified residue content",
+                        self.names[idx]
+                    ),
+                    Some(Box::new(ErrorContext {
+                        row: Some(idx),
+                        sequence_id: Some(self.names[idx].clone()),
+                        ..ErrorContext::default()
+                    })),
+                ));
+            }
+        }
+
+        self.replace_matrix_with_undo(names, sequences);
         Ok(())
+    }
+
+    /// Replace matrix and headers with newly aligned data, capturing a single
+    /// structural undo transaction and clearing cached translation data.
+    fn replace_matrix_with_undo(&mut self, names: Vec<String>, sequences: Vec<Vec<u8>>) {
+        self.record_structural_undo();
+        self.alignment_width = sequences.first().map_or(0, |seq| seq.len());
+        self.nucleotide_sequences = sequences;
+        self.names = names;
+        self.aminoacid_sequences.clear();
     }
 
     /// transactional history with undo/redo stacks.
@@ -1824,47 +1802,100 @@ impl Default for MsaEngine {
     }
 }
 
-/// Standalone sequence alignment function for off-thread execution (e.g. AlignerWorker).
-/// Takes a FASTA string (gapped or ungapped), re-aligns all sequences using MAFFT FFT-NS-1,
-/// and returns the aligned result as a gapped FASTA string.
-#[wasm_bindgen]
-pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError> {
-    let (names, sequences) = parse_fasta_records(fasta_content)?;
-    if sequences.len() < 2 {
-        let mut out = String::new();
-        for (name, seq) in names.iter().zip(&sequences) {
-            out.push('>');
-            out.push_str(name);
-            out.push('\n');
-            out.push_str(std::str::from_utf8(seq).unwrap_or(""));
-            out.push('\n');
-        }
-        return Ok(out);
+/// Maximum sequence count supported for in-browser MAFFT alignment.
+/// Prevents unconstrained O(N²) pairwise distance calculation and FFT allocations
+/// from exhausting 32-bit WASM linear memory.
+pub const MAX_ALIGNMENT_SEQUENCES: usize = 1_000;
+
+/// Maximum total residue count (across all sequences) supported for in-browser MAFFT alignment.
+pub const MAX_ALIGNMENT_TOTAL_RESIDUES: usize = 5_000_000;
+
+/// Executes MAFFT FFT-NS-1 progressive alignment on sequence records.
+///
+/// Features and invariants enforced:
+/// - Input size limits (`MAX_ALIGNMENT_SEQUENCES` and `MAX_ALIGNMENT_TOTAL_RESIDUES`)
+///   are checked before launching heavy computations to prevent browser WASM OOM aborts.
+/// - Gaps (`-`) are explicitly stripped from sequence records prior to invoking MAFFT.
+/// - Sequences containing zero non-gap residues (all-gap or empty rows) are preserved:
+///   they are bypassed during progressive alignment and re-emitted as all-gap rows
+///   with length equal to the resulting aligned width.
+/// - At least two sequences containing nucleotide residues are required; otherwise, an
+///   `EmptySequence` structured error is returned.
+/// - Alignment mode FFT-NS-1 is enforced using `AlignmentMode::FftNs2` with `with_retree(1)`.
+/// - Aligned output is validated to guarantee consistent, uniform row lengths.
+pub fn run_mafft_alignment(
+    names: &[String],
+    sequences: &[Vec<u8>],
+) -> Result<(Vec<String>, Vec<Vec<u8>>), StructuredEngineError> {
+    if sequences.len() > MAX_ALIGNMENT_SEQUENCES {
+        return Err(StructuredEngineError::with_code(
+            "InputTooLarge",
+            format!(
+                "Cannot align: sequence count ({}) exceeds maximum supported limit of {MAX_ALIGNMENT_SEQUENCES}",
+                sequences.len()
+            ),
+            None,
+        ));
     }
 
-    if let Some((idx, name)) = names
-        .iter()
-        .zip(&sequences)
-        .enumerate()
-        .find(|(_, (_, seq))| !seq.iter().any(|&c| is_iupac(c)))
-        .map(|(idx, (name, _))| (idx, name))
-    {
+    let mut total_residues: usize = 0;
+    let mut non_empty_indices = Vec::new();
+    let mut ungapped_sequences = Vec::new();
+
+    for (idx, (name, seq)) in names.iter().zip(sequences).enumerate() {
+        let ungapped: Vec<u8> = seq.iter().copied().filter(|&c| is_iupac(c)).collect();
+        total_residues = total_residues.saturating_add(ungapped.len());
+        if !ungapped.is_empty() {
+            non_empty_indices.push(idx);
+            ungapped_sequences.push((name.clone(), ungapped));
+        }
+    }
+
+    if total_residues > MAX_ALIGNMENT_TOTAL_RESIDUES {
+        return Err(StructuredEngineError::with_code(
+            "InputTooLarge",
+            format!(
+                "Cannot align: total residue count ({total_residues}) exceeds maximum supported limit of {MAX_ALIGNMENT_TOTAL_RESIDUES}"
+            ),
+            None,
+        ));
+    }
+
+    if sequences.len() < 2 {
+        return Ok((names.to_vec(), sequences.to_vec()));
+    }
+
+    if non_empty_indices.len() < 2 {
+        let (err_msg, context) = if non_empty_indices.is_empty() {
+            (
+                "Cannot re-align: no sequences contain nucleotide residues".to_string(),
+                None,
+            )
+        } else {
+            let single_idx = non_empty_indices[0];
+            let name = &names[single_idx];
+            (
+                format!(
+                    "Cannot re-align: sequence '{name}' at index {single_idx} contains no nucleotide residues"
+                ),
+                Some(Box::new(ErrorContext {
+                    row: Some(single_idx),
+                    sequence_id: Some(name.clone()),
+                    ..ErrorContext::default()
+                })),
+            )
+        };
+
         return Err(StructuredEngineError::with_code(
             "EmptySequence",
-            format!(
-                "Cannot re-align: sequence '{name}' at index {idx} contains no nucleotide residues"
-            ),
-            Some(Box::new(ErrorContext {
-                sequence_id: Some(name.clone()),
-                ..ErrorContext::default()
-            })),
+            err_msg,
+            context,
         ));
     }
 
     let input = SequenceSet {
-        sequences: names
+        sequences: ungapped_sequences
             .into_iter()
-            .zip(sequences)
             .map(|(name, data)| Sequence { name, data })
             .collect(),
         seq_type: SeqType::Dna,
@@ -1875,8 +1906,8 @@ pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>
         .with_retree(1);
     let msa = engine.align(&input);
 
-    if msa.sequences.len() != input.sequences.len()
-        || msa.names.len() != input.sequences.len()
+    if msa.sequences.len() != non_empty_indices.len()
+        || msa.names.len() != non_empty_indices.len()
         || msa.sequences.iter().any(|s| s.is_empty())
         || msa
             .sequences
@@ -1890,12 +1921,75 @@ pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>
         ));
     }
 
+    let aligned_width = msa.sequences[0].len();
+    let mut aligned_sequences = Vec::with_capacity(sequences.len());
+    let mut msa_iter = msa.sequences.into_iter();
+    let mut next_non_empty_pos = 0;
+
+    for (idx, _) in sequences.iter().enumerate() {
+        if next_non_empty_pos < non_empty_indices.len()
+            && non_empty_indices[next_non_empty_pos] == idx
+        {
+            next_non_empty_pos += 1;
+            let mut seq = msa_iter
+                .next()
+                .expect("msa sequence exists for non-empty index");
+            seq.make_ascii_uppercase();
+            aligned_sequences.push(seq);
+        } else {
+            aligned_sequences.push(vec![b'-'; aligned_width]);
+        }
+    }
+
+    Ok((names.to_vec(), aligned_sequences))
+}
+
+/// Standalone sequence alignment function for off-thread execution (e.g. AlignerWorker).
+/// Takes a FASTA string (gapped or ungapped), re-aligns all sequences using MAFFT FFT-NS-1,
+/// and returns the aligned result as a gapped FASTA string.
+#[wasm_bindgen]
+pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError> {
+    let (names, sequences) = parse_fasta_records(fasta_content)?;
+    if sequences.len() < 2 {
+        let mut out = String::new();
+        for (name, seq) in names.iter().zip(&sequences) {
+            out.push('>');
+            out.push_str(name);
+            out.push('\n');
+            let seq_str = std::str::from_utf8(seq).map_err(|e| {
+                StructuredEngineError::with_code(
+                    "InvalidUtf8",
+                    format!("Failed to encode sequence '{name}' as UTF-8: {e}"),
+                    Some(Box::new(ErrorContext {
+                        sequence_id: Some(name.clone()),
+                        ..ErrorContext::default()
+                    })),
+                )
+            })?;
+            out.push_str(seq_str);
+            out.push('\n');
+        }
+        return Ok(out);
+    }
+
+    let (aligned_names, aligned_sequences) = run_mafft_alignment(&names, &sequences)?;
+
     let mut out = String::new();
-    for (name, seq) in msa.names.iter().zip(&msa.sequences) {
+    for (name, seq) in aligned_names.iter().zip(&aligned_sequences) {
         out.push('>');
         out.push_str(name);
         out.push('\n');
-        out.push_str(std::str::from_utf8(seq).unwrap_or(""));
+        let seq_str = std::str::from_utf8(seq).map_err(|e| {
+            StructuredEngineError::with_code(
+                "InvalidUtf8",
+                format!("Failed to encode sequence '{name}' as UTF-8: {e}"),
+                Some(Box::new(ErrorContext {
+                    sequence_id: Some(name.clone()),
+                    ..ErrorContext::default()
+                })),
+            )
+        })?;
+        out.push_str(seq_str);
         out.push('\n');
     }
     Ok(out)

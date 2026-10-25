@@ -2266,7 +2266,7 @@ fn apply_aligned_fasta_updates_matrix_and_supports_undo_redo() {
     e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
     let orig_width = e.get_alignment_width();
 
-    let aligned_fasta = ">seq1\nATG--C\n>seq2\nATGCAT\n";
+    let aligned_fasta = ">seq1\nATG--C\n>seq2\nAT-G-C\n";
     e.apply_aligned_fasta(aligned_fasta)
         .expect("apply succeeds");
     assert_eq!(e.get_alignment_width(), 6);
@@ -2297,4 +2297,132 @@ fn apply_aligned_fasta_mismatch_sequence_count_rejected() {
     assert!(res.is_err());
     let err = res.unwrap_err();
     assert_eq!(err.code, "AlignmentMismatch");
+}
+
+#[test]
+fn apply_aligned_fasta_ragged_lengths_rejected() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+
+    let ragged_fasta = ">seq1\nATG-C\n>seq2\nATGC\n";
+    let res = e.apply_aligned_fasta(ragged_fasta);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "AlignmentMismatch");
+    assert!(err.message.contains("equal row lengths"));
+}
+
+#[test]
+fn apply_aligned_fasta_mismatched_names_or_order_rejected() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+
+    // Renamed header
+    let renamed = ">seqA\nATGC\n>seq2\nATGC\n";
+    let res = e.apply_aligned_fasta(renamed);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err().code, "AlignmentMismatch");
+
+    // Swapped order
+    let swapped = ">seq2\nATGC\n>seq1\nATGC\n";
+    let res = e.apply_aligned_fasta(swapped);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err().code, "AlignmentMismatch");
+}
+
+#[test]
+fn apply_aligned_fasta_modified_residues_rejected() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+
+    // Modified residue in seq2 (C -> A)
+    let modified = ">seq1\nATGC\n>seq2\nATGA\n";
+    let res = e.apply_aligned_fasta(modified);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "AlignmentMismatch");
+    assert!(err.message.contains("modified residue content"));
+    let ctx = err.context.expect("error context present");
+    assert_eq!(ctx.row, Some(1));
+    assert_eq!(ctx.sequence_id, Some("seq2".to_string()));
+}
+
+#[test]
+fn realign_preserves_all_gap_rows_mid_edit() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\n----\n>seq3\nATGCGATC")
+        .expect("valid FASTA");
+    assert_eq!(e.get_sequence_count(), 3);
+
+    let res = e.realign();
+    assert!(
+        res.is_ok(),
+        "realign should succeed and preserve all-gap rows"
+    );
+
+    let width = e.get_alignment_width();
+    assert_eq!(e.get_row_length(0), width);
+    assert_eq!(e.get_row_length(1), width);
+    assert_eq!(e.get_row_length(2), width);
+
+    // Row 1 must consist entirely of gaps
+    for col in 0..width {
+        assert_eq!(e.get_base(1, col), b'-');
+    }
+
+    // Undo restores original state
+    assert!(e.undo());
+    assert_eq!(e.get_alignment_width(), 8);
+    assert_eq!(e.get_row_length(1), 4);
+}
+
+#[test]
+fn realign_strips_existing_gaps_for_progressive_alignment() {
+    let mut e1 = MsaEngine::new();
+    e1.load_fasta(">seq1\nA-T-G-C\n>seq2\nAT--GC")
+        .expect("valid FASTA");
+    e1.realign().expect("realign with gaps ok");
+
+    let mut e2 = MsaEngine::new();
+    e2.load_fasta(">seq1\nATGC\n>seq2\nATGC")
+        .expect("valid FASTA");
+    e2.realign().expect("realign without gaps ok");
+
+    assert_eq!(e1.get_alignment_width(), e2.get_alignment_width());
+    for r in 0..2 {
+        for c in 0..e1.get_alignment_width() {
+            assert_eq!(e1.get_base(r, c), e2.get_base(r, c));
+        }
+    }
+}
+
+#[test]
+fn realign_rejects_input_exceeding_max_sequences() {
+    let names: Vec<String> = (0..=crate::MAX_ALIGNMENT_SEQUENCES)
+        .map(|i| format!("seq_{i}"))
+        .collect();
+    let sequences: Vec<Vec<u8>> = (0..=crate::MAX_ALIGNMENT_SEQUENCES)
+        .map(|_| b"ACGT".to_vec())
+        .collect();
+
+    let res = crate::run_mafft_alignment(&names, &sequences);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "InputTooLarge");
+    assert!(err.message.contains("sequence count"));
+}
+
+#[test]
+fn realign_rejects_input_exceeding_max_residues() {
+    let names = vec!["seq1".to_string(), "seq2".to_string()];
+    let sequences = vec![
+        vec![b'A'; crate::MAX_ALIGNMENT_TOTAL_RESIDUES / 2 + 10],
+        vec![b'A'; crate::MAX_ALIGNMENT_TOTAL_RESIDUES / 2 + 10],
+    ];
+
+    let res = crate::run_mafft_alignment(&names, &sequences);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "InputTooLarge");
+    assert!(err.message.contains("total residue count"));
 }

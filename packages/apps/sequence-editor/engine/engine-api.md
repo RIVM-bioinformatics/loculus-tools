@@ -55,7 +55,6 @@ interface EngineClient {
   moveRowsToBottom: (rows: number[]) => Promise<void>;
   moveRowsUp: (rows: number[]) => Promise<void>;
   moveRowsDown: (rows: number[]) => Promise<void>;
-  realign: () => Promise<void>;
   applyAlignedFasta: (fasta: string) => Promise<void>;
   undo: () => Promise<boolean>;
   redo: () => Promise<boolean>;
@@ -407,13 +406,15 @@ Snaps the specified rows to the bottom as a contiguous group, preserving their r
 await engine.moveRowsToBottom([1, 3]); // rows 1 and 3 become the last rows
 ```
 
-### `realign(): Promise<void>`
+### `realign` and Sequence Alignment Workflow
 
-Re-aligns all loaded sequences in the matrix using MAFFT's fast progressive alignment (`AlignmentMode::FftNs2` with `ScoringModel::Dna` and `with_retree(1)` for FFT-NS-1). Gaps are recalculated and aligned sequences update the matrix width to the longest aligned sequence.
+Sequence re-alignment uses MAFFT's fast progressive alignment (`AlignmentMode::FftNs2` with `ScoringModel::Dna` and `with_retree(1)` for FFT-NS-1). In the browser architecture, alignment is run **off-thread** in an ephemeral `AlignerWorker` to keep the UI and the primary `EngineWorker` responsive, and to allow cancellation at any time:
 
-```ts
-await engine.realign();
-```
+1. `EditorWorkerService.realign(signal?: AbortSignal)` exports the gapped FASTA via `exportGappedFasta()`.
+2. It spins up an ephemeral `AlignerWorker` running `align_fasta(fasta)`. If cancelled, the worker can be terminated immediately without corrupting engine state.
+3. Upon completion, the result is committed to the matrix via `applyAlignedFasta(alignedFasta)`.
+
+> **Note:** The underlying Rust engine also provides a synchronous `MsaEngine::realign()` method for native unit tests and non-worker environments. In frontend code, `EditorWorkerService.realign()` is the authoritative entry point.
 
 - Safe no-op if fewer than 2 sequences are loaded.
 - Enforces size limits (`MAX_ALIGNMENT_SEQUENCES = 1,000`, `MAX_ALIGNMENT_TOTAL_RESIDUES = 5,000,000`), rejecting with an `EngineStructuredError` code of `InputTooLarge` if exceeded.

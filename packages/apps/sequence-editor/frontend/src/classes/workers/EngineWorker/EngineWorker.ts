@@ -163,11 +163,6 @@ export class EngineWorker implements EngineWorkerApi {
     return engine.get_name(row);
   }
 
-  public async realign(): Promise<void> {
-    const engine = await this.requireEngine();
-    engine.realign();
-  }
-
   public async redo(): Promise<boolean> {
     const engine = await this.requireEngine();
     return engine.redo();

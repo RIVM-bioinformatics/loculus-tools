@@ -1,9 +1,9 @@
 import {
-  Backdrop,
   Box,
   Button,
   CircularProgress,
-  Paper,
+  Dialog,
+  DialogContent,
   Typography,
 } from '@mui/material';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
@@ -22,18 +22,21 @@ export const SequenceEditorRealignModal = () => {
   }, []);
 
   return (
-    <Backdrop
+    <Dialog
+      aria-labelledby={'sequence-editor-realign-title'}
+      aria-modal={'true'}
       open={isRealigning}
-      sx={{
-        backdropFilter: 'blur(2px)',
-        zIndex: (t) => t.zIndex.drawer + 2,
+      slotProps={{
+        backdrop: {
+          sx: {
+            backdropFilter: 'blur(2px)',
+          },
+        },
       }}
     >
-      <Paper
-        elevation={8}
+      <DialogContent
         sx={{
           alignItems: 'center',
-          borderRadius: 2,
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
@@ -44,7 +47,10 @@ export const SequenceEditorRealignModal = () => {
       >
         <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
           <AutoFixHighIcon color={'primary'} />
-          <Typography variant={'h6'}>
+          <Typography
+            id={'sequence-editor-realign-title'}
+            variant={'h6'}
+          >
             {'Sequence Re-alignment'}
           </Typography>
         </Box>
@@ -66,7 +72,7 @@ export const SequenceEditorRealignModal = () => {
         >
           {'Cancel'}
         </Button>
-      </Paper>
-    </Backdrop>
+      </DialogContent>
+    </Dialog>
   );
 };

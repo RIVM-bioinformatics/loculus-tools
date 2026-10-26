@@ -163,7 +163,6 @@ export interface EngineWorkerApi {
   moveRowsUp: (rows: number[]) => Promise<void>;
   mutate: (rows: number[], columns: number[], base: string) => Promise<void>;
   name: (row: number) => Promise<string>;
-  realign: () => Promise<void>;
   redo: () => Promise<boolean>;
   search: (query: string, checkRecordNames: boolean) => Promise<EngineSearchResult>;
   translate: (bounds: ViewportBounds, readingFrame: number) => Promise<EngineViewportResult>;

@@ -1951,38 +1951,16 @@ pub fn run_mafft_alignment(
     Ok((names.to_vec(), aligned_sequences))
 }
 
-/// Standalone sequence alignment function for off-thread execution (e.g. AlignerWorker).
-/// Takes a FASTA string (gapped or ungapped), re-aligns all sequences using MAFFT FFT-NS-1,
-/// and returns the aligned result as a gapped FASTA string.
-#[wasm_bindgen]
-pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError> {
-    let (names, sequences) = parse_fasta_records(fasta_content)?;
-    if sequences.len() < 2 {
-        let mut out = String::new();
-        for (name, seq) in names.iter().zip(&sequences) {
-            out.push('>');
-            out.push_str(name);
-            out.push('\n');
-            let seq_str = std::str::from_utf8(seq).map_err(|e| {
-                StructuredEngineError::with_code(
-                    "InvalidUtf8",
-                    format!("Failed to encode sequence '{name}' as UTF-8: {e}"),
-                    Some(Box::new(ErrorContext {
-                        sequence_id: Some(name.clone()),
-                        ..ErrorContext::default()
-                    })),
-                )
-            })?;
-            out.push_str(seq_str);
-            out.push('\n');
-        }
-        return Ok(out);
-    }
+fn format_fasta_string(
+    names: &[String],
+    sequences: &[Vec<u8>],
+) -> Result<String, StructuredEngineError> {
+    let seq_len: usize = sequences.iter().map(|s| s.len() + 1).sum();
+    let header_len: usize = names.iter().map(|n| n.len() + 2).sum();
+    let total_len = header_len + seq_len;
+    let mut out = String::with_capacity(total_len);
 
-    let (aligned_names, aligned_sequences) = run_mafft_alignment(&names, &sequences)?;
-
-    let mut out = String::new();
-    for (name, seq) in aligned_names.iter().zip(&aligned_sequences) {
+    for (name, seq) in names.iter().zip(sequences) {
         out.push('>');
         out.push_str(name);
         out.push('\n');
@@ -2000,6 +1978,20 @@ pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>
         out.push('\n');
     }
     Ok(out)
+}
+
+/// Standalone sequence alignment function for off-thread execution (e.g. AlignerWorker).
+/// Takes a FASTA string (gapped or ungapped), re-aligns all sequences using MAFFT FFT-NS-1,
+/// and returns the aligned result as a gapped FASTA string.
+#[wasm_bindgen]
+pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError> {
+    let (names, sequences) = parse_fasta_records(fasta_content)?;
+    if sequences.len() < 2 {
+        return format_fasta_string(&names, &sequences);
+    }
+
+    let (aligned_names, aligned_sequences) = run_mafft_alignment(&names, &sequences)?;
+    format_fasta_string(&aligned_names, &aligned_sequences)
 }
 
 // Unit tests live in separate files to keep the implementation modules focused

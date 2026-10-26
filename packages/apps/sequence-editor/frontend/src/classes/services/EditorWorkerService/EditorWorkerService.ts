@@ -173,19 +173,17 @@ export class EditorWorkerService {
     });
     this.activeAlignerWorker = worker;
 
+    let onAbort: (() => void) | undefined;
     try {
       const alignerProxy = wrap<AlignerWorkerApi>(worker);
       const alignPromise = alignerProxy.align(fasta);
 
       const abortPromise = new Promise<never>((_, reject) => {
         this.alignerReject = reject;
-        signal?.addEventListener(
-          'abort',
-          () => {
-            reject(new DOMException('Alignment cancelled by user', 'AbortError'));
-          },
-          { once: true },
-        );
+        onAbort = () => {
+          reject(new DOMException('Alignment cancelled by user', 'AbortError'));
+        };
+        signal?.addEventListener('abort', onAbort, { once: true });
       });
 
       const alignedFasta = await Promise.race([alignPromise, abortPromise]);
@@ -194,6 +192,9 @@ export class EditorWorkerService {
         await this.engineWorkerProxy.applyAlignedFasta(alignedFasta);
       });
     } finally {
+      if (signal && onAbort) {
+        signal.removeEventListener('abort', onAbort);
+      }
       worker.terminate();
       if (this.activeAlignerWorker === worker) {
         this.activeAlignerWorker = null;

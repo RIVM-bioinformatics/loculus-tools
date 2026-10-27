@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.2.0...sequence-editor-frontend-v1.3.0) (2026-10-27)
+
+
+### Features
+
+* **frontend:** use root container from tsyringe to resolve dependencies ([cb40503](https://github.com/RIVM-bioinformatics/loculus-tools/commit/cb4050362248a6350116e6bda6b6d234365fac05))
+
 ## [1.2.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.1.0...sequence-editor-frontend-v1.2.0) (2026-10-27)
 
 

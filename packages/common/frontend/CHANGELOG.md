@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.5.0...common-frontend-v0.6.0) (2026-10-27)
+
+
+### Features
+
+* **frontend:** use root container from tsyringe to resolve dependencies ([cb40503](https://github.com/RIVM-bioinformatics/loculus-tools/commit/cb4050362248a6350116e6bda6b6d234365fac05))
+
 ## [0.5.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.4.0...common-frontend-v0.5.0) (2026-10-27)
 
 

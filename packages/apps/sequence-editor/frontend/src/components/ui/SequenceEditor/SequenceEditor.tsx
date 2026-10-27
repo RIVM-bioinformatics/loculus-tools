@@ -16,13 +16,9 @@ import {
 } from '@mui/material';
 import { Subject } from '@gen-epix/ui-core/classes/Subject';
 import { useDebouncedCallback } from 'use-debounce';
-import type { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/DevicePixelRatioService';
-import type { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
+import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/DevicePixelRatioService';
+import { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
 import { useStore } from 'zustand';
-import {
-  DEVICE_PIXEL_RATIO_SERVICE_TOKEN,
-  KEYBOARD_SHORTCUT_SERVICE_TOKEN,
-} from '@rivm-loculus-tools/common-frontend/constants/config.constants';
 import { ExportUtil } from '@rivm-loculus-tools/common-frontend/utils/ExportUtil';
 
 import { EditorWorkerService } from '../../../classes/services/EditorWorkerService';
@@ -70,7 +66,7 @@ export const SequenceEditor = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState<{ height: number; width: number }>({ height: 0, width: 0 });
-  const [devicePixelRatio, setDevicePixelRatio] = useState(() => container.resolve<DevicePixelRatioService>(DEVICE_PIXEL_RATIO_SERVICE_TOKEN).data);
+  const [devicePixelRatio, setDevicePixelRatio] = useState(() => container.resolve(DevicePixelRatioService).data);
   const [verticalScrollBarSize, setVerticalScrollBarSize] = useState(0);
   const [horizontalScrollBarSize, setHorizontalScrollBarSize] = useState(0);
   const scrollSubject = useMemo(() => new Subject<{ scrollLeft: number; scrollTop: number }>({ scrollLeft: 0, scrollTop: 0 }), []);
@@ -280,7 +276,7 @@ export const SequenceEditor = () => {
             }
             editorAssemblyRef.current = EditorUtil.drawCanvas({
               canvasElement: canvasRef.current,
-              devicePixelRatio: container.resolve<DevicePixelRatioService>(DEVICE_PIXEL_RATIO_SERVICE_TOKEN).data,
+              devicePixelRatio: container.resolve(DevicePixelRatioService).data,
               geometry: visibleGridRangeWithArguments.geometry,
               meta: metaSubject.data,
               palette: sequenceEditorStore.getState().nucleotidePalette,
@@ -365,7 +361,7 @@ export const SequenceEditor = () => {
         }
       }),
       selectionSubject.subscribe(() => updateVisibleRange()),
-      container.resolve<DevicePixelRatioService>(DEVICE_PIXEL_RATIO_SERVICE_TOKEN).subscribe((nextDevicePixelRatio) => {
+      container.resolve(DevicePixelRatioService).subscribe((nextDevicePixelRatio) => {
         setDevicePixelRatio(nextDevicePixelRatio);
         updateScrollbars();
         updateVisibleRange();
@@ -387,7 +383,7 @@ export const SequenceEditor = () => {
       container.resolve(SequenceEditorEventBusService).emit('onMutateSelection', base);
     };
 
-    const register = (shortcut: typeof KEYBOARD_SHORTCUTS[string]) => container.resolve<KeyboardShortcutService>(KEYBOARD_SHORTCUT_SERVICE_TOKEN).registerShortcut({
+    const register = (shortcut: typeof KEYBOARD_SHORTCUTS[string]) => container.resolve(KeyboardShortcutService).registerShortcut({
       callback: shortcut.callback,
       element: containerRef.current!,
       ...shortcut.shortcut,
@@ -435,8 +431,8 @@ export const SequenceEditor = () => {
       // Goto Position Dialog (Cmd+G / Ctrl+G)
       register(KEYBOARD_SHORTCUTS.gotoPosition),
 
-      container.resolve<KeyboardShortcutService>(KEYBOARD_SHORTCUT_SERVICE_TOKEN).registerShortcut({ callback: mutateSelection, element: containerRef.current! }),
-      container.resolve<KeyboardShortcutService>(KEYBOARD_SHORTCUT_SERVICE_TOKEN).registerShortcut({ callback: mutateSelection, element: containerRef.current!, modifiers: [['Shift']] }),
+      container.resolve(KeyboardShortcutService).registerShortcut({ callback: mutateSelection, element: containerRef.current! }),
+      container.resolve(KeyboardShortcutService).registerShortcut({ callback: mutateSelection, element: containerRef.current!, modifiers: [['Shift']] }),
     ];
     return () => {
       removers.forEach(callbackfn => callbackfn());
@@ -731,7 +727,7 @@ export const SequenceEditor = () => {
 
     const canvas = canvasRef.current;
     const editorAssembly = editorAssemblyRef.current;
-    const currentDevicePixelRatio = container.resolve<DevicePixelRatioService>(DEVICE_PIXEL_RATIO_SERVICE_TOKEN).data;
+    const currentDevicePixelRatio = container.resolve(DevicePixelRatioService).data;
     if (!canvas || !editorAssembly) {
       return;
     }
@@ -793,7 +789,7 @@ export const SequenceEditor = () => {
   const onScrollContainerMouseMove = useCallback((event: ReactMouseEvent<HTMLElement>) => {
     const canvas = canvasRef.current;
     const containerElement = containerRef.current;
-    const currentDevicePixelRatio = container.resolve<DevicePixelRatioService>(DEVICE_PIXEL_RATIO_SERVICE_TOKEN).data;
+    const currentDevicePixelRatio = container.resolve(DevicePixelRatioService).data;
     const resize = labelResizeRef.current;
     if (!containerElement || !canvas) {
       return;

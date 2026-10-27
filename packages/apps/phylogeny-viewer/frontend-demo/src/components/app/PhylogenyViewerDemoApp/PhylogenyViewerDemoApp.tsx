@@ -13,7 +13,6 @@ import { ErrorUtil } from '@rivm-loculus-tools/common-frontend/utils/ErrorUtil';
 import { UrlUtil } from '@rivm-loculus-tools/common-frontend/utils/UrlUtil';
 import { phylogenyViewerStore } from '@rivm-loculus-tools/phylogeny-viewer/stores/phylogenyViewerStore';
 import { useStore } from 'zustand';
-import { CONFIG_TOKEN } from '@rivm-loculus-tools/common-frontend/constants/config.constants';
 import type { PhylogenyViewerConfig } from '@rivm-loculus-tools/phylogeny-viewer/models/config.models';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import {
@@ -22,10 +21,10 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { container } from 'tsyringe';
 
 export const PhylogenyViewerDemoApp = () => {
   const setData = useStore(phylogenyViewerStore, (state) => state.setData);
-  const container = useMemo(() => DependencyContainerUtil.createContainer(), []);
 
   const onDocumentationButtonClick = useCallback(() => {
     window.open('https://github.com/RIVM-bioinformatics/loculus-tools', '_blank');
@@ -62,7 +61,7 @@ export const PhylogenyViewerDemoApp = () => {
     } finally {
       UrlUtil.clearSearchParams();
     }
-  }, [container, setData]);
+  }, [setData]);
 
   const extraFastaDataImportDialogLoaderActions = useMemo<DialogAction[]>(() => [
     {
@@ -112,12 +111,10 @@ export const PhylogenyViewerDemoApp = () => {
     };
   }, [afterAppBarRightComponent, extraFastaDataImportDialogLoaderActions]);
 
-  // Note: do not run this in a useEffect, as it should be executed synchronously during component initialization
-  container.register(CONFIG_TOKEN, { useValue: config });
+
+  DependencyContainerUtil.registerConfig(config);
 
   return (
-    <PhylogenyViewerApp
-      container={container}
-    />
+    <PhylogenyViewerApp />
   );
 };

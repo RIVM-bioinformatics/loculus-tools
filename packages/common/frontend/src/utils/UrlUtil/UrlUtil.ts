@@ -1,13 +1,12 @@
 import { container } from 'tsyringe';
-import type { WindowService } from '@gen-epix/ui-core/classes/services/WindowService';
+import { WindowService } from '@gen-epix/ui-core/classes/services/WindowService';
 
-import { WINDOW_SERVICE_TOKEN } from '../../constants/config.constants';
 
 export class UrlUtil {
   public static clearSearchParams(): void {
-    const url = new URL(container.resolve<WindowService>(WINDOW_SERVICE_TOKEN).window.location.href);
+    const url = new URL(container.resolve(WindowService).window.location.href);
     url.search = '';
-    container.resolve<WindowService>(WINDOW_SERVICE_TOKEN).window.history.replaceState(null, '', url.toString());
+    container.resolve(WindowService).window.history.replaceState(null, '', url.toString());
   }
 
   public static fastaLabelFromUrl(url: string): string {

@@ -1,5 +1,6 @@
-import type { DependencyContainer } from 'tsyringe';
+import { container } from 'tsyringe';
 import { CacheProvider } from '@emotion/react';
+import { setupUiCore } from '@gen-epix/ui-core/setup/setup';
 import {
   CssBaseline,
   ThemeProvider,
@@ -14,12 +15,11 @@ import { ErrorPage } from '../../../pages/ErrorPage';
 import { I18nWrapper } from '../../ui/I18nWrapper';
 import { PageCommonContextProvider } from '../../../context/pageCommonContext';
 
-export type AppProps = PropsWithChildren<{
-  readonly container: DependencyContainer;
-}>;
+export type AppProps = PropsWithChildren;
 
-export const App = ({ children, container }: AppProps) => {
-  const config = DependencyContainerUtil.resolveConfig<ConfigBase>(container);
+export const App = ({ children }: AppProps) => {
+  setupUiCore();
+  const config = DependencyContainerUtil.resolveConfig<ConfigBase>();
   const { pageConfig } = config;
   const touchIconUrl = config.getTouchIconUrl?.();
   if (touchIconUrl) {

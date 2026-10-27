@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.4.0...common-frontend-v0.5.0) (2026-10-27)
+
+
+### Features
+
+* update to latest gen-epix-up dependencies ([b5883ef](https://github.com/RIVM-bioinformatics/loculus-tools/commit/b5883ef9a8741ad0e1601fed6110d4ca43fae8b4))
+
 ## [0.4.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.3.0...common-frontend-v0.4.0) (2026-10-20)
 
 

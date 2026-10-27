@@ -1,6 +1,7 @@
 import type { ConfigBase } from '../../models/config.models';
-import { useCommonConfigContext } from '../../context/commonConfigContext';
+import { DependencyContainerUtil } from '../../utils/DependencyContainerUtil';
 
+// eslint-disable-next-line @eslint-react/no-unnecessary-use-prefix
 export const useConfig = <TConfig extends ConfigBase = ConfigBase>(): TConfig => {
-  return useCommonConfigContext<TConfig>().config;
+  return DependencyContainerUtil.resolveConfig<TConfig>();
 };

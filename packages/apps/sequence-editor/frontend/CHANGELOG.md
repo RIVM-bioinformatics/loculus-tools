@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.1.0...sequence-editor-frontend-v1.2.0) (2026-10-27)
+
+
+### Features
+
+* update to latest gen-epix-up dependencies ([b5883ef](https://github.com/RIVM-bioinformatics/loculus-tools/commit/b5883ef9a8741ad0e1601fed6110d4ca43fae8b4))
+
 ## [1.1.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.0.1...sequence-editor-frontend-v1.1.0) (2026-10-20)
 
 

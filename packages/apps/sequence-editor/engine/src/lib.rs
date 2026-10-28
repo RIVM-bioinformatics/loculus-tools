@@ -1817,11 +1817,17 @@ pub const MAX_ALIGNMENT_SEQUENCES: usize = 1_000;
 /// Maximum total residue count (across all sequences) supported for in-browser MAFFT alignment.
 pub const MAX_ALIGNMENT_TOTAL_RESIDUES: usize = 5_000_000;
 
+/// Maximum projected matrix cells (sequence count * max sequence length or aligned width)
+/// supported for in-browser MAFFT alignment.
+/// Prevents padded matrix allocations for extreme ragged/empty row combinations from exhausting 32-bit WASM memory.
+pub const MAX_ALIGNMENT_OUTPUT_CELLS: usize = 500_000_000;
+
 /// Executes MAFFT FFT-NS-1 progressive alignment on sequence records.
 ///
 /// Features and invariants enforced:
-/// - Input size limits (`MAX_ALIGNMENT_SEQUENCES` and `MAX_ALIGNMENT_TOTAL_RESIDUES`)
-///   are checked before launching heavy computations to prevent browser WASM OOM aborts.
+/// - Input size limits (`MAX_ALIGNMENT_SEQUENCES`, `MAX_ALIGNMENT_TOTAL_RESIDUES`,
+///   and `MAX_ALIGNMENT_OUTPUT_CELLS`) are checked before launching heavy computations
+///   to prevent browser WASM OOM aborts.
 /// - Gaps (`-`) are explicitly stripped from sequence records prior to invoking MAFFT.
 /// - Sequences containing zero non-gap residues (all-gap or empty rows) are preserved:
 ///   they are bypassed during progressive alignment and re-emitted as all-gap rows
@@ -1846,12 +1852,16 @@ pub fn run_mafft_alignment(
     }
 
     let mut total_residues: usize = 0;
+    let mut max_seq_len: usize = 0;
     let mut non_empty_indices = Vec::new();
     let mut ungapped_sequences = Vec::new();
 
     for (idx, (name, seq)) in names.iter().zip(sequences).enumerate() {
         let ungapped: Vec<u8> = seq.iter().copied().filter(|&c| is_iupac(c)).collect();
         total_residues = total_residues.saturating_add(ungapped.len());
+        if ungapped.len() > max_seq_len {
+            max_seq_len = ungapped.len();
+        }
         if !ungapped.is_empty() {
             non_empty_indices.push(idx);
             ungapped_sequences.push((name.clone(), ungapped));
@@ -1863,6 +1873,17 @@ pub fn run_mafft_alignment(
             "InputTooLarge",
             format!(
                 "Cannot align: total residue count ({total_residues}) exceeds maximum supported limit of {MAX_ALIGNMENT_TOTAL_RESIDUES}"
+            ),
+            None,
+        ));
+    }
+
+    let projected_cells = sequences.len().saturating_mul(max_seq_len);
+    if projected_cells > MAX_ALIGNMENT_OUTPUT_CELLS {
+        return Err(StructuredEngineError::with_code(
+            "InputTooLarge",
+            format!(
+                "Cannot align: projected output matrix size ({projected_cells} cells) exceeds maximum supported limit of {MAX_ALIGNMENT_OUTPUT_CELLS}"
             ),
             None,
         ));
@@ -1929,6 +1950,16 @@ pub fn run_mafft_alignment(
     }
 
     let aligned_width = msa.sequences[0].len();
+    let output_cells = sequences.len().saturating_mul(aligned_width);
+    if output_cells > MAX_ALIGNMENT_OUTPUT_CELLS {
+        return Err(StructuredEngineError::with_code(
+            "InputTooLarge",
+            format!(
+                "Cannot align: resulting aligned matrix size ({output_cells} cells) exceeds maximum supported limit of {MAX_ALIGNMENT_OUTPUT_CELLS}"
+            ),
+            None,
+        ));
+    }
     let mut aligned_sequences = Vec::with_capacity(sequences.len());
     let mut msa_iter = msa.sequences.into_iter();
     let mut next_non_empty_pos = 0;

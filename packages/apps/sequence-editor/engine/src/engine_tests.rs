@@ -2473,3 +2473,29 @@ fn realign_rejects_input_exceeding_max_residues() {
     assert_eq!(err.code, "InputTooLarge");
     assert!(err.message.contains("total residue count"));
 }
+
+#[test]
+fn realign_rejects_input_exceeding_max_output_cells() {
+    // 1,000 sequences where 1 sequence has 500,001 residues and the rest are short/empty.
+    // Total residues is well below MAX_ALIGNMENT_TOTAL_RESIDUES (5,000,000), but
+    // projected matrix cells = 1,000 * 500,001 = 500,001,000 > MAX_ALIGNMENT_OUTPUT_CELLS.
+    let mut names = Vec::with_capacity(1_000);
+    let mut sequences = Vec::with_capacity(1_000);
+
+    names.push("long_seq".to_string());
+    sequences.push(vec![b'A'; 500_001]);
+
+    names.push("seq2".to_string());
+    sequences.push(b"ACGT".to_vec());
+
+    for i in 2..1_000 {
+        names.push(format!("seq_{i}"));
+        sequences.push(Vec::new());
+    }
+
+    let res = crate::run_mafft_alignment(&names, &sequences);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "InputTooLarge");
+    assert!(err.message.contains("projected output matrix size"));
+}

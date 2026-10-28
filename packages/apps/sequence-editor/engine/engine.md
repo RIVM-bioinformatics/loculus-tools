@@ -456,7 +456,7 @@ Reorder rows without character constraints, updating both `sequences` and `names
 Re-aligns all loaded sequences across the whole matrix using the pure-Rust `mafft` crate (`AlignmentMode::FftNs2` with `ScoringModel::Dna` and `with_retree(1)` for FFT-NS-1).
 
 - Safe no-op when fewer than 2 sequences are loaded (no snapshot recorded).
-- Enforces size bounds (`MAX_ALIGNMENT_SEQUENCES = 1,000`, `MAX_ALIGNMENT_TOTAL_RESIDUES = 5,000,000`) returning `InputTooLarge` if exceeded to prevent WASM linear memory exhaustion.
+- Enforces size bounds (`MAX_ALIGNMENT_SEQUENCES = 1,000`, `MAX_ALIGNMENT_TOTAL_RESIDUES = 5,000,000`, and `MAX_ALIGNMENT_OUTPUT_CELLS = 500,000,000`) returning `InputTooLarge` if exceeded to prevent WASM linear memory exhaustion.
 - Strips existing gap characters (`-`) prior to invoking MAFFT progressive alignment.
 - Preserves all-gap or empty rows mid-edit, emitting them as uniform all-gap rows with length equal to the aligned width.
 - Requires at least 2 sequences containing non-gap nucleotide residues; rejects with `EmptySequence` error before capturing an undo snapshot if fewer than 2 sequences have residues.

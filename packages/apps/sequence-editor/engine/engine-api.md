@@ -417,7 +417,7 @@ Sequence re-alignment uses MAFFT's fast progressive alignment (`AlignmentMode::F
 > **Note:** The underlying Rust engine also provides a synchronous `MsaEngine::realign()` method for native unit tests and non-worker environments. In frontend code, `EditorWorkerService.realign()` is the authoritative entry point.
 
 - Safe no-op if fewer than 2 sequences are loaded.
-- Enforces size limits (`MAX_ALIGNMENT_SEQUENCES = 1,000`, `MAX_ALIGNMENT_TOTAL_RESIDUES = 5,000,000`), rejecting with an `EngineStructuredError` code of `InputTooLarge` if exceeded.
+- Enforces size limits (`MAX_ALIGNMENT_SEQUENCES = 1,000`, `MAX_ALIGNMENT_TOTAL_RESIDUES = 5,000,000`, and `MAX_ALIGNMENT_OUTPUT_CELLS = 500,000,000`), rejecting with an `EngineStructuredError` code of `InputTooLarge` if exceeded.
 - Strips existing gaps prior to progressive alignment while preserving all-gap rows mid-edit as padded gap rows with length matching the new aligned width.
 - Requires at least 2 sequences containing non-gap nucleotide residues. Rejects with an `EngineStructuredError` code of `EmptySequence` without mutating the matrix or recording an undo snapshot if fewer than 2 sequences contain residues.
 - Captures a structural undo snapshot so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()`.
@@ -614,7 +614,6 @@ try {
 | `moveHorizontal` | `rows: number[], cols: number[], direction` | `Promise<void>` | Move IUPAC block 1 position left/right within specified rows |
 | `moveRowsUp` | `rows: number[]` | `Promise<void>` | Move specified rows up by 1 |
 | `moveRowsDown` | `rows: number[]` | `Promise<void>` | Move specified rows down by 1 |
-| `realign` | — | `Promise<void>` | Re-align all sequences using MAFFT FFT-NS-1 |
 | `applyAlignedFasta` | `fasta: string` | `Promise<void>` | Apply aligned FASTA with structural undo snapshot |
 | `undo` | — | `Promise<boolean>` | Undo last edit |
 | `redo` | — | `Promise<boolean>` | Redo last undone edit |

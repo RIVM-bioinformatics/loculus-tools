@@ -22,6 +22,8 @@ export class EditorWorkerService {
   private alignerReject: ((reason?: unknown) => void) | null = null;
   private commandQueue: Promise<void> = Promise.resolve();
   private readonly engineWorkerProxy: Remote<EngineWorkerApi>;
+  private isRealigning = false;
+  private realignAbortController: AbortController | null = null;
 
   public constructor() {
     const worker = new Worker(new URL('../../workers/EngineWorker', import.meta.url), {
@@ -31,6 +33,9 @@ export class EditorWorkerService {
   }
 
   public cancelRealign(): void {
+    if (this.realignAbortController) {
+      this.realignAbortController.abort();
+    }
     if (this.activeAlignerWorker) {
       this.activeAlignerWorker.terminate();
       this.activeAlignerWorker = null;
@@ -154,27 +159,36 @@ export class EditorWorkerService {
   }
 
   public async realign(signal?: AbortSignal): Promise<void> {
-    if (this.activeAlignerWorker) {
+    if (this.isRealigning || this.activeAlignerWorker) {
       throw new Error('Alignment is already in progress');
     }
 
     if (signal?.aborted) {
-      throw new DOMException('Alignment aborted before start', 'AbortError');
+      throw new DOMException('Alignment cancelled by user', 'AbortError');
     }
 
-    const fasta = await this.exportGappedFasta();
+    this.isRealigning = true;
+    const internalAbortController = new AbortController();
+    this.realignAbortController = internalAbortController;
 
-    if (signal?.aborted) {
-      throw new DOMException('Alignment aborted before start', 'AbortError');
-    }
+    const checkAborted = () => {
+      if (internalAbortController.signal.aborted || signal?.aborted) {
+        throw new DOMException('Alignment cancelled by user', 'AbortError');
+      }
+    };
 
-    const worker = new Worker(new URL('../../workers/AlignerWorker/AlignerWorker', import.meta.url), {
-      type: 'module',
-    });
-    this.activeAlignerWorker = worker;
-
+    let worker: null | Worker = null;
     let onAbort: (() => void) | undefined;
     try {
+      checkAborted();
+      const fasta = await this.exportGappedFasta();
+      checkAborted();
+
+      worker = new Worker(new URL('../../workers/AlignerWorker/AlignerWorker', import.meta.url), {
+        type: 'module',
+      });
+      this.activeAlignerWorker = worker;
+
       const alignerProxy = wrap<AlignerWorkerApi>(worker);
       const alignPromise = alignerProxy.align(fasta);
 
@@ -184,22 +198,32 @@ export class EditorWorkerService {
           reject(new DOMException('Alignment cancelled by user', 'AbortError'));
         };
         signal?.addEventListener('abort', onAbort, { once: true });
+        internalAbortController.signal.addEventListener('abort', onAbort, { once: true });
       });
 
       const alignedFasta = await Promise.race([alignPromise, abortPromise]);
+      checkAborted();
 
       await this.runCommand(async () => {
+        checkAborted();
         await this.engineWorkerProxy.applyAlignedFasta(alignedFasta);
       });
     } finally {
       if (signal && onAbort) {
         signal.removeEventListener('abort', onAbort);
       }
-      worker.terminate();
+      if (onAbort) {
+        internalAbortController.signal.removeEventListener('abort', onAbort);
+      }
+      if (worker) {
+        worker.terminate();
+      }
       if (this.activeAlignerWorker === worker) {
         this.activeAlignerWorker = null;
-        this.alignerReject = null;
       }
+      this.alignerReject = null;
+      this.isRealigning = false;
+      this.realignAbortController = null;
     }
   }
 

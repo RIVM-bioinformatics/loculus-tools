@@ -109,7 +109,7 @@ export const SequenceEditorPageHeader = () => {
           <Tooltip title={isRealigning ? 'Re-aligning sequences...' : 'Re-align all sequences (MAFFT FFT-NS-1)'}>
             <span>
               <IconButton
-                aria-label={'Re-align all sequences (MAFFT FFT-NS-1)'}
+                aria-label={isRealigning ? 'Re-aligning sequences...' : 'Re-align all sequences (MAFFT FFT-NS-1)'}
                 color={'inherit'}
                 disabled={isRealigning || (meta?.sequenceCount ?? 0) < 2}
                 onClick={onRealignButtonClick}

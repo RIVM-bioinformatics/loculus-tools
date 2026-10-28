@@ -689,19 +689,15 @@ export const SequenceEditor = () => {
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onRealign', () => {
-        const store = sequenceEditorStore.getState();
-        store.setIsRealigning(true);
-        store.setLatestMessage('Re-aligning sequences with MAFFT (FFT-NS-1)...');
+        sequenceEditorStore.getState().setIsRealigning(true);
         let wasCancelled = false;
         void execute({
           command: async () => {
             try {
               await editorService.realign();
-              sequenceEditorStore.getState().setLatestMessage('Re-alignment completed successfully');
             } catch (error) {
               if (error instanceof DOMException && error.name === 'AbortError') {
                 wasCancelled = true;
-                sequenceEditorStore.getState().setLatestMessage('Re-alignment cancelled');
               } else {
                 sequenceEditorStore.getState().setLatestMessage(EngineErrorUtil.getEngineErrorMessage(error));
                 throw error;

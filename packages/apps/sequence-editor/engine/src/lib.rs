@@ -10,6 +10,7 @@ mod alphabets;
 mod search_algorithms;
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
+use mafft::{AlignmentMode, MafftEngine, ScoringModel, SeqType, Sequence, SequenceSet};
 use search_algorithms::{MAX_SEARCH_RESULTS, Match, MatrixType, SearchResult, naive_search};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
@@ -382,6 +383,105 @@ pub struct MsaEngine {
     redo_stack: Vec<UndoCommand>,
 }
 
+fn parse_fasta_records(
+    fasta_content: &str,
+) -> Result<(Vec<String>, Vec<Vec<u8>>), StructuredEngineError> {
+    let mut staged_sequences = Vec::new();
+    let mut staged_names = Vec::new();
+    let mut current_name: Option<String> = None;
+    let mut current_seq: Vec<u8> = Vec::new();
+    let mut current_position = 0;
+    let mut invalid_characters = Vec::new();
+
+    for (line_index, raw_line) in fasta_content.lines().enumerate() {
+        let line_number = line_index + 1;
+        let line = raw_line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(header) = line.strip_prefix('>') {
+            if let Some(name) = current_name.take() {
+                // Empty records (a header with no following sequence) are
+                // retained with a length of zero rather than being dropped.
+                staged_names.push(name);
+                staged_sequences.push(std::mem::take(&mut current_seq));
+            }
+            current_position = 0;
+            let header_text = header.trim();
+            current_name = Some(header_text.to_string());
+        } else {
+            let Some(name) = current_name.as_deref() else {
+                return Err(StructuredEngineError::with_code(
+                    "InvalidFastaFormat",
+                    format!("Sequence data appears before a FASTA header on line {line_number}"),
+                    Some(Box::new(ErrorContext {
+                        line: Some(line_number),
+                        ..ErrorContext::default()
+                    })),
+                ));
+            };
+            let sequence_id = name.split_whitespace().next().unwrap_or(name);
+
+            for character in line.chars() {
+                if character.is_ascii_whitespace() {
+                    continue;
+                }
+                current_position += 1;
+                let uppercase = character.to_ascii_uppercase();
+                if !uppercase.is_ascii() || (!is_iupac(uppercase as u8) && !is_gap(uppercase as u8))
+                {
+                    invalid_characters.push(InvalidCharacterContext {
+                        sequence_id: sequence_id.to_owned(),
+                        position: current_position,
+                        line: line_number,
+                        invalid_char: character.to_string(),
+                        byte: character.is_ascii().then_some(character as u8),
+                    });
+                    continue;
+                }
+                current_seq.push(uppercase as u8);
+            }
+        }
+    }
+
+    if let Some(first) = invalid_characters.first() {
+        let byte_description = first
+            .byte
+            .map(|byte| format!(" (0x{byte:02X})"))
+            .unwrap_or_default();
+        let message = format!(
+            "Found {} invalid FASTA character(s). First: '{}'{} in sequence {:?} at position {}, line {}; see context.invalidCharacters for all occurrences. Expected an IUPAC nucleotide or '-'",
+            invalid_characters.len(),
+            first.invalid_char,
+            byte_description,
+            first.sequence_id,
+            first.position,
+            first.line
+        );
+        return Err(StructuredEngineError::with_code(
+            "InvalidAlphabet",
+            message,
+            Some(Box::new(ErrorContext {
+                sequence_id: Some(first.sequence_id.clone()),
+                position: Some(first.position),
+                line: Some(first.line),
+                invalid_char: Some(first.invalid_char.clone()),
+                byte: first.byte,
+                invalid_characters: Some(invalid_characters),
+                ..ErrorContext::default()
+            })),
+        ));
+    }
+
+    if let Some(name) = current_name {
+        // Retain a trailing empty record (header with no sequence) as well.
+        staged_names.push(name);
+        staged_sequences.push(current_seq);
+    }
+
+    Ok((staged_names, staged_sequences))
+}
+
 #[wasm_bindgen]
 impl MsaEngine {
     /// Construct an empty engine.
@@ -415,102 +515,7 @@ impl MsaEngine {
     /// Returns the sequence count on success. Invalid sequence characters
     /// reject the load without changing the current engine state.
     pub fn load_fasta(&mut self, fasta_content: &str) -> Result<usize, StructuredEngineError> {
-        let mut staged_sequences = Vec::new();
-        let mut staged_names = Vec::new();
-        let mut current_name: Option<String> = None;
-        let mut current_seq: Vec<u8> = Vec::new();
-        let mut current_position = 0;
-        let mut invalid_characters = Vec::new();
-
-        for (line_index, raw_line) in fasta_content.lines().enumerate() {
-            let line_number = line_index + 1;
-            let line = raw_line.trim();
-            if line.is_empty() {
-                continue;
-            }
-            if let Some(header) = line.strip_prefix('>') {
-                if let Some(name) = current_name.take() {
-                    // Empty records (a header with no following sequence) are
-                    // retained with a length of zero rather than being dropped.
-                    staged_names.push(name);
-                    staged_sequences.push(std::mem::take(&mut current_seq));
-                }
-                current_position = 0;
-                let header_text = header.trim();
-                current_name = Some(header_text.to_string());
-            } else {
-                let Some(name) = current_name.as_deref() else {
-                    return Err(StructuredEngineError::with_code(
-                        "InvalidFastaFormat",
-                        format!(
-                            "Sequence data appears before a FASTA header on line {line_number}"
-                        ),
-                        Some(Box::new(ErrorContext {
-                            line: Some(line_number),
-                            ..ErrorContext::default()
-                        })),
-                    ));
-                };
-                let sequence_id = name.split_whitespace().next().unwrap_or(name);
-
-                for character in line.chars() {
-                    if character.is_ascii_whitespace() {
-                        continue;
-                    }
-                    current_position += 1;
-                    let uppercase = character.to_ascii_uppercase();
-                    if !uppercase.is_ascii()
-                        || (!is_iupac(uppercase as u8) && !is_gap(uppercase as u8))
-                    {
-                        invalid_characters.push(InvalidCharacterContext {
-                            sequence_id: sequence_id.to_owned(),
-                            position: current_position,
-                            line: line_number,
-                            invalid_char: character.to_string(),
-                            byte: character.is_ascii().then_some(character as u8),
-                        });
-                        continue;
-                    }
-                    current_seq.push(uppercase as u8);
-                }
-            }
-        }
-
-        if let Some(first) = invalid_characters.first() {
-            let byte_description = first
-                .byte
-                .map(|byte| format!(" (0x{byte:02X})"))
-                .unwrap_or_default();
-            let message = format!(
-                "Found {} invalid FASTA character(s). First: '{}'{} in sequence {:?} at position {}, line {}; see context.invalidCharacters for all occurrences. Expected an IUPAC nucleotide or '-'",
-                invalid_characters.len(),
-                first.invalid_char,
-                byte_description,
-                first.sequence_id,
-                first.position,
-                first.line
-            );
-            return Err(StructuredEngineError::with_code(
-                "InvalidAlphabet",
-                message,
-                Some(Box::new(ErrorContext {
-                    sequence_id: Some(first.sequence_id.clone()),
-                    position: Some(first.position),
-                    line: Some(first.line),
-                    invalid_char: Some(first.invalid_char.clone()),
-                    byte: first.byte,
-                    invalid_characters: Some(invalid_characters),
-                    ..ErrorContext::default()
-                })),
-            ));
-        }
-
-        if let Some(name) = current_name {
-            // Retain a trailing empty record (header with no sequence) as well.
-            staged_names.push(name);
-            staged_sequences.push(current_seq);
-        }
-
+        let (staged_names, staged_sequences) = parse_fasta_records(fasta_content)?;
         let alignment_width = staged_sequences.iter().map(Vec::len).max().unwrap_or(0);
         let sequence_count = staged_sequences.len();
 
@@ -1564,6 +1569,119 @@ impl MsaEngine {
         self.move_rows_relative(row_indices, 1)
     }
 
+    /// Re-align all sequences in the matrix using MAFFT FFT-NS-1.
+    /// To use FFT-NS-1, initialize the MAFFT engine with `AlignmentMode::FftNs2` and set `with_retree(1)`.
+    /// This forces the number of tree build steps to 1, ensuring FFT-NS-1 behavior.
+    ///
+    /// Preserves all-gap or empty rows mid-edit by padding them with gaps to the resulting
+    /// alignment width. Explicitly strips existing gaps from sequences containing nucleotide
+    /// residues before progressive alignment.
+    ///
+    /// Captures a structural snapshot before modification so that the
+    /// entire re-alignment can be undone and redone via `undo()` and `redo()`.
+    ///
+    /// If there are fewer than 2 sequences, this is a safe no-op.
+    pub fn realign(&mut self) -> Result<(), StructuredEngineError> {
+        if self.nucleotide_sequences.len() < 2 {
+            return Ok(());
+        }
+
+        let (aligned_names, aligned_sequences) =
+            run_mafft_alignment(&self.names, &self.nucleotide_sequences)?;
+
+        self.replace_matrix_with_undo(aligned_names, aligned_sequences);
+        Ok(())
+    }
+
+    /// Apply an externally aligned FASTA into the engine, recording a single
+    /// structural undo transaction so the alignment can be undone and redone
+    /// via `undo()` and `redo()`.
+    ///
+    /// Enforces strict validation:
+    /// - Sequence count must match the currently loaded matrix.
+    /// - All rows in the aligned FASTA must have equal length (uniform alignment width).
+    /// - Sequence headers and ordering must strictly match `self.names`.
+    /// - Ungapped nucleotide residue identities must be conserved for each sequence.
+    pub fn apply_aligned_fasta(
+        &mut self,
+        fasta_content: &str,
+    ) -> Result<(), StructuredEngineError> {
+        let (names, sequences) = parse_fasta_records(fasta_content)?;
+        if sequences.len() != self.nucleotide_sequences.len() {
+            return Err(StructuredEngineError::with_code(
+                "AlignmentMismatch",
+                format!(
+                    "Aligned sequence count ({}) does not match current matrix ({})",
+                    sequences.len(),
+                    self.nucleotide_sequences.len()
+                ),
+                None,
+            ));
+        }
+
+        if sequences.is_empty() {
+            return Ok(());
+        }
+
+        let expected_len = sequences[0].len();
+        if sequences.iter().any(|s| s.len() != expected_len) {
+            return Err(StructuredEngineError::with_code(
+                "AlignmentMismatch",
+                "Aligned sequences must all have equal row lengths".to_string(),
+                None,
+            ));
+        }
+
+        if names != self.names {
+            return Err(StructuredEngineError::with_code(
+                "AlignmentMismatch",
+                "Aligned sequence headers or order do not match current matrix".to_string(),
+                None,
+            ));
+        }
+
+        for (idx, (aligned_seq, current_seq)) in
+            sequences.iter().zip(&self.nucleotide_sequences).enumerate()
+        {
+            let mut aligned_iter = aligned_seq.iter().copied().filter(|&b| is_iupac(b));
+            let mut current_iter = current_seq.iter().copied().filter(|&b| is_iupac(b));
+            let is_same = loop {
+                match (aligned_iter.next(), current_iter.next()) {
+                    (Some(a), Some(b)) if a.eq_ignore_ascii_case(&b) => continue,
+                    (None, None) => break true,
+                    _ => break false,
+                }
+            };
+            if !is_same {
+                return Err(StructuredEngineError::with_code(
+                    "AlignmentMismatch",
+                    format!(
+                        "Cannot apply alignment: sequence '{}' at index {idx} has modified residue content",
+                        self.names[idx]
+                    ),
+                    Some(Box::new(ErrorContext {
+                        row: Some(idx),
+                        sequence_id: Some(self.names[idx].clone()),
+                        ..ErrorContext::default()
+                    })),
+                ));
+            }
+        }
+
+        self.replace_matrix_with_undo(names, sequences);
+        Ok(())
+    }
+
+    /// Replace matrix and headers with newly aligned data, capturing a single
+    /// structural undo transaction and clearing cached translation data.
+    fn replace_matrix_with_undo(&mut self, names: Vec<String>, sequences: Vec<Vec<u8>>) {
+        self.record_structural_undo();
+        self.alignment_width = sequences.first().map_or(0, |seq| seq.len());
+        self.nucleotide_sequences = sequences;
+        self.names = names;
+        self.aminoacid_sequences.clear();
+    }
+
     /// transactional history with undo/redo stacks.
     /// Snapshot the full matrix + width for structural undo. Cheap given the
     /// ~16MB max footprint.
@@ -1626,6 +1744,7 @@ impl MsaEngine {
                 self.redo_stack.push(redo_snapshot);
             }
         }
+        self.aminoacid_sequences.clear();
         true
     }
 
@@ -1669,6 +1788,7 @@ impl MsaEngine {
                 self.undo_stack.push(undo_snapshot);
             }
         }
+        self.aminoacid_sequences.clear();
         true
     }
 
@@ -1687,6 +1807,222 @@ impl Default for MsaEngine {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Maximum sequence count supported for in-browser MAFFT alignment.
+/// Prevents unconstrained O(N²) pairwise distance calculation and FFT allocations
+/// from exhausting 32-bit WASM linear memory.
+pub const MAX_ALIGNMENT_SEQUENCES: usize = 1_000;
+
+/// Maximum total residue count (across all sequences) supported for in-browser MAFFT alignment.
+pub const MAX_ALIGNMENT_TOTAL_RESIDUES: usize = 5_000_000;
+
+/// Maximum projected matrix cells (sequence count * max sequence length or aligned width)
+/// supported for in-browser MAFFT alignment.
+/// Prevents padded matrix allocations for extreme ragged/empty row combinations from exhausting 32-bit WASM memory.
+pub const MAX_ALIGNMENT_OUTPUT_CELLS: usize = 500_000_000;
+
+/// Executes MAFFT FFT-NS-1 progressive alignment on sequence records.
+///
+/// Features and invariants enforced:
+/// - Input size limits (`MAX_ALIGNMENT_SEQUENCES`, `MAX_ALIGNMENT_TOTAL_RESIDUES`,
+///   and `MAX_ALIGNMENT_OUTPUT_CELLS`) are checked before launching heavy computations
+///   to prevent browser WASM OOM aborts.
+/// - Gaps (`-`) are explicitly stripped from sequence records prior to invoking MAFFT.
+/// - Sequences containing zero non-gap residues (all-gap or empty rows) are preserved:
+///   they are bypassed during progressive alignment and re-emitted as all-gap rows
+///   with length equal to the resulting aligned width.
+/// - At least two sequences containing nucleotide residues are required; otherwise, an
+///   `EmptySequence` structured error is returned.
+/// - Alignment mode FFT-NS-1 is enforced using `AlignmentMode::FftNs2` with `with_retree(1)`.
+/// - Aligned output is validated to guarantee consistent, uniform row lengths.
+pub fn run_mafft_alignment(
+    names: &[String],
+    sequences: &[Vec<u8>],
+) -> Result<(Vec<String>, Vec<Vec<u8>>), StructuredEngineError> {
+    if sequences.len() > MAX_ALIGNMENT_SEQUENCES {
+        return Err(StructuredEngineError::with_code(
+            "InputTooLarge",
+            format!(
+                "Cannot align: sequence count ({}) exceeds maximum supported limit of {MAX_ALIGNMENT_SEQUENCES}",
+                sequences.len()
+            ),
+            None,
+        ));
+    }
+
+    let mut total_residues: usize = 0;
+    let mut max_seq_len: usize = 0;
+    let mut non_empty_indices = Vec::new();
+    let mut ungapped_sequences = Vec::new();
+
+    for (idx, (name, seq)) in names.iter().zip(sequences).enumerate() {
+        let ungapped: Vec<u8> = seq.iter().copied().filter(|&c| is_iupac(c)).collect();
+        total_residues = total_residues.saturating_add(ungapped.len());
+        if ungapped.len() > max_seq_len {
+            max_seq_len = ungapped.len();
+        }
+        if !ungapped.is_empty() {
+            non_empty_indices.push(idx);
+            ungapped_sequences.push((name.clone(), ungapped));
+        }
+    }
+
+    if total_residues > MAX_ALIGNMENT_TOTAL_RESIDUES {
+        return Err(StructuredEngineError::with_code(
+            "InputTooLarge",
+            format!(
+                "Cannot align: total residue count ({total_residues}) exceeds maximum supported limit of {MAX_ALIGNMENT_TOTAL_RESIDUES}"
+            ),
+            None,
+        ));
+    }
+
+    let projected_cells = sequences.len().saturating_mul(max_seq_len);
+    if projected_cells > MAX_ALIGNMENT_OUTPUT_CELLS {
+        return Err(StructuredEngineError::with_code(
+            "InputTooLarge",
+            format!(
+                "Cannot align: projected output matrix size ({projected_cells} cells) exceeds maximum supported limit of {MAX_ALIGNMENT_OUTPUT_CELLS}"
+            ),
+            None,
+        ));
+    }
+
+    if sequences.len() < 2 {
+        return Ok((names.to_vec(), sequences.to_vec()));
+    }
+
+    if non_empty_indices.len() < 2 {
+        let (err_msg, context) = if non_empty_indices.is_empty() {
+            (
+                "Cannot re-align: no sequences contain nucleotide residues".to_string(),
+                None,
+            )
+        } else {
+            let single_idx = non_empty_indices[0];
+            let name = &names[single_idx];
+            (
+                format!(
+                    "Cannot re-align: at least 2 sequences with nucleotide residues are required (only sequence '{name}' at index {single_idx} contains residues)"
+                ),
+                Some(Box::new(ErrorContext {
+                    row: Some(single_idx),
+                    sequence_id: Some(name.clone()),
+                    ..ErrorContext::default()
+                })),
+            )
+        };
+
+        return Err(StructuredEngineError::with_code(
+            "EmptySequence",
+            err_msg,
+            context,
+        ));
+    }
+
+    let input = SequenceSet {
+        sequences: ungapped_sequences
+            .into_iter()
+            .map(|(name, data)| Sequence { name, data })
+            .collect(),
+        seq_type: SeqType::Dna,
+    };
+
+    let engine = MafftEngine::new(AlignmentMode::FftNs2)
+        .with_scoring_model(ScoringModel::Dna)
+        .with_retree(1);
+    let msa = engine.align(&input);
+
+    if msa.sequences.len() != non_empty_indices.len()
+        || msa.names.len() != non_empty_indices.len()
+        || msa.sequences.iter().any(|s| s.is_empty())
+        || msa
+            .sequences
+            .iter()
+            .any(|s| s.len() != msa.sequences[0].len())
+    {
+        return Err(StructuredEngineError::with_code(
+            "AlignmentFailed",
+            "MAFFT alignment failed to produce a valid aligned sequence set".to_string(),
+            None,
+        ));
+    }
+
+    let aligned_width = msa.sequences[0].len();
+    let output_cells = sequences.len().saturating_mul(aligned_width);
+    if output_cells > MAX_ALIGNMENT_OUTPUT_CELLS {
+        return Err(StructuredEngineError::with_code(
+            "InputTooLarge",
+            format!(
+                "Cannot align: resulting aligned matrix size ({output_cells} cells) exceeds maximum supported limit of {MAX_ALIGNMENT_OUTPUT_CELLS}"
+            ),
+            None,
+        ));
+    }
+    let mut aligned_sequences = Vec::with_capacity(sequences.len());
+    let mut msa_iter = msa.sequences.into_iter();
+    let mut next_non_empty_pos = 0;
+
+    for (idx, _) in sequences.iter().enumerate() {
+        if next_non_empty_pos < non_empty_indices.len()
+            && non_empty_indices[next_non_empty_pos] == idx
+        {
+            next_non_empty_pos += 1;
+            let mut seq = msa_iter
+                .next()
+                .expect("msa sequence exists for non-empty index");
+            seq.make_ascii_uppercase();
+            aligned_sequences.push(seq);
+        } else {
+            aligned_sequences.push(vec![b'-'; aligned_width]);
+        }
+    }
+
+    Ok((names.to_vec(), aligned_sequences))
+}
+
+fn format_fasta_string(
+    names: &[String],
+    sequences: &[Vec<u8>],
+) -> Result<String, StructuredEngineError> {
+    let seq_len: usize = sequences.iter().map(|s| s.len() + 1).sum();
+    let header_len: usize = names.iter().map(|n| n.len() + 2).sum();
+    let total_len = header_len + seq_len;
+    let mut out = String::with_capacity(total_len);
+
+    for (name, seq) in names.iter().zip(sequences) {
+        out.push('>');
+        out.push_str(name);
+        out.push('\n');
+        let seq_str = std::str::from_utf8(seq).map_err(|e| {
+            StructuredEngineError::with_code(
+                "InvalidUtf8",
+                format!("Failed to encode sequence '{name}' as UTF-8: {e}"),
+                Some(Box::new(ErrorContext {
+                    sequence_id: Some(name.clone()),
+                    ..ErrorContext::default()
+                })),
+            )
+        })?;
+        out.push_str(seq_str);
+        out.push('\n');
+    }
+    Ok(out)
+}
+
+/// Standalone sequence alignment function for off-thread execution (e.g. AlignerWorker).
+/// Takes a FASTA string (gapped or ungapped), re-aligns all sequences using MAFFT FFT-NS-1,
+/// and returns the aligned result as a gapped FASTA string.
+#[wasm_bindgen]
+pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError> {
+    let (names, sequences) = parse_fasta_records(fasta_content)?;
+    if sequences.len() < 2 {
+        return format_fasta_string(&names, &sequences);
+    }
+
+    let (aligned_names, aligned_sequences) = run_mafft_alignment(&names, &sequences)?;
+    format_fasta_string(&aligned_names, &aligned_sequences)
 }
 
 // Unit tests live in separate files to keep the implementation modules focused

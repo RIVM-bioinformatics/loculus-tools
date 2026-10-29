@@ -1911,3 +1911,591 @@ fn search_all_truncates_at_max_limit_across_sources() {
     assert_eq!(nucleotide_count, 6_000);
     assert_eq!(record_name_count, 4_000);
 }
+
+// ── realign ──
+
+#[test]
+fn realign_aligns_unaligned_sequences() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGCGATCGATC\n>seq2\nATGCGATC\n>seq3\nATGCATCGATCGATC")
+        .expect("valid FASTA");
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 15);
+
+    // Initial seq2 has length 8, ragged relative to seq3 which is 15.
+    assert_eq!(e.get_row_length(1), 8);
+
+    e.realign().expect("realign succeeds");
+
+    // All sequences should now be aligned and have length equal to alignment_width
+    let width = e.get_alignment_width();
+    assert!(width >= 15);
+    for i in 0..3 {
+        assert_eq!(e.get_row_length(i), width);
+    }
+    // seq2 must now have gaps inserted so it reaches width
+    let seq2_bases: Vec<u8> = (0..width).map(|col| e.get_base(1, col)).collect();
+    assert!(seq2_bases.contains(&b'-'));
+
+    // Sequence identifiers preserved
+    assert_eq!(e.get_name(0), "seq1");
+    assert_eq!(e.get_name(1), "seq2");
+    assert_eq!(e.get_name(2), "seq3");
+
+    // All characters must be uppercase or gap '-'
+    for r in 0..3 {
+        for col in 0..width {
+            let b = e.get_base(r, col);
+            assert!(
+                b.is_ascii_uppercase() || b == b'-',
+                "base was {b} ({})",
+                b as char
+            );
+        }
+    }
+}
+
+#[test]
+fn realign_fewer_than_two_sequences_is_noop() {
+    // 0 sequences
+    let mut e_empty = MsaEngine::new();
+    e_empty.realign().expect("empty engine realign is ok");
+    assert_eq!(e_empty.get_sequence_count(), 0);
+    assert_eq!(e_empty.get_alignment_width(), 0);
+    assert_eq!(e_empty.undo_depth(), 0);
+
+    // 1 sequence
+    let mut e_single = MsaEngine::new();
+    e_single.load_fasta(">seq1\nATGCATGC").expect("valid FASTA");
+    e_single.realign().expect("single sequence realign is ok");
+    assert_eq!(e_single.get_sequence_count(), 1);
+    assert_eq!(e_single.get_alignment_width(), 8);
+    assert_eq!(e_single.get_name(0), "seq1");
+    assert_eq!(e_single.undo_depth(), 0);
+}
+
+#[test]
+fn realign_undo_and_redo_cycle() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGCGATCGATC\n>seq2\nATGCGATC\n>seq3\nATGCATCGATCGATC")
+        .expect("valid FASTA");
+
+    let orig_seq1 = e.nucleotide_sequences[0].clone();
+    let orig_seq2 = e.nucleotide_sequences[1].clone();
+    let orig_seq3 = e.nucleotide_sequences[2].clone();
+    let orig_names = e.names.clone();
+    let orig_width = e.get_alignment_width();
+
+    e.realign().expect("realign succeeds");
+    assert_eq!(e.undo_depth(), 1);
+    assert_eq!(e.redo_depth(), 0);
+
+    let aligned_seq1 = e.nucleotide_sequences[0].clone();
+    let aligned_seq2 = e.nucleotide_sequences[1].clone();
+    let aligned_seq3 = e.nucleotide_sequences[2].clone();
+    let aligned_width = e.get_alignment_width();
+
+    // Verify change actually took place
+    assert_ne!(orig_seq2, aligned_seq2);
+
+    // Undo restores exact original state
+    assert!(e.undo());
+    assert_eq!(e.undo_depth(), 0);
+    assert_eq!(e.redo_depth(), 1);
+    assert_eq!(e.nucleotide_sequences[0], orig_seq1);
+    assert_eq!(e.nucleotide_sequences[1], orig_seq2);
+    assert_eq!(e.nucleotide_sequences[2], orig_seq3);
+    assert_eq!(e.names, orig_names);
+    assert_eq!(e.get_alignment_width(), orig_width);
+
+    // Redo re-applies alignment
+    assert!(e.redo());
+    assert_eq!(e.undo_depth(), 1);
+    assert_eq!(e.redo_depth(), 0);
+    assert_eq!(e.nucleotide_sequences[0], aligned_seq1);
+    assert_eq!(e.nucleotide_sequences[1], aligned_seq2);
+    assert_eq!(e.nucleotide_sequences[2], aligned_seq3);
+    assert_eq!(e.get_alignment_width(), aligned_width);
+}
+
+#[test]
+fn realign_clears_aminoacid_cache_on_realign_and_undo() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGCATGC")
+        .expect("valid FASTA");
+
+    // Populate amino acid cache directly
+    e.aminoacid_sequences
+        .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
+    assert!(!e.aminoacid_sequences.is_empty());
+
+    e.realign().expect("realign succeeds");
+    // After realign, cache should have been cleared
+    assert!(e.aminoacid_sequences.is_empty());
+
+    // Populate again before undo
+    e.aminoacid_sequences
+        .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
+    assert!(!e.aminoacid_sequences.is_empty());
+
+    assert!(e.undo());
+    // After undo, cache should have been cleared
+    assert!(e.aminoacid_sequences.is_empty());
+
+    // Populate again before redo
+    e.aminoacid_sequences
+        .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
+    assert!(!e.aminoacid_sequences.is_empty());
+
+    assert!(e.redo());
+    // After redo, cache should have been cleared
+    assert!(e.aminoacid_sequences.is_empty());
+}
+
+#[test]
+fn realign_with_existing_gaps_and_ragged_sequences() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC--GATC\n>seq2\nATGCGATC\n>seq3\nATGCATCGATCGATC")
+        .expect("valid FASTA");
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 15);
+
+    let res = e.realign();
+    assert!(res.is_ok());
+
+    let width = e.get_alignment_width();
+    assert!(width >= 15);
+    for i in 0..3 {
+        assert_eq!(e.get_row_length(i), width);
+    }
+}
+
+#[test]
+fn realign_with_iupac_ambiguous_characters() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC-RYSWKMBDHVN\n>seq2\nATGCRYSWKMBDHVN")
+        .expect("valid FASTA");
+    assert_eq!(e.get_sequence_count(), 2);
+
+    let res = e.realign();
+    assert!(res.is_ok());
+
+    let width = e.get_alignment_width();
+    assert!(width >= 15);
+    assert_eq!(e.get_row_length(0), width);
+    assert_eq!(e.get_row_length(1), width);
+}
+
+#[test]
+fn realign_rejects_empty_sequence_without_corrupting_matrix_or_undo() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGCATGC\n>seq2\n\n>seq3\n----")
+        .expect("valid FASTA");
+    assert_eq!(e.get_sequence_count(), 3);
+
+    let orig_seq1 = e.nucleotide_sequences[0].clone();
+    let orig_seq2 = e.nucleotide_sequences[1].clone();
+    let orig_seq3 = e.nucleotide_sequences[2].clone();
+    let orig_width = e.get_alignment_width();
+
+    let err = e
+        .realign()
+        .expect_err("must reject sequence with no residues");
+    assert_eq!(err.code, "EmptySequence");
+    assert_eq!(e.undo_depth(), 0);
+
+    // Matrix must be completely untouched
+    assert_eq!(e.nucleotide_sequences[0], orig_seq1);
+    assert_eq!(e.nucleotide_sequences[1], orig_seq2);
+    assert_eq!(e.nucleotide_sequences[2], orig_seq3);
+    assert_eq!(e.get_alignment_width(), orig_width);
+}
+
+#[test]
+fn realign_with_single_base_sequences() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nA\n>seq2\nC").expect("valid FASTA");
+    assert_eq!(e.get_sequence_count(), 2);
+    let res = e.realign();
+    assert!(res.is_ok());
+    assert_eq!(e.get_alignment_width(), 1);
+    assert_eq!(e.get_base(0, 0), b'A');
+    assert_eq!(e.get_base(1, 0), b'C');
+}
+
+#[test]
+fn realign_with_uracil_and_full_iupac_alphabet() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nAUGC-RYSWKMBDHVN\n>seq2\nACGURYSWKMBDHVN")
+        .expect("valid FASTA");
+    assert_eq!(e.get_sequence_count(), 2);
+
+    let res = e.realign();
+    assert!(res.is_ok());
+
+    let width = e.get_alignment_width();
+    assert!(width >= 15);
+    assert_eq!(e.get_row_length(0), width);
+    assert_eq!(e.get_row_length(1), width);
+    for r in 0..2 {
+        for col in 0..width {
+            let b = e.get_base(r, col);
+            assert!(
+                b.is_ascii_uppercase() || b == b'-',
+                "expected uppercase IUPAC or gap, got {b}"
+            );
+        }
+    }
+}
+
+#[test]
+fn realign_with_mutated_lowercase_bases_normalizes_to_uppercase() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGCATGC")
+        .expect("valid FASTA");
+
+    // Mutate seq2 position 0 with lowercase 'a'
+    e.mutate_base(&[1], &[0], b'a').expect("mutation succeeds");
+    assert_eq!(e.get_base(1, 0), b'a');
+
+    let res = e.realign();
+    assert!(res.is_ok());
+
+    // After realign, all bases must be normalized to uppercase
+    let width = e.get_alignment_width();
+    for r in 0..2 {
+        for col in 0..width {
+            let b = e.get_base(r, col);
+            assert!(
+                b.is_ascii_uppercase() || b == b'-',
+                "expected uppercase byte, got {b}"
+            );
+        }
+    }
+    assert_eq!(e.get_base(1, 0), b'A');
+}
+
+#[test]
+fn realign_successive_cycles_with_multi_step_undo() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC--GATC\n>seq2\nATGCGATC\n>seq3\nATGCATCGATCGATC")
+        .expect("valid FASTA");
+
+    let orig_seq1 = e.nucleotide_sequences[0].clone();
+    let orig_seq2 = e.nucleotide_sequences[1].clone();
+    let orig_seq3 = e.nucleotide_sequences[2].clone();
+    let orig_width = e.get_alignment_width();
+
+    // First realign
+    e.realign().expect("realign 1 succeeds");
+    assert_eq!(e.undo_depth(), 1);
+
+    // Second realign (idempotent alignment)
+    e.realign().expect("realign 2 succeeds");
+    assert_eq!(e.undo_depth(), 2);
+
+    // Third realign
+    e.realign().expect("realign 3 succeeds");
+    assert_eq!(e.undo_depth(), 3);
+
+    // Undo 3 times back to original
+    assert!(e.undo());
+    assert_eq!(e.undo_depth(), 2);
+    assert!(e.undo());
+    assert_eq!(e.undo_depth(), 1);
+    assert!(e.undo());
+    assert_eq!(e.undo_depth(), 0);
+
+    // Matrix matches original
+    assert_eq!(e.nucleotide_sequences[0], orig_seq1);
+    assert_eq!(e.nucleotide_sequences[1], orig_seq2);
+    assert_eq!(e.nucleotide_sequences[2], orig_seq3);
+    assert_eq!(e.get_alignment_width(), orig_width);
+}
+
+#[test]
+fn realign_with_duplicate_record_names() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">dup_header\nATGCGATC\n>dup_header\nATGCATCGATCGATC")
+        .expect("valid FASTA");
+    assert_eq!(e.get_sequence_count(), 2);
+    assert_eq!(e.get_name(0), "dup_header");
+    assert_eq!(e.get_name(1), "dup_header");
+
+    let res = e.realign();
+    assert!(res.is_ok());
+    assert_eq!(e.get_name(0), "dup_header");
+    assert_eq!(e.get_name(1), "dup_header");
+    assert_eq!(e.get_row_length(0), e.get_alignment_width());
+    assert_eq!(e.get_row_length(1), e.get_alignment_width());
+}
+
+#[test]
+fn align_fasta_aligns_unaligned_sequences() {
+    let unaligned = ">seq1\nATGCGATC\n>seq2\nATGCATCGATCGATC";
+    let aligned = crate::align_fasta(unaligned).expect("alignment succeeds");
+    assert!(aligned.contains(">seq1\n"));
+    assert!(aligned.contains(">seq2\n"));
+    let lines: Vec<&str> = aligned.lines().collect();
+    assert_eq!(lines.len(), 4);
+    assert_eq!(lines[0], ">seq1");
+    assert_eq!(lines[2], ">seq2");
+    assert_eq!(lines[1].len(), lines[3].len());
+    assert!(lines[1].len() >= 15);
+}
+
+#[test]
+fn align_fasta_fewer_than_two_sequences_returns_input() {
+    let single = ">seq1\nATGCGATC\n";
+    let aligned = crate::align_fasta(single).expect("single sequence returns input");
+    assert_eq!(aligned, single);
+}
+
+#[test]
+fn align_fasta_rejects_empty_sequence() {
+    let input = ">seq1\n----\n>seq2\nATGC";
+    let res = crate::align_fasta(input);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "EmptySequence");
+}
+
+#[test]
+fn apply_aligned_fasta_updates_matrix_and_supports_undo_redo() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+    let orig_width = e.get_alignment_width();
+
+    let aligned_fasta = ">seq1\nATG--C\n>seq2\nAT-G-C\n";
+    e.apply_aligned_fasta(aligned_fasta)
+        .expect("apply succeeds");
+    assert_eq!(e.get_alignment_width(), 6);
+    assert_eq!(e.get_row_length(0), 6);
+    assert_eq!(e.get_row_length(1), 6);
+    assert_eq!(e.undo_depth(), 1);
+
+    // Undo restores original matrix and width
+    assert!(e.undo());
+    assert_eq!(e.get_alignment_width(), orig_width);
+    assert_eq!(e.get_row_length(0), 4);
+    assert_eq!(e.get_row_length(1), 4);
+
+    // Redo re-applies aligned matrix
+    assert!(e.redo());
+    assert_eq!(e.get_alignment_width(), 6);
+    assert_eq!(e.get_row_length(0), 6);
+    assert_eq!(e.get_row_length(1), 6);
+}
+
+#[test]
+fn apply_aligned_fasta_mismatch_sequence_count_rejected() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+
+    let mismatched_fasta = ">seq1\nATGC\n";
+    let res = e.apply_aligned_fasta(mismatched_fasta);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "AlignmentMismatch");
+}
+
+#[test]
+fn apply_aligned_fasta_ragged_lengths_rejected() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+
+    let ragged_fasta = ">seq1\nATG-C\n>seq2\nATGC\n";
+    let res = e.apply_aligned_fasta(ragged_fasta);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "AlignmentMismatch");
+    assert!(err.message.contains("equal row lengths"));
+}
+
+#[test]
+fn apply_aligned_fasta_mismatched_names_or_order_rejected() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+
+    // Renamed header
+    let renamed = ">seqA\nATGC\n>seq2\nATGC\n";
+    let res = e.apply_aligned_fasta(renamed);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err().code, "AlignmentMismatch");
+
+    // Swapped order
+    let swapped = ">seq2\nATGC\n>seq1\nATGC\n";
+    let res = e.apply_aligned_fasta(swapped);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err().code, "AlignmentMismatch");
+}
+
+#[test]
+fn apply_aligned_fasta_modified_residues_rejected() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+
+    // Modified residue in seq2 (C -> A)
+    let modified = ">seq1\nATGC\n>seq2\nATGA\n";
+    let res = e.apply_aligned_fasta(modified);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "AlignmentMismatch");
+    assert!(err.message.contains("modified residue content"));
+    let ctx = err.context.expect("error context present");
+    assert_eq!(ctx.row, Some(1));
+    assert_eq!(ctx.sequence_id, Some("seq2".to_string()));
+}
+
+#[test]
+fn apply_aligned_fasta_accepts_lowercase_mutated_residues_case_insensitively() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+
+    // Mutate base at seq2, col 0 with lowercase 'a'
+    e.mutate_base(&[1], &[0], b'a').expect("mutate ok");
+    assert_eq!(e.get_base(1, 0), b'a');
+
+    // Aligned FASTA with uppercase residues
+    let aligned = ">seq1\nAT--GC\n>seq2\nA-T-GC\n";
+    let res = e.apply_aligned_fasta(aligned);
+    assert!(
+        res.is_ok(),
+        "case-insensitive comparison should succeed: {:?}",
+        res.err()
+    );
+    assert_eq!(e.get_alignment_width(), 6);
+    assert_eq!(e.get_base(1, 0), b'A');
+
+    // Undo restores the mutated state
+    assert!(e.undo());
+    assert_eq!(e.get_base(1, 0), b'a');
+}
+
+#[test]
+fn realign_single_non_empty_sequence_reports_clear_error_context() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\n----\n>seq3\n----")
+        .expect("valid FASTA");
+
+    let err = e
+        .realign()
+        .expect_err("must reject single non-empty sequence");
+    assert_eq!(err.code, "EmptySequence");
+    assert!(
+        err.message
+            .contains("at least 2 sequences with nucleotide residues are required"),
+        "unexpected message: {}",
+        err.message
+    );
+    assert!(err.message.contains("seq1"));
+    let ctx = err.context.expect("context present");
+    assert_eq!(ctx.row, Some(0));
+    assert_eq!(ctx.sequence_id, Some("seq1".to_string()));
+}
+
+#[test]
+fn realign_preserves_all_gap_rows_mid_edit() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGC\n>seq2\n----\n>seq3\nATGCGATC")
+        .expect("valid FASTA");
+    assert_eq!(e.get_sequence_count(), 3);
+
+    let res = e.realign();
+    assert!(
+        res.is_ok(),
+        "realign should succeed and preserve all-gap rows"
+    );
+
+    let width = e.get_alignment_width();
+    assert_eq!(e.get_row_length(0), width);
+    assert_eq!(e.get_row_length(1), width);
+    assert_eq!(e.get_row_length(2), width);
+
+    // Row 1 must consist entirely of gaps
+    for col in 0..width {
+        assert_eq!(e.get_base(1, col), b'-');
+    }
+
+    // Undo restores original state
+    assert!(e.undo());
+    assert_eq!(e.get_alignment_width(), 8);
+    assert_eq!(e.get_row_length(1), 4);
+}
+
+#[test]
+fn realign_strips_existing_gaps_for_progressive_alignment() {
+    let mut e1 = MsaEngine::new();
+    e1.load_fasta(">seq1\nA-T-G-C\n>seq2\nAT--GC")
+        .expect("valid FASTA");
+    e1.realign().expect("realign with gaps ok");
+
+    let mut e2 = MsaEngine::new();
+    e2.load_fasta(">seq1\nATGC\n>seq2\nATGC")
+        .expect("valid FASTA");
+    e2.realign().expect("realign without gaps ok");
+
+    assert_eq!(e1.get_alignment_width(), e2.get_alignment_width());
+    for r in 0..2 {
+        for c in 0..e1.get_alignment_width() {
+            assert_eq!(e1.get_base(r, c), e2.get_base(r, c));
+        }
+    }
+}
+
+#[test]
+fn realign_rejects_input_exceeding_max_sequences() {
+    let names: Vec<String> = (0..=crate::MAX_ALIGNMENT_SEQUENCES)
+        .map(|i| format!("seq_{i}"))
+        .collect();
+    let sequences: Vec<Vec<u8>> = (0..=crate::MAX_ALIGNMENT_SEQUENCES)
+        .map(|_| b"ACGT".to_vec())
+        .collect();
+
+    let res = crate::run_mafft_alignment(&names, &sequences);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "InputTooLarge");
+    assert!(err.message.contains("sequence count"));
+}
+
+#[test]
+fn realign_rejects_input_exceeding_max_residues() {
+    let names = vec!["seq1".to_string(), "seq2".to_string()];
+    let sequences = vec![
+        vec![b'A'; crate::MAX_ALIGNMENT_TOTAL_RESIDUES / 2 + 10],
+        vec![b'A'; crate::MAX_ALIGNMENT_TOTAL_RESIDUES / 2 + 10],
+    ];
+
+    let res = crate::run_mafft_alignment(&names, &sequences);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "InputTooLarge");
+    assert!(err.message.contains("total residue count"));
+}
+
+#[test]
+fn realign_rejects_input_exceeding_max_output_cells() {
+    // 1,000 sequences where 1 sequence has 500,001 residues and the rest are short/empty.
+    // Total residues is well below MAX_ALIGNMENT_TOTAL_RESIDUES (5,000,000), but
+    // projected matrix cells = 1,000 * 500,001 = 500,001,000 > MAX_ALIGNMENT_OUTPUT_CELLS.
+    let mut names = Vec::with_capacity(1_000);
+    let mut sequences = Vec::with_capacity(1_000);
+
+    names.push("long_seq".to_string());
+    sequences.push(vec![b'A'; 500_001]);
+
+    names.push("seq2".to_string());
+    sequences.push(b"ACGT".to_vec());
+
+    for i in 2..1_000 {
+        names.push(format!("seq_{i}"));
+        sequences.push(Vec::new());
+    }
+
+    let res = crate::run_mafft_alignment(&names, &sequences);
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.code, "InputTooLarge");
+    assert!(err.message.contains("projected output matrix size"));
+}

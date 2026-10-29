@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.4.0...sequence-editor-frontend-v1.5.0) (2026-10-29)
+
+
+### Features
+
+* export SequenceEditorApp ([adcfadf](https://github.com/RIVM-bioinformatics/loculus-tools/commit/adcfadfd548e6499bfd3fb742a3728018157ffb8))
+
 ## [1.4.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.3.0...sequence-editor-frontend-v1.4.0) (2026-10-29)
 
 

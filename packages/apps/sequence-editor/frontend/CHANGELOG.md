@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.3.0...sequence-editor-frontend-v1.4.0) (2026-10-29)
+
+
+### Features
+
+* **frontend:** update dependencies and create demo theme's ([35552a2](https://github.com/RIVM-bioinformatics/loculus-tools/commit/35552a25d47dacff1f2a2c47881baea9cee1868d))
+
 ## [1.3.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.2.0...sequence-editor-frontend-v1.3.0) (2026-10-27)
 
 

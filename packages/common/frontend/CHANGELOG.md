@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.6.0...common-frontend-v0.7.0) (2026-10-29)
+
+
+### Features
+
+* **frontend:** update dependencies and create demo theme's ([35552a2](https://github.com/RIVM-bioinformatics/loculus-tools/commit/35552a25d47dacff1f2a2c47881baea9cee1868d))
+
 ## [0.6.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.5.0...common-frontend-v0.6.0) (2026-10-27)
 
 

@@ -11,7 +11,7 @@ import { FastaDataEventBusService } from '@rivm-loculus-tools/common-frontend/cl
 import { ErrorUtil } from '@rivm-loculus-tools/common-frontend/utils/ErrorUtil';
 import { UrlUtil } from '@rivm-loculus-tools/common-frontend/utils/UrlUtil';
 import { useStore } from 'zustand';
-import { SequenceEditorApp } from '@rivm-loculus-tools/sequence-editor/components/app/App';
+import { SequenceEditorApp } from '@rivm-loculus-tools/sequence-editor/components/app/SequenceEditorApp';
 import { sequenceEditorStore } from '@rivm-loculus-tools/sequence-editor/stores/sequenceEditorStore';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import {

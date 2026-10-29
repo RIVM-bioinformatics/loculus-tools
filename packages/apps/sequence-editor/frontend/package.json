@@ -99,9 +99,9 @@
       "types": "./src/classes/workers/EngineWorker/index.ts",
       "import": "./src/classes/workers/EngineWorker/index.ts"
     },
-    "./components/app/App": {
-      "types": "./src/components/app/App/index.ts",
-      "import": "./src/components/app/App/index.ts"
+    "./components/app/SequenceEditorApp": {
+      "types": "./src/components/app/SequenceEditorApp/index.ts",
+      "import": "./src/components/app/SequenceEditorApp/index.ts"
     },
     "./components/ui/SequenceEditor": {
       "types": "./src/components/ui/SequenceEditor/index.ts",
@@ -190,9 +190,9 @@
         "types": "./dist/classes/workers/EngineWorker/index.d.ts",
         "import": "./dist/classes/workers/EngineWorker/index.js"
       },
-      "./components/app/App": {
-        "types": "./dist/components/app/App/index.d.ts",
-        "import": "./dist/components/app/App/index.js"
+      "./components/app/SequenceEditorApp": {
+        "types": "./dist/components/app/SequenceEditorApp/index.d.ts",
+        "import": "./dist/components/app/SequenceEditorApp/index.js"
       },
       "./components/ui/SequenceEditor": {
         "types": "./dist/components/ui/SequenceEditor/index.d.ts",

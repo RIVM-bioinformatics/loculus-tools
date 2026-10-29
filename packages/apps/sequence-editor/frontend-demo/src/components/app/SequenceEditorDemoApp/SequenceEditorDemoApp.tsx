@@ -1,5 +1,5 @@
 import { DependencyContainerUtil } from '@rivm-loculus-tools/common-frontend/utils/DependencyContainerUtil';
-import { theme } from '@rivm-loculus-tools/common-frontend/theme';
+import { createSequenceEditorTheme } from '@rivm-loculus-tools/sequence-editor/theme/demoTheme';
 import BiotechOutlinedIcon from '@mui/icons-material/BiotechOutlined';
 import { SequenceEditorStandardConfigUtil } from '@rivm-loculus-tools/sequence-editor/utils/SequenceEditorStandardConfigUtil';
 import {
@@ -101,7 +101,7 @@ export const SequenceEditorDemoApp = () => {
           </Box>
         ),
       },
-      theme,
+      theme: createSequenceEditorTheme('light'),
     };
   }, [afterAppBarRightComponent, extraFastaDataImportDialogLoaderActions]);
 

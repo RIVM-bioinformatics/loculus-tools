@@ -45,9 +45,9 @@
     "@emotion/cache": "11.14.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@gen-epix/eslint-config": "0.8.0",
+    "@gen-epix/eslint-config": "0.9.0",
     "@gen-epix/ui-core-components": "4.6.0",
-    "@gen-epix/ui-core-form": "4.5.0",
+    "@gen-epix/ui-core-form": "4.5.1",
     "@gen-epix/ui-core": "3.10.0",
     "@mui/icons-material": "9.5.0",
     "@mui/material": "9.5.0",
@@ -55,7 +55,7 @@
     "@mui/system": "9.5.0",
     "@mui/utils": "9.5.0",
     "@types/lodash": "4.17.27",
-    "@types/node": "26.6.5",
+    "@types/node": "26.6.6",
     "@types/react-dom": "19.3.0",
     "@types/react": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
@@ -181,9 +181,9 @@
       "types": "./src/stores/fastaDataStore/index.ts",
       "import": "./src/stores/fastaDataStore/index.ts"
     },
-    "./theme": {
-      "types": "./src/theme/index.ts",
-      "import": "./src/theme/index.ts"
+    "./theme/demoTheme": {
+      "types": "./src/theme/demoTheme/index.ts",
+      "import": "./src/theme/demoTheme/index.ts"
     },
     "./utils/DependencyContainerUtil": {
       "types": "./src/utils/DependencyContainerUtil/index.ts",
@@ -325,9 +325,9 @@
         "types": "./dist/stores/fastaDataStore/index.d.ts",
         "import": "./dist/stores/fastaDataStore/index.js"
       },
-      "./theme": {
-        "types": "./dist/theme/index.d.ts",
-        "import": "./dist/theme/index.js"
+      "./theme/demoTheme": {
+        "types": "./dist/theme/demoTheme/index.d.ts",
+        "import": "./dist/theme/demoTheme/index.js"
       },
       "./utils/DependencyContainerUtil": {
         "types": "./dist/utils/DependencyContainerUtil/index.d.ts",

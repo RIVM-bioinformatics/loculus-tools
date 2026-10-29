@@ -42,8 +42,8 @@
     "yup": "*"
   },
   "dependencies": {
-    "@biowasm/aioli": "3.2.3",
-    "@hookform/resolvers": "6.0.1",
+    "@biowasm/aioli": "3.2.4",
+    "@hookform/resolvers": "6.0.2",
     "colorjs.io": "0.7.1",
     "i18next": "26.5.11",
     "lodash": "4.18.1",
@@ -55,17 +55,18 @@
     "@emotion/cache": "11.14.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@gen-epix/eslint-config": "0.8.0",
+    "@gen-epix/eslint-config": "0.9.0",
     "@gen-epix/ui-core-components": "4.6.0",
-    "@gen-epix/ui-core-form": "4.5.0",
+    "@gen-epix/ui-core-form": "4.5.1",
     "@gen-epix/ui-core": "3.10.0",
+    "@gen-epix/ui-phylogenetic-tree": "3.7.0",
     "@mui/icons-material": "9.5.0",
     "@mui/material": "9.5.0",
     "@mui/styled-engine": "9.5.0",
     "@mui/system": "9.5.0",
     "@mui/utils": "9.5.0",
     "@types/lodash": "4.17.27",
-    "@types/node": "26.6.5",
+    "@types/node": "26.6.6",
     "@types/react-dom": "19.3.0",
     "@types/react": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
@@ -173,6 +174,10 @@
       "types": "./src/stores/phylogenyViewerStore/index.ts",
       "import": "./src/stores/phylogenyViewerStore/index.ts"
     },
+    "./theme/demoTheme": {
+      "types": "./src/theme/demoTheme/index.ts",
+      "import": "./src/theme/demoTheme/index.ts"
+    },
     "./utils/ColorUtil": {
       "types": "./src/utils/ColorUtil/index.ts",
       "import": "./src/utils/ColorUtil/index.ts"
@@ -267,6 +272,10 @@
       "./stores/phylogenyViewerStore": {
         "types": "./dist/stores/phylogenyViewerStore/index.d.ts",
         "import": "./dist/stores/phylogenyViewerStore/index.js"
+      },
+      "./theme/demoTheme": {
+        "types": "./dist/theme/demoTheme/index.d.ts",
+        "import": "./dist/theme/demoTheme/index.js"
       },
       "./utils/ColorUtil": {
         "types": "./dist/utils/ColorUtil/index.d.ts",

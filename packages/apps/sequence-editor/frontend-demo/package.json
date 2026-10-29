@@ -21,7 +21,7 @@
     "@emotion/styled": "11.14.1",
     "@gen-epix/ui-core": "3.10.0",
     "@gen-epix/ui-core-components": "4.6.0",
-    "@gen-epix/ui-core-form": "4.5.0",
+    "@gen-epix/ui-core-form": "4.5.1",
     "@mui/icons-material": "9.5.0",
     "@mui/material": "9.5.0",
     "@mui/styled-engine": "9.5.0",
@@ -39,9 +39,9 @@
     "zustand": "5.0.16"
   },
   "devDependencies": {
-    "@gen-epix/tools-lib": "0.4.0",
-    "@gen-epix/eslint-config": "0.8.0",
-    "@types/node": "26.6.5",
+    "@gen-epix/tools-lib": "0.5.0",
+    "@gen-epix/eslint-config": "0.9.0",
+    "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",

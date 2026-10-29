@@ -25,6 +25,7 @@ import { TN93AioliService } from '../../classes/services/TN93AioliService';
 import { ColorUtil } from '../../utils/ColorUtil';
 import type { ColorMap } from '../../models/color.models';
 import { PhylogenyViewerEventBusService } from '../../classes/services/PhylogenyViewerEventBusService';
+import { TREE_CONFIG } from '../../constants/tree';
 
 export type PhylogenyViewerStore = PhylogenyViewerStoreActions & PhylogenyViewerStoreState;
 
@@ -192,7 +193,7 @@ export const phylogenyViewerStore = createStore<PhylogenyViewerStore>((set, get)
       const gradient = ColorUtil.createGradient(uniqueValues.length);
       uniqueValues.forEach((value, index) => {
         newMap[value] = {
-          color: ColorUtil.getDeterministicColor(gradient, value, index),
+          color: ColorUtil.getDeterministicColor(gradient, value, index, TREE_CONFIG.MISSING_COLOR),
           count: counts[value] || 0,
           isMissing: ColorUtil.isMissingValue(value),
         };

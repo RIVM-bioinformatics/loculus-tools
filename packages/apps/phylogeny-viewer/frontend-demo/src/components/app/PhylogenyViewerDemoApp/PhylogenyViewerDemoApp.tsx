@@ -1,6 +1,6 @@
 import { DependencyContainerUtil } from '@rivm-loculus-tools/common-frontend/utils/DependencyContainerUtil';
 import { PhylogenyViewerApp } from '@rivm-loculus-tools/phylogeny-viewer/components/app/PhylogenyViewerApp';
-import { theme } from '@rivm-loculus-tools/common-frontend/theme';
+import { createPhylogenyViewerTheme } from '@rivm-loculus-tools/phylogeny-viewer/theme/demoTheme';
 import ForestIcon from '@mui/icons-material/Forest';
 import { PhylogenyViewerStandardConfigUtil } from '@rivm-loculus-tools/phylogeny-viewer/utils/PhylogenyViewerStandardConfigUtil';
 import {
@@ -107,7 +107,7 @@ export const PhylogenyViewerDemoApp = () => {
           </Box>
         ),
       },
-      theme,
+      theme: createPhylogenyViewerTheme('light'),
     };
   }, [afterAppBarRightComponent, extraFastaDataImportDialogLoaderActions]);
 

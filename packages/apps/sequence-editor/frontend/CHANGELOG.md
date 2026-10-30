@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.6.0...sequence-editor-frontend-v1.6.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **frontend:** fix wasm peers dependency ([4eb4610](https://github.com/RIVM-bioinformatics/loculus-tools/commit/4eb4610962dd10465a2bd08eefd1b1157b5cfaf0))
+
 ## [1.6.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.5.0...sequence-editor-frontend-v1.6.0) (2026-10-30)
 
 

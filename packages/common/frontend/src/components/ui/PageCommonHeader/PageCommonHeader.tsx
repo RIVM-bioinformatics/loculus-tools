@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import {
   use,
   useCallback,
+  useMemo,
 } from 'react';
 import {
   AppBar,
@@ -10,11 +11,11 @@ import {
   Toolbar,
   Typography,
   useTheme,
+  useThemeProps,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 
 import { PageCommonContext } from '../../../context/pageCommonContext';
-
 
 export type PageCommonHeaderProps = {
   readonly centerComponent?: ReactNode;
@@ -22,8 +23,23 @@ export type PageCommonHeaderProps = {
   readonly title: string;
 };
 
-export const PageCommonHeader = ({ centerComponent, rightComponent, title }: PageCommonHeaderProps) => {
+export interface PageCommonHeaderTheme {
+  backgroundColor: string;
+  color: string;
+}
+
+export const PageCommonHeader = (inProps: PageCommonHeaderProps) => {
+  const { centerComponent, rightComponent, title } = useThemeProps({ name: 'RivmLoculusToolsCommonFrontendPageCommonHeader', props: inProps });
   const theme = useTheme();
+  const pageCommonHeaderTheme = useMemo<PageCommonHeaderTheme>(() => ({
+    ...{
+      backgroundColor: theme.palette.primary.main,
+      color: theme.palette.primary.contrastText,
+    } satisfies PageCommonHeaderTheme,
+    ...(theme.components?.RivmLoculusToolsCommonFrontendPageCommonHeader ?? {}),
+  }), [theme]);
+
+
   const { afterAppBarComponent, afterAppBarRightComponent, appBarHeight = 48, appBarIcon, beforeAppBarComponent, beforeAppBarRightComponent, isDrawerOpen, isNoInteraction, setIsDrawerOpen } = use(PageCommonContext);
 
   const onToggleDrawerButtonClick = useCallback(() => {
@@ -37,8 +53,8 @@ export const PageCommonHeader = ({ centerComponent, rightComponent, title }: Pag
         elevation={1}
         position={'static'}
         sx={{
-          backgroundColor: 'primary.main',
-          color: '#FFFFFF',
+          backgroundColor: pageCommonHeaderTheme.backgroundColor,
+          color: pageCommonHeaderTheme.color,
           height: appBarHeight,
           justifyContent: 'center',
           zIndex: theme.zIndex.drawer + 1,

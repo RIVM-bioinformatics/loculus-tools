@@ -77,6 +77,10 @@
     "dist"
   ],
   "exports": {
+    "./types": {
+      "types": "./src/@types/common-frontend.d.ts",
+      "import": "./src/@types/common-frontend.d.ts"
+    },
     "./classes/services/EmotionCacheService": {
       "types": "./src/classes/services/EmotionCacheService/index.ts",
       "import": "./src/classes/services/EmotionCacheService/index.ts"
@@ -84,10 +88,6 @@
     "./classes/services/FastaDataEventBusService": {
       "types": "./src/classes/services/FastaDataEventBusService/index.ts",
       "import": "./src/classes/services/FastaDataEventBusService/index.ts"
-    },
-    "./components/SearchBar": {
-      "types": "./src/components/SearchBar/index.ts",
-      "import": "./src/components/SearchBar/index.ts"
     },
     "./components/app/App": {
       "types": "./src/components/app/App/index.ts",
@@ -140,6 +140,10 @@
     "./components/ui/PageCommonHeader": {
       "types": "./src/components/ui/PageCommonHeader/index.ts",
       "import": "./src/components/ui/PageCommonHeader/index.ts"
+    },
+    "./components/ui/SearchBar": {
+      "types": "./src/components/ui/SearchBar/index.ts",
+      "import": "./src/components/ui/SearchBar/index.ts"
     },
     "./constants/config.constants": {
       "types": "./src/constants/config.constants.ts",
@@ -221,6 +225,10 @@
   "publishConfig": {
     "types": "./dist/index.d.ts",
     "exports": {
+      "./types": {
+        "types": "./dist/@types/common-frontend.d.ts",
+        "import": "./dist/@types/common-frontend.d.ts"
+      },
       "./classes/services/EmotionCacheService": {
         "types": "./dist/classes/services/EmotionCacheService/index.d.ts",
         "import": "./dist/classes/services/EmotionCacheService/index.js"
@@ -228,10 +236,6 @@
       "./classes/services/FastaDataEventBusService": {
         "types": "./dist/classes/services/FastaDataEventBusService/index.d.ts",
         "import": "./dist/classes/services/FastaDataEventBusService/index.js"
-      },
-      "./components/SearchBar": {
-        "types": "./dist/components/SearchBar/index.d.ts",
-        "import": "./dist/components/SearchBar/index.js"
       },
       "./components/app/App": {
         "types": "./dist/components/app/App/index.d.ts",
@@ -284,6 +288,10 @@
       "./components/ui/PageCommonHeader": {
         "types": "./dist/components/ui/PageCommonHeader/index.d.ts",
         "import": "./dist/components/ui/PageCommonHeader/index.js"
+      },
+      "./components/ui/SearchBar": {
+        "types": "./dist/components/ui/SearchBar/index.d.ts",
+        "import": "./dist/components/ui/SearchBar/index.js"
       },
       "./constants/config.constants": {
         "types": "./dist/constants/config.constants.d.ts",

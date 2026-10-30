@@ -21,10 +21,10 @@ export const createPhylogenyViewerThemeOptions = (paletteMode: PaletteMode): The
         defaultProps: {
           dimFn: (color: string) => lighten(color, 0.8),
         },
-        labelFont: '0.8rem "Roboto Flex"',
+        labelFont: '0.7rem "Roboto Flex"',
         regularFillColorSupportLine: '#E0E6F1',
         scaleColor: '#334155',
-        scaleFont: 'bold 0.8rem "Roboto Flex"',
+        scaleFont: 'bold 0.7rem "Roboto Flex"',
         supportLineColorLinked: '#0f0',
         supportLineColorUnlinked: '#f00',
         treeColor: '#334155',

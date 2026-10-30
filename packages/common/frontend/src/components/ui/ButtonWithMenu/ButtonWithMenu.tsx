@@ -4,7 +4,14 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  styled,
+  useThemeProps,
 } from '@mui/material';
+import type { ButtonOwnProps } from '@mui/material';
+import type {
+  ComponentsOverrides,
+  Theme,
+} from '@mui/material/styles';
 import {
   useCallback,
   useState,
@@ -15,6 +22,7 @@ import type {
 } from 'react';
 
 export type ButtonWithMenuProps = {
+  buttonColor?: ButtonOwnProps['color'];
   disabled?: boolean;
   items: Array<{
     icon: ReactElement;
@@ -25,7 +33,29 @@ export type ButtonWithMenuProps = {
   startIcon?: ReactElement;
 };
 
-export const ButtonWithMenu = ({ disabled, items, label, startIcon }: ButtonWithMenuProps) => {
+export type ButtonWithMenuTheme = {
+  styleOverrides?: ComponentsOverrides<Theme>['MuiButton'];
+};
+
+const ButtonWithMenuButton = styled(Button, {
+  name: 'RivmLoculusToolsCommonFrontendButtonWithMenu',
+  slot: 'Root',
+})({
+  '&:hover': {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  color: '#FFFFFF',
+});
+
+export const ButtonWithMenu = (inProps: ButtonWithMenuProps) => {
+  const {
+    buttonColor = 'inherit',
+    disabled,
+    items,
+    label,
+    startIcon,
+  } = useThemeProps({ name: 'RivmLoculusToolsCommonFrontendButtonWithMenu', props: inProps });
   const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null);
   const isMenuOpen = Boolean(anchorElement);
 
@@ -39,23 +69,16 @@ export const ButtonWithMenu = ({ disabled, items, label, startIcon }: ButtonWith
 
   return (
     <>
-      <Button
-        color={'inherit'}
+      <ButtonWithMenuButton
+        color={buttonColor}
         disabled={disabled}
         onClick={onClickMenu}
         size={'small'}
         startIcon={startIcon}
-        sx={{
-          '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.25)',
-          },
-          backgroundColor: 'rgba(255, 255, 255, 0.15)',
-          color: '#FFFFFF',
-        }}
         variant={'contained'}
       >
         {label}
-      </Button>
+      </ButtonWithMenuButton>
       <Menu
         anchorEl={anchorElement}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}

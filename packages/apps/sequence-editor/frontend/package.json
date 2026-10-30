@@ -87,6 +87,10 @@
     "dist"
   ],
   "exports": {
+    "./types": {
+      "types": "./src/@types/sequence-editor.d.ts",
+      "import": "./src/@types/sequence-editor.d.ts"
+    },
     "./classes/services/EditorWorkerService": {
       "types": "./src/classes/services/EditorWorkerService/index.ts",
       "import": "./src/classes/services/EditorWorkerService/index.ts"
@@ -178,6 +182,10 @@
   },
   "publishConfig": {
     "exports": {
+      "./types": {
+        "types": "./dist/@types/sequence-editor.d.ts",
+        "import": "./dist/@types/sequence-editor.d.ts"
+      },
       "./classes/services/EditorWorkerService": {
         "types": "./dist/classes/services/EditorWorkerService/index.d.ts",
         "import": "./dist/classes/services/EditorWorkerService/index.js"

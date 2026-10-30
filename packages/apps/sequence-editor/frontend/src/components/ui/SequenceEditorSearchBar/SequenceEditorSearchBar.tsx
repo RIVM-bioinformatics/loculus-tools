@@ -1,5 +1,5 @@
 import { container } from 'tsyringe';
-import { SearchBar } from '@rivm-loculus-tools/common-frontend/components/SearchBar';
+import { SearchBar } from '@rivm-loculus-tools/common-frontend/components/ui/SearchBar';
 import { useCallback } from 'react';
 import { useStore } from 'zustand';
 

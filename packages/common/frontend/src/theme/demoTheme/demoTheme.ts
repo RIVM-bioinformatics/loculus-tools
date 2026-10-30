@@ -337,6 +337,51 @@ export const createDemoThemeOptions = (paletteMode: PaletteMode): ThemeOptions =
           },
         },
       },
+      RivmLoculusToolsCommonFrontendButtonWithMenu: {
+        styleOverrides: {
+          root: {
+            '&:hover': {
+              backgroundColor: 'rgba(255, 255, 255, 0.25)',
+            },
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            color: '#FFFFFF',
+          },
+        },
+      },
+      RivmLoculusToolsCommonFrontendFastaPageHeaderCenterComponent: {
+        styleOverrides: {
+          root: {
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            color: '#FFFFFF',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+          },
+        },
+      },
+      RivmLoculusToolsCommonFrontendFastaPageHeaderImportButton: {
+        styleOverrides: {
+          root: {
+            '&:hover': {
+              backgroundColor: 'rgba(255, 255, 255, 0.25)',
+            },
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            color: '#FFFFFF',
+          },
+        },
+      },
+      RivmLoculusToolsCommonFrontendPageCommonHeader: {
+        backgroundColor: '#5160ab',
+        color: '#fff',
+      },
+      RivmLoculusToolsCommonFrontendSearchBar: {
+        buttonColor: '#5160ab',
+        styleOverrides: {
+          root: {
+            backgroundColor: paletteMode === 'light' ? '#fff' : '#121212',
+          },
+        },
+      },
+      RivmLoculusToolsCommonFrontendSearchBarNodeCounter: {},
     },
     palette: {
       divider: '#eeeeee',

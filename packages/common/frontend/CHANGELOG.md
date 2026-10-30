@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.7.0...common-frontend-v0.8.0) (2026-10-30)
+
+
+### Features
+
+* **frontend:** implement more theming options ([fb2071c](https://github.com/RIVM-bioinformatics/loculus-tools/commit/fb2071c9360eb6aaa6c49158f8bc0b46e0cade82))
+
 ## [0.7.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.6.0...common-frontend-v0.7.0) (2026-10-29)
 
 

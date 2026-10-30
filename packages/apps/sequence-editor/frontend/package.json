@@ -31,7 +31,6 @@
     "@mui/utils": "*",
     "@mui/x-date-pickers": "*",
     "@rivm-loculus-tools/common-frontend": "workspace:^",
-    "@rivm-loculus-tools/sequence-editor-wasm": "workspace:^",
     "i18next": "*",
     "react-dom": "*",
     "react-error-boundary": "*",
@@ -42,6 +41,7 @@
     "tsyringe": "*"
   },
   "dependencies": {
+    "@rivm-loculus-tools/sequence-editor-wasm": "workspace:^",
     "comlink": "^4.4.2",
     "lodash": "4.18.1",
     "use-debounce": "10.1.1",

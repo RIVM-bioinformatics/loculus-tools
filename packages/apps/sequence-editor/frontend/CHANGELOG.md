@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.6.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.5.0...sequence-editor-frontend-v1.6.0) (2026-10-30)
+
+
+### Features
+
+* **frontend:** implement more theming options ([fb2071c](https://github.com/RIVM-bioinformatics/loculus-tools/commit/fb2071c9360eb6aaa6c49158f8bc0b46e0cade82))
+
+
+### Bug Fixes
+
+* **frontend:** preload sequence editor wasm ([d3ce447](https://github.com/RIVM-bioinformatics/loculus-tools/commit/d3ce447c0147c7d4fb8f2ff972124dba8a3cae18))
+
 ## [1.5.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.4.0...sequence-editor-frontend-v1.5.0) (2026-10-29)
 
 

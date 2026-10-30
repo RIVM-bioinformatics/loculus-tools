@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.4.0...phylogeny-viewer-frontend-v1.5.0) (2026-10-30)
+
+
+### Features
+
+* **frontend:** implement more theming options ([fb2071c](https://github.com/RIVM-bioinformatics/loculus-tools/commit/fb2071c9360eb6aaa6c49158f8bc0b46e0cade82))
+
 ## [1.4.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.3.0...phylogeny-viewer-frontend-v1.4.0) (2026-10-29)
 
 

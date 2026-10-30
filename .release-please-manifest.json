@@ -2,5 +2,5 @@
   "packages/common/frontend": "0.8.0",
   "packages/apps/sequence-editor/engine": "0.3.0",
   "packages/apps/phylogeny-viewer/frontend": "1.5.0",
-  "packages/apps/sequence-editor/frontend": "1.6.0"
+  "packages/apps/sequence-editor/frontend": "1.6.1"
 }

@@ -29,7 +29,6 @@
     "@mui/utils": "9.5.0",
     "@rivm-loculus-tools/common-frontend": "workspace:^",
     "@rivm-loculus-tools/sequence-editor": "workspace:^",
-    "@rivm-loculus-tools/sequence-editor-wasm": "workspace:^",
     "i18next": "26.5.11",
     "react": "19.3.1",
     "react-dom": "19.3.1",

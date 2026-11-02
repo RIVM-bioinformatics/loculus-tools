@@ -31,7 +31,6 @@
     "@mui/utils": "*",
     "@mui/x-date-pickers": "*",
     "@rivm-loculus-tools/common-frontend": "*",
-    "@rivm-loculus-tools/sequence-editor-wasm": "*",
     "i18next": "*",
     "react-dom": "*",
     "react-error-boundary": "*",
@@ -42,7 +41,8 @@
     "tsyringe": "*"
   },
   "dependencies": {
-    "comlink": "^4.4.2",
+    "@rivm-loculus-tools/sequence-editor-wasm": "workspace:^",
+    "comlink": "4.4.2",
     "lodash": "4.18.1",
     "use-debounce": "10.1.1",
     "zustand": "5.0.16",
@@ -62,7 +62,6 @@
     "@mui/system": "9.5.0",
     "@mui/utils": "9.5.0",
     "@rivm-loculus-tools/common-frontend": "workspace:^",
-    "@rivm-loculus-tools/sequence-editor-wasm": "workspace:^",
     "@types/lodash": "4.17.27",
     "@types/node": "26.6.6",
     "@types/react-dom": "19.3.0",

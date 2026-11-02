@@ -93,6 +93,7 @@ export default defineConfig({
       formats: ['es'],
     },
     rolldownOptions: {
+      external: (id) => id.endsWith('?worker'),
       output: {
         chunkFileNames: '_chunks/[name].js',
       },

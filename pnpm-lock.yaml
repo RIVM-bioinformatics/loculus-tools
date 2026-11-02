@@ -193,9 +193,6 @@ importers:
       '@mui/x-date-pickers':
         specifier: '*'
         version: 9.15.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@mui/system@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.1))(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@rivm-loculus-tools/common-frontend':
-        specifier: workspace:^
-        version: link:../../../common/frontend
       colorjs.io:
         specifier: 0.7.1
         version: 0.7.1
@@ -257,6 +254,9 @@ importers:
       '@mui/utils':
         specifier: 9.5.0
         version: 9.5.0(@types/react@19.3.0)(react@19.3.1)
+      '@rivm-loculus-tools/common-frontend':
+        specifier: workspace:^
+        version: link:../../../common/frontend
       '@types/lodash':
         specifier: 4.17.27
         version: 4.17.27
@@ -434,12 +434,6 @@ importers:
       '@mui/x-date-pickers':
         specifier: '*'
         version: 9.15.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@mui/material@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@mui/system@9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.1)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.1))(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@rivm-loculus-tools/common-frontend':
-        specifier: workspace:^
-        version: link:../../../common/frontend
-      '@rivm-loculus-tools/sequence-editor-wasm':
-        specifier: workspace:^
-        version: link:../engine/wasm
       comlink:
         specifier: ^4.4.2
         version: 4.4.2
@@ -495,6 +489,12 @@ importers:
       '@mui/utils':
         specifier: 9.5.0
         version: 9.5.0(@types/react@19.3.0)(react@19.3.1)
+      '@rivm-loculus-tools/common-frontend':
+        specifier: workspace:^
+        version: link:../../../common/frontend
+      '@rivm-loculus-tools/sequence-editor-wasm':
+        specifier: workspace:^
+        version: link:../engine/wasm
       '@types/lodash':
         specifier: 4.17.27
         version: 4.17.27
@@ -594,6 +594,9 @@ importers:
       '@rivm-loculus-tools/sequence-editor':
         specifier: workspace:^
         version: link:../frontend
+      '@rivm-loculus-tools/sequence-editor-wasm':
+        specifier: workspace:^
+        version: link:../engine/wasm
       i18next:
         specifier: 26.5.11
         version: 26.5.11(typescript@6.0.3)

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.6](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.6.5...sequence-editor-frontend-v1.6.6) (2026-11-02)
+
+
+### Bug Fixes
+
+* **frontend:** fix worker import again ([ff8ecc9](https://github.com/RIVM-bioinformatics/loculus-tools/commit/ff8ecc9a8484877deea34851fa7e434d43b32045))
+
 ## [1.6.5](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.6.4...sequence-editor-frontend-v1.6.5) (2026-11-02)
 
 

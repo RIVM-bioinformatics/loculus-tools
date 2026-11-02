@@ -15,7 +15,7 @@ Companion references:
 
 ## Quick Start
 
-Prerequisites are Node.js 18+, pnpm 12, Rust via rustup, and `wasm-pack` for rebuilding the engine.
+Prerequisites are Node.js 18+, pnpm 12, Rust via rustup, and `wasm-pack` 0.15.1 for rebuilding the engine.
 
 From the repository root:
 

@@ -26,7 +26,7 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - name: Install wasm-pack
-        run: cargo install wasm-pack --locked
+        run: cargo install wasm-pack --version 0.15.1 --locked
       - run: pnpm install --frozen-lockfile
       - name: Cache Playwright browsers
         id: playwright-cache

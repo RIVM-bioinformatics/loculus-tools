@@ -60,6 +60,6 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - name: Install wasm-pack
-        run: cargo install wasm-pack --locked
+        run: cargo install wasm-pack --version 0.15.1 --locked
       - name: Build WebAssembly packages
         run: node scripts/build-wasm.mjs

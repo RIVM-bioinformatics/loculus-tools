@@ -89,7 +89,7 @@ jobs:
 
       - name: Install wasm-pack
         if: ${{ needs.release-please.outputs[matrix.release-created] == 'true' && matrix.build-wasm }}
-        run: cargo install wasm-pack --locked
+        run: cargo install wasm-pack --version 0.15.1 --locked
 
       - name: Install dependencies
         if: ${{ needs.release-please.outputs[matrix.release-created] == 'true' }}

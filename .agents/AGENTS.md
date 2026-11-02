@@ -200,7 +200,7 @@ Prerequisites:
 
 - Node.js 18 or newer.
 - pnpm 12.14.0, as pinned by the root `packageManager` field.
-- Rust via rustup and `wasm-pack` for the sequence editor or any Rust engine.
+- Rust via rustup and `wasm-pack` 0.15.1 for the sequence editor or any Rust engine.
 
 ```bash
 pnpm install
@@ -352,8 +352,8 @@ buffer ownership, viewport dimensions, and error propagation.
 
 - A successful no-op `pnpm install` may skip root lifecycle scripts. Use
   `pnpm install --force` when WASM output is missing or stale.
-- `wasm-pack` must be installed and its `wasm32-unknown-unknown` target must be
-  available through rustup.
+- `wasm-pack` 0.15.1 must be installed and its `wasm32-unknown-unknown` target
+  must be available through rustup.
 - The generated WASM package name is rewritten by the build script. Do not
   rename it manually in generated output.
 - The engine expects pre-aligned FASTA input. It does not perform alignment and

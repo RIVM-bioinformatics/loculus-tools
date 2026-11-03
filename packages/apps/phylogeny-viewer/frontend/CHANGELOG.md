@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.5.1](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.5.0...phylogeny-viewer-frontend-v1.5.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **frontend:** fix peer dependencies ([fa394fb](https://github.com/RIVM-bioinformatics/loculus-tools/commit/fa394fb11272b3528f2f4db3e5aad1611fcab7b8))
+
+## [1.5.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.4.0...phylogeny-viewer-frontend-v1.5.0) (2026-10-30)
+
+
+### Features
+
+* **frontend:** implement more theming options ([fb2071c](https://github.com/RIVM-bioinformatics/loculus-tools/commit/fb2071c9360eb6aaa6c49158f8bc0b46e0cade82))
+
+## [1.4.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.3.0...phylogeny-viewer-frontend-v1.4.0) (2026-10-29)
+
+
+### Features
+
+* **frontend:** update dependencies and create demo theme's ([35552a2](https://github.com/RIVM-bioinformatics/loculus-tools/commit/35552a25d47dacff1f2a2c47881baea9cee1868d))
+
+## [1.3.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.2.0...phylogeny-viewer-frontend-v1.3.0) (2026-10-27)
+
+
+### Features
+
+* **frontend:** use root container from tsyringe to resolve dependencies ([cb40503](https://github.com/RIVM-bioinformatics/loculus-tools/commit/cb4050362248a6350116e6bda6b6d234365fac05))
+
+## [1.2.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.1.0...phylogeny-viewer-frontend-v1.2.0) (2026-10-27)
+
+
+### Features
+
+* update to latest gen-epix-up dependencies ([b5883ef](https://github.com/RIVM-bioinformatics/loculus-tools/commit/b5883ef9a8741ad0e1601fed6110d4ca43fae8b4))
+
 ## [1.1.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.0.1...phylogeny-viewer-frontend-v1.1.0) (2026-10-20)
 
 

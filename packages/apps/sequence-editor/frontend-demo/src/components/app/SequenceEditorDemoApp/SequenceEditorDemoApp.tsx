@@ -1,5 +1,5 @@
 import { DependencyContainerUtil } from '@rivm-loculus-tools/common-frontend/utils/DependencyContainerUtil';
-import { theme } from '@rivm-loculus-tools/common-frontend/theme';
+import { createSequenceEditorTheme } from '@rivm-loculus-tools/sequence-editor/theme/demoTheme';
 import BiotechOutlinedIcon from '@mui/icons-material/BiotechOutlined';
 import { SequenceEditorStandardConfigUtil } from '@rivm-loculus-tools/sequence-editor/utils/SequenceEditorStandardConfigUtil';
 import {
@@ -11,8 +11,7 @@ import { FastaDataEventBusService } from '@rivm-loculus-tools/common-frontend/cl
 import { ErrorUtil } from '@rivm-loculus-tools/common-frontend/utils/ErrorUtil';
 import { UrlUtil } from '@rivm-loculus-tools/common-frontend/utils/UrlUtil';
 import { useStore } from 'zustand';
-import { CONFIG_TOKEN } from '@rivm-loculus-tools/common-frontend/constants/config.constants';
-import { SequenceEditorApp } from '@rivm-loculus-tools/sequence-editor/components/app/App';
+import { SequenceEditorApp } from '@rivm-loculus-tools/sequence-editor/components/app/SequenceEditorApp';
 import { sequenceEditorStore } from '@rivm-loculus-tools/sequence-editor/stores/sequenceEditorStore';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import {
@@ -21,9 +20,9 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { container } from 'tsyringe';
 
 export const SequenceEditorDemoApp = () => {
-  const container = useMemo(() => DependencyContainerUtil.createContainer(), []);
   const setData = useStore(sequenceEditorStore, (state) => state.setData);
 
   const onDocumentationButtonClick = useCallback(() => {
@@ -57,7 +56,7 @@ export const SequenceEditorDemoApp = () => {
     } finally {
       UrlUtil.clearSearchParams();
     }
-  }, [container, setData]);
+  }, [setData]);
 
   const extraFastaDataImportDialogLoaderActions = useMemo<DialogAction[]>(() => [
     {
@@ -102,16 +101,14 @@ export const SequenceEditorDemoApp = () => {
           </Box>
         ),
       },
-      theme,
+      theme: createSequenceEditorTheme('light'),
     };
   }, [afterAppBarRightComponent, extraFastaDataImportDialogLoaderActions]);
 
   // Note: do not run this in a useEffect, as it should be executed synchronously during component initialization
-  container.register(CONFIG_TOKEN, { useValue: config });
+  DependencyContainerUtil.registerConfig(config);
 
   return (
-    <SequenceEditorApp
-      container={container}
-    />
+    <SequenceEditorApp />
   );
 };

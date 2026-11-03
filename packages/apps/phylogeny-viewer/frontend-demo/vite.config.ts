@@ -6,9 +6,7 @@ import { readFileSync } from 'fs';
 
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
-import {
-  esmExternalRequirePlugin,
-} from 'vite';
+import { esmExternalRequirePlugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { findGitRootPath } from '@gen-epix/tools-lib';
 

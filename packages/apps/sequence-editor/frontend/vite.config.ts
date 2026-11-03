@@ -79,6 +79,8 @@ const { entries: libEntries, flatKeys } = discoverEntries();
 // https://vitejs.dev/config/
 // eslint-disable-next-line import-x/no-default-export
 export default defineConfig({
+  // Keep the worker URL relative so consuming Vite builds can rebase it.
+  base: './',
   build: {
     copyPublicDir: false,
     lib: {

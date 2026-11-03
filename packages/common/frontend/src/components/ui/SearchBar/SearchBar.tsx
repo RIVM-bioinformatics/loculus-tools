@@ -12,13 +12,18 @@ import {
   FilledInput,
   IconButton,
   InputAdornment,
+  styled,
   useTheme,
+  useThemeProps,
 } from '@mui/material';
+import type {
+  ComponentsOverrides,
+  Theme,
+} from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import CloseIcon from '@mui/icons-material/Close';
-
 
 export type SearchBarProps = {
   allowNavigation?: boolean;
@@ -30,8 +35,38 @@ export type SearchBarProps = {
   truncated?: boolean;
 };
 
-export const SearchBar = ({ allowNavigation, highlightedIndex, numResults = 0, onHighlightedIndexChange, onSearchQueryChange, searchQuery, truncated }: SearchBarProps) => {
+export interface SearchBarTheme {
+  buttonColor: string;
+  styleOverrides?: ComponentsOverrides<Theme>['MuiFilledInput'];
+}
+
+const SearchBarFilledInput = styled(FilledInput, {
+  name: 'RivmLoculusToolsCommonFrontendSearchBar',
+  slot: 'Root',
+})(({ theme }) => ({
+  backgroundColor: theme.palette.background.paper,
+  height: theme.spacing(4),
+}));
+
+export const SearchBar = (inProps: SearchBarProps) => {
+  const {
+    allowNavigation,
+    highlightedIndex,
+    numResults = 0,
+    onHighlightedIndexChange,
+    onSearchQueryChange,
+    searchQuery,
+    truncated,
+  } = useThemeProps({ name: 'RivmLoculusToolsCommonFrontendSearchBar', props: inProps });
   const theme = useTheme();
+  const searchBarTheme = useMemo<SearchBarTheme>(() => ({
+    ...{
+      buttonColor: theme.palette.primary.main,
+    } satisfies SearchBarTheme,
+    ...(theme.components?.RivmLoculusToolsCommonFrontendSearchBar ?? {}),
+  }), [theme]);
+
+
   const inputRef = useRef<HTMLInputElement>(null);
   const arrowUpButtonRef = useRef<HTMLButtonElement>(null);
   const arrowDownButtonRef = useRef<HTMLButtonElement>(null);
@@ -116,7 +151,7 @@ export const SearchBar = ({ allowNavigation, highlightedIndex, numResults = 0, o
 
 
   return (
-    <FilledInput
+    <SearchBarFilledInput
       endAdornment={(
         <InputAdornment position={'end'}>
           {searchResultStatusText && (
@@ -140,7 +175,7 @@ export const SearchBar = ({ allowNavigation, highlightedIndex, numResults = 0, o
                 onClick={onUpArrowButtonClick}
                 onKeyDown={onGenericKeyDown}
                 ref={arrowUpButtonRef}
-                sx={{ color: theme.palette.primary.main }}
+                sx={{ color: searchBarTheme.buttonColor }}
               >
                 <KeyboardArrowUpIcon />
               </IconButton>
@@ -151,7 +186,7 @@ export const SearchBar = ({ allowNavigation, highlightedIndex, numResults = 0, o
                 onClick={onDownArrowButtonClick}
                 onKeyDown={onGenericKeyDown}
                 ref={arrowDownButtonRef}
-                sx={{ color: theme.palette.primary.main }}
+                sx={{ color: searchBarTheme.buttonColor }}
               >
                 <KeyboardArrowDownIcon />
               </IconButton>
@@ -196,10 +231,6 @@ export const SearchBar = ({ allowNavigation, highlightedIndex, numResults = 0, o
           <SearchIcon fontSize={'small'} />
         </InputAdornment>
       )}
-      sx={{
-        backgroundColor: theme.palette.background.paper,
-        height: theme.spacing(4),
-      }}
       type={'search'}
       value={searchQuery}
     />

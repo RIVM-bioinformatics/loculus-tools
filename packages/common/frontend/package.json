@@ -1,6 +1,6 @@
 {
   "name": "@rivm-loculus-tools/common-frontend",
-  "version": "0.4.0",
+  "version": "0.8.0",
   "license": "EUPL-1.2",
   "repository": {
     "type": "git",
@@ -39,44 +39,48 @@
   },
   "dependencies": {
     "lodash": "4.18.1",
-    "zustand": "5.0.15"
+    "zustand": "5.0.16"
   },
   "devDependencies": {
     "@emotion/cache": "11.14.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@gen-epix/eslint-config": "0.8.0",
-    "@gen-epix/ui-core-components": "4.5.0",
-    "@gen-epix/ui-core-form": "4.4.1",
-    "@gen-epix/ui-core": "3.9.1",
+    "@gen-epix/eslint-config": "0.9.0",
+    "@gen-epix/ui-core-components": "4.6.0",
+    "@gen-epix/ui-core-form": "4.5.1",
+    "@gen-epix/ui-core": "3.10.0",
     "@mui/icons-material": "9.5.0",
     "@mui/material": "9.5.0",
     "@mui/styled-engine": "9.5.0",
     "@mui/system": "9.5.0",
     "@mui/utils": "9.5.0",
-    "@types/lodash": "4.17.26",
-    "@types/node": "26.6.5",
+    "@types/lodash": "4.17.27",
+    "@types/node": "26.6.6",
     "@types/react-dom": "19.3.0",
     "@types/react": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
-    "eslint": "10.12.0",
-    "i18next": "26.4.4",
-    "react-dom": "19.3.0",
+    "eslint": "10.13.0",
+    "i18next": "26.5.11",
+    "react-dom": "19.3.1",
     "react-error-boundary": "6.1.6",
-    "react-hook-form": "7.90.0",
-    "react-i18next": "17.0.16",
-    "react": "19.3.0",
+    "react-hook-form": "7.91.0",
+    "react-i18next": "17.1.9",
+    "react": "19.3.1",
     "reflect-metadata": "0.2.2",
     "tsyringe": "4.10.0",
     "typescript": "6.0.3",
     "vite-plugin-dts": "5.1.2",
     "vite-plugin-static-copy": "4.1.1",
-    "vite": "8.3.4"
+    "vite": "8.3.5"
   },
   "files": [
     "dist"
   ],
   "exports": {
+    "./types": {
+      "types": "./src/@types/common-frontend.d.ts",
+      "import": "./src/@types/common-frontend.d.ts"
+    },
     "./classes/services/EmotionCacheService": {
       "types": "./src/classes/services/EmotionCacheService/index.ts",
       "import": "./src/classes/services/EmotionCacheService/index.ts"
@@ -84,10 +88,6 @@
     "./classes/services/FastaDataEventBusService": {
       "types": "./src/classes/services/FastaDataEventBusService/index.ts",
       "import": "./src/classes/services/FastaDataEventBusService/index.ts"
-    },
-    "./components/SearchBar": {
-      "types": "./src/components/SearchBar/index.ts",
-      "import": "./src/components/SearchBar/index.ts"
     },
     "./components/app/App": {
       "types": "./src/components/app/App/index.ts",
@@ -141,6 +141,10 @@
       "types": "./src/components/ui/PageCommonHeader/index.ts",
       "import": "./src/components/ui/PageCommonHeader/index.ts"
     },
+    "./components/ui/SearchBar": {
+      "types": "./src/components/ui/SearchBar/index.ts",
+      "import": "./src/components/ui/SearchBar/index.ts"
+    },
     "./constants/config.constants": {
       "types": "./src/constants/config.constants.ts",
       "import": "./src/constants/config.constants.ts"
@@ -148,10 +152,6 @@
     "./constants/page.constants": {
       "types": "./src/constants/page.constants.ts",
       "import": "./src/constants/page.constants.ts"
-    },
-    "./context/commonConfigContext": {
-      "types": "./src/context/commonConfigContext/index.ts",
-      "import": "./src/context/commonConfigContext/index.ts"
     },
     "./context/pageCommonContext": {
       "types": "./src/context/pageCommonContext/index.ts",
@@ -185,9 +185,9 @@
       "types": "./src/stores/fastaDataStore/index.ts",
       "import": "./src/stores/fastaDataStore/index.ts"
     },
-    "./theme": {
-      "types": "./src/theme/index.ts",
-      "import": "./src/theme/index.ts"
+    "./theme/demoTheme": {
+      "types": "./src/theme/demoTheme/index.ts",
+      "import": "./src/theme/demoTheme/index.ts"
     },
     "./utils/DependencyContainerUtil": {
       "types": "./src/utils/DependencyContainerUtil/index.ts",
@@ -225,6 +225,10 @@
   "publishConfig": {
     "types": "./dist/index.d.ts",
     "exports": {
+      "./types": {
+        "types": "./dist/@types/common-frontend.d.ts",
+        "import": "./dist/@types/common-frontend.d.ts"
+      },
       "./classes/services/EmotionCacheService": {
         "types": "./dist/classes/services/EmotionCacheService/index.d.ts",
         "import": "./dist/classes/services/EmotionCacheService/index.js"
@@ -232,10 +236,6 @@
       "./classes/services/FastaDataEventBusService": {
         "types": "./dist/classes/services/FastaDataEventBusService/index.d.ts",
         "import": "./dist/classes/services/FastaDataEventBusService/index.js"
-      },
-      "./components/SearchBar": {
-        "types": "./dist/components/SearchBar/index.d.ts",
-        "import": "./dist/components/SearchBar/index.js"
       },
       "./components/app/App": {
         "types": "./dist/components/app/App/index.d.ts",
@@ -289,6 +289,10 @@
         "types": "./dist/components/ui/PageCommonHeader/index.d.ts",
         "import": "./dist/components/ui/PageCommonHeader/index.js"
       },
+      "./components/ui/SearchBar": {
+        "types": "./dist/components/ui/SearchBar/index.d.ts",
+        "import": "./dist/components/ui/SearchBar/index.js"
+      },
       "./constants/config.constants": {
         "types": "./dist/constants/config.constants.d.ts",
         "import": "./dist/constants/config.constants.js"
@@ -296,10 +300,6 @@
       "./constants/page.constants": {
         "types": "./dist/constants/page.constants.d.ts",
         "import": "./dist/constants/page.constants.js"
-      },
-      "./context/commonConfigContext": {
-        "types": "./dist/context/commonConfigContext/index.d.ts",
-        "import": "./dist/context/commonConfigContext/index.js"
       },
       "./context/pageCommonContext": {
         "types": "./dist/context/pageCommonContext/index.d.ts",
@@ -333,9 +333,9 @@
         "types": "./dist/stores/fastaDataStore/index.d.ts",
         "import": "./dist/stores/fastaDataStore/index.js"
       },
-      "./theme": {
-        "types": "./dist/theme/index.d.ts",
-        "import": "./dist/theme/index.js"
+      "./theme/demoTheme": {
+        "types": "./dist/theme/demoTheme/index.d.ts",
+        "import": "./dist/theme/demoTheme/index.js"
       },
       "./utils/DependencyContainerUtil": {
         "types": "./dist/utils/DependencyContainerUtil/index.d.ts",

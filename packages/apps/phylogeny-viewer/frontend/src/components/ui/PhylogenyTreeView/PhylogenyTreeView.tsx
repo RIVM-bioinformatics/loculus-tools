@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { lighten } from '@mui/material/styles';
 import { Box } from '@mui/material';
 import type {
   PhylogeneticTreeHighlightedNodeNamesSubjectValue,
@@ -22,32 +21,11 @@ import { MetaDataUtil } from '@rivm-loculus-tools/common-frontend/utils/MetaData
 import { ExportUtil } from '@rivm-loculus-tools/common-frontend/utils/ExportUtil';
 
 import { phylogenyViewerStore } from '../../../stores/phylogenyViewerStore';
-import {
-  MISSING_COLOR,
-  TREE_ANCESTOR_DOT_RADIUS,
-  TREE_FONT_FAMILY,
-  TREE_HEADER_HEIGHT,
-  TREE_ITEM_HEIGHT,
-  TREE_LEAF_DOT_RADIUS,
-  TREE_LINKED_SCROLL_DEBOUNCE_DELAY_MS,
-  TREE_MAX_SCALE_WIDTH_PX,
-  TREE_MAX_ZOOM_LEVEL,
-  TREE_MAX_ZOOM_SPEED,
-  TREE_MIN_SCALE_WIDTH_PX,
-  TREE_MIN_ZOOM_LEVEL,
-  TREE_MIN_ZOOM_SPEED,
-  TREE_MINIMUM_DISTANCE_PERCENTAGE_TO_SHOW_LABEL,
-  TREE_PADDING,
-  TREE_PANNING_THRESHOLD,
-  TREE_REGULAR_FILL_COLOR_SUPPORT_LINE,
-  TREE_SCALE_INCREMENTS,
-} from '../../../constants/tree';
+import { TREE_CONFIG } from '../../../constants/tree';
 import { PhylogenyViewerEventBusService } from '../../../classes/services/PhylogenyViewerEventBusService';
 import { TREE_DOWNLOAD_TYPE } from '../../../models/tree.models';
 
 import { PhylogenyTreeViewDraggableNodeTooltip } from './PhylogenyTreeViewDraggableNodeTooltip';
-
-const dimColor = (color: string) => lighten(color, 0.8);
 
 export type PhylogenyTreeViewProps = {
   newick: string;
@@ -138,9 +116,9 @@ export const PhylogenyTreeView = ({ newick }: PhylogenyTreeViewProps) => {
     leafNames.forEach((name) => {
       const meta = MetaDataUtil.getRecordForSample(parsedMetadata, name, matchKeyField);
       if (meta?.[colorByField]) {
-        leafColors[name] = colorMap[meta[colorByField]]?.color || MISSING_COLOR;
+        leafColors[name] = colorMap[meta[colorByField]]?.color || TREE_CONFIG.MISSING_COLOR;
       } else {
-        leafColors[name] = MISSING_COLOR;
+        leafColors[name] = TREE_CONFIG.MISSING_COLOR;
       }
     });
 
@@ -223,42 +201,33 @@ export const PhylogenyTreeView = ({ newick }: PhylogenyTreeViewProps) => {
     >
       {/* Primary Native Tree Canvas (Rendering Branches, Dots, Scale Bar, Leaf Labels, Distances & Highlights) */}
       <PhylogeneticTree
-        ancestorDotRadius={TREE_ANCESTOR_DOT_RADIUS}
+        ancestorDotRadius={TREE_CONFIG.TREE_ANCESTOR_DOT_RADIUS}
         ariaLabel={'Phylogenetic tree visualization'}
-        backgroundColor={'#FFFFFF'}
-        dimFn={dimColor}
-        fontFamily={TREE_FONT_FAMILY}
         getLeafLabel={getLeafLabel}
-        headerHeight={showScaleBar ? TREE_HEADER_HEIGHT : 0}
+        headerHeight={showScaleBar ? TREE_CONFIG.TREE_HEADER_HEIGHT : 0}
         highlightedNodeNamesSubject={highlightedNodeNamesSubject}
-        itemHeight={TREE_ITEM_HEIGHT}
-        leafDotRadius={TREE_LEAF_DOT_RADIUS}
-        linkedScrollDebounceDelayMs={TREE_LINKED_SCROLL_DEBOUNCE_DELAY_MS}
-        maxScaleWidthPx={TREE_MAX_SCALE_WIDTH_PX}
-        maxZoomLevel={TREE_MAX_ZOOM_LEVEL}
-        maxZoomSpeed={TREE_MAX_ZOOM_SPEED}
-        minimumDistancePercentageToShowLabel={TREE_MINIMUM_DISTANCE_PERCENTAGE_TO_SHOW_LABEL}
-        minScaleWidthPx={TREE_MIN_SCALE_WIDTH_PX}
-        minZoomLevel={TREE_MIN_ZOOM_LEVEL}
-        minZoomSpeed={TREE_MIN_ZOOM_SPEED}
+        itemHeight={TREE_CONFIG.TREE_ITEM_HEIGHT}
+        leafDotRadius={TREE_CONFIG.TREE_LEAF_DOT_RADIUS}
+        linkedScrollDebounceDelayMs={TREE_CONFIG.TREE_LINKED_SCROLL_DEBOUNCE_DELAY_MS}
+        maxScaleWidthPx={TREE_CONFIG.TREE_MAX_SCALE_WIDTH_PX}
+        maxZoomLevel={TREE_CONFIG.TREE_MAX_ZOOM_LEVEL}
+        maxZoomSpeed={TREE_CONFIG.TREE_MAX_ZOOM_SPEED}
+        minimumDistancePercentageToShowLabel={TREE_CONFIG.TREE_MINIMUM_DISTANCE_PERCENTAGE_TO_SHOW_LABEL}
+        minScaleWidthPx={TREE_CONFIG.TREE_MIN_SCALE_WIDTH_PX}
+        minZoomLevel={TREE_CONFIG.TREE_MIN_ZOOM_LEVEL}
+        minZoomSpeed={TREE_CONFIG.TREE_MIN_ZOOM_SPEED}
         nodeNameColors={nodeNameColors}
         onCanvasChange={onCanvasChangeTree}
         onPathClick={onPathClickTree}
-        panningThreshold={TREE_PANNING_THRESHOLD}
+        panningThreshold={TREE_CONFIG.TREE_PANNING_THRESHOLD}
         ref={treeRef}
-        regularFillColorSupportLine={TREE_REGULAR_FILL_COLOR_SUPPORT_LINE}
-        scaleColor={'#475569'}
-        scaleIncrements={TREE_SCALE_INCREMENTS}
+        scaleIncrements={TREE_CONFIG.TREE_SCALE_INCREMENTS}
         shouldShowDistances={showBranchLengths}
         shouldShowLeafLabels={showLeafLabels}
         shouldShowSupportLinesWhenUnlinked={false}
         sortedLeafNames={leafNames}
-        supportLineColorLinked={'#0f0'}
-        supportLineColorUnlinked={'#f00'}
         tree={parsedTree ?? undefined}
-        treeColor={'#334155'}
-        treeFont={'10px Noto Sans, sans-serif'}
-        treePadding={TREE_PADDING}
+        treePadding={TREE_CONFIG.TREE_PADDING}
       />
       {/* Draggable Tooltip */}
       <PhylogenyTreeViewDraggableNodeTooltip />

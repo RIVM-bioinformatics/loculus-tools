@@ -1,7 +1,12 @@
 import {
   Box,
   Chip,
+  styled,
 } from '@mui/material';
+import type {
+  ComponentsOverrides,
+  Theme,
+} from '@mui/material/styles';
 import type { StoreApi } from 'zustand';
 import { useStore } from 'zustand';
 
@@ -11,6 +16,20 @@ import type { FastaDataStore } from '../../../stores/fastaDataStore';
 export type FastaPageHeaderCenterComponentProps = {
   store: StoreApi<FastaDataStore>;
 };
+
+export type FastaPageHeaderCenterComponentTheme = {
+  styleOverrides?: ComponentsOverrides<Theme>['MuiChip'];
+};
+
+const FastaPageHeaderCenterChip = styled(Chip, {
+  name: 'RivmLoculusToolsCommonFrontendFastaPageHeaderCenterComponent',
+  slot: 'Root',
+})({
+  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  color: '#FFFFFF',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+});
 
 export const FastaPageHeaderCenterComponent = ({ store }: FastaPageHeaderCenterComponentProps) => {
   const parsedFasta = useStore(store, (state) => state.parsedFasta);
@@ -22,27 +41,15 @@ export const FastaPageHeaderCenterComponent = ({ store }: FastaPageHeaderCenterC
   return (
     <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
       {seqCount > 0 && (
-        <Chip
+        <FastaPageHeaderCenterChip
           label={`${seqCount} Sequences`}
           size={'small'}
-          sx={{
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            color: '#FFFFFF',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-          }}
         />
       )}
       {metaCount > 0 && (
-        <Chip
+        <FastaPageHeaderCenterChip
           label={`${metaCount} Metadata Records`}
           size={'small'}
-          sx={{
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            color: '#FFFFFF',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-          }}
         />
       )}
     </Box>

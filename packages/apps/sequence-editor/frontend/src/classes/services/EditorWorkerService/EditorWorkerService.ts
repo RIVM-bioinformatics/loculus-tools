@@ -21,15 +21,26 @@ export class EditorWorkerService {
   private activeAlignerWorker: null | Worker = null;
   private alignerReject: ((reason?: unknown) => void) | null = null;
   private commandQueue: Promise<void> = Promise.resolve();
-  private readonly engineWorkerProxy: Remote<EngineWorkerApi>;
+  private engineWorkerProxyInstance: null | Remote<EngineWorkerApi> = null;
+  private readonly workerReady: Promise<void>;
+
+  private get engineWorkerProxy(): Remote<EngineWorkerApi> {
+    const workerProxy = this.engineWorkerProxyInstance;
+    if (!workerProxy) {
+      throw new Error('Engine worker is not initialized');
+    }
+    return workerProxy;
+  }
   private isRealigning = false;
   private realignAbortController: AbortController | null = null;
 
   public constructor() {
-    const worker = new Worker(new URL('../../workers/EngineWorker', import.meta.url), {
-      type: 'module',
+    this.workerReady = import(
+      /* webpackChunkName: 'sequence-editor-engine-worker' */
+      '../../workers/EngineWorker?worker'
+    ).then(({ default: EngineWorker }) => {
+      this.engineWorkerProxyInstance = wrap<EngineWorkerApi>(new EngineWorker());
     });
-    this.engineWorkerProxy = wrap<EngineWorkerApi>(worker);
   }
 
   public cancelRealign(): void {
@@ -261,6 +272,7 @@ export class EditorWorkerService {
     const queuedCommand = this.commandQueue.then(async (): Promise<T> => {
       const { setLatestMessage } = sequenceEditorStore.getState();
       try {
+        await this.workerReady;
         const result = await command();
         if (sequenceEditorStore.getState().latestMessage) {
           setLatestMessage(null);

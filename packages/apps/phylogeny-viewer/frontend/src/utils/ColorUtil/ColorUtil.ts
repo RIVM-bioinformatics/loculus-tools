@@ -1,7 +1,5 @@
 import Color from 'colorjs.io';
 
-import { MISSING_COLOR } from '../../constants/tree';
-
 export class ColorUtil {
   public static createGradient(numColors: number): string[] {
     const colors: string[] = [];
@@ -17,9 +15,9 @@ export class ColorUtil {
     return colors;
   }
 
-  public static getDeterministicColor(gradient: string[], value: string, index = 0): string {
+  public static getDeterministicColor(gradient: string[], value: string, index: number, missingValueColor: string): string {
     if (ColorUtil.isMissingValue(value)) {
-      return MISSING_COLOR; // Missing value color
+      return missingValueColor; // Missing value color
     }
     return gradient[index];
   }

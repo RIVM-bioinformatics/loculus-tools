@@ -19,7 +19,7 @@ const env = { ...process.env, PATH: `${cargoBinDir}:${process.env.PATH}` };
 
 const wasmPackCheck = spawnSync('wasm-pack', ['--version'], { stdio: 'ignore', env });
 if (wasmPackCheck.error || wasmPackCheck.status !== 0) {
-  console.error('Error: wasm-pack is not installed. Install it with: cargo install wasm-pack');
+  console.error('Error: wasm-pack is not installed. Install it with: cargo install wasm-pack --version 0.15.1 --locked');
   process.exit(1);
 }
 

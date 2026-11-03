@@ -17,7 +17,7 @@ This is a pnpm/lerna monorepo. Each tool lives under `packages/<name>` and typic
 - **pnpm** (pinned via `packageManager` in [package.json](package.json), currently `pnpm@12.3.4`)
 - **Rust + wasm-pack**, only required for packages with an `engine/` folder (e.g. `sequence-editor`):
   - Install Rust via [rustup](https://rustup.rs) (not just the Homebrew/OS package). `wasm-pack` needs the `wasm32-unknown-unknown` target, which rustup manages automatically; non-rustup Rust installs require [manual target setup](https://wasm-bindgen.github.io/wasm-pack/book/prerequisites/non-rustup-setups.html).
-  - Install `wasm-pack` with `cargo install wasm-pack`.
+  - Install `wasm-pack` with `cargo install wasm-pack --version 0.15.1 --locked`.
 
 ## Getting Started
 

@@ -1,5 +1,87 @@
 # Changelog
 
+## [1.6.6](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.6.5...sequence-editor-frontend-v1.6.6) (2026-11-02)
+
+
+### Bug Fixes
+
+* **frontend:** fix worker import again ([ff8ecc9](https://github.com/RIVM-bioinformatics/loculus-tools/commit/ff8ecc9a8484877deea34851fa7e434d43b32045))
+
+## [1.6.5](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.6.4...sequence-editor-frontend-v1.6.5) (2026-11-02)
+
+
+### Bug Fixes
+
+* **frontend:** fix worker import ([441ba08](https://github.com/RIVM-bioinformatics/loculus-tools/commit/441ba0852b56f4fca5d1706a934695f374162bab))
+
+## [1.6.4](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.6.3...sequence-editor-frontend-v1.6.4) (2026-11-02)
+
+
+### Bug Fixes
+
+* **frontend:** fix wasm export ([bbfb042](https://github.com/RIVM-bioinformatics/loculus-tools/commit/bbfb0424a5c6760d1d86db476d2c407a762c4707))
+
+## [1.6.3](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.6.2...sequence-editor-frontend-v1.6.3) (2026-11-02)
+
+
+### Bug Fixes
+
+* **frontend:** fix peer depencencies again ([788cb5a](https://github.com/RIVM-bioinformatics/loculus-tools/commit/788cb5a05a1705a3ff69ab34c02d1c87940256f6))
+
+## [1.6.2](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.6.1...sequence-editor-frontend-v1.6.2) (2026-11-02)
+
+
+### Bug Fixes
+
+* **frontend:** fix peer dependencies ([fa394fb](https://github.com/RIVM-bioinformatics/loculus-tools/commit/fa394fb11272b3528f2f4db3e5aad1611fcab7b8))
+
+## [1.6.1](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.6.0...sequence-editor-frontend-v1.6.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **frontend:** fix wasm peers dependency ([4eb4610](https://github.com/RIVM-bioinformatics/loculus-tools/commit/4eb4610962dd10465a2bd08eefd1b1157b5cfaf0))
+
+## [1.6.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.5.0...sequence-editor-frontend-v1.6.0) (2026-10-30)
+
+
+### Features
+
+* **frontend:** implement more theming options ([fb2071c](https://github.com/RIVM-bioinformatics/loculus-tools/commit/fb2071c9360eb6aaa6c49158f8bc0b46e0cade82))
+
+
+### Bug Fixes
+
+* **frontend:** preload sequence editor wasm ([d3ce447](https://github.com/RIVM-bioinformatics/loculus-tools/commit/d3ce447c0147c7d4fb8f2ff972124dba8a3cae18))
+
+## [1.5.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.4.0...sequence-editor-frontend-v1.5.0) (2026-10-29)
+
+
+### Features
+
+* export SequenceEditorApp ([adcfadf](https://github.com/RIVM-bioinformatics/loculus-tools/commit/adcfadfd548e6499bfd3fb742a3728018157ffb8))
+
+## [1.4.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.3.0...sequence-editor-frontend-v1.4.0) (2026-10-29)
+
+
+### Features
+
+* **frontend:** update dependencies and create demo theme's ([35552a2](https://github.com/RIVM-bioinformatics/loculus-tools/commit/35552a25d47dacff1f2a2c47881baea9cee1868d))
+
+## [1.3.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.2.0...sequence-editor-frontend-v1.3.0) (2026-10-27)
+
+
+### Features
+
+* **frontend:** use root container from tsyringe to resolve dependencies ([cb40503](https://github.com/RIVM-bioinformatics/loculus-tools/commit/cb4050362248a6350116e6bda6b6d234365fac05))
+
+## [1.2.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.1.0...sequence-editor-frontend-v1.2.0) (2026-10-27)
+
+
+### Features
+
+* update to latest gen-epix-up dependencies ([b5883ef](https://github.com/RIVM-bioinformatics/loculus-tools/commit/b5883ef9a8741ad0e1601fed6110d4ca43fae8b4))
+
 ## [1.1.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.0.1...sequence-editor-frontend-v1.1.0) (2026-10-20)
 
 

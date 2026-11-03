@@ -1,24 +1,12 @@
 import { container } from 'tsyringe';
 import type { DependencyContainer } from 'tsyringe';
-import { WindowService } from '@gen-epix/ui-core/classes/services/WindowService';
-import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/DevicePixelRatioService';
-import { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
 
-import {
-  CONFIG_TOKEN,
-  DEVICE_PIXEL_RATIO_SERVICE_TOKEN,
-  KEYBOARD_SHORTCUT_SERVICE_TOKEN,
-  WINDOW_SERVICE_TOKEN,
-} from '../../constants/config.constants';
 import type { ConfigBase } from '../../models/config.models';
+import { CONFIG_TOKEN } from '../../constants/config.constants';
 
 export class DependencyContainerUtil {
-  public static createContainer(): DependencyContainer {
-    container.registerInstance(WINDOW_SERVICE_TOKEN, WindowService.getInstance());
-    container.registerInstance(DEVICE_PIXEL_RATIO_SERVICE_TOKEN, DevicePixelRatioService.getInstance());
-    container.registerInstance(KEYBOARD_SHORTCUT_SERVICE_TOKEN, KeyboardShortcutService.getInstance());
-
-    return container;
+  public static registerConfig<TConfig extends ConfigBase>(config: TConfig): void {
+    container.register(CONFIG_TOKEN, { useValue: config });
   }
 
   public static resolveConfig<TConfig extends ConfigBase = ConfigBase>(dependencyContainer: DependencyContainer = container): TConfig {

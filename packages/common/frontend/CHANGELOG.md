@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.8.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.7.0...common-frontend-v0.8.0) (2026-10-30)
+
+
+### Features
+
+* **frontend:** implement more theming options ([fb2071c](https://github.com/RIVM-bioinformatics/loculus-tools/commit/fb2071c9360eb6aaa6c49158f8bc0b46e0cade82))
+
+## [0.7.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.6.0...common-frontend-v0.7.0) (2026-10-29)
+
+
+### Features
+
+* **frontend:** update dependencies and create demo theme's ([35552a2](https://github.com/RIVM-bioinformatics/loculus-tools/commit/35552a25d47dacff1f2a2c47881baea9cee1868d))
+
+## [0.6.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.5.0...common-frontend-v0.6.0) (2026-10-27)
+
+
+### Features
+
+* **frontend:** use root container from tsyringe to resolve dependencies ([cb40503](https://github.com/RIVM-bioinformatics/loculus-tools/commit/cb4050362248a6350116e6bda6b6d234365fac05))
+
+## [0.5.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.4.0...common-frontend-v0.5.0) (2026-10-27)
+
+
+### Features
+
+* update to latest gen-epix-up dependencies ([b5883ef](https://github.com/RIVM-bioinformatics/loculus-tools/commit/b5883ef9a8741ad0e1601fed6110d4ca43fae8b4))
+
 ## [0.4.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.3.0...common-frontend-v0.4.0) (2026-10-20)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@rivm-loculus-tools/sequence-editor",
-  "version": "1.1.0",
+  "version": "1.6.6",
   "license": "EUPL-1.2",
   "repository": {
     "type": "git",
@@ -24,15 +24,13 @@
     "@gen-epix/ui-core-components": "*",
     "@gen-epix/ui-core-form": "*",
     "@gen-epix/ui-core": "*",
-    "@gen-epix/ui-phylogenetic-tree": "*",
     "@mui/icons-material": "*",
     "@mui/material": "*",
     "@mui/styled-engine": "*",
     "@mui/system": "*",
     "@mui/utils": "*",
     "@mui/x-date-pickers": "*",
-    "@rivm-loculus-tools/common-frontend": "workspace:^",
-    "@rivm-loculus-tools/sequence-editor-wasm": "workspace:^",
+    "@rivm-loculus-tools/common-frontend": "*",
     "i18next": "*",
     "react-dom": "*",
     "react-error-boundary": "*",
@@ -43,52 +41,57 @@
     "tsyringe": "*"
   },
   "dependencies": {
-    "comlink": "^4.4.2",
+    "@rivm-loculus-tools/sequence-editor-wasm": "workspace:^",
+    "comlink": "4.4.2",
     "lodash": "4.18.1",
     "use-debounce": "10.1.1",
-    "zustand": "5.0.15",
+    "zustand": "5.0.16",
     "tsyringe": "4.10.0"
   },
   "devDependencies": {
     "@emotion/cache": "11.14.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@gen-epix/eslint-config": "0.8.0",
-    "@gen-epix/ui-core-components": "4.5.0",
-    "@gen-epix/ui-core-form": "4.4.1",
-    "@gen-epix/ui-core": "3.9.1",
-    "@gen-epix/ui-phylogenetic-tree": "3.5.1",
+    "@gen-epix/eslint-config": "0.9.0",
+    "@gen-epix/ui-core-components": "4.6.0",
+    "@gen-epix/ui-core-form": "4.5.1",
+    "@gen-epix/ui-core": "3.10.0",
     "@mui/icons-material": "9.5.0",
     "@mui/material": "9.5.0",
     "@mui/styled-engine": "9.5.0",
     "@mui/system": "9.5.0",
     "@mui/utils": "9.5.0",
-    "@types/lodash": "4.17.26",
-    "@types/node": "26.6.5",
+    "@rivm-loculus-tools/common-frontend": "workspace:^",
+    "@types/lodash": "4.17.27",
+    "@types/node": "26.6.6",
     "@types/react-dom": "19.3.0",
     "@types/react": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
-    "eslint": "10.12.0",
-    "i18next": "26.4.4",
-    "react-dom": "19.3.0",
+    "eslint": "10.13.0",
+    "i18next": "26.5.11",
+    "react-dom": "19.3.1",
     "react-error-boundary": "6.1.6",
-    "react-hook-form": "7.90.0",
-    "react-i18next": "17.0.16",
-    "react": "19.3.0",
+    "react-hook-form": "7.91.0",
+    "react-i18next": "17.1.9",
+    "react": "19.3.1",
     "typescript": "6.0.3",
     "tsyringe": "4.10.0",
     "vite-plugin-dts": "5.1.2",
     "vite-plugin-lib-inject-css": "2.2.2",
     "vite-plugin-static-copy": "4.1.1",
     "vite-plugin-svgr": "5.2.0",
-    "vite": "8.3.4",
+    "vite": "8.3.5",
     "vitest-browser-react": "2.3.0",
-    "vitest": "5.0.4"
+    "vitest": "5.0.5"
   },
   "files": [
     "dist"
   ],
   "exports": {
+    "./types": {
+      "types": "./src/@types/sequence-editor.d.ts",
+      "import": "./src/@types/sequence-editor.d.ts"
+    },
     "./classes/services/EditorWorkerService": {
       "types": "./src/classes/services/EditorWorkerService/index.ts",
       "import": "./src/classes/services/EditorWorkerService/index.ts"
@@ -105,9 +108,9 @@
       "types": "./src/classes/workers/EngineWorker/index.ts",
       "import": "./src/classes/workers/EngineWorker/index.ts"
     },
-    "./components/app/App": {
-      "types": "./src/components/app/App/index.ts",
-      "import": "./src/components/app/App/index.ts"
+    "./components/app/SequenceEditorApp": {
+      "types": "./src/components/app/SequenceEditorApp/index.ts",
+      "import": "./src/components/app/SequenceEditorApp/index.ts"
     },
     "./components/ui/SequenceEditor": {
       "types": "./src/components/ui/SequenceEditor/index.ts",
@@ -165,6 +168,10 @@
       "types": "./src/stores/sequenceEditorStore/index.ts",
       "import": "./src/stores/sequenceEditorStore/index.ts"
     },
+    "./theme/demoTheme": {
+      "types": "./src/theme/demoTheme/index.ts",
+      "import": "./src/theme/demoTheme/index.ts"
+    },
     "./utils/EditorUtil": {
       "types": "./src/utils/EditorUtil/index.ts",
       "import": "./src/utils/EditorUtil/index.ts"
@@ -184,6 +191,10 @@
   },
   "publishConfig": {
     "exports": {
+      "./types": {
+        "types": "./dist/@types/sequence-editor.d.ts",
+        "import": "./dist/@types/sequence-editor.d.ts"
+      },
       "./classes/services/EditorWorkerService": {
         "types": "./dist/classes/services/EditorWorkerService/index.d.ts",
         "import": "./dist/classes/services/EditorWorkerService/index.js"
@@ -200,9 +211,9 @@
         "types": "./dist/classes/workers/EngineWorker/index.d.ts",
         "import": "./dist/classes/workers/EngineWorker/index.js"
       },
-      "./components/app/App": {
-        "types": "./dist/components/app/App/index.d.ts",
-        "import": "./dist/components/app/App/index.js"
+      "./components/app/SequenceEditorApp": {
+        "types": "./dist/components/app/SequenceEditorApp/index.d.ts",
+        "import": "./dist/components/app/SequenceEditorApp/index.js"
       },
       "./components/ui/SequenceEditor": {
         "types": "./dist/components/ui/SequenceEditor/index.d.ts",
@@ -259,6 +270,10 @@
       "./stores/sequenceEditorStore": {
         "types": "./dist/stores/sequenceEditorStore/index.d.ts",
         "import": "./dist/stores/sequenceEditorStore/index.js"
+      },
+      "./theme/demoTheme": {
+        "types": "./dist/theme/demoTheme/index.d.ts",
+        "import": "./dist/theme/demoTheme/index.js"
       },
       "./utils/EditorUtil": {
         "types": "./dist/utils/EditorUtil/index.d.ts",

@@ -48,6 +48,7 @@ import { EditorUtil } from '../../../utils/EditorUtil';
 import { EngineErrorUtil } from '../../../utils/EngineErrorUtil';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorSearchBar } from '../SequenceEditorSearchBar';
+import type { SequenceEditorRealignModalRefMethods } from '../SequenceEditorRealignModal';
 import { SequenceEditorRealignModal } from '../SequenceEditorRealignModal';
 
 import { SequenceEditorStatusBar } from './SequenceEditorStatusBar';
@@ -55,12 +56,14 @@ import type { SequenceEditorGotoPositionDialogRefMethods } from './SequenceEdito
 import { SequenceEditorGotoPositionDialog } from './SequenceEditorGotoPositionDialog';
 
 export const SequenceEditor = () => {
+  const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
   const setIsRealigning = useStore(sequenceEditorStore, (state) => state.setIsRealigning);
   const setLatestMessage = useStore(sequenceEditorStore, (state) => state.setLatestMessage);
   const setMeta = useStore(sequenceEditorStore, (state) => state.setMeta);
   const setSelection = useStore(sequenceEditorStore, (state) => state.setSelection);
   const sequenceEditorGotoPositionDialogRef = useRef<null | SequenceEditorGotoPositionDialogRefMethods>(null);
+  const sequenceEditorRealignModalRef = useRef<null | SequenceEditorRealignModalRefMethods>(null);
   const editorService = useMemo(() => container.resolve(EditorWorkerService), []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const editorAssemblyRef = useRef<EditorAssembly | null>(null);
@@ -85,6 +88,14 @@ export const SequenceEditor = () => {
   const pendingVisibleRangeRef = useRef<null | VisibleGridRangeWithArguments>(null);
   const processingVisibleRangeRef = useRef(false);
   const theme = useTheme();
+
+  useEffect(() => {
+    if (isRealigning) {
+      sequenceEditorRealignModalRef.current?.open();
+    } else {
+      sequenceEditorRealignModalRef.current?.close();
+    }
+  }, [isRealigning]);
 
   const updateScrollbars = useCallback(() => {
     const geometry = geometrySubject.data;
@@ -980,7 +991,7 @@ export const SequenceEditor = () => {
         onGotoPosition={onGotoPosition}
         ref={sequenceEditorGotoPositionDialogRef}
       />
-      <SequenceEditorRealignModal />
+      <SequenceEditorRealignModal ref={sequenceEditorRealignModalRef} />
     </Box>
   );
 };

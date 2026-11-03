@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.5.1...phylogeny-viewer-frontend-v1.6.0) (2026-11-03)
+
+
+### Features
+
+* **frontent:** custom palette ([#79](https://github.com/RIVM-bioinformatics/loculus-tools/issues/79)) ([c22760b](https://github.com/RIVM-bioinformatics/loculus-tools/commit/c22760b2e3ae802b0c9911163c785959f77bdaf2))
+
 ## [1.5.1](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.5.0...phylogeny-viewer-frontend-v1.5.1) (2026-11-02)
 
 

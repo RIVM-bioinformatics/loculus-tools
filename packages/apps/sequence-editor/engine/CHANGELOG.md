@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.4.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.3.0...sequence-editor-wasm-v0.4.0) (2026-11-03)
+
+
+### Features
+
+* **sequence-editor, engine:** add mafft to cargo dependencies ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, engine:** add max output cells limit for MAFFT alignment (preflight check) ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, engine:** add standalone apply_aligned_fasta and align_fasta functions for sequence alignment ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, engine:** implement initialization of secondary AlignmentWorker as part of the EditorWorkerService for analysis and termination ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, engine:** implement MAFFT-based sequence alignment and realignment functionality using `FFT-NS-1` ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, engine:** implement MAFFT-based sequence alignment and realignment functionality using `FFT-NS-1` ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, frontend:** add a secondary worker; AlignerWorker for MAFFT sequence alignment ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, frontend:** add align button to sequence editor page header ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, frontend:** add an 'isRealigning' state to frontend data store ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, frontend:** add realign functionality to EditorWorker and EngineWorker ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, frontend:** add SequenceEditorRealignModal and integrate realignment cancellation ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor:** enhance horizontal move actions to support multi-row selectors ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c)), closes [#31](https://github.com/RIVM-bioinformatics/loculus-tools/issues/31)
+* **sequence-editor:** refine horizontal movement logic to handle edge cases and improve selection updates ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+
+
+### Bug Fixes
+
+* **dependencies:** specify MAFFT version with default features disabled ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, engine:** accept lowercase residues in apply_aligned_fasta and display errors emitted from realign function ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, frontend:** implement abort handling for realignment process ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, frontend:** improve abort handling in alignment process ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, frontend:** Update aria-label for re-align button to reflect realigning state ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+* **sequence-editor, frontend:** Update tooltip and aria-label for re-align button ([06d2263](https://github.com/RIVM-bioinformatics/loculus-tools/commit/06d226303bbd57347b924a5aa56f202caf6f8b3c))
+
 ## [0.3.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.2.0...sequence-editor-wasm-v0.3.0) (2026-10-20)
 
 

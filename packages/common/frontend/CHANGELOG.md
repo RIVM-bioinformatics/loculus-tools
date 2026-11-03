@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.8.0...common-frontend-v0.9.0) (2026-11-03)
+
+
+### Features
+
+* **frontent:** custom palette ([#79](https://github.com/RIVM-bioinformatics/loculus-tools/issues/79)) ([c22760b](https://github.com/RIVM-bioinformatics/loculus-tools/commit/c22760b2e3ae802b0c9911163c785959f77bdaf2))
+
 ## [0.8.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.7.0...common-frontend-v0.8.0) (2026-10-30)
 
 

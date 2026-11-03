@@ -166,7 +166,7 @@ export const SequenceEditorPageDrawerColorForm = <TSymbol extends string, >({
   const onExportPalette = useCallback(() => {
     const paletteExport = {
       ...currentPalette,
-      $schema: new URL(PALETTE_SCHEMA_URL_PATH, UrlUtil.getBaseURLWithPath()).href,
+      $schema: UrlUtil.getBaseURLWithPath() + PALETTE_SCHEMA_URL_PATH,
     };
     const file = new Blob([JSON.stringify(paletteExport, null, 2)], {
       type: 'application/json',

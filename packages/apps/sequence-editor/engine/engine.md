@@ -100,6 +100,8 @@ crate-type = ["cdylib", "rlib"]   # cdylib → .wasm; rlib → native tests
 [dependencies]
 wasm-bindgen = "0.2.125"
 js-sys = "0.3.77"                 # requires 0.3.x; "0.2" resolves to an ancient broken version
+serde-wasm-bindgen = "0.6"
+mafft = "0.2.0"                   # pure-Rust MAFFT v7.526 implementation
 
 [dependencies.serde]
 version = "1.0"
@@ -449,7 +451,27 @@ Reorder rows without character constraints, updating both `sequences` and `names
 - **Undo History & No-Op Rule**: Every row movement records at most **one** `StructuralSnapshot` undo command (capturing both sequences and names). If the resulting order is identical to the current order (e.g. attempting to move rows already at boundary), no snapshot is recorded.
 - Returns `Ok(())`.
 
-### 5.7 Structured errors
+### 5.7 Sequence re-alignment (`realign`)
+
+Re-aligns all loaded sequences across the whole matrix using the pure-Rust `mafft` crate (`AlignmentMode::FftNs2` with `ScoringModel::Dna` and `with_retree(1)` for FFT-NS-1).
+
+- Safe no-op when fewer than 2 sequences are loaded (no snapshot recorded).
+- Enforces size bounds (`MAX_ALIGNMENT_SEQUENCES = 1,000`, `MAX_ALIGNMENT_TOTAL_RESIDUES = 5,000,000`, and `MAX_ALIGNMENT_OUTPUT_CELLS = 500,000,000`) returning `InputTooLarge` if exceeded to prevent WASM linear memory exhaustion.
+- Strips existing gap characters (`-`) prior to invoking MAFFT progressive alignment.
+- Preserves all-gap or empty rows mid-edit, emitting them as uniform all-gap rows with length equal to the aligned width.
+- Requires at least 2 sequences containing non-gap nucleotide residues; rejects with `EmptySequence` error before capturing an undo snapshot if fewer than 2 sequences have residues.
+- Unaligned/ragged sequences are progressively aligned; `alignment_width` is updated to the maximum sequence length after alignment.
+- Captures a `StructuralSnapshot` prior to mutating matrix, names, and width, enabling complete multi-level transactional `undo()` and `redo()`.
+- Invalidates and clears `aminoacid_sequences` cache so subsequent translated views reflect the new alignment coordinates.
+- Returns `Ok(())`.
+
+### 5.8 External alignment integration (`apply_aligned_fasta` & `align_fasta`)
+
+To support non-blocking and cancelable sequence re-alignment, the engine provides:
+- Standalone `align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>`: Computes MAFFT FFT-NS-1 on an unaligned or gapped FASTA string, suitable for execution inside an ephemeral worker without initializing the full engine. Preserves all-gap rows and returns formatted FASTA or returns `StructuredEngineError` if UTF-8 encoding or validation fails.
+- Method `apply_aligned_fasta(&mut self, fasta_content: &str) -> Result<(), StructuredEngineError>`: Validates that sequence counts match, all aligned rows have uniform equal lengths, sequence headers and order match the current matrix, and ungapped residue identities are strictly conserved. Takes a `StructuralSnapshot` onto `undo_stack`, replaces the nucleotide matrix, updates `alignment_width`, and clears `aminoacid_sequences`.
+
+### 5.9 Structured errors
 
 WASM-facing edit methods and `load_fasta` return
 `Result<_, StructuredEngineError>`. The
@@ -558,6 +580,8 @@ Returns `true` if a redo was applied, `false` if the redo stack is empty.
   commands and still replay correctly in sequence.
 - `Substitutions` commands pushed during undo/redo always keep row/base vectors
   aligned (same length, same index mapping).
+- `undo()` and `redo()` clear the cached `aminoacid_sequences` so translated
+  views remain consistent with restored nucleotide states.
 
 ---
 

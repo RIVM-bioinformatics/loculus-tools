@@ -33,6 +33,7 @@ export interface SequenceEditorStoreActions extends FastaDataStoreActions {
   setAminoAcidPalette: (palette: AminoAcidPalette) => void;
   setCustomAminoAcidPalette: (palette: AminoAcidPalette) => void;
   setCustomNucleotidePalette: (palette: NucleotidePalette) => void;
+  setIsRealigning: (isRealigning: boolean) => void;
   setLatestMessage: (message: null | string) => void;
   setMeta: (meta: EngineMeta | null) => void;
   setNucleotidePalette: (palette: NucleotidePalette) => void;
@@ -46,6 +47,7 @@ export interface SequenceEditorStoreState extends FastaDataStoreState {
   aminoAcidPalette: AminoAcidPalette;
   customAminoAcidPalette: AminoAcidPalette;
   customNucleotidePalette: NucleotidePalette;
+  isRealigning: boolean;
   latestMessage: null | string;
   meta: EngineMeta | null;
   nucleotidePalette: NucleotidePalette;
@@ -66,6 +68,7 @@ const createSequenceEditorStoreInitialState = (): SequenceEditorStoreState => ({
     name: CUSTOM_PALETTE_NAME,
     paletteColors: { ...ALI_VIEW_DEFAULT_NUCLEOTIDE_PALETTE.paletteColors },
   },
+  isRealigning: false,
   latestMessage: null,
   meta: null,
   nucleotidePalette: ALI_VIEW_DEFAULT_NUCLEOTIDE_PALETTE,
@@ -92,6 +95,7 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
         setAminoAcidPalette: (palette: AminoAcidPalette) => set({ aminoAcidPalette: palette }),
         setCustomAminoAcidPalette: (palette: AminoAcidPalette) => set({ customAminoAcidPalette: palette }),
         setCustomNucleotidePalette: (palette: NucleotidePalette) => set({ customNucleotidePalette: palette }),
+        setIsRealigning: (isRealigning: boolean) => set({ isRealigning }),
         setLatestMessage: (message: null | string) => set({ latestMessage: message }),
         setMeta: (meta: EngineMeta | null) => set({ meta }),
         setNucleotidePalette: (palette: NucleotidePalette) => set({ nucleotidePalette: palette }),

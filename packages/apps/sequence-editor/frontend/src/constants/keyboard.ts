@@ -122,6 +122,21 @@ export const KEYBOARD_SHORTCUTS: { [key: string]: KeyboardShortcut } = {
     description: 'Move selection up',
     shortcut: { code: 'ArrowUp' },
   },
+  pasteSequences: {
+    callback: () => {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+        navigator.clipboard.readText().then((text) => {
+          if (text) {
+            container.resolve(SequenceEditorEventBusService).emit('onPasteFasta', text);
+          }
+        }).catch(() => {
+          // Clipboard read may be blocked if not initiated by direct user gesture
+        });
+      }
+    },
+    description: 'Paste sequences',
+    shortcut: { key: 'v', modifiers: [['Meta'], ['Control']] },
+  },
   redo: {
     callback: emitVoid('onRedo'),
     description: 'Redo',

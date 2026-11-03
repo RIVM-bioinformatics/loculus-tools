@@ -217,13 +217,32 @@ fn export_tracks_undo_and_redo_state() {
 }
 
 #[test]
-fn reload_clears_previous_state() {
+fn reload_prepends_onto_existing_and_reset_clears() {
     let mut e = engine_with_sample();
     assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 8);
+
+    // Prepend without reset adds to existing sequences
+    e.load_fasta(">only\nAT").expect("valid prepended FASTA");
+    assert_eq!(e.get_sequence_count(), 4);
+    assert_eq!(e.get_alignment_width(), 8);
+    assert_eq!(e.get_name(0), "only");
+    assert_eq!(e.get_name(1), "seq1 first record");
+    assert_eq!(e.undo_depth(), 1);
+
+    // Reset clears all sequences, width, and history
+    e.reset();
+    assert_eq!(e.get_sequence_count(), 0);
+    assert_eq!(e.get_alignment_width(), 0);
+    assert_eq!(e.undo_depth(), 0);
+    assert_eq!(e.redo_depth(), 0);
+
+    // Loading onto reset engine starts fresh with undo_depth == 0
     e.load_fasta(">only\nAT").expect("valid replacement FASTA");
     assert_eq!(e.get_sequence_count(), 1);
     assert_eq!(e.get_alignment_width(), 2);
     assert_eq!(e.get_name(0), "only");
+    assert_eq!(e.undo_depth(), 0);
 }
 
 #[test]
@@ -2498,4 +2517,176 @@ fn realign_rejects_input_exceeding_max_output_cells() {
     let err = res.unwrap_err();
     assert_eq!(err.code, "InputTooLarge");
     assert!(err.message.contains("projected output matrix size"));
+}
+
+#[test]
+fn load_fasta_prepends_in_order_ahead_of_existing_rows() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seqA\nAAAA\n>seqB\nCCCC").unwrap();
+    assert_eq!(e.get_sequence_count(), 2);
+    assert_eq!(e.get_name(0), "seqA");
+    assert_eq!(e.get_name(1), "seqB");
+    assert_eq!(e.undo_depth(), 0);
+
+    // Prepend a multi-sequence batch
+    let count = e.load_fasta(">seq1\nTTTT\n>seq2\nGGGG").unwrap();
+    assert_eq!(count, 4);
+    assert_eq!(e.get_sequence_count(), 4);
+    assert_eq!(e.get_name(0), "seq1");
+    assert_eq!(e.get_name(1), "seq2");
+    assert_eq!(e.get_name(2), "seqA");
+    assert_eq!(e.get_name(3), "seqB");
+    assert_eq!(e.get_base(0, 0), b'T');
+    assert_eq!(e.get_base(1, 0), b'G');
+    assert_eq!(e.get_base(2, 0), b'A');
+    assert_eq!(e.get_base(3, 0), b'C');
+    assert_eq!(e.undo_depth(), 1);
+}
+
+#[test]
+fn load_fasta_updates_alignment_width_to_max_existing_and_batch() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGCATGC").unwrap();
+    assert_eq!(e.get_alignment_width(), 8);
+
+    // Case 1: Prepending narrower sequence (width 4) leaves alignment_width at 8
+    e.load_fasta(">short\nACGT").unwrap();
+    assert_eq!(e.get_sequence_count(), 2);
+    assert_eq!(e.get_alignment_width(), 8);
+    assert_eq!(e.get_row_length(0), 4);
+    assert_eq!(e.get_row_length(1), 8);
+
+    // Case 2: Prepending wider sequence (width 12) expands alignment_width to 12
+    e.load_fasta(">long\nATGCATGCATGC").unwrap();
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 12);
+    assert_eq!(e.get_row_length(0), 12);
+    assert_eq!(e.get_row_length(1), 4);
+    assert_eq!(e.get_row_length(2), 8);
+
+    // Viewport check: shorter rows pad columns 4..12 with spaces
+    let mut out = [0u8; 12];
+    let written = e.update_viewport_into(1, 1, 0, 11, &mut out);
+    assert_eq!(written, 12);
+    assert_eq!(&out[0..4], b"ACGT");
+    assert_eq!(&out[4..12], &[b' '; 8]);
+}
+
+#[test]
+fn load_fasta_undo_redo_prepends() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 8);
+    assert_eq!(e.undo_depth(), 0);
+
+    // Prepend wider sequence
+    e.load_fasta(">prepended\nATGCATGCATGC").unwrap();
+    assert_eq!(e.get_sequence_count(), 4);
+    assert_eq!(e.get_alignment_width(), 12);
+    assert_eq!(e.get_name(0), "prepended");
+    assert_eq!(e.undo_depth(), 1);
+
+    // Undo restores original 3 sequences and width 8
+    assert!(e.undo());
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 8);
+    assert_eq!(e.get_name(0), "seq1 first record");
+    assert_eq!(e.undo_depth(), 0);
+    assert_eq!(e.redo_depth(), 1);
+
+    // Redo restores prepended sequence and width 12
+    assert!(e.redo());
+    assert_eq!(e.get_sequence_count(), 4);
+    assert_eq!(e.get_alignment_width(), 12);
+    assert_eq!(e.get_name(0), "prepended");
+    assert_eq!(e.undo_depth(), 1);
+    assert_eq!(e.redo_depth(), 0);
+}
+
+#[test]
+fn load_fasta_conditional_snapshot_fresh_vs_prior_history() {
+    // 1. Fresh engine: no undo snapshot created
+    let mut e = MsaEngine::new();
+    assert_eq!(e.undo_depth(), 0);
+    e.load_fasta(">s1\nATGC").unwrap();
+    assert_eq!(e.undo_depth(), 0);
+
+    // 2. Prepend onto existing sequences: creates undo snapshot
+    e.load_fasta(">s2\nCGTA").unwrap();
+    assert_eq!(e.undo_depth(), 1);
+
+    // 3. Reset engine: clears undo depth to 0
+    e.reset();
+    assert_eq!(e.undo_depth(), 0);
+    assert_eq!(e.redo_depth(), 0);
+    assert_eq!(e.get_sequence_count(), 0);
+
+    // 4. Loading onto reset engine: stays at undo_depth == 0
+    e.load_fasta(">s3\nGGCC").unwrap();
+    assert_eq!(e.undo_depth(), 0);
+}
+
+#[test]
+fn reset_clears_all_state_and_caches() {
+    let mut e = engine_with_sample();
+    e.mutate_base(&[0], &[0], b'C').unwrap();
+    assert_eq!(e.undo_depth(), 1);
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 8);
+
+    let mut out = [0u8; 8];
+    e.update_viewport_into(0, 0, 0, 7, &mut out);
+
+    e.reset();
+    assert_eq!(e.get_sequence_count(), 0);
+    assert_eq!(e.get_alignment_width(), 0);
+    assert_eq!(e.undo_depth(), 0);
+    assert_eq!(e.redo_depth(), 0);
+    assert_eq!(e.get_name(0), "");
+    assert_eq!(e.get_base(0, 0), 0);
+    assert_eq!(e.get_row_length(0), 0);
+    assert_eq!(e.export_fasta_bytes(true).len(), 0);
+    assert_eq!(e.export_fasta_bytes(false).len(), 0);
+}
+
+#[test]
+fn load_fasta_empty_input_is_noop_without_undo() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.undo_depth(), 0);
+
+    let count = e.load_fasta("   \n\n  ").unwrap();
+    assert_eq!(count, 3);
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.undo_depth(), 0);
+}
+
+#[test]
+fn load_fasta_preserves_prior_substitutions_across_prepend_undo() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.get_base(0, 0), b'A');
+
+    // Mutate base at (0, 0) from A to C
+    e.mutate_base(&[0], &[0], b'C').unwrap();
+    assert_eq!(e.get_base(0, 0), b'C');
+    assert_eq!(e.undo_depth(), 1);
+
+    // Prepend a sequence -> new row 0 is prepended, old row 0 becomes row 1
+    e.load_fasta(">new_top\nTTTT").unwrap();
+    assert_eq!(e.get_sequence_count(), 4);
+    assert_eq!(e.get_name(0), "new_top");
+    assert_eq!(e.get_base(1, 0), b'C');
+    assert_eq!(e.undo_depth(), 2);
+
+    // Undo prepend -> restores old row 0 with mutated base 'C'
+    assert!(e.undo());
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_name(0), "seq1 first record");
+    assert_eq!(e.get_base(0, 0), b'C');
+    assert_eq!(e.undo_depth(), 1);
+
+    // Undo mutation -> restores original base 'A'
+    assert!(e.undo());
+    assert_eq!(e.get_base(0, 0), b'A');
+    assert_eq!(e.undo_depth(), 0);
 }

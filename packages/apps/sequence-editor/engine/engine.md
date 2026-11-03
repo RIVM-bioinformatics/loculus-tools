@@ -190,18 +190,24 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 | Method | Signature (JS-facing) | Description |
 |--------|----------------------|-------------|
 | `new()` | `new MsaEngine()` | Construct an empty engine. |
+| `reset()` | `reset(): void` | Reset the engine to its initial empty state, clearing all sequences, names, caches, and undo/redo history. |
 
 ### 4.2 Loading
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `load_fasta` | `load_fasta(fasta: string): number` | Validate and parse FASTA atomically; throw a structured error on invalid input. |
+| `load_fasta` | `load_fasta(fasta: string): number` | Validate and parse FASTA atomically; prepend sequences ahead of existing rows, update width, and create an undo snapshot if prior state exists. Throw a structured error on invalid input. |
 
 `load_fasta` behavior:
 
 - Parses into temporary sequence/name buffers first. Only after the complete
-  input is valid does it replace existing data and clear undo/redo history;
+  input is valid are sequences prepended ahead of existing rows;
   invalid input leaves the current engine state intact.
+- If the engine already contains state (sequences or undo/redo history), a
+  `StructuralSnapshot` is recorded so the addition can be undone (`Ctrl+Z` / `Cmd+Z`).
+  Initial load into a fresh or reset engine keeps `undo_depth == 0`.
+- Empty or whitespace-only input is a no-op that returns the current sequence
+  count without creating an undo snapshot.
 - Scans line by line. A line starting with `>` begins a new record; the complete
   trimmed header after `>` becomes the row name. Validation diagnostics use the
   first whitespace-delimited token as the sequence ID.
@@ -215,12 +221,12 @@ raw pointers are only meaningful within that worker's WASM linear memory.
   1-based sequence position, and 1-based input line. Scalar context fields
   mirror the first occurrence.
 - Sequence data before the first header rejects with `InvalidFastaFormat`.
-- The **longest** sequence sets `alignment_width` (not the first). Subsequent
-  sequences are loaded as-is even if they differ in length — the engine does
-  **not** enforce uniform length. The caller can detect ragged alignments via
-  `get_row_length`.
+- The global `alignment_width` is updated to `max(existing_width, batch_width)`.
+  Sequences are loaded as-is even if they differ in length — the engine does
+  **not** enforce uniform length. Shorter sequences pad with spaces during
+  viewport extraction. The caller can detect ragged alignments via `get_row_length`.
 - Blank lines are ignored.
-- Returns the number of sequences parsed.
+- Returns the total number of sequences in the engine.
 
 > **Assumption:** The input is expected to be *pre-aligned* (as provided by
 > Loculus). The engine does not perform alignment itself.

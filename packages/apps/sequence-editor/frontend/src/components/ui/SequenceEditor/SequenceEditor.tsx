@@ -1,5 +1,6 @@
 import { container } from 'tsyringe';
 import type {
+  ClipboardEvent,
   MouseEvent as ReactMouseEvent,
   UIEvent,
 } from 'react';
@@ -206,19 +207,25 @@ export const SequenceEditor = () => {
 
   useEffect(() => {
     const perform = async () => {
-      cachedGridRangeWithViewPortResultRef.current = null;
-      cachedGridRangeWithRowNamesRef.current = null;
-      scrollSubject.next({ scrollLeft: 0, scrollTop: 0 });
-      selectionSubject.next(null);
       await editorService.initialize();
-      await editorService.loadFasta(rawFasta);
+      const currentMeta = await editorService.getMetaData();
+      if (currentMeta.sequenceCount === 0) {
+        cachedGridRangeWithViewPortResultRef.current = null;
+        cachedGridRangeWithRowNamesRef.current = null;
+        scrollSubject.next({ scrollLeft: 0, scrollTop: 0 });
+        selectionSubject.next(null);
+        const storeRawFasta = sequenceEditorStore.getState().rawFasta;
+        if (storeRawFasta) {
+          await editorService.loadFasta(storeRawFasta);
+        }
+      }
       await updateMeta();
       updateVisibleRange();
     };
     perform().catch((error) => {
       console.error(error);
     });
-  }, [editorService, rawFasta, scrollSubject, selectionSubject, updateMeta, updateVisibleRange]);
+  }, [editorService, scrollSubject, selectionSubject, updateMeta, updateVisibleRange]);
 
   useEffect(() => {
     let animationFrame: null | number = null;
@@ -735,12 +742,33 @@ export const SequenceEditor = () => {
         const fasta = await editorService.exportUngappedFasta();
         ExportUtil.downloadFastaFile(fasta, 'sequence.ungapped.fasta');
       }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onPasteFasta', async (pastedFasta) => {
+        try {
+          await sequenceEditorStore.getState().setData(pastedFasta);
+        } catch (error) {
+          console.error('Failed to paste FASTA:', error);
+        }
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onSequencesPrepended', async () => {
+        cachedGridRangeWithViewPortResultRef.current = null;
+        cachedGridRangeWithRowNamesRef.current = null;
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = 0;
+        }
+        scrollSubject.next({ ...scrollSubject.data, scrollTop: 0 });
+        selectionSubject.next(null);
+        initialSelectionRef.current = null;
+        await updateMeta();
+        updateVisibleRange();
+      }),
     ];
     return () => {
       removers.forEach(remover => remover());
       editorService.cancelRealign();
     };
-  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject, setIsRealigning, setLatestMessage]);
+  }, [editorService, selectionSubject, scrollSubject, updateMeta, updateVisibleRange, metaSubject, setIsRealigning, setLatestMessage]);
 
   useEffect(() => {
     updateVisibleRange();
@@ -902,6 +930,19 @@ export const SequenceEditor = () => {
     selectionDragRef.current = null;
   }, []);
 
+  const onContainerPaste = useCallback((event: ClipboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (target && ['input', 'select', 'textarea'].includes(target.tagName.toLowerCase())) {
+      return;
+    }
+    const text = event.clipboardData?.getData('text/plain');
+    if (!text?.trim()) {
+      return;
+    }
+    event.preventDefault();
+    container.resolve(SequenceEditorEventBusService).emit('onPasteFasta', text);
+  }, []);
+
   const onGotoPosition = useCallback((x: null | number, y: null | number) => {
     EditorUtil.scrollToPosition({
       geometry: geometrySubject.data,
@@ -927,6 +968,7 @@ export const SequenceEditor = () => {
       <SequenceEditorSearchBar />
       <Box
         onMouseUp={onContainerMouseUp}
+        onPaste={onContainerPaste}
         ref={containerRef}
         sx={{
           height: `calc(100% - ${theme.spacing(3)})`,

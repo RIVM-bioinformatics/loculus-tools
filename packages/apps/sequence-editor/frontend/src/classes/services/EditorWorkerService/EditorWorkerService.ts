@@ -14,7 +14,6 @@ import type {
 } from '../../../models/editor.models';
 import { EDITOR_DIRECTION } from '../../../models/editor.models';
 import { EngineErrorUtil } from '../../../utils/EngineErrorUtil/EngineErrorUtil';
-import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 
 @singleton()
 export class EditorWorkerService {
@@ -23,6 +22,8 @@ export class EditorWorkerService {
   private commandQueue: Promise<void> = Promise.resolve();
   private engineWorkerProxyInstance: null | Remote<EngineWorkerApi> = null;
   private isRealigning = false;
+  private latestMessage: null | string = null;
+  private messageHandler: ((message: null | string) => void) | null = null;
   private realignAbortController: AbortController | null = null;
   private readonly workerReady: Promise<void>;
 
@@ -100,9 +101,9 @@ export class EditorWorkerService {
     });
   }
 
-  public async loadFasta(fasta: string): Promise<void> {
-    return this.runCommand(async () => {
-      await this.engineWorkerProxy.load(fasta);
+  public async loadFasta(fasta: string): Promise<number> {
+    return await this.runCommand(async () => {
+      return await this.engineWorkerProxy.load(fasta);
     });
   }
 
@@ -244,10 +245,21 @@ export class EditorWorkerService {
     });
   }
 
+  public async reset(): Promise<void> {
+    this.cancelRealign();
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.reset();
+    });
+  }
+
   public async search(query: string, checkRecordNames: boolean): Promise<EngineSearchResult> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.search(query, checkRecordNames);
     });
+  }
+
+  public setMessageHandler(handler: (message: null | string) => void): void {
+    this.messageHandler = handler;
   }
 
   public async translate(bounds: ViewportBounds, readingFrame: number): Promise<EngineViewportResult> {
@@ -270,16 +282,18 @@ export class EditorWorkerService {
 
   private async runCommand<T>(command: () => Promise<T>): Promise<T> {
     const queuedCommand = this.commandQueue.then(async (): Promise<T> => {
-      const { setLatestMessage } = sequenceEditorStore.getState();
       try {
         await this.workerReady;
         const result = await command();
-        if (sequenceEditorStore.getState().latestMessage) {
-          setLatestMessage(null);
+        if (this.latestMessage) {
+          this.latestMessage = null;
+          this.messageHandler?.(null);
         }
         return result;
       } catch (error: unknown) {
-        setLatestMessage(EngineErrorUtil.getEngineErrorMessage(error));
+        const message = EngineErrorUtil.getEngineErrorMessage(error);
+        this.latestMessage = message;
+        this.messageHandler?.(message);
         console.error('COMMAND ERROR', error);
         throw error;
       }

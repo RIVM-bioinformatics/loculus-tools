@@ -500,34 +500,59 @@ impl MsaEngine {
         }
     }
 
-    /// Parse FASTA content and populate the engine.
+    /// Reset the engine to its initial empty state, clearing all sequences,
+    /// names, cached amino-acid translations, viewport buffer, and undo/redo history.
+    #[wasm_bindgen]
+    pub fn reset(&mut self) {
+        self.nucleotide_sequences.clear();
+        self.aminoacid_sequences.clear();
+        self.names.clear();
+        self.alignment_width = 0;
+        self.viewport_buffer.clear();
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+    }
+
+    /// Parse FASTA content and prepend the parsed sequences in order ahead
+    /// of any existing rows.
     ///
-    /// Performs a line-by-line scan. Sequences may span multiple lines;
-    /// a new sequence begins at any line starting with `>`. Whitespace and
-    /// blank lines are ignored. All sequence bytes are uppercased.
+    /// If the engine already contains state (sequences or undo/redo history),
+    /// a `StructuralSnapshot` is recorded so the addition can be undone.
+    /// If the engine is empty and has no history, no undo record is created
+    /// (`undo_depth == 0`).
     ///
-    /// The sequences are assumed to be pre-aligned as this is given from
-    /// loculus as a provider of the sequence data. After all sequences are
-    /// parsed, `alignment_width` is set to the length of the longest
-    /// sequence. Shorter sequences are NOT automatically padded.
-    /// Callers can detect ragged alignments via `get_row_length`.
+    /// The global `alignment_width` is updated to `max(existing_width, batch_width)`.
+    /// Shorter sequences are NOT automatically padded in memory; callers can
+    /// detect ragged alignments via `get_row_length` and viewport extractions
+    /// pad with spaces.
     ///
-    /// Returns the sequence count on success. Invalid sequence characters
+    /// Returns the total sequence count on success. Invalid sequence characters
     /// reject the load without changing the current engine state.
     pub fn load_fasta(&mut self, fasta_content: &str) -> Result<usize, StructuredEngineError> {
-        let (staged_names, staged_sequences) = parse_fasta_records(fasta_content)?;
-        let alignment_width = staged_sequences.iter().map(Vec::len).max().unwrap_or(0);
-        let sequence_count = staged_sequences.len();
+        let (mut staged_names, mut staged_sequences) = parse_fasta_records(fasta_content)?;
+        if staged_sequences.is_empty() {
+            return Ok(self.nucleotide_sequences.len());
+        }
+
+        let has_existing_state = !self.nucleotide_sequences.is_empty()
+            || !self.undo_stack.is_empty()
+            || !self.redo_stack.is_empty();
+
+        if has_existing_state {
+            self.record_structural_undo();
+        }
+
+        let batch_width = staged_sequences.iter().map(Vec::len).max().unwrap_or(0);
+        staged_sequences.append(&mut self.nucleotide_sequences);
+        staged_names.append(&mut self.names);
 
         self.nucleotide_sequences = staged_sequences;
         self.names = staged_names;
         self.aminoacid_sequences.clear();
-        self.alignment_width = alignment_width;
+        self.alignment_width = self.alignment_width.max(batch_width);
         self.viewport_buffer.clear();
-        self.undo_stack.clear();
-        self.redo_stack.clear();
 
-        Ok(sequence_count)
+        Ok(self.nucleotide_sequences.len())
     }
 
     /// Extract a windowed slice of the matrix into the reusable viewport buffer

@@ -42,6 +42,7 @@ interface EngineClient {
 
   // Operations
   load: (fasta: string) => Promise<number>;
+  reset: () => Promise<void>;
   viewport: (r: ViewportRequest) => Promise<ViewportResult & { bytes: Uint8Array }>;
   mutate: (rows: number[], col: number, base: string) => Promise<void>;
   insert: (rows: number[], col: number) => Promise<void>;
@@ -87,6 +88,15 @@ if (!engine.ready) {
 }
 ```
 
+### `reset(): Promise<void>`
+
+Resets the engine to its initial empty state, clearing all sequences, names,
+matrix width, viewport buffer, amino-acid translations, and undo/redo stacks.
+
+```ts
+await engine.reset();
+```
+
 ### `error: string | null`
 
 Set to the last error message surfaced by the worker (e.g. a WASM init failure
@@ -108,8 +118,8 @@ loops, where React state may not have flushed yet).
 
 ### `load(fasta: string): Promise<number>`
 
-Parses FASTA content into the engine and returns the **number of sequences**
-loaded.
+Parses FASTA content into the engine and returns the **total number of sequences**
+now in the engine.
 
 ```ts
 const count = await engine.load(">seq1\nATGCATGC\n>seq2\nATGGTG-A");
@@ -118,7 +128,14 @@ console.log(count); // 2
 
 **Behavior to know:**
 
-- Calling `load` **replaces** all previous data and clears the undo/redo history.
+- Calling `load` **prepends** parsed sequences in order ahead of any existing rows.
+- If the engine already contains state (sequences or undo/redo history), a
+  `StructuralSnapshot` is recorded before prepending, making the addition
+  undoable via `undo()`. An initial load into a fresh or reset engine keeps
+  `undoDepth === 0`.
+- Calling `load` with empty or whitespace-only input is a no-op that returns the
+  current sequence count without creating an undo snapshot.
+- The global alignment width updates to `max(existing_width, batch_width)`.
 - Sequence bytes are uppercased; internal whitespace is skipped; sequences may
   span multiple lines.
 - Sequence bodies accept only IUPAC nucleotides (`ACGTURYSWKMBDHVN`, either

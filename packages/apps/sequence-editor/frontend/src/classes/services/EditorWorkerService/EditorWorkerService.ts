@@ -22,6 +22,8 @@ export class EditorWorkerService {
   private alignerReject: ((reason?: unknown) => void) | null = null;
   private commandQueue: Promise<void> = Promise.resolve();
   private engineWorkerProxyInstance: null | Remote<EngineWorkerApi> = null;
+  private isRealigning = false;
+  private realignAbortController: AbortController | null = null;
   private readonly workerReady: Promise<void>;
 
   private get engineWorkerProxy(): Remote<EngineWorkerApi> {
@@ -31,8 +33,6 @@ export class EditorWorkerService {
     }
     return workerProxy;
   }
-  private isRealigning = false;
-  private realignAbortController: AbortController | null = null;
 
   public constructor() {
     this.workerReady = import(

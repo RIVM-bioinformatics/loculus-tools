@@ -8,7 +8,6 @@ export class UrlUtil {
     url.search = '';
     container.resolve(WindowService).window.history.replaceState(null, '', url.toString());
   }
-
   public static fastaLabelFromUrl(url: string): string {
     try {
       const urlObject = new URL(url);
@@ -20,6 +19,11 @@ export class UrlUtil {
     } catch {
       return 'remote-alignment.fasta';
     }
+  }
+
+  public static getBaseURLWithPath(): string {
+    const url = new URL(container.resolve(WindowService).window.location.href);
+    return `${url.protocol}//${url.host}/${url.pathname.split('/').filter(Boolean).shift()}`;
   }
 
   public static validateFastaUrl(url: string): string {

@@ -212,7 +212,7 @@ export const FastaDataImportDialog = withDialog<FastaDataImportDialogProps, Fast
               sx={{ fontWeight: 700 }}
               variant={'subtitle1'}
             >
-              {'1. FASTA Sequences (Required)'}
+              {'1. FASTA Sequences (required)'}
             </Typography>
           </Box>
           <Typography
@@ -288,7 +288,7 @@ export const FastaDataImportDialog = withDialog<FastaDataImportDialogProps, Fast
               sx={{ fontWeight: 700 }}
               variant={'subtitle1'}
             >
-              {'2. TSV Metadata (Optional)'}
+              {'2. TSV Metadata (optional)'}
             </Typography>
           </Box>
           <Typography
@@ -357,7 +357,7 @@ export const FastaDataImportDialog = withDialog<FastaDataImportDialogProps, Fast
     </>
   );
 }, {
-  defaultTitle: 'Load Phylogenetic Data',
+  defaultTitle: 'Load phylogenetic data',
   fullWidth: true,
   maxWidth: 'xl',
   testId: 'FastaDataImportDialog',

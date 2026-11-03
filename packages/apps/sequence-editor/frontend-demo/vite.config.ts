@@ -9,6 +9,7 @@ import svgr from 'vite-plugin-svgr';
 import { esmExternalRequirePlugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { findGitRootPath } from '@gen-epix/tools-lib';
+import { createPaletteSchemaPlugin } from '@rivm-loculus-tools/sequence-editor/vite/paletteSchemaPlugin';
 
 // eslint-disable-next-line import-x/extensions
 import packageJson from './package.json' with { type: 'json' };
@@ -47,6 +48,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    createPaletteSchemaPlugin(),
     react(),
     svgr(),
   ],

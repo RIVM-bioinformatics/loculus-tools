@@ -61,6 +61,12 @@ Export serializes the current engine state as deterministic, unwrapped FASTA wit
 
 The engine enforces IUPAC and gap constraints and applies multi-row operations atomically. The frontend refreshes metadata and viewport revisions after every mutation, undo, redo, reorder, or structural change.
 
+## Palette customization
+
+Settings provides separate nucleotide and amino-acid palettes, including a `Custom` option for each group. Each custom palette starts from the default colors and lets you edit background, text, selected-background, and selected-text colors for every symbol. The active and custom palettes are saved in local storage.
+
+Each group has its own Import and Export buttons for JSON palettes. Imported palettes must contain every symbol and four valid `#RRGGBB` colors per symbol. The JSON schema is served at `/assets/palette.schema.json` by both Vite development servers and is emitted as `frontend/dist/assets/palette.schema.json` during the library build.
+
 ## Checks And Development Commands
 
 ```bash
@@ -84,4 +90,4 @@ pnpm build-wasm
 
 ## Deliberately Deferred
 
-The first release does not include Loculus API integration, authentication, autosave, metadata tables, additional palette presets, amino-acid rendering, or deployment configuration. Amino-acid palette entries are stored for forward compatibility, but the editor is currently nucleotide-focused.
+The first release does not include Loculus API integration, authentication, autosave, metadata tables, additional built-in palette presets, amino-acid rendering, or deployment configuration. Amino-acid palette entries are stored for forward compatibility, but the editor is currently nucleotide-focused.

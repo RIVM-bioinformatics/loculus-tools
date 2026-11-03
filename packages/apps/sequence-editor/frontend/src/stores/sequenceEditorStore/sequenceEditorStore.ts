@@ -21,6 +21,7 @@ import {
   ALI_VIEW_DEFAULT_AMINO_ACID_PALETTE,
   ALI_VIEW_DEFAULT_NUCLEOTIDE_PALETTE,
 } from '../../constants';
+import { CUSTOM_PALETTE_NAME } from '../../models/palette.models';
 import type {
   AminoAcidPalette,
   NucleotidePalette,
@@ -30,6 +31,8 @@ export type SequenceEditorStore = SequenceEditorStoreActions & SequenceEditorSto
 
 export interface SequenceEditorStoreActions extends FastaDataStoreActions {
   setAminoAcidPalette: (palette: AminoAcidPalette) => void;
+  setCustomAminoAcidPalette: (palette: AminoAcidPalette) => void;
+  setCustomNucleotidePalette: (palette: NucleotidePalette) => void;
   setIsRealigning: (isRealigning: boolean) => void;
   setLatestMessage: (message: null | string) => void;
   setMeta: (meta: EngineMeta | null) => void;
@@ -42,6 +45,8 @@ export interface SequenceEditorStoreActions extends FastaDataStoreActions {
 
 export interface SequenceEditorStoreState extends FastaDataStoreState {
   aminoAcidPalette: AminoAcidPalette;
+  customAminoAcidPalette: AminoAcidPalette;
+  customNucleotidePalette: NucleotidePalette;
   isRealigning: boolean;
   latestMessage: null | string;
   meta: EngineMeta | null;
@@ -55,6 +60,14 @@ export interface SequenceEditorStoreState extends FastaDataStoreState {
 const createSequenceEditorStoreInitialState = (): SequenceEditorStoreState => ({
   ...createFastaDataStoreInitialState(),
   aminoAcidPalette: ALI_VIEW_DEFAULT_AMINO_ACID_PALETTE,
+  customAminoAcidPalette: {
+    name: CUSTOM_PALETTE_NAME,
+    paletteColors: { ...ALI_VIEW_DEFAULT_AMINO_ACID_PALETTE.paletteColors },
+  },
+  customNucleotidePalette: {
+    name: CUSTOM_PALETTE_NAME,
+    paletteColors: { ...ALI_VIEW_DEFAULT_NUCLEOTIDE_PALETTE.paletteColors },
+  },
   isRealigning: false,
   latestMessage: null,
   meta: null,
@@ -80,6 +93,8 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
           setSearchQuery('');
         },
         setAminoAcidPalette: (palette: AminoAcidPalette) => set({ aminoAcidPalette: palette }),
+        setCustomAminoAcidPalette: (palette: AminoAcidPalette) => set({ customAminoAcidPalette: palette }),
+        setCustomNucleotidePalette: (palette: NucleotidePalette) => set({ customNucleotidePalette: palette }),
         setIsRealigning: (isRealigning: boolean) => set({ isRealigning }),
         setLatestMessage: (message: null | string) => set({ latestMessage: message }),
         setMeta: (meta: EngineMeta | null) => set({ meta }),
@@ -105,6 +120,8 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
       name: 'LOCULUS-SEQUENCE-EDITOR-Configuration',
       partialize: (state) => ({
         aminoAcidPalette: state.aminoAcidPalette,
+        customAminoAcidPalette: state.customAminoAcidPalette,
+        customNucleotidePalette: state.customNucleotidePalette,
         nucleotidePalette: state.nucleotidePalette,
       }),
       storage: createJSONStorage(() => localStorage),

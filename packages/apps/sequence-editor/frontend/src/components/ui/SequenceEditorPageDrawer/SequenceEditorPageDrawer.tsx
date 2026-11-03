@@ -14,7 +14,6 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
-import InvertColorsIcon from '@mui/icons-material/InvertColors';
 import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined';
 import { useStore } from 'zustand';
 import { PageCommonDrawer } from '@rivm-loculus-tools/common-frontend/components/ui/PageCommonDrawer';
@@ -27,27 +26,36 @@ import {
   ALI_VIEW_FAST_NUCLEOTIDE_PALETTE,
   ALI_VIEW_SEA_VIEW_AMINO_ACID_PALETTE,
   ALI_VIEW_SEA_VIEW_NUCLEOTIDE_PALETTE,
+  AMINO_ACID_SYMBOL_LABELS,
+  AMINO_ACID_SYMBOLS,
+  NUCLEOTIDE_SYMBOL_LABELS,
+  NUCLEOTIDE_SYMBOLS,
 } from '../../../constants';
 import type {
   AminoAcidPalette,
   NucleotidePalette,
 } from '../../../models/palette.models';
+import { CUSTOM_PALETTE_NAME } from '../../../models/palette.models';
+import { PaletteUtil } from '../../../utils/PaletteUtil';
 
 import { SequenceEditorPageDrawerColorForm } from './SequenceEditorPageDrawerColorForm';
 import { SequenceEditorPageDrawerKeyboardShortcuts } from './SequenceEditorPageDrawerKeyboardShortcuts';
 
 enum ACCORDIONS {
-  AMINO_ACID_COLORS = 'AMINO_ACID_COLORS',
+  COLORS = 'COLORS',
   KEYBOARD_SHORTCUTS = 'KEYBOARD_SHORTCUTS',
   METADATA = 'METADATA',
-  NUCLEOTIDE_COLORS = 'NUCLEOTIDE_COLORS',
 }
 
 export const SequenceEditorPageDrawer = () => {
   const parsedMetadata = useStore(sequenceEditorStore, (state) => state.parsedMetadata);
   const aminoAcidPalette = useStore(sequenceEditorStore, (state) => state.aminoAcidPalette);
+  const customAminoAcidPalette = useStore(sequenceEditorStore, (state) => state.customAminoAcidPalette);
+  const customNucleotidePalette = useStore(sequenceEditorStore, (state) => state.customNucleotidePalette);
   const nucleotidePalette = useStore(sequenceEditorStore, (state) => state.nucleotidePalette);
   const setAminoAcidPalette = useStore(sequenceEditorStore, (state) => state.setAminoAcidPalette);
+  const setCustomAminoAcidPalette = useStore(sequenceEditorStore, (state) => state.setCustomAminoAcidPalette);
+  const setCustomNucleotidePalette = useStore(sequenceEditorStore, (state) => state.setCustomNucleotidePalette);
   const setNucleotidePalette = useStore(sequenceEditorStore, (state) => state.setNucleotidePalette);
   const meta = useStore(sequenceEditorStore, (state) => state.meta);
   const [expandedAccordions, setExpandedAccordions] = useState<ACCORDIONS[]>([]);
@@ -61,8 +69,7 @@ export const SequenceEditorPageDrawer = () => {
     setExpandedAccordions((prev) => prev.filter((p) => p !== panel));
   }, []);
 
-  const onColorsAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.NUCLEOTIDE_COLORS), [toggleAccordion]);
-  const onAminoAcidColorsAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.AMINO_ACID_COLORS), [toggleAccordion]);
+  const onColorsAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.COLORS), [toggleAccordion]);
   const onMetaDataAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.METADATA), [toggleAccordion]);
   const onKeyboardShortcutsAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.KEYBOARD_SHORTCUTS), [toggleAccordion]);
 
@@ -74,11 +81,17 @@ export const SequenceEditorPageDrawer = () => {
 
   const onNucleotidePaletteChange = useCallback((palette: NucleotidePalette) => {
     setNucleotidePalette(palette);
-  }, [setNucleotidePalette]);
+    if (palette.name === CUSTOM_PALETTE_NAME) {
+      setCustomNucleotidePalette(palette);
+    }
+  }, [setCustomNucleotidePalette, setNucleotidePalette]);
 
   const onAminoAcidPaletteChange = useCallback((palette: AminoAcidPalette) => {
     setAminoAcidPalette(palette);
-  }, [setAminoAcidPalette]);
+    if (palette.name === CUSTOM_PALETTE_NAME) {
+      setCustomAminoAcidPalette(palette);
+    }
+  }, [setAminoAcidPalette, setCustomAminoAcidPalette]);
 
   const nucleotidePalettes = useMemo(() => {
     return [
@@ -147,7 +160,7 @@ export const SequenceEditorPageDrawer = () => {
         <Accordion
           disableGutters
           elevation={0}
-          expanded={expandedAccordions.includes(ACCORDIONS.NUCLEOTIDE_COLORS)}
+          expanded={expandedAccordions.includes(ACCORDIONS.COLORS)}
           onChange={onColorsAccordionChange}
           sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
         >
@@ -161,44 +174,32 @@ export const SequenceEditorPageDrawer = () => {
                 sx={{ fontWeight: 600 }}
                 variant={'body2'}
               >
-                {'Nucleotide Colors'}
+                {'Colors'}
               </Typography>
             </Box>
           </AccordionSummary>
           <AccordionDetails sx={{ pb: 2, pt: 0, px: 2 }}>
             <SequenceEditorPageDrawerColorForm
               currentPalette={nucleotidePalette}
+              customPalette={customNucleotidePalette}
+              exportFileName={'nucleotide-palette.json'}
+              label={'Nucleotide colors'}
               onPaletteChange={onNucleotidePaletteChange}
               palettes={nucleotidePalettes}
+              parsePalette={PaletteUtil.parseNucleotidePalette}
+              symbolLabels={NUCLEOTIDE_SYMBOL_LABELS}
+              symbols={NUCLEOTIDE_SYMBOLS}
             />
-          </AccordionDetails>
-        </Accordion>
-        <Accordion
-          disableGutters
-          elevation={0}
-          expanded={expandedAccordions.includes(ACCORDIONS.AMINO_ACID_COLORS)}
-          onChange={onAminoAcidColorsAccordionChange}
-          sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-              <InvertColorsIcon
-                color={'primary'}
-                fontSize={'small'}
-              />
-              <Typography
-                sx={{ fontWeight: 600 }}
-                variant={'body2'}
-              >
-                {'Amino-acid colors'}
-              </Typography>
-            </Box>
-          </AccordionSummary>
-          <AccordionDetails sx={{ pb: 2, pt: 0, px: 2 }}>
             <SequenceEditorPageDrawerColorForm
               currentPalette={aminoAcidPalette}
+              customPalette={customAminoAcidPalette}
+              exportFileName={'amino-acid-palette.json'}
+              label={'Amino-acid colors'}
               onPaletteChange={onAminoAcidPaletteChange}
               palettes={aminoAcidPalettes}
+              parsePalette={PaletteUtil.parseAminoAcidPalette}
+              symbolLabels={AMINO_ACID_SYMBOL_LABELS}
+              symbols={AMINO_ACID_SYMBOLS}
             />
           </AccordionDetails>
         </Accordion>

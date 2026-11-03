@@ -42,6 +42,11 @@ export class EngineWorker implements EngineWorkerApi {
     engine.delete_column(column);
   }
 
+  public async deleteRows(rows: number[]): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.delete_rows(this.toRowIndices(rows));
+  }
+
   public async exportGappedFasta(): Promise<string> {
     const engine = await this.requireEngine();
     const bytes = engine.export_gapped_fasta();

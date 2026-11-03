@@ -86,6 +86,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     name: 'Rows',
     shortcuts: [
+      KEYBOARD_SHORTCUTS.deleteRow,
       KEYBOARD_SHORTCUTS.moveRowUp,
       KEYBOARD_SHORTCUTS.moveRowDown,
       KEYBOARD_SHORTCUTS.moveRowToStart,

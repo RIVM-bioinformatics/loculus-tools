@@ -246,41 +246,58 @@ export const SequenceEditor = () => {
           pendingVisibleRangeRef.current = null;
           const requestId = visibleRangeRequestRef.current;
 
-          if (!cachedGridRangeWithRowNamesRef.current || !EditorUtil.isWithinGridRange({
-            cachedGridRange: cachedGridRangeWithRowNamesRef.current.range,
-            visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
-          })) {
-            const rowNames: string[] = [];
-            for (let i = visibleGridRangeWithArguments.visibleGridRange.cache.startRow; i <= visibleGridRangeWithArguments.visibleGridRange.cache.endRow; i++) {
-              rowNames.push(await editorService.name(i));
-            }
-
-            if (!isActive) {
-              return;
-            }
+          if (metaSubject.data?.sequenceCount === 0) {
             cachedGridRangeWithRowNamesRef.current = {
               range: visibleGridRangeWithArguments.visibleGridRange.cache,
-              rowNames,
+              rowNames: [],
             };
-          }
-
-          if (!cachedGridRangeWithViewPortResultRef.current || !EditorUtil.isWithinGridRange({
-            cachedGridRange: cachedGridRangeWithViewPortResultRef.current.range,
-            visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
-          })) {
-            const viewportResult = await container.resolve(EditorWorkerService).viewport({
-              endCol: visibleGridRangeWithArguments.visibleGridRange.cache.endCol,
-              endRow: visibleGridRangeWithArguments.visibleGridRange.cache.endRow,
-              startCol: visibleGridRangeWithArguments.visibleGridRange.cache.startCol,
-              startRow: visibleGridRangeWithArguments.visibleGridRange.cache.startRow,
-            });
-            if (!isActive) {
-              return;
-            }
             cachedGridRangeWithViewPortResultRef.current = {
               range: visibleGridRangeWithArguments.visibleGridRange.cache,
-              viewportResult,
+              viewportResult: {
+                bytes: new Uint8Array(0),
+                cols: 0,
+                rows: 0,
+                startCol: 0,
+                startRow: 0,
+              },
             };
+          } else {
+            if (!cachedGridRangeWithRowNamesRef.current || !EditorUtil.isWithinGridRange({
+              cachedGridRange: cachedGridRangeWithRowNamesRef.current.range,
+              visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
+            })) {
+              const rowNames: string[] = [];
+              for (let i = visibleGridRangeWithArguments.visibleGridRange.cache.startRow; i <= visibleGridRangeWithArguments.visibleGridRange.cache.endRow; i++) {
+                rowNames.push(await editorService.name(i));
+              }
+
+              if (!isActive) {
+                return;
+              }
+              cachedGridRangeWithRowNamesRef.current = {
+                range: visibleGridRangeWithArguments.visibleGridRange.cache,
+                rowNames,
+              };
+            }
+
+            if (!cachedGridRangeWithViewPortResultRef.current || !EditorUtil.isWithinGridRange({
+              cachedGridRange: cachedGridRangeWithViewPortResultRef.current.range,
+              visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
+            })) {
+              const viewportResult = await container.resolve(EditorWorkerService).viewport({
+                endCol: visibleGridRangeWithArguments.visibleGridRange.cache.endCol,
+                endRow: visibleGridRangeWithArguments.visibleGridRange.cache.endRow,
+                startCol: visibleGridRangeWithArguments.visibleGridRange.cache.startCol,
+                startRow: visibleGridRangeWithArguments.visibleGridRange.cache.startRow,
+              });
+              if (!isActive) {
+                return;
+              }
+              cachedGridRangeWithViewPortResultRef.current = {
+                range: visibleGridRangeWithArguments.visibleGridRange.cache,
+                viewportResult,
+              };
+            }
           }
 
           if (requestId !== visibleRangeRequestRef.current) {
@@ -442,6 +459,7 @@ export const SequenceEditor = () => {
 
       register(KEYBOARD_SHORTCUTS.insertGap),
       register(KEYBOARD_SHORTCUTS.deleteBackward),
+      register(KEYBOARD_SHORTCUTS.deleteRow),
       register(KEYBOARD_SHORTCUTS.deleteSelection),
       register(KEYBOARD_SHORTCUTS.deleteBase),
 
@@ -684,6 +702,22 @@ export const SequenceEditor = () => {
           await execute({
             command: async () => editorService.delete(upsertArguments.rows, upsertArguments.col),
             getSelectionPostCommand: () => EditorUtil.getPostUpsertSelection(selectionSubject.data, EDITOR_DIRECTION.LEFT),
+          });
+        })();
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onDeleteRows', () => {
+        void (async () => {
+          if (!metaSubject.data) {
+            return;
+          }
+          const rows = EditorUtil.getRowsToDelete(selectionSubject.data, metaSubject.data);
+          if (!rows || rows.length === 0) {
+            return;
+          }
+          await execute({
+            command: async () => editorService.deleteRows(rows),
+            getSelectionPostCommand: () => null,
           });
         })();
       }),

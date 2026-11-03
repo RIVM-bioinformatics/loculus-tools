@@ -735,6 +735,42 @@ export class EditorUtil {
     return null;
   }
 
+  /**
+   * Resolves the list of 0-based row indices to delete based on the current selection.
+   *
+   * Supports row selections (via label clicks/drags) and cell block selections
+   * (deleting all rows spanned by the cell range). Ignores pure column selections.
+   * Filters out-of-bounds row indices, deduplicates, and sorts in ascending order.
+   * Returns `undefined` if no valid rows are selected or if the alignment is empty.
+   */
+  public static getRowsToDelete(selection: EditorSelection | null, metaData: EngineMeta): number[] | undefined {
+    if (!metaData || metaData.sequenceCount === 0) {
+      return undefined;
+    }
+
+    const cells = selection?.cells;
+    const rows = selection?.rows ?? (cells
+      ? Array.from(
+        { length: Math.abs(cells.endRow - cells.startRow) + 1 },
+        (_, index) => Math.min(cells.startRow, cells.endRow) + index,
+      )
+      : undefined);
+
+    if (!rows || rows.length === 0) {
+      return undefined;
+    }
+
+    const validRows = [...new Set(rows)]
+      .filter((row) => row >= 0 && row < metaData.sequenceCount)
+      .sort((a, b) => a - b);
+
+    if (validRows.length === 0) {
+      return undefined;
+    }
+
+    return validRows;
+  }
+
   public static getRowsToMove(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta): number[] | undefined {
     const cells = selection?.cells;
     const rows = selection?.rows ?? (cells

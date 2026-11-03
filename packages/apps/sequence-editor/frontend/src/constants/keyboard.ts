@@ -16,7 +16,7 @@ const emitDirection = (eventName: 'onExpandSelection' | 'onMoveCells' | 'onMoveR
   container.resolve(SequenceEditorEventBusService).emit(eventName, direction);
 };
 
-const emitVoid = (eventName: 'onDeleteBackward' | 'onGotoPosition' | 'onInsert' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo'): KeyboardShortcutConfig['callback'] => (event) => {
+const emitVoid = (eventName: 'onDeleteBackward' | 'onDeleteRows' | 'onGotoPosition' | 'onInsert' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo'): KeyboardShortcutConfig['callback'] => (event) => {
   event.preventDefault();
   container.resolve(SequenceEditorEventBusService).emit(eventName);
 };
@@ -36,6 +36,11 @@ export const KEYBOARD_SHORTCUTS: { [key: string]: KeyboardShortcut } = {
     callback: emitMutateSelection('-'),
     description: 'Delete base',
     shortcut: { key: '-' },
+  },
+  deleteRow: {
+    callback: emitVoid('onDeleteRows'),
+    description: 'Delete row',
+    shortcut: { code: 'Delete', modifiers: [['Control'], ['Meta']] },
   },
   deleteSelection: {
     callback: emitMutateSelection('-'),

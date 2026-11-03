@@ -2690,3 +2690,211 @@ fn load_fasta_preserves_prior_substitutions_across_prepend_undo() {
     assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.undo_depth(), 0);
 }
+
+#[test]
+fn delete_rows_removes_single_and_disjoint_rows_and_updates_width() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(
+        ">seq0\nAAAAAAAAAA\n>seq1\nCCCCCCCCCC\n>seq2\nGGGGGGGGGG\n>seq3\nTTTTTTTTTT\n>seq4\nNNNNNNNNNN",
+    )
+    .unwrap();
+    assert_eq!(e.get_sequence_count(), 5);
+    assert_eq!(e.get_alignment_width(), 10);
+    assert_eq!(e.undo_depth(), 0);
+
+    // Delete single row: row 1 ("seq1")
+    e.delete_rows(&[1]).unwrap();
+    assert_eq!(e.get_sequence_count(), 4);
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(1), "seq2");
+    assert_eq!(e.get_name(2), "seq3");
+    assert_eq!(e.get_name(3), "seq4");
+    assert_eq!(e.get_base(1, 0), b'G');
+    assert_eq!(e.undo_depth(), 1);
+
+    // Delete disjoint rows: row 0 ("seq0") and row 2 ("seq3") of current matrix
+    e.delete_rows(&[0, 2]).unwrap();
+    assert_eq!(e.get_sequence_count(), 2);
+    assert_eq!(e.get_name(0), "seq2");
+    assert_eq!(e.get_name(1), "seq4");
+    assert_eq!(e.undo_depth(), 2);
+
+    // Undo second deletion restores 4 rows
+    assert!(e.undo());
+    assert_eq!(e.get_sequence_count(), 4);
+    assert_eq!(e.get_name(0), "seq0");
+    assert_eq!(e.get_name(1), "seq2");
+    assert_eq!(e.get_name(2), "seq3");
+    assert_eq!(e.get_name(3), "seq4");
+
+    // Undo first deletion restores all 5 rows
+    assert!(e.undo());
+    assert_eq!(e.get_sequence_count(), 5);
+    assert_eq!(e.get_name(1), "seq1");
+    assert_eq!(e.get_base(1, 0), b'C');
+    assert_eq!(e.undo_depth(), 0);
+}
+
+#[test]
+fn delete_rows_allows_deleting_all_rows_and_restoring_via_undo() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 8);
+
+    // Delete all 3 rows
+    e.delete_rows(&[0, 1, 2]).unwrap();
+    assert_eq!(e.get_sequence_count(), 0);
+    assert_eq!(e.get_alignment_width(), 0);
+    assert_eq!(e.undo_depth(), 1);
+
+    // Verify all getters on empty matrix are safe
+    assert_eq!(e.get_name(0), "");
+    assert_eq!(e.get_base(0, 0), 0);
+    assert_eq!(e.get_row_length(0), 0);
+    assert_eq!(e.export_fasta_bytes(true).len(), 0);
+    assert_eq!(e.export_fasta_bytes(false).len(), 0);
+
+    let mut out = [0u8; 16];
+    assert_eq!(e.update_viewport_into(0, 5, 0, 10, &mut out), 0);
+
+    // Restore via undo
+    assert!(e.undo());
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 8);
+    assert_eq!(e.get_name(0), "seq1 first record");
+    assert_eq!(e.get_name(1), "seq2");
+    assert_eq!(e.get_name(2), "seq3 third record");
+    assert_eq!(e.get_base(0, 0), b'A');
+    assert_eq!(e.undo_depth(), 0);
+    assert_eq!(e.redo_depth(), 1);
+
+    // Reapply via redo
+    assert!(e.redo());
+    assert_eq!(e.get_sequence_count(), 0);
+    assert_eq!(e.get_alignment_width(), 0);
+    assert_eq!(e.undo_depth(), 1);
+    assert_eq!(e.redo_depth(), 0);
+}
+
+#[test]
+fn delete_rows_is_undoable_and_redoable() {
+    let mut e = engine_with_sample();
+    e.delete_rows(&[1]).unwrap();
+    assert_eq!(e.get_sequence_count(), 2);
+    assert_eq!(e.undo_depth(), 1);
+
+    assert!(e.undo());
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.undo_depth(), 0);
+
+    assert!(e.redo());
+    assert_eq!(e.get_sequence_count(), 2);
+    assert_eq!(e.undo_depth(), 1);
+}
+
+#[test]
+fn delete_rows_out_of_range_or_empty_is_noop_without_undo_entry() {
+    let mut e = engine_with_sample();
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.undo_depth(), 0);
+
+    // Empty list
+    e.delete_rows(&[]).unwrap();
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.undo_depth(), 0);
+
+    // Out-of-bounds indices
+    e.delete_rows(&[10, 20, 100]).unwrap();
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.undo_depth(), 0);
+
+    // Empty engine
+    let mut empty_e = MsaEngine::new();
+    empty_e.delete_rows(&[0, 1]).unwrap();
+    assert_eq!(empty_e.get_sequence_count(), 0);
+    assert_eq!(empty_e.undo_depth(), 0);
+
+    // Duplicated indices only delete target once
+    e.delete_rows(&[0, 0, 0, 100]).unwrap();
+    assert_eq!(e.get_sequence_count(), 2);
+    assert_eq!(e.get_name(0), "seq2");
+    assert_eq!(e.undo_depth(), 1);
+}
+
+#[test]
+fn delete_rows_recomputes_ragged_alignment_width() {
+    let mut e = MsaEngine::new();
+    // 4 sequences of differing lengths: 20, 15, 10, 5
+    e.load_fasta(">w20\nAAAAAAAAAAAAAAAAAAAA\n>w15\nCCCCCCCCCCCCCCC\n>w10\nGGGGGGGGGG\n>w5\nTTTTT")
+        .unwrap();
+    assert_eq!(e.get_sequence_count(), 4);
+    assert_eq!(e.get_alignment_width(), 20);
+
+    // Delete row 0 (length 20) -> alignment width reduces to 15
+    e.delete_rows(&[0]).unwrap();
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_alignment_width(), 15);
+
+    // Delete row 0 of remaining (length 15) -> alignment width reduces to 10
+    e.delete_rows(&[0]).unwrap();
+    assert_eq!(e.get_sequence_count(), 2);
+    assert_eq!(e.get_alignment_width(), 10);
+
+    // Delete row 1 (length 5) -> alignment width remains 10 (length of row 0)
+    e.delete_rows(&[1]).unwrap();
+    assert_eq!(e.get_sequence_count(), 1);
+    assert_eq!(e.get_alignment_width(), 10);
+
+    // Undo: width restored to 10, then 15, then 20
+    assert!(e.undo());
+    assert_eq!(e.get_alignment_width(), 10);
+    assert!(e.undo());
+    assert_eq!(e.get_alignment_width(), 15);
+    assert!(e.undo());
+    assert_eq!(e.get_alignment_width(), 20);
+}
+
+#[test]
+fn delete_rows_interleaved_with_mutations_and_prepends() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">s1\nAAAA\n>s2\nCCCC").unwrap();
+    assert_eq!(e.undo_depth(), 0);
+
+    // 1. Mutate base at (0, 0)
+    e.mutate_base(&[0], &[0], b'G').unwrap();
+    assert_eq!(e.get_base(0, 0), b'G');
+    assert_eq!(e.undo_depth(), 1);
+
+    // 2. Prepend a new sequence -> new row 0 is prepended, mutated row becomes row 1
+    e.load_fasta(">top\nTTTT").unwrap();
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_name(0), "top");
+    assert_eq!(e.get_base(1, 0), b'G');
+    assert_eq!(e.undo_depth(), 2);
+
+    // 3. Delete row 2 ("s2")
+    e.delete_rows(&[2]).unwrap();
+    assert_eq!(e.get_sequence_count(), 2);
+    assert_eq!(e.get_name(0), "top");
+    assert_eq!(e.get_name(1), "s1");
+    assert_eq!(e.get_base(1, 0), b'G');
+    assert_eq!(e.undo_depth(), 3);
+
+    // 4. Undo delete -> restores row 2
+    assert!(e.undo());
+    assert_eq!(e.get_sequence_count(), 3);
+    assert_eq!(e.get_name(2), "s2");
+    assert_eq!(e.undo_depth(), 2);
+
+    // 5. Undo prepend -> restores original 2 rows with mutated base
+    assert!(e.undo());
+    assert_eq!(e.get_sequence_count(), 2);
+    assert_eq!(e.get_name(0), "s1");
+    assert_eq!(e.get_base(0, 0), b'G');
+    assert_eq!(e.undo_depth(), 1);
+
+    // 6. Undo mutation -> restores original base
+    assert!(e.undo());
+    assert_eq!(e.get_base(0, 0), b'A');
+    assert_eq!(e.undo_depth(), 0);
+}

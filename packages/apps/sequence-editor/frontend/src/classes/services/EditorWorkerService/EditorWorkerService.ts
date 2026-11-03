@@ -71,6 +71,12 @@ export class EditorWorkerService {
     });
   }
 
+  public async deleteRows(rows: number[]): Promise<void> {
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.deleteRows(rows);
+    });
+  }
+
   public async exportGappedFasta(): Promise<string> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.exportGappedFasta();

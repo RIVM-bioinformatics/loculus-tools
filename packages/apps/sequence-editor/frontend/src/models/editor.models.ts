@@ -146,6 +146,8 @@ export interface EngineWorkerApi {
   applyAlignedFasta: (fasta: string) => Promise<void>;
   delete: (rows: number[], column: number) => Promise<void>;
   deleteColumn: (column: number) => Promise<void>;
+  /** Deletes the specified rows from the alignment matrix. */
+  deleteRows: (rows: number[]) => Promise<void>;
   exportGappedFasta: () => Promise<string>;
   exportUngappedFasta: () => Promise<string>;
   /** Idempotently initializes the WASM engine; resolves once it is ready. */

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.7.0...sequence-editor-frontend-v1.7.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **frontent:** fix schema url for palette json ([dcd8943](https://github.com/RIVM-bioinformatics/loculus-tools/commit/dcd8943981091523a51ccc3f78b21898966a0667))
+
 ## [1.7.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.6.6...sequence-editor-frontend-v1.7.0) (2026-11-03)
 
 

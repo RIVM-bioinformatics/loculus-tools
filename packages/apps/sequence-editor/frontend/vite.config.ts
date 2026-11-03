@@ -18,6 +18,8 @@ import type { Target } from 'vite-plugin-static-copy';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import { esmExternalRequirePlugin } from 'vite';
 
+import { createPaletteSchemaPlugin } from './src/vite/paletteSchemaPlugin/paletteSchemaPlugin';
+
 type PackageManifest = {
   peerDependencies?: Record<string, string>;
 };
@@ -57,6 +59,7 @@ const discoverEntries = (): { entries: Record<string, string>; flatKeys: Set<str
     join(srcDir, 'theme', '**', 'index.ts'),
     join(srcDir, 'utils', '**', 'index.ts'),
     join(srcDir, 'utils', '**', 'index.ts'),
+    join(srcDir, 'vite', '**', 'index.ts'),
   ]).forEach((file) => {
     const relKey = dirname(file).replace(`${srcDir}/`, '');
     entries[relKey] = `./${file.replace(`${import.meta.dirname}/`, '')}`;
@@ -108,6 +111,7 @@ export default defineConfig({
     sourcemap: true,
   },
   plugins: [
+    createPaletteSchemaPlugin(),
     react(),
     svgr(),
     libInjectCss(),
@@ -170,7 +174,6 @@ export default defineConfig({
               inline: ['@mui/material', 'react-transition-group'],
             },
           },
-          setupFiles: ['./src/test/setup/setup-jsdom.ts'],
           testTimeout: 5000,
         },
       },

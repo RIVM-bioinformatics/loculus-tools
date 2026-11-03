@@ -10,6 +10,9 @@ import type {
 } from '../models/palette.models';
 import { PaletteUtil } from '../utils/PaletteUtil';
 
+export const PALETTE_SCHEMA_ASSET_PATH = 'assets/palette.schema.json';
+export const PALETTE_SCHEMA_URL_PATH = `/${PALETTE_SCHEMA_ASSET_PATH}`;
+
 export const NUCLEOTIDE_SYMBOLS: readonly NucleotideSymbol[] = [
   NucleotideSymbol.A,
   NucleotideSymbol.C,
@@ -30,6 +33,27 @@ export const NUCLEOTIDE_SYMBOLS: readonly NucleotideSymbol[] = [
   NucleotideSymbol.GAP,
   NucleotideSymbol.UNKNOWN,
 ] as const;
+
+export const NUCLEOTIDE_SYMBOL_LABELS: Readonly<Record<NucleotideSymbol, string>> = {
+  [NucleotideSymbol.A]: 'Adenine',
+  [NucleotideSymbol.B]: 'Not A (C, G, T, or U)',
+  [NucleotideSymbol.C]: 'Cytosine',
+  [NucleotideSymbol.D]: 'Not C (A, G, T, or U)',
+  [NucleotideSymbol.G]: 'Guanine',
+  [NucleotideSymbol.GAP]: 'Gap',
+  [NucleotideSymbol.H]: 'Not G (A, C, T, or U)',
+  [NucleotideSymbol.K]: 'Keto (G, T, or U)',
+  [NucleotideSymbol.M]: 'Amino (A or C)',
+  [NucleotideSymbol.N]: 'Any nucleotide',
+  [NucleotideSymbol.R]: 'Purine (A or G)',
+  [NucleotideSymbol.S]: 'Strong (G or C)',
+  [NucleotideSymbol.T]: 'Thymine',
+  [NucleotideSymbol.U]: 'Uracil',
+  [NucleotideSymbol.UNKNOWN]: 'Unknown nucleotide',
+  [NucleotideSymbol.V]: 'Not T or U (A, C, or G)',
+  [NucleotideSymbol.W]: 'Weak (A, T, or U)',
+  [NucleotideSymbol.Y]: 'Pyrimidine (C, T, or U)',
+};
 
 export const AMINO_ACID_SYMBOLS: readonly AminoAcidSymbol[] = [
   AminoAcidSymbol.A,
@@ -56,6 +80,32 @@ export const AMINO_ACID_SYMBOLS: readonly AminoAcidSymbol[] = [
   AminoAcidSymbol.STOP,
   AminoAcidSymbol.GAP,
 ] as const;
+
+export const AMINO_ACID_SYMBOL_LABELS: Readonly<Record<AminoAcidSymbol, string>> = {
+  [AminoAcidSymbol.A]: 'Alanine',
+  [AminoAcidSymbol.C]: 'Cysteine',
+  [AminoAcidSymbol.D]: 'Aspartic acid',
+  [AminoAcidSymbol.E]: 'Glutamic acid',
+  [AminoAcidSymbol.F]: 'Phenylalanine',
+  [AminoAcidSymbol.G]: 'Glycine',
+  [AminoAcidSymbol.GAP]: 'Gap',
+  [AminoAcidSymbol.H]: 'Histidine',
+  [AminoAcidSymbol.I]: 'Isoleucine',
+  [AminoAcidSymbol.K]: 'Lysine',
+  [AminoAcidSymbol.L]: 'Leucine',
+  [AminoAcidSymbol.M]: 'Methionine',
+  [AminoAcidSymbol.N]: 'Asparagine',
+  [AminoAcidSymbol.P]: 'Proline',
+  [AminoAcidSymbol.Q]: 'Glutamine',
+  [AminoAcidSymbol.R]: 'Arginine',
+  [AminoAcidSymbol.S]: 'Serine',
+  [AminoAcidSymbol.STOP]: 'Stop codon',
+  [AminoAcidSymbol.T]: 'Threonine',
+  [AminoAcidSymbol.V]: 'Valine',
+  [AminoAcidSymbol.W]: 'Tryptophan',
+  [AminoAcidSymbol.X]: 'Unknown amino acid',
+  [AminoAcidSymbol.Y]: 'Tyrosine',
+};
 
 export const ALI_VIEW_DEFAULT_AMINO_ACID_PALETTE_COLORS: AminoAcidPaletteColors = {
   [AminoAcidSymbol.A]: PaletteUtil.createEntry('#276EB7', '#000000', '#3769FF', '#808080'),

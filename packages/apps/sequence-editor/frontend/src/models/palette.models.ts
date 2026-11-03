@@ -47,6 +47,8 @@ export enum NucleotideSymbol {
   Y = 'Y',
 }
 
+export const CUSTOM_PALETTE_NAME = 'Custom';
+
 export type AminoAcidPalette = {
   name: string;
   paletteColors: AminoAcidPaletteColors;

@@ -39,6 +39,7 @@ const indexBasedKeys = globSync([
   join(srcDir, 'stores', '**', 'index.ts'),
   join(srcDir, 'theme', '**', 'index.ts'),
   join(srcDir, 'utils', '**', 'index.ts'),
+  join(srcDir, 'vite', '**', 'index.ts'),
 ]).map((file) => relative(srcDir, dirname(file)));
 
 // flat .ts entries: key = file path without extension

@@ -345,7 +345,7 @@ export const SequenceEditor = () => {
   useEffect(() => {
     const unsubscribeItems = [
       sequenceEditorStore.subscribe((state, prevState) => {
-        if (state.nucleotidePalette?.name !== prevState.nucleotidePalette?.name) {
+        if (state.nucleotidePalette !== prevState.nucleotidePalette) {
           updateVisibleRange();
         }
       }),

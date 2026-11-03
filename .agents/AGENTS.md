@@ -251,12 +251,14 @@ pnpm --filter @rivm-loculus-tools/phylogeny-viewer preview
 pnpm --filter @rivm-loculus-tools/sequence-editor-demo start
 pnpm --filter @rivm-loculus-tools/sequence-editor lint
 pnpm --filter @rivm-loculus-tools/sequence-editor check-types
+pnpm --filter @rivm-loculus-tools/sequence-editor test-run
 pnpm --filter @rivm-loculus-tools/sequence-editor build
 ```
 
 Both the phylogeny viewer and sequence editor packages define `validate`, `lint`,
 and `check-types` scripts (`validate` executes `lint` followed by `check-types`).
-Neither frontend package currently defines an automated unit test runner script (`test-run`).
+The sequence editor frontend defines `test-run` for its Vitest suite; the phylogeny
+viewer frontend does not currently define an automated unit test runner script.
 
 ### Rust checks
 

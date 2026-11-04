@@ -75,12 +75,12 @@ export const KEYBOARD_SHORTCUTS: { [key: string]: KeyboardShortcut } = {
   moveCellLeft: {
     callback: emitDirection('onMoveCells', EDITOR_DIRECTION.LEFT),
     description: 'Move cell left',
-    shortcut: { code: 'ArrowLeft', modifiers: [['Alt']] },
+    shortcut: { code: 'ArrowLeft', modifiers: [['Control'], ['Meta']] },
   },
   moveCellRight: {
     callback: emitDirection('onMoveCells', EDITOR_DIRECTION.RIGHT),
     description: 'Move cell right',
-    shortcut: { code: 'ArrowRight', modifiers: [['Alt']] },
+    shortcut: { code: 'ArrowRight', modifiers: [['Control'], ['Meta']] },
   },
   moveRowDown: {
     callback: emitDirection('onMoveRows', EDITOR_DIRECTION.DOWN),

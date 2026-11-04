@@ -63,7 +63,9 @@ type ShortcutGroup = {
   shortcuts: Shortcut[];
 };
 
-const isMacOs = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+const isMacOs = typeof navigator !== 'undefined' && /^(Mac|iPhone|iPad|iPod)/.test(
+  (navigator as { userAgentData?: { platform?: string } } & Navigator).userAgentData?.platform ?? navigator.platform,
+);
 
 const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {

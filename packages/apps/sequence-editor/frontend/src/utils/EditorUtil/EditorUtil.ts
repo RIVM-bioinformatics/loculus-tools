@@ -659,12 +659,6 @@ export class EditorUtil {
     const canvasX = (event.clientX - rect.left) * canvasScaleX / devicePixelRatio;
     const canvasY = (event.clientY - rect.top) * canvasScaleY / devicePixelRatio;
 
-    for (const [path, pathProperties] of editorAssembly.cells.pathPropertiesMap) {
-      if (ctx.isPointInPath(path, canvasX, canvasY)) {
-        return pathProperties;
-      }
-    }
-
     for (const [path, pathProperties] of editorAssembly.ruler.pathPropertiesMap) {
       if (ctx.isPointInPath(path, canvasX, canvasY)) {
         return pathProperties;
@@ -678,6 +672,12 @@ export class EditorUtil {
     }
 
     for (const [path, pathProperties] of editorAssembly.divider.pathPropertiesMap) {
+      if (ctx.isPointInPath(path, canvasX, canvasY)) {
+        return pathProperties;
+      }
+    }
+
+    for (const [path, pathProperties] of editorAssembly.cells.pathPropertiesMap) {
       if (ctx.isPointInPath(path, canvasX, canvasY)) {
         return pathProperties;
       }

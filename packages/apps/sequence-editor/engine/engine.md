@@ -307,7 +307,7 @@ sends a command and awaits an acknowledgment.
 The mutation core is governed by a fixed set of editing constraints. These
 constraints define exactly which combinations of actions are allowed and which
 are rejected. Every mutation method below enforces them and returns a
-`StructuredEngineError` (see [section 5.7](#57-structured-errors)) when a
+`StructuredEngineError` (see [section 5.10](#510-structured-errors)) when a
 constraint is violated, leaving the matrix **unchanged**
 (all-or-nothing).
 
@@ -740,7 +740,7 @@ implemented in `www/` and are described in the companion documents.
 | ------ | -------- |
 | Core data structures & memory layout | ✅ Done (`MsaEngine`, viewport buffer) |
 | WASM boundary API | ✅ Done (`load_fasta`, `update_viewport`, `update_viewport_into`, metadata getters) |
-| Mutation core | ✅ Done (`mutate_base`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_relative`, `move_rows_grouped`, `move_rows_to_top`, `move_rows_to_bottom`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
+| Mutation core | ✅ Done (`mutate_base`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `delete_rows`, `move_horizontal`, `move_rows_relative`, `move_rows_grouped`, `move_rows_to_top`, `move_rows_to_bottom`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
 | Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
 | Web Worker bridge | ✅ Done (in `www/`, consumes the engine) |
 | MUI test harness | ✅ Done (in `www/`, consumes the engine) |

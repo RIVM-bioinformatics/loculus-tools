@@ -504,13 +504,7 @@ impl MsaEngine {
     /// names, cached amino-acid translations, viewport buffer, and undo/redo history.
     #[wasm_bindgen]
     pub fn reset(&mut self) {
-        self.nucleotide_sequences.clear();
-        self.aminoacid_sequences.clear();
-        self.names.clear();
-        self.alignment_width = 0;
-        self.viewport_buffer.clear();
-        self.undo_stack.clear();
-        self.redo_stack.clear();
+        *self = Self::new();
     }
 
     /// Parse FASTA content and prepend the parsed sequences in order ahead

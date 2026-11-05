@@ -282,4 +282,52 @@ describe('sequenceEditorStore', () => {
     expect(consoleErrorSpy).toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
   });
+
+  it('serializes overlapping setData calls so subsequent loads do not trigger an extra engine reset', async () => {
+    let resolveFirstLoad: (count: number) => void = () => undefined;
+    mockEditorWorkerService.loadFasta.mockReturnValueOnce(new Promise<number>((resolve) => {
+      resolveFirstLoad = resolve;
+    }));
+    mockEditorWorkerService.loadFasta.mockResolvedValueOnce(2);
+
+    const firstLoad = sequenceEditorStore.getState().setData('>seq1\nATGC');
+    const secondLoad = sequenceEditorStore.getState().setData('>seq2\nATGC');
+
+    await vi.waitFor(() => {
+      expect(mockEditorWorkerService.reset).toHaveBeenCalledTimes(1);
+      expect(mockEditorWorkerService.loadFasta).toHaveBeenCalledTimes(1);
+    });
+
+    // Resolve first load so second load can proceed
+    resolveFirstLoad(1);
+
+    await Promise.all([firstLoad, secondLoad]);
+
+    // reset should ONLY have been called once (for the very first batch)
+    expect(mockEditorWorkerService.reset).toHaveBeenCalledTimes(1);
+    expect(mockEditorWorkerService.loadFasta).toHaveBeenCalledTimes(2);
+
+    const state = sequenceEditorStore.getState();
+    expect(state.parsedFasta?.sequences.map((s) => s.id)).toEqual(['seq2', 'seq1']);
+  });
+
+  it('aborts without invoking loadFasta when resetDataset is called while initial engine reset is pending', async () => {
+    let resolveReset: () => void = () => undefined;
+    mockEditorWorkerService.reset.mockReturnValueOnce(new Promise<void>((resolve) => {
+      resolveReset = resolve;
+    }));
+
+    const pendingLoad = sequenceEditorStore.getState().setData('>seq1\nATGC');
+
+    await vi.waitFor(() => {
+      expect(mockEditorWorkerService.reset).toHaveBeenCalledTimes(1);
+    });
+
+    // Reset dataset while engine reset is in flight
+    sequenceEditorStore.getState().resetDataset();
+    resolveReset();
+
+    await expect(pendingLoad).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mockEditorWorkerService.loadFasta).not.toHaveBeenCalled();
+  });
 });

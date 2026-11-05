@@ -42,6 +42,7 @@ import { SequenceEditorEventBusService } from '../../classes/services/SequenceEd
 export type SequenceEditorStore = SequenceEditorStoreActions & SequenceEditorStoreState;
 
 export interface SequenceEditorStoreActions extends FastaDataStoreActions {
+  recordDeletedRows: (rows: number[]) => void;
   setAminoAcidPalette: (palette: AminoAcidPalette) => void;
   setCustomAminoAcidPalette: (palette: AminoAcidPalette) => void;
   setCustomNucleotidePalette: (palette: NucleotidePalette) => void;
@@ -90,6 +91,11 @@ const createSequenceEditorStoreInitialState = (): SequenceEditorStoreState => ({
   selection: null,
 });
 
+interface RemovedSequenceEntry {
+  index: number;
+  sequence: FastaSequence;
+}
+
 const computeAlignmentMetadata = (sequences: FastaSequence[]): Pick<FastaParseResult, 'expectedLength' | 'invalidSequences' | 'isAligned'> => {
   const expectedLength = sequences.reduce((max, s) => Math.max(max, s.length), 0);
   const invalidSequences = sequences
@@ -104,10 +110,41 @@ const computeAlignmentMetadata = (sequences: FastaSequence[]): Pick<FastaParseRe
   };
 };
 
+const removeSequencesByIndices = (
+  sequences: FastaSequence[],
+  indicesToRemove: number[],
+): { remaining: FastaSequence[]; removed: RemovedSequenceEntry[] } => {
+  const uniqueSortedIndices = [...new Set(indicesToRemove)]
+    .filter((index) => Number.isInteger(index) && index >= 0 && index < sequences.length)
+    .sort((a, b) => a - b);
+  const removedIndexSet = new Set(uniqueSortedIndices);
+  const removed: RemovedSequenceEntry[] = uniqueSortedIndices.map((index) => ({
+    index,
+    sequence: sequences[index],
+  }));
+  const remaining = sequences.filter((_, index) => !removedIndexSet.has(index));
+  return { remaining, removed };
+};
+
+const restoreRemovedSequences = (
+  sequences: FastaSequence[],
+  removed: RemovedSequenceEntry[],
+): FastaSequence[] => {
+  const next = [...sequences];
+  for (const entry of removed) {
+    const clampedIndex = Math.max(0, Math.min(entry.index, next.length));
+    next.splice(clampedIndex, 0, entry.sequence);
+  }
+  return next;
+};
+
 export const sequenceEditorStore = createStore<SequenceEditorStore>()(
   persist(
     (set, get) => {
-      let removedSequenceBatches: FastaSequence[][] = [];
+      let undonePrependBatches: FastaSequence[][] = [];
+      let deletedRowBatches: RemovedSequenceEntry[][] = [];
+      let undoneDeleteBatches: RemovedSequenceEntry[][] = [];
+      let pendingDeletedRows: null | number[] = null;
       let syntheticSequenceCounter = 0;
       // Incremented on every reset so in-flight loads can detect that their session was discarded.
       let sessionGeneration = 0;
@@ -124,7 +161,7 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
 
       const executeSetData = async (fasta: string, tsv?: string) => {
         const existingParsedFasta = get().parsedFasta;
-        const hasExistingSession = (existingParsedFasta?.sequences.length ?? 0) > 0;
+        const hasExistingSession = Boolean(get().rawFasta) || (existingParsedFasta?.sequences.length ?? 0) > 0;
         if (hasExistingSession && existingParsedFasta && !fasta.trim() && !tsv) {
           return {
             fastaResult: existingParsedFasta,
@@ -184,7 +221,7 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
             throw createSupersededError();
           }
           const errorMessage = EngineErrorUtil.getEngineErrorMessage(error);
-          const hasSessionOnError = (get().parsedFasta?.sequences.length ?? 0) > 0;
+          const hasSessionOnError = Boolean(get().rawFasta) || (get().parsedFasta?.sequences.length ?? 0) > 0;
           if (hasSessionOnError) {
             set({
               latestMessage: errorMessage,
@@ -205,7 +242,12 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
           throw createSupersededError();
         }
 
-        removedSequenceBatches = [];
+        if (!hasExistingSession) {
+          deletedRowBatches = [];
+        }
+        undonePrependBatches = [];
+        undoneDeleteBatches = [];
+        pendingDeletedRows = null;
         const currentState = get();
         const existingSequences = currentState.parsedFasta?.sequences || [];
         // Sequence bodies are intentionally cleared: the WASM engine owns the alignment and
@@ -273,9 +315,15 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
       return {
         ...initialState,
         ...fastaDataStoreActions,
+        recordDeletedRows: (rows: number[]) => {
+          pendingDeletedRows = rows;
+        },
         resetDataset: () => {
           sessionGeneration++;
-          removedSequenceBatches = [];
+          undonePrependBatches = [];
+          deletedRowBatches = [];
+          undoneDeleteBatches = [];
+          pendingDeletedRows = null;
           syntheticSequenceCounter = 0;
           const { setSearchQuery } = get();
           fastaDataStoreActions.resetDataset();
@@ -313,18 +361,43 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
         setLatestMessage: (message: null | string) => set({ latestMessage: message }),
         setMeta: (meta: EngineMeta | null) => {
           const currentState = get();
+          const prevRedoDepth = currentState.meta?.redoDepth ?? 0;
+          const isUndo = Boolean(meta && meta.redoDepth > prevRedoDepth);
+
           if (meta && currentState.parsedFasta && currentState.parsedFasta.sequences.length !== meta.sequenceCount) {
             let sequences = currentState.parsedFasta.sequences;
             if (sequences.length > meta.sequenceCount) {
               const removeCount = sequences.length - meta.sequenceCount;
-              removedSequenceBatches.push(sequences.slice(0, removeCount));
-              sequences = sequences.slice(removeCount);
+              if (isUndo) {
+                pendingDeletedRows = null;
+                undonePrependBatches.push(sequences.slice(0, removeCount));
+                sequences = sequences.slice(removeCount);
+              } else {
+                const redoDeleteBatch = meta.redoDepth < prevRedoDepth ? undoneDeleteBatches.at(-1) : undefined;
+                const indicesToRemove = pendingDeletedRows
+                  ?? (redoDeleteBatch?.length === removeCount
+                    ? redoDeleteBatch.map((entry) => entry.index)
+                    : Array.from({ length: removeCount }, (_, index) => index));
+                pendingDeletedRows = null;
+                if (redoDeleteBatch?.length === removeCount) {
+                  undoneDeleteBatches.pop();
+                }
+                const { remaining, removed } = removeSequencesByIndices(sequences, indicesToRemove);
+                deletedRowBatches.push(removed);
+                sequences = remaining;
+              }
             } else {
+              pendingDeletedRows = null;
               const diff = meta.sequenceCount - sequences.length;
-              const lastBatch = removedSequenceBatches.at(-1);
-              if (lastBatch?.length === diff) {
-                removedSequenceBatches.pop();
-                sequences = [...lastBatch, ...sequences];
+              const lastDeletedBatch = isUndo ? deletedRowBatches.at(-1) : undefined;
+              const lastPrependBatch = !isUndo ? undonePrependBatches.at(-1) : undefined;
+              if (lastDeletedBatch?.length === diff) {
+                deletedRowBatches.pop();
+                undoneDeleteBatches.push(lastDeletedBatch);
+                sequences = restoreRemovedSequences(sequences, lastDeletedBatch);
+              } else if (lastPrependBatch?.length === diff) {
+                undonePrependBatches.pop();
+                sequences = [...lastPrependBatch, ...sequences];
               } else {
                 const dummy: FastaSequence[] = Array.from({ length: diff }, () => ({
                   accessionVersion: '',
@@ -338,7 +411,8 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
             }
 
             if (meta.redoDepth === 0) {
-              removedSequenceBatches = [];
+              undonePrependBatches = [];
+              undoneDeleteBatches = [];
             }
 
             if (currentState.parsedMetadata) {
@@ -362,8 +436,10 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
             });
             return;
           }
+          pendingDeletedRows = null;
           if (meta?.redoDepth === 0) {
-            removedSequenceBatches = [];
+            undonePrependBatches = [];
+            undoneDeleteBatches = [];
           }
           set({ meta });
         },

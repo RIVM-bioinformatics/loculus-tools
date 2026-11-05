@@ -42,6 +42,11 @@ export class EngineWorker implements EngineWorkerApi {
     engine.delete_column(column);
   }
 
+  public async deleteRows(rows: number[]): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.delete_rows(this.toRowIndices(rows));
+  }
+
   public async exportGappedFasta(): Promise<string> {
     const engine = await this.requireEngine();
     const bytes = engine.export_gapped_fasta();
@@ -232,6 +237,9 @@ export class EngineWorker implements EngineWorkerApi {
 
   /** Converts a plain row-index list into the typed array the WASM API expects. */
   private toRowIndices(rows: number[]): Uint32Array {
+    if (!rows.every((row) => Number.isSafeInteger(row) && row >= 0 && row <= 0xFFFF_FFFF)) {
+      throw new Error('Indices must be non-negative 32-bit integers');
+    }
     return new Uint32Array(rows);
   }
 

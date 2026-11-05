@@ -330,4 +330,137 @@ describe('sequenceEditorStore', () => {
     await expect(pendingLoad).rejects.toMatchObject({ name: 'AbortError' });
     expect(mockEditorWorkerService.loadFasta).not.toHaveBeenCalled();
   });
+
+  it('removes deleted rows at their exact indices and restores them on undo and re-deletes on redo', async () => {
+    await sequenceEditorStore.getState().setData('>seq1\nATGC\n>seq2\nATGCCC\n>seq3\nCGTA');
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 6,
+      redoDepth: 0,
+      sequenceCount: 3,
+      undoDepth: 0,
+    });
+
+    // Forward delete of middle row (seq2 at index 1)
+    sequenceEditorStore.getState().recordDeletedRows([1]);
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 0,
+      sequenceCount: 2,
+      undoDepth: 1,
+    });
+
+    const afterDelete = sequenceEditorStore.getState().parsedFasta;
+    expect(afterDelete?.sequences.map((s) => s.id)).toEqual(['seq1', 'seq3']);
+    expect(afterDelete?.isAligned).toBe(true);
+
+    // Undo deleteRows -> restores seq2 at index 1 (no dummy seq_0)
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 6,
+      redoDepth: 1,
+      sequenceCount: 3,
+      undoDepth: 0,
+    });
+
+    const afterUndo = sequenceEditorStore.getState().parsedFasta;
+    expect(afterUndo?.sequences.map((s) => s.id)).toEqual(['seq1', 'seq2', 'seq3']);
+    expect(afterUndo?.isAligned).toBe(false);
+
+    // Redo deleteRows -> removes seq2 at index 1 again
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 0,
+      sequenceCount: 2,
+      undoDepth: 1,
+    });
+
+    const afterRedo = sequenceEditorStore.getState().parsedFasta;
+    expect(afterRedo?.sequences.map((s) => s.id)).toEqual(['seq1', 'seq3']);
+    expect(afterRedo?.isAligned).toBe(true);
+  });
+
+  it('treats session as active when all rows have been deleted but rawFasta is present', async () => {
+    await sequenceEditorStore.getState().setData('>seq1\nATGC');
+    sequenceEditorStore.getState().recordDeletedRows([0]);
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 0,
+      redoDepth: 0,
+      sequenceCount: 0,
+      undoDepth: 1,
+    });
+
+    expect(sequenceEditorStore.getState().parsedFasta?.sequences).toEqual([]);
+
+    await expect(
+      sequenceEditorStore.getState().setData('not a fasta'),
+    ).rejects.toThrow('FASTA sequence data appeared before its first header.');
+
+    expect(sequenceEditorStore.getState().loadingStatus).toBe(LOADING_STATUS.SUCCESS);
+    expect(sequenceEditorStore.getState().latestMessage).toBe('FASTA sequence data appeared before its first header.');
+  });
+
+  it('preserves LIFO ordering across interleaved prepend and row deletion undo/redo cycles', async () => {
+    await sequenceEditorStore.getState().setData('>seq1\nATGC\n>seq2\nCGTA');
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 0,
+      sequenceCount: 2,
+      undoDepth: 0,
+    });
+
+    // 1. Prepend 'top' -> ['top', 'seq1', 'seq2']
+    await sequenceEditorStore.getState().setData('>top\nTTTT');
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 0,
+      sequenceCount: 3,
+      undoDepth: 1,
+    });
+    expect(sequenceEditorStore.getState().parsedFasta?.sequences.map((s) => s.id)).toEqual(['top', 'seq1', 'seq2']);
+
+    // 2. Delete row 2 ('seq2') -> ['top', 'seq1']
+    sequenceEditorStore.getState().recordDeletedRows([2]);
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 0,
+      sequenceCount: 2,
+      undoDepth: 2,
+    });
+    expect(sequenceEditorStore.getState().parsedFasta?.sequences.map((s) => s.id)).toEqual(['top', 'seq1']);
+
+    // 3. Undo delete -> ['top', 'seq1', 'seq2']
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 1,
+      sequenceCount: 3,
+      undoDepth: 1,
+    });
+    expect(sequenceEditorStore.getState().parsedFasta?.sequences.map((s) => s.id)).toEqual(['top', 'seq1', 'seq2']);
+
+    // 4. Undo prepend -> ['seq1', 'seq2']
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 2,
+      sequenceCount: 2,
+      undoDepth: 0,
+    });
+    expect(sequenceEditorStore.getState().parsedFasta?.sequences.map((s) => s.id)).toEqual(['seq1', 'seq2']);
+
+    // 5. Redo prepend -> ['top', 'seq1', 'seq2']
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 1,
+      sequenceCount: 3,
+      undoDepth: 1,
+    });
+    expect(sequenceEditorStore.getState().parsedFasta?.sequences.map((s) => s.id)).toEqual(['top', 'seq1', 'seq2']);
+
+    // 6. Redo delete -> ['top', 'seq1']
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 0,
+      sequenceCount: 2,
+      undoDepth: 2,
+    });
+    expect(sequenceEditorStore.getState().parsedFasta?.sequences.map((s) => s.id)).toEqual(['top', 'seq1']);
+  });
 });

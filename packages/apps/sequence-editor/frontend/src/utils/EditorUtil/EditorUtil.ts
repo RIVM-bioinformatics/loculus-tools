@@ -735,6 +735,44 @@ export class EditorUtil {
     return null;
   }
 
+  /**
+   * Resolves the list of 0-based row indices to delete based on the current selection.
+   *
+   * Supports row selections (via label clicks/drags) and cell block selections
+   * (deleting all rows spanned by the cell range). Ignores pure column selections.
+   * Filters out-of-bounds row indices, deduplicates, and sorts in ascending order.
+   * Returns `undefined` if no valid rows are selected or if the alignment is empty.
+   */
+  public static getRowsToDelete(selection: EditorSelection | null, metaData: EngineMeta): number[] | undefined {
+    if (!metaData || metaData.sequenceCount === 0) {
+      return undefined;
+    }
+
+    if (selection?.rows) {
+      const validRows = [...new Set(selection.rows)]
+        .filter((row) => Number.isInteger(row) && row >= 0 && row < metaData.sequenceCount)
+        .sort((a, b) => a - b);
+
+      return validRows.length > 0 ? validRows : undefined;
+    }
+
+    const cells = selection?.cells;
+    if (cells && Number.isInteger(cells.startRow) && Number.isInteger(cells.endRow)) {
+      const startRow = Math.max(0, Math.min(cells.startRow, cells.endRow));
+      const endRow = Math.min(metaData.sequenceCount - 1, Math.max(cells.startRow, cells.endRow));
+      if (startRow > endRow) {
+        return undefined;
+      }
+
+      return Array.from(
+        { length: endRow - startRow + 1 },
+        (_, index) => startRow + index,
+      );
+    }
+
+    return undefined;
+  }
+
   public static getRowsToMove(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta): number[] | undefined {
     const cells = selection?.cells;
     const rows = selection?.rows ?? (cells
@@ -889,21 +927,19 @@ export class EditorUtil {
       viewportWidth,
     } = params;
     const gridStart = geometry.labelWidth + geometry.dividerWidth;
-    const visibleStartCol = Math.max(0, Math.floor(scrollLeft / geometry.cellWidth));
-    const visibleEndCol = Math.min(
-      numCols,
-      visibleStartCol + Math.max(1, Math.ceil((viewportWidth - gridStart) / geometry.cellWidth) + 1),
-    );
-    const visibleStartRow = Math.max(0, Math.floor(Math.max(0, scrollTop - geometry.rulerHeight) / geometry.cellHeight));
-    const visibleEndRow = Math.min(
-      numRows,
-      visibleStartRow + Math.max(1, Math.ceil((viewportHeight - geometry.rulerHeight) / geometry.cellHeight) + 1),
-    );
+    const maxCol = Math.max(0, numCols - 1);
+    const maxRow = Math.max(0, numRows - 1);
+    const visibleCols = Math.max(1, Math.ceil((viewportWidth - gridStart) / geometry.cellWidth) + 1);
+    const visibleRows = Math.max(1, Math.ceil((viewportHeight - geometry.rulerHeight) / geometry.cellHeight) + 1);
+    const visibleStartCol = Math.min(maxCol, Math.max(0, Math.floor(scrollLeft / geometry.cellWidth)));
+    const visibleEndCol = Math.min(maxCol, visibleStartCol + visibleCols);
+    const visibleStartRow = Math.min(maxRow, Math.max(0, Math.floor(Math.max(0, scrollTop - geometry.rulerHeight) / geometry.cellHeight)));
+    const visibleEndRow = Math.min(maxRow, visibleStartRow + visibleRows);
 
     return {
       cache: {
-        endCol: Math.min(numCols, visibleEndCol + geometry.numOverscanCols),
-        endRow: Math.min(numRows, visibleEndRow + geometry.numOverscanRows),
+        endCol: Math.min(maxCol, visibleEndCol + geometry.numOverscanCols),
+        endRow: Math.min(maxRow, visibleEndRow + geometry.numOverscanRows),
         startCol: Math.max(0, visibleStartCol - geometry.numOverscanCols),
         startRow: Math.max(0, visibleStartRow - geometry.numOverscanRows),
       },

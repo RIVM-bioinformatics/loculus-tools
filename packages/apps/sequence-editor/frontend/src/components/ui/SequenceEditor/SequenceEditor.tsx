@@ -106,7 +106,20 @@ export const SequenceEditor = () => {
     const verticalSize = geometry.rulerHeight + meta.sequenceCount * geometry.cellHeight;
     setHorizontalScrollBarSize(horizontalSize);
     setVerticalScrollBarSize(verticalSize);
-  }, [geometrySubject, metaSubject]);
+    const { height, width } = containerDimensionsRef.current;
+    const maxScrollLeft = Math.max(0, horizontalSize - width);
+    const maxScrollTop = Math.max(0, verticalSize - height);
+    const { scrollLeft, scrollTop } = scrollSubject.data;
+    if (scrollLeft > maxScrollLeft || scrollTop > maxScrollTop) {
+      const nextScrollLeft = Math.min(scrollLeft, maxScrollLeft);
+      const nextScrollTop = Math.min(scrollTop, maxScrollTop);
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollLeft = nextScrollLeft;
+        scrollContainerRef.current.scrollTop = nextScrollTop;
+      }
+      scrollSubject.next({ scrollLeft: nextScrollLeft, scrollTop: nextScrollTop });
+    }
+  }, [geometrySubject, metaSubject, scrollSubject]);
 
   const updateMeta = useCallback(async () => {
     const meta = await container.resolve(EditorWorkerService).getMetaData();
@@ -210,7 +223,7 @@ export const SequenceEditor = () => {
     const perform = async () => {
       await editorService.initialize();
       const currentMeta = await editorService.getMetaData();
-      if (currentMeta.sequenceCount === 0) {
+      if (currentMeta.sequenceCount === 0 && currentMeta.undoDepth === 0 && currentMeta.redoDepth === 0) {
         cachedGridRangeWithViewPortResultRef.current = null;
         cachedGridRangeWithRowNamesRef.current = null;
         scrollSubject.next({ scrollLeft: 0, scrollTop: 0 });
@@ -246,41 +259,58 @@ export const SequenceEditor = () => {
           pendingVisibleRangeRef.current = null;
           const requestId = visibleRangeRequestRef.current;
 
-          if (!cachedGridRangeWithRowNamesRef.current || !EditorUtil.isWithinGridRange({
-            cachedGridRange: cachedGridRangeWithRowNamesRef.current.range,
-            visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
-          })) {
-            const rowNames: string[] = [];
-            for (let i = visibleGridRangeWithArguments.visibleGridRange.cache.startRow; i <= visibleGridRangeWithArguments.visibleGridRange.cache.endRow; i++) {
-              rowNames.push(await editorService.name(i));
-            }
-
-            if (!isActive) {
-              return;
-            }
+          if (metaSubject.data?.sequenceCount === 0) {
             cachedGridRangeWithRowNamesRef.current = {
               range: visibleGridRangeWithArguments.visibleGridRange.cache,
-              rowNames,
+              rowNames: [],
             };
-          }
-
-          if (!cachedGridRangeWithViewPortResultRef.current || !EditorUtil.isWithinGridRange({
-            cachedGridRange: cachedGridRangeWithViewPortResultRef.current.range,
-            visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
-          })) {
-            const viewportResult = await container.resolve(EditorWorkerService).viewport({
-              endCol: visibleGridRangeWithArguments.visibleGridRange.cache.endCol,
-              endRow: visibleGridRangeWithArguments.visibleGridRange.cache.endRow,
-              startCol: visibleGridRangeWithArguments.visibleGridRange.cache.startCol,
-              startRow: visibleGridRangeWithArguments.visibleGridRange.cache.startRow,
-            });
-            if (!isActive) {
-              return;
-            }
             cachedGridRangeWithViewPortResultRef.current = {
               range: visibleGridRangeWithArguments.visibleGridRange.cache,
-              viewportResult,
+              viewportResult: {
+                bytes: new Uint8Array(0),
+                cols: 0,
+                rows: 0,
+                startCol: 0,
+                startRow: 0,
+              },
             };
+          } else {
+            if (!cachedGridRangeWithRowNamesRef.current || !EditorUtil.isWithinGridRange({
+              cachedGridRange: cachedGridRangeWithRowNamesRef.current.range,
+              visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
+            })) {
+              const rowNames: string[] = [];
+              for (let i = visibleGridRangeWithArguments.visibleGridRange.cache.startRow; i <= visibleGridRangeWithArguments.visibleGridRange.cache.endRow; i++) {
+                rowNames.push(await editorService.name(i));
+              }
+
+              if (!isActive) {
+                return;
+              }
+              cachedGridRangeWithRowNamesRef.current = {
+                range: visibleGridRangeWithArguments.visibleGridRange.cache,
+                rowNames,
+              };
+            }
+
+            if (!cachedGridRangeWithViewPortResultRef.current || !EditorUtil.isWithinGridRange({
+              cachedGridRange: cachedGridRangeWithViewPortResultRef.current.range,
+              visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
+            })) {
+              const viewportResult = await container.resolve(EditorWorkerService).viewport({
+                endCol: visibleGridRangeWithArguments.visibleGridRange.cache.endCol,
+                endRow: visibleGridRangeWithArguments.visibleGridRange.cache.endRow,
+                startCol: visibleGridRangeWithArguments.visibleGridRange.cache.startCol,
+                startRow: visibleGridRangeWithArguments.visibleGridRange.cache.startRow,
+              });
+              if (!isActive) {
+                return;
+              }
+              cachedGridRangeWithViewPortResultRef.current = {
+                range: visibleGridRangeWithArguments.visibleGridRange.cache,
+                viewportResult,
+              };
+            }
           }
 
           if (requestId !== visibleRangeRequestRef.current) {
@@ -442,6 +472,7 @@ export const SequenceEditor = () => {
 
       register(KEYBOARD_SHORTCUTS.insertGap),
       register(KEYBOARD_SHORTCUTS.deleteBackward),
+      register(KEYBOARD_SHORTCUTS.deleteRow),
       register(KEYBOARD_SHORTCUTS.deleteSelection),
       register(KEYBOARD_SHORTCUTS.deleteBase),
 
@@ -463,23 +494,30 @@ export const SequenceEditor = () => {
 
   // Executes the editor actions for the keyboard shortcuts emitted via the event bus.
   useEffect(() => {
+    let isDeletingRows = false;
+
     const execute = async (args: { command: () => Promise<void>; getSelectionPostCommand?: () => EditorSelection | null }) => {
       const { command, getSelectionPostCommand } = args;
       try {
         const previousUndoDepth = metaSubject.data?.undoDepth;
+        const previousSequenceCount = metaSubject.data?.sequenceCount;
         await command();
         cachedGridRangeWithViewPortResultRef.current = null;
         cachedGridRangeWithRowNamesRef.current = null;
         const nextMeta = await updateMeta();
-        updateVisibleRange();
-        if (getSelectionPostCommand) {
-          if (previousUndoDepth !== undefined && nextMeta?.undoDepth === previousUndoDepth) {
-            return;
-          }
+        if (getSelectionPostCommand && (previousUndoDepth === undefined || nextMeta?.undoDepth !== previousUndoDepth)) {
           const selection = getSelectionPostCommand();
           selectionSubject.next(selection);
           initialSelectionRef.current = selection;
         }
+        const activeSearchQuery = sequenceEditorStore.getState().searchQuery;
+        if (nextMeta?.sequenceCount === 0) {
+          sequenceEditorStore.getState().setSearchResult(null);
+        } else if (activeSearchQuery && nextMeta && nextMeta.sequenceCount !== previousSequenceCount) {
+          const result = await editorService.search(activeSearchQuery, true);
+          sequenceEditorStore.getState().setSearchResult(result);
+        }
+        updateVisibleRange();
       } catch (error) {
         console.error('Failed to post command:', error);
       }
@@ -686,6 +724,28 @@ export const SequenceEditor = () => {
             getSelectionPostCommand: () => EditorUtil.getPostUpsertSelection(selectionSubject.data, EDITOR_DIRECTION.LEFT),
           });
         })();
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onDeleteRows', () => {
+        if (isDeletingRows || !metaSubject.data) {
+          return;
+        }
+        const rows = EditorUtil.getRowsToDelete(selectionSubject.data, metaSubject.data);
+        if (!rows || rows.length === 0) {
+          return;
+        }
+
+        isDeletingRows = true;
+        selectionSubject.next(null);
+        void execute({
+          command: async () => {
+            await editorService.deleteRows(rows);
+            sequenceEditorStore.getState().recordDeletedRows(rows);
+          },
+          getSelectionPostCommand: () => null,
+        }).finally(() => {
+          isDeletingRows = false;
+        });
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onMutateSelection', (base) => {

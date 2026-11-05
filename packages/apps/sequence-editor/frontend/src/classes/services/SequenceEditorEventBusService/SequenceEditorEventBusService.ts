@@ -16,6 +16,7 @@ export type SequenceEditorEventBusServiceEvent = {
   onMoveRowsEnd: EDITOR_DIRECTION;
   onMoveSelection: EDITOR_DIRECTION;
   onMutateSelection: string;
+  onPasteFasta: string;
   onRealign: void;
   onRedo: void;
   onScrollPageDown: void;
@@ -23,6 +24,7 @@ export type SequenceEditorEventBusServiceEvent = {
   onScrollToLineEnd: void;
   onScrollToLineStart: void;
   onSearch: string;
+  onSequencesPrepended: void;
   onUndo: void;
 };
 

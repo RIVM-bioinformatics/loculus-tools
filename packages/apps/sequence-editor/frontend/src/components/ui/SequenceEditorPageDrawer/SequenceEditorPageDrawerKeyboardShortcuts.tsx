@@ -105,6 +105,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     name: 'Editing',
     shortcuts: [
+      KEYBOARD_SHORTCUTS.pasteSequences,
       KEYBOARD_SHORTCUTS.insertGap,
       KEYBOARD_SHORTCUTS.deleteBackward,
       KEYBOARD_SHORTCUTS.deleteSelection,

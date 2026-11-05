@@ -57,7 +57,6 @@ import { SequenceEditorGotoPositionDialog } from './SequenceEditorGotoPositionDi
 
 export const SequenceEditor = () => {
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
-  const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
   const setIsRealigning = useStore(sequenceEditorStore, (state) => state.setIsRealigning);
   const setLatestMessage = useStore(sequenceEditorStore, (state) => state.setLatestMessage);
   const setMeta = useStore(sequenceEditorStore, (state) => state.setMeta);
@@ -111,6 +110,9 @@ export const SequenceEditor = () => {
 
   const updateMeta = useCallback(async () => {
     const meta = await container.resolve(EditorWorkerService).getMetaData();
+    if (!sequenceEditorStore.getState().parsedFasta) {
+      return null;
+    }
     metaSubject.next(meta);
     return meta;
   }, [metaSubject]);
@@ -206,19 +208,25 @@ export const SequenceEditor = () => {
 
   useEffect(() => {
     const perform = async () => {
-      cachedGridRangeWithViewPortResultRef.current = null;
-      cachedGridRangeWithRowNamesRef.current = null;
-      scrollSubject.next({ scrollLeft: 0, scrollTop: 0 });
-      selectionSubject.next(null);
       await editorService.initialize();
-      await editorService.loadFasta(rawFasta);
+      const currentMeta = await editorService.getMetaData();
+      if (currentMeta.sequenceCount === 0) {
+        cachedGridRangeWithViewPortResultRef.current = null;
+        cachedGridRangeWithRowNamesRef.current = null;
+        scrollSubject.next({ scrollLeft: 0, scrollTop: 0 });
+        selectionSubject.next(null);
+        const storeRawFasta = sequenceEditorStore.getState().rawFasta;
+        if (storeRawFasta) {
+          await editorService.loadFasta(storeRawFasta);
+        }
+      }
       await updateMeta();
       updateVisibleRange();
     };
     perform().catch((error) => {
       console.error(error);
     });
-  }, [editorService, rawFasta, scrollSubject, selectionSubject, updateMeta, updateVisibleRange]);
+  }, [editorService, scrollSubject, selectionSubject, updateMeta, updateVisibleRange]);
 
   useEffect(() => {
     let animationFrame: null | number = null;
@@ -735,12 +743,45 @@ export const SequenceEditor = () => {
         const fasta = await editorService.exportUngappedFasta();
         ExportUtil.downloadFastaFile(fasta, 'sequence.ungapped.fasta');
       }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onPasteFasta', async (pastedFasta) => {
+        try {
+          await sequenceEditorStore.getState().setData(pastedFasta);
+        } catch (error) {
+          console.error('Failed to paste FASTA:', error);
+        }
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onSequencesPrepended', async () => {
+        cachedGridRangeWithViewPortResultRef.current = null;
+        cachedGridRangeWithRowNamesRef.current = null;
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = 0;
+        }
+        scrollSubject.next({ ...scrollSubject.data, scrollTop: 0 });
+        selectionSubject.next(null);
+        initialSelectionRef.current = null;
+        await updateMeta();
+        if (!sequenceEditorStore.getState().parsedFasta) {
+          return;
+        }
+        const activeSearchQuery = sequenceEditorStore.getState().searchQuery;
+        if (activeSearchQuery) {
+          const result = await editorService.search(activeSearchQuery, true);
+          const currentState = sequenceEditorStore.getState();
+          if (currentState.searchQuery !== activeSearchQuery || !currentState.parsedFasta) {
+            return;
+          }
+          sequenceEditorStore.getState().setSearchResult(result);
+        }
+        updateVisibleRange();
+      }),
     ];
     return () => {
       removers.forEach(remover => remover());
       editorService.cancelRealign();
     };
-  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject, setIsRealigning, setLatestMessage]);
+  }, [editorService, selectionSubject, scrollSubject, updateMeta, updateVisibleRange, metaSubject, setIsRealigning, setLatestMessage]);
 
   useEffect(() => {
     updateVisibleRange();
@@ -900,6 +941,61 @@ export const SequenceEditor = () => {
   const onContainerMouseUp = useCallback(() => {
     labelResizeRef.current = null;
     selectionDragRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    const isEditableElement = (element: Element | null): boolean => {
+      if (!element) {
+        return false;
+      }
+      if (element instanceof HTMLElement && element.isContentEditable) {
+        return true;
+      }
+      return Boolean(element.closest('input, select, textarea, [contenteditable]:not([contenteditable="false"])'));
+    };
+
+    const onWindowPaste = (event: globalThis.ClipboardEvent) => {
+      if (sequenceEditorStore.getState().isRealigning) {
+        return;
+      }
+      const target = event.target instanceof Element ? event.target : null;
+      const activeElement = document.activeElement;
+      if (isEditableElement(target) || isEditableElement(activeElement)) {
+        return;
+      }
+      if (document.querySelector('[role="dialog"]')) {
+        return;
+      }
+      if (
+        target &&
+        target !== document.body &&
+        target !== document.documentElement &&
+        containerRef.current &&
+        !containerRef.current.contains(target)
+      ) {
+        return;
+      }
+      if (
+        activeElement &&
+        activeElement !== document.body &&
+        activeElement !== document.documentElement &&
+        containerRef.current &&
+        !containerRef.current.contains(activeElement)
+      ) {
+        return;
+      }
+      const text = event.clipboardData?.getData('text/plain');
+      if (!text?.trim()) {
+        return;
+      }
+      event.preventDefault();
+      container.resolve(SequenceEditorEventBusService).emit('onPasteFasta', text);
+    };
+
+    window.addEventListener('paste', onWindowPaste);
+    return () => {
+      window.removeEventListener('paste', onWindowPaste);
+    };
   }, []);
 
   const onGotoPosition = useCallback((x: null | number, y: null | number) => {

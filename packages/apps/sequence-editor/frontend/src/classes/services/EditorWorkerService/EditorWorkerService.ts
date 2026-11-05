@@ -14,7 +14,6 @@ import type {
 } from '../../../models/editor.models';
 import { EDITOR_DIRECTION } from '../../../models/editor.models';
 import { EngineErrorUtil } from '../../../utils/EngineErrorUtil/EngineErrorUtil';
-import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 
 @singleton()
 export class EditorWorkerService {
@@ -23,6 +22,7 @@ export class EditorWorkerService {
   private commandQueue: Promise<void> = Promise.resolve();
   private engineWorkerProxyInstance: null | Remote<EngineWorkerApi> = null;
   private isRealigning = false;
+  private messageHandler: ((message: null | string) => void) | null = null;
   private realignAbortController: AbortController | null = null;
   private readonly workerReady: Promise<void>;
 
@@ -56,6 +56,7 @@ export class EditorWorkerService {
         reject(new DOMException('Alignment cancelled by user', 'AbortError'));
       }
     }
+    this.isRealigning = false;
   }
 
   public async delete(rows: number[], col: number): Promise<void> {
@@ -85,13 +86,13 @@ export class EditorWorkerService {
   public async getMetaData(): Promise<EngineMeta> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.meta();
-    });
+    }, false);
   }
 
   public async initialize(): Promise<void> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.initialize();
-    });
+    }, false);
   }
 
   public async insert(rows: number[], col: number): Promise<void> {
@@ -100,9 +101,17 @@ export class EditorWorkerService {
     });
   }
 
-  public async loadFasta(fasta: string): Promise<void> {
-    return this.runCommand(async () => {
-      await this.engineWorkerProxy.load(fasta);
+  public async loadFasta(fasta: string): Promise<number> {
+    if (this.isRealigning || this.activeAlignerWorker) {
+      const error = new Error('Alignment is already in progress');
+      this.messageHandler?.(EngineErrorUtil.getEngineErrorMessage(error));
+      throw error;
+    }
+    return await this.runCommand(async () => {
+      if (this.isRealigning || this.activeAlignerWorker) {
+        throw new Error('Alignment is already in progress');
+      }
+      return await this.engineWorkerProxy.load(fasta);
     });
   }
 
@@ -166,7 +175,7 @@ export class EditorWorkerService {
   public async name(row: number): Promise<string> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.name(row);
-    });
+    }, false);
   }
 
   public async realign(signal?: AbortSignal): Promise<void> {
@@ -244,16 +253,27 @@ export class EditorWorkerService {
     });
   }
 
+  public async reset(): Promise<void> {
+    this.cancelRealign();
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.reset();
+    });
+  }
+
   public async search(query: string, checkRecordNames: boolean): Promise<EngineSearchResult> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.search(query, checkRecordNames);
     });
   }
 
+  public setMessageHandler(handler: (message: null | string) => void): void {
+    this.messageHandler = handler;
+  }
+
   public async translate(bounds: ViewportBounds, readingFrame: number): Promise<EngineViewportResult> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.translate(bounds, readingFrame);
-    });
+    }, false);
   }
 
   public async undo(): Promise<void> {
@@ -265,21 +285,21 @@ export class EditorWorkerService {
   public async viewport(bounds: ViewportBounds): Promise<EngineViewportResult> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.viewport(bounds);
-    });
+    }, false);
   }
 
-  private async runCommand<T>(command: () => Promise<T>): Promise<T> {
+  private async runCommand<T>(command: () => Promise<T>, clearMessageOnSuccess = true): Promise<T> {
     const queuedCommand = this.commandQueue.then(async (): Promise<T> => {
-      const { setLatestMessage } = sequenceEditorStore.getState();
       try {
         await this.workerReady;
         const result = await command();
-        if (sequenceEditorStore.getState().latestMessage) {
-          setLatestMessage(null);
+        if (clearMessageOnSuccess) {
+          this.messageHandler?.(null);
         }
         return result;
       } catch (error: unknown) {
-        setLatestMessage(EngineErrorUtil.getEngineErrorMessage(error));
+        const message = EngineErrorUtil.getEngineErrorMessage(error);
+        this.messageHandler?.(message);
         console.error('COMMAND ERROR', error);
         throw error;
       }

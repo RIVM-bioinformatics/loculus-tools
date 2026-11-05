@@ -131,4 +131,39 @@ describe('sequenceEditorStore', () => {
       { id: 'existing2', length: 4 },
     ]);
   });
+
+  it('clears undone sequence batches when a subsequent edit resets redoDepth to 0', async () => {
+    await sequenceEditorStore.getState().setData('>existing1\nATGC\n>existing2\nCGTA');
+    await sequenceEditorStore.getState().setData('>prepended1\nATGCCC');
+
+    // Undo prepend -> redoDepth is 1, sequenceCount drops to 2
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 1,
+      sequenceCount: 2,
+      undoDepth: 0,
+    });
+
+    // Subsequent edit (e.g. mutate) keeps sequenceCount at 2 and resets redoDepth to 0
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 0,
+      sequenceCount: 2,
+      undoDepth: 1,
+    });
+
+    // If sequenceCount later increases by 1 without setData, the cleared batch is not reused
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 0,
+      sequenceCount: 3,
+      undoDepth: 2,
+    });
+
+    expect(sequenceEditorStore.getState().parsedFasta?.sequences.map((s) => s.id)).toEqual([
+      'seq_0',
+      'existing1',
+      'existing2',
+    ]);
+  });
 });

@@ -759,6 +759,11 @@ export const SequenceEditor = () => {
         selectionSubject.next(null);
         initialSelectionRef.current = null;
         await updateMeta();
+        const activeSearchQuery = sequenceEditorStore.getState().searchQuery;
+        if (activeSearchQuery) {
+          const result = await editorService.search(activeSearchQuery, true);
+          sequenceEditorStore.getState().setSearchResult(result);
+        }
         updateVisibleRange();
       }),
     ];
@@ -930,22 +935,34 @@ export const SequenceEditor = () => {
 
   useEffect(() => {
     const isEditableElement = (element: Element | null): boolean => {
-      if (!(element instanceof HTMLElement)) {
+      if (!element) {
         return false;
       }
-      if (['input', 'select', 'textarea'].includes(element.tagName.toLowerCase()) || element.isContentEditable) {
+      if (element instanceof HTMLElement && element.isContentEditable) {
         return true;
       }
-      return Boolean(element.closest('input, select, textarea, [contenteditable="true"]'));
+      return Boolean(element.closest('input, select, textarea, [contenteditable]:not([contenteditable="false"])'));
     };
 
     const onWindowPaste = (event: globalThis.ClipboardEvent) => {
+      if (sequenceEditorStore.getState().isRealigning) {
+        return;
+      }
       const target = event.target instanceof Element ? event.target : null;
       const activeElement = document.activeElement;
       if (isEditableElement(target) || isEditableElement(activeElement)) {
         return;
       }
       if (document.querySelector('[role="dialog"]')) {
+        return;
+      }
+      if (
+        target &&
+        target !== document.body &&
+        target !== document.documentElement &&
+        containerRef.current &&
+        !containerRef.current.contains(target)
+      ) {
         return;
       }
       if (

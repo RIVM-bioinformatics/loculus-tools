@@ -284,6 +284,10 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
               }
             }
 
+            if (meta.redoDepth === 0) {
+              removedSequenceBatches = [];
+            }
+
             if (currentState.parsedMetadata) {
               const fastaIds = sequences.map((s) => s.id);
               const { bestColumn, matchCounts } = MetaDataUtil.findBestMatchingColumn(
@@ -304,6 +308,9 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
               },
             });
             return;
+          }
+          if (meta?.redoDepth === 0) {
+            removedSequenceBatches = [];
           }
           set({ meta });
         },

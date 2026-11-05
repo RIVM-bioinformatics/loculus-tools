@@ -75,19 +75,49 @@ describe('sequenceEditorStore', () => {
     expect(sequenceEditorStore.getState().loadingStatus).toBe(LOADING_STATUS.ERROR);
   });
 
-  it('recomputes expectedLength, isAligned, and invalidSequences across combinedSequences when prepending', async () => {
+  it('treats empty or whitespace-only FASTA as a no-op during an active session, while rejecting it on initial load', async () => {
+    await expect(
+      sequenceEditorStore.getState().setData('   \n  '),
+    ).rejects.toThrow('The FASTA input is empty.');
+    expect(sequenceEditorStore.getState().loadingStatus).toBe(LOADING_STATUS.ERROR);
+
+    await sequenceEditorStore.getState().setData('>seq1\nATGC');
+    vi.clearAllMocks();
+
+    const result = await sequenceEditorStore.getState().setData('   \n\t  ');
+    expect(mockEditorWorkerService.loadFasta).not.toHaveBeenCalled();
+    expect(mockEventBusService.emit).not.toHaveBeenCalled();
+    expect(result.fastaResult.sequences.map((s) => s.id)).toEqual(['seq1']);
+    expect(sequenceEditorStore.getState().loadingStatus).toBe(LOADING_STATUS.SUCCESS);
+    expect(sequenceEditorStore.getState().latestMessage).toBeNull();
+  });
+
+  it('recomputes expectedLength, isAligned, and invalidSequences across combinedSequences when prepending wider or shorter batches', async () => {
     await sequenceEditorStore.getState().setData('>existing\nATGC');
     expect(sequenceEditorStore.getState().parsedFasta?.isAligned).toBe(true);
     expect(sequenceEditorStore.getState().parsedFasta?.expectedLength).toBe(4);
     expect(sequenceEditorStore.getState().parsedFasta?.sequences[0]?.sequence).toBe('');
 
-    await sequenceEditorStore.getState().setData('>prepended\nATGCCC');
+    await sequenceEditorStore.getState().setData('>prepended_wider\nATGCCC');
 
-    const parsedFasta = sequenceEditorStore.getState().parsedFasta;
-    expect(parsedFasta?.sequences.map((s) => s.id)).toEqual(['prepended', 'existing']);
-    expect(parsedFasta?.expectedLength).toBe(6);
-    expect(parsedFasta?.isAligned).toBe(false);
-    expect(parsedFasta?.invalidSequences).toEqual([{ id: 'existing', length: 4 }]);
+    const afterWider = sequenceEditorStore.getState().parsedFasta;
+    expect(afterWider?.sequences.map((s) => s.id)).toEqual(['prepended_wider', 'existing']);
+    expect(afterWider?.expectedLength).toBe(6);
+    expect(afterWider?.isAligned).toBe(false);
+    expect(afterWider?.invalidSequences).toEqual([{ id: 'existing', length: 4 }]);
+
+    sequenceEditorStore.getState().resetDataset();
+    await sequenceEditorStore.getState().setData('>wide1\nATGCCC\n>wide2\nGGGCCC');
+    expect(sequenceEditorStore.getState().parsedFasta?.isAligned).toBe(true);
+    expect(sequenceEditorStore.getState().parsedFasta?.expectedLength).toBe(6);
+
+    await sequenceEditorStore.getState().setData('>prepended_shorter\nATGC');
+
+    const afterShorter = sequenceEditorStore.getState().parsedFasta;
+    expect(afterShorter?.sequences.map((s) => s.id)).toEqual(['prepended_shorter', 'wide1', 'wide2']);
+    expect(afterShorter?.expectedLength).toBe(6);
+    expect(afterShorter?.isAligned).toBe(false);
+    expect(afterShorter?.invalidSequences).toEqual([{ id: 'prepended_shorter', length: 4 }]);
   });
 
   it('removes prepended sequences from the front on undo and restores them on redo via setMeta', async () => {
@@ -152,7 +182,7 @@ describe('sequenceEditorStore', () => {
       undoDepth: 1,
     });
 
-    // If sequenceCount later increases by 1 without setData, the cleared batch is not reused
+    // If sequenceCount later increases without setData, cleared batches are not reused and unique synthetic IDs are generated
     sequenceEditorStore.getState().setMeta({
       alignmentWidth: 4,
       redoDepth: 0,
@@ -160,8 +190,16 @@ describe('sequenceEditorStore', () => {
       undoDepth: 2,
     });
 
+    sequenceEditorStore.getState().setMeta({
+      alignmentWidth: 4,
+      redoDepth: 0,
+      sequenceCount: 4,
+      undoDepth: 3,
+    });
+
     expect(sequenceEditorStore.getState().parsedFasta?.sequences.map((s) => s.id)).toEqual([
-      'seq_0',
+      '__synthetic_seq_1',
+      '__synthetic_seq_0',
       'existing1',
       'existing2',
     ]);

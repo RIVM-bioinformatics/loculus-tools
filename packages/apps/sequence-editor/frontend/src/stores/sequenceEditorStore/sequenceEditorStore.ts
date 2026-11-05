@@ -91,7 +91,7 @@ const createSequenceEditorStoreInitialState = (): SequenceEditorStoreState => ({
 });
 
 const computeAlignmentMetadata = (sequences: FastaSequence[]): Pick<FastaParseResult, 'expectedLength' | 'invalidSequences' | 'isAligned'> => {
-  const expectedLength = sequences[0]?.length ?? 0;
+  const expectedLength = sequences.reduce((max, s) => Math.max(max, s.length), 0);
   const invalidSequences = sequences
     .filter((s) => s.length !== expectedLength)
     .map((s) => ({ id: s.id, length: s.length }));
@@ -108,6 +108,7 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
   persist(
     (set, get) => {
       let removedSequenceBatches: FastaSequence[][] = [];
+      let syntheticSequenceCounter = 0;
 
       container.resolve(EditorWorkerService).setMessageHandler((message) => {
         if (get().latestMessage !== message) {
@@ -122,6 +123,7 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
         ...fastaDataStoreActions,
         resetDataset: () => {
           removedSequenceBatches = [];
+          syntheticSequenceCounter = 0;
           const { setSearchQuery } = get();
           fastaDataStoreActions.resetDataset();
           setSearchQuery('');
@@ -139,7 +141,14 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
         setCustomAminoAcidPalette: (palette: AminoAcidPalette) => set({ customAminoAcidPalette: palette }),
         setCustomNucleotidePalette: (palette: NucleotidePalette) => set({ customNucleotidePalette: palette }),
         setData: async (fasta: string, tsv?: string) => {
-          const hasExistingSession = (get().parsedFasta?.sequences.length ?? 0) > 0;
+          const existingParsedFasta = get().parsedFasta;
+          const hasExistingSession = (existingParsedFasta?.sequences.length ?? 0) > 0;
+          if (hasExistingSession && existingParsedFasta && !fasta.trim() && !tsv) {
+            return {
+              fastaResult: existingParsedFasta,
+              metadataResult: get().parsedMetadata || undefined,
+            };
+          }
           const parsedFasta = FastaUtil.parseFasta(fasta);
 
           if (parsedFasta.error) {
@@ -273,10 +282,10 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
                 removedSequenceBatches.pop();
                 sequences = [...lastBatch, ...sequences];
               } else {
-                const dummy: FastaSequence[] = Array.from({ length: diff }, (_, i) => ({
+                const dummy: FastaSequence[] = Array.from({ length: diff }, () => ({
                   accessionVersion: '',
                   header: '',
-                  id: `seq_${i}`,
+                  id: `__synthetic_seq_${syntheticSequenceCounter++}`,
                   length: meta.alignmentWidth,
                   sequence: '',
                 }));

@@ -110,6 +110,9 @@ export const SequenceEditor = () => {
 
   const updateMeta = useCallback(async () => {
     const meta = await container.resolve(EditorWorkerService).getMetaData();
+    if (!sequenceEditorStore.getState().parsedFasta) {
+      return null;
+    }
     metaSubject.next(meta);
     return meta;
   }, [metaSubject]);
@@ -759,9 +762,16 @@ export const SequenceEditor = () => {
         selectionSubject.next(null);
         initialSelectionRef.current = null;
         await updateMeta();
+        if (!sequenceEditorStore.getState().parsedFasta) {
+          return;
+        }
         const activeSearchQuery = sequenceEditorStore.getState().searchQuery;
         if (activeSearchQuery) {
           const result = await editorService.search(activeSearchQuery, true);
+          const currentState = sequenceEditorStore.getState();
+          if (currentState.searchQuery !== activeSearchQuery || !currentState.parsedFasta) {
+            return;
+          }
           sequenceEditorStore.getState().setSearchResult(result);
         }
         updateVisibleRange();

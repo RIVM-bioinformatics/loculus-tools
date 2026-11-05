@@ -204,4 +204,82 @@ describe('sequenceEditorStore', () => {
       'existing2',
     ]);
   });
+
+  it('resets the engine before loading the first batch of a new session, but not before prepends', async () => {
+    await sequenceEditorStore.getState().setData('>seq1\nATGC');
+
+    expect(mockEditorWorkerService.reset).toHaveBeenCalledTimes(1);
+    expect(mockEditorWorkerService.loadFasta).toHaveBeenCalledTimes(1);
+    expect(mockEditorWorkerService.reset.mock.invocationCallOrder[0]).toBeLessThan(
+      mockEditorWorkerService.loadFasta.mock.invocationCallOrder[0] ?? 0,
+    );
+
+    vi.clearAllMocks();
+    await sequenceEditorStore.getState().setData('>seq0\nATGC');
+
+    expect(mockEditorWorkerService.reset).not.toHaveBeenCalled();
+    expect(mockEditorWorkerService.loadFasta).toHaveBeenCalledTimes(1);
+  });
+
+  it('discards a load that completes after resetDataset was called', async () => {
+    await sequenceEditorStore.getState().setData('>existing\nATGC');
+    vi.clearAllMocks();
+
+    let resolveLoad: (count: number) => void = () => undefined;
+    mockEditorWorkerService.loadFasta.mockReturnValueOnce(new Promise<number>((resolve) => {
+      resolveLoad = resolve;
+    }));
+
+    const pendingSetData = sequenceEditorStore.getState().setData('>pasted\nATGC');
+    await vi.waitFor(() => {
+      expect(mockEditorWorkerService.loadFasta).toHaveBeenCalledTimes(1);
+    });
+    sequenceEditorStore.getState().resetDataset();
+    resolveLoad(2);
+
+    await expect(pendingSetData).rejects.toMatchObject({ name: 'AbortError' });
+
+    const state = sequenceEditorStore.getState();
+    expect(state.parsedFasta).toBeNull();
+    expect(state.rawFasta).toBe('');
+    expect(mockEventBusService.emit).not.toHaveBeenCalled();
+  });
+
+  it('does not set an error status when a load superseded by resetDataset fails', async () => {
+    await sequenceEditorStore.getState().setData('>existing\nATGC');
+    vi.clearAllMocks();
+
+    let rejectLoad: (error: Error) => void = () => undefined;
+    mockEditorWorkerService.loadFasta.mockReturnValueOnce(new Promise<number>((_, reject) => {
+      rejectLoad = reject;
+    }));
+
+    const pendingSetData = sequenceEditorStore.getState().setData('>pasted\nATGC');
+    await vi.waitFor(() => {
+      expect(mockEditorWorkerService.loadFasta).toHaveBeenCalledTimes(1);
+    });
+    sequenceEditorStore.getState().resetDataset();
+    const loadingStatusAfterReset = sequenceEditorStore.getState().loadingStatus;
+    rejectLoad(new Error('InvalidAlphabet: Invalid character Z'));
+
+    await expect(pendingSetData).rejects.toMatchObject({ name: 'AbortError' });
+
+    const state = sequenceEditorStore.getState();
+    expect(state.loadingStatus).toBe(loadingStatusAfterReset);
+    expect(state.loadingError).toBeNull();
+    expect(state.latestMessage).toBeNull();
+  });
+
+  it('surfaces engine reset failures through latestMessage', async () => {
+    mockEditorWorkerService.reset.mockRejectedValueOnce(new Error('Engine failed to initialize'));
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    sequenceEditorStore.getState().resetDataset();
+
+    await vi.waitFor(() => {
+      expect(sequenceEditorStore.getState().latestMessage).toContain('Engine failed to initialize');
+    });
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
 });

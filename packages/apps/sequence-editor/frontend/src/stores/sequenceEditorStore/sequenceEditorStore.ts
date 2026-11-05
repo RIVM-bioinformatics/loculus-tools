@@ -109,6 +109,8 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
     (set, get) => {
       let removedSequenceBatches: FastaSequence[][] = [];
       let syntheticSequenceCounter = 0;
+      // Incremented on every reset so in-flight loads can detect that their session was discarded.
+      let sessionGeneration = 0;
 
       container.resolve(EditorWorkerService).setMessageHandler((message) => {
         if (get().latestMessage !== message) {
@@ -122,6 +124,7 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
         ...initialState,
         ...fastaDataStoreActions,
         resetDataset: () => {
+          sessionGeneration++;
           removedSequenceBatches = [];
           syntheticSequenceCounter = 0;
           const { setSearchQuery } = get();
@@ -135,7 +138,10 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
             searchResultHighlightedIndex: null,
             selection: null,
           });
-          void container.resolve(EditorWorkerService).reset();
+          container.resolve(EditorWorkerService).reset().catch((error: unknown) => {
+            console.error('Failed to reset sequence editor engine:', error);
+            set({ latestMessage: EngineErrorUtil.getEngineErrorMessage(error) });
+          });
         },
         setAminoAcidPalette: (palette: AminoAcidPalette) => set({ aminoAcidPalette: palette }),
         setCustomAminoAcidPalette: (palette: AminoAcidPalette) => set({ customAminoAcidPalette: palette }),
@@ -185,9 +191,20 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
             }
           }
 
+          const generation = sessionGeneration;
+          const createSupersededError = () => new DOMException('FASTA load was superseded by a dataset reset', 'AbortError');
+
           try {
-            await container.resolve(EditorWorkerService).loadFasta(fasta);
+            const editorWorkerService = container.resolve(EditorWorkerService);
+            if (!hasExistingSession) {
+              // Guarantee a new session starts from an empty engine, even if a previous reset failed.
+              await editorWorkerService.reset();
+            }
+            await editorWorkerService.loadFasta(fasta);
           } catch (error: unknown) {
+            if (generation !== sessionGeneration) {
+              throw createSupersededError();
+            }
             const errorMessage = EngineErrorUtil.getEngineErrorMessage(error);
             const hasSessionOnError = (get().parsedFasta?.sequences.length ?? 0) > 0;
             if (hasSessionOnError) {
@@ -204,9 +221,18 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
             throw error;
           }
 
+          if (generation !== sessionGeneration) {
+            // A reset happened while the load was in flight; the queued engine reset clears the
+            // loaded rows, so committing them here would desynchronize the store from the engine.
+            throw createSupersededError();
+          }
+
           removedSequenceBatches = [];
           const currentState = get();
           const existingSequences = currentState.parsedFasta?.sequences || [];
+          // Sequence bodies are intentionally cleared: the WASM engine owns the alignment and
+          // stored bodies would go stale after the first edit. Read sequence data through
+          // EditorWorkerService (viewport/export) instead.
           const newSequences: FastaSequence[] = parsedFasta.sequences.map((s) => ({
             ...s,
             sequence: '',

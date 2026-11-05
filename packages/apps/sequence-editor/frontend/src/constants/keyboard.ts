@@ -123,10 +123,14 @@ export const KEYBOARD_SHORTCUTS: { [key: string]: KeyboardShortcut } = {
     shortcut: { code: 'ArrowUp' },
   },
   pasteSequences: {
-    callback: () => {
+    // Keyboard pasting is handled via the DOM 'paste' event; this callback supports clicking the shortcut in the drawer (synthetic event).
+    callback: (event) => {
+      if (event.isTrusted) {
+        return;
+      }
       if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
         navigator.clipboard.readText().then((text) => {
-          if (text) {
+          if (text?.trim()) {
             container.resolve(SequenceEditorEventBusService).emit('onPasteFasta', text);
           }
         }).catch(() => {

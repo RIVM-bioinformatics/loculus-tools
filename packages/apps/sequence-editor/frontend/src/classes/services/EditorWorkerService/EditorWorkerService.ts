@@ -22,7 +22,6 @@ export class EditorWorkerService {
   private commandQueue: Promise<void> = Promise.resolve();
   private engineWorkerProxyInstance: null | Remote<EngineWorkerApi> = null;
   private isRealigning = false;
-  private latestMessage: null | string = null;
   private messageHandler: ((message: null | string) => void) | null = null;
   private realignAbortController: AbortController | null = null;
   private readonly workerReady: Promise<void>;
@@ -285,14 +284,10 @@ export class EditorWorkerService {
       try {
         await this.workerReady;
         const result = await command();
-        if (this.latestMessage) {
-          this.latestMessage = null;
-          this.messageHandler?.(null);
-        }
+        this.messageHandler?.(null);
         return result;
       } catch (error: unknown) {
         const message = EngineErrorUtil.getEngineErrorMessage(error);
-        this.latestMessage = message;
         this.messageHandler?.(message);
         console.error('COMMAND ERROR', error);
         throw error;

@@ -1,6 +1,5 @@
 import { container } from 'tsyringe';
 import type {
-  ClipboardEvent,
   MouseEvent as ReactMouseEvent,
   UIEvent,
 } from 'react';
@@ -58,7 +57,6 @@ import { SequenceEditorGotoPositionDialog } from './SequenceEditorGotoPositionDi
 
 export const SequenceEditor = () => {
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
-  const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
   const setIsRealigning = useStore(sequenceEditorStore, (state) => state.setIsRealigning);
   const setLatestMessage = useStore(sequenceEditorStore, (state) => state.setLatestMessage);
   const setMeta = useStore(sequenceEditorStore, (state) => state.setMeta);
@@ -930,17 +928,47 @@ export const SequenceEditor = () => {
     selectionDragRef.current = null;
   }, []);
 
-  const onContainerPaste = useCallback((event: ClipboardEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement | null;
-    if (target && ['input', 'select', 'textarea'].includes(target.tagName.toLowerCase())) {
-      return;
-    }
-    const text = event.clipboardData?.getData('text/plain');
-    if (!text?.trim()) {
-      return;
-    }
-    event.preventDefault();
-    container.resolve(SequenceEditorEventBusService).emit('onPasteFasta', text);
+  useEffect(() => {
+    const isEditableElement = (element: Element | null): boolean => {
+      if (!(element instanceof HTMLElement)) {
+        return false;
+      }
+      if (['input', 'select', 'textarea'].includes(element.tagName.toLowerCase()) || element.isContentEditable) {
+        return true;
+      }
+      return Boolean(element.closest('input, select, textarea, [contenteditable="true"]'));
+    };
+
+    const onWindowPaste = (event: globalThis.ClipboardEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const activeElement = document.activeElement;
+      if (isEditableElement(target) || isEditableElement(activeElement)) {
+        return;
+      }
+      if (document.querySelector('[role="dialog"]')) {
+        return;
+      }
+      if (
+        activeElement &&
+        activeElement !== document.body &&
+        activeElement !== document.documentElement &&
+        containerRef.current &&
+        !containerRef.current.contains(activeElement)
+      ) {
+        return;
+      }
+      const text = event.clipboardData?.getData('text/plain');
+      if (!text?.trim()) {
+        return;
+      }
+      event.preventDefault();
+      container.resolve(SequenceEditorEventBusService).emit('onPasteFasta', text);
+    };
+
+    window.addEventListener('paste', onWindowPaste);
+    return () => {
+      window.removeEventListener('paste', onWindowPaste);
+    };
   }, []);
 
   const onGotoPosition = useCallback((x: null | number, y: null | number) => {
@@ -968,7 +996,6 @@ export const SequenceEditor = () => {
       <SequenceEditorSearchBar />
       <Box
         onMouseUp={onContainerMouseUp}
-        onPaste={onContainerPaste}
         ref={containerRef}
         sx={{
           height: `calc(100% - ${theme.spacing(3)})`,

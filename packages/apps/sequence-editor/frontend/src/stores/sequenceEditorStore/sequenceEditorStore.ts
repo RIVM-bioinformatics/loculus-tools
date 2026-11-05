@@ -35,6 +35,7 @@ import type {
   AminoAcidPalette,
   NucleotidePalette,
 } from '../../models/palette.models';
+import { EngineErrorUtil } from '../../utils/EngineErrorUtil';
 import { EditorWorkerService } from '../../classes/services/EditorWorkerService';
 import { SequenceEditorEventBusService } from '../../classes/services/SequenceEditorEventBusService';
 
@@ -89,10 +90,30 @@ const createSequenceEditorStoreInitialState = (): SequenceEditorStoreState => ({
   selection: null,
 });
 
+const computeAlignmentMetadata = (sequences: FastaSequence[]): Pick<FastaParseResult, 'expectedLength' | 'invalidSequences' | 'isAligned'> => {
+  const expectedLength = sequences[0]?.length ?? 0;
+  const invalidSequences = sequences
+    .filter((s) => s.length !== expectedLength)
+    .map((s) => ({ id: s.id, length: s.length }));
+  const isAligned = invalidSequences.length === 0;
+
+  return {
+    expectedLength,
+    invalidSequences: isAligned ? undefined : invalidSequences,
+    isAligned,
+  };
+};
+
 export const sequenceEditorStore = createStore<SequenceEditorStore>()(
   persist(
     (set, get) => {
-      container.resolve(EditorWorkerService).setMessageHandler((message) => set({ latestMessage: message }));
+      let removedSequenceBatches: FastaSequence[][] = [];
+
+      container.resolve(EditorWorkerService).setMessageHandler((message) => {
+        if (get().latestMessage !== message) {
+          set({ latestMessage: message });
+        }
+      });
       const initialState = createSequenceEditorStoreInitialState();
       const fastaDataStoreActions = createFastaDataStoreActions({ get, set });
 
@@ -100,10 +121,12 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
         ...initialState,
         ...fastaDataStoreActions,
         resetDataset: () => {
+          removedSequenceBatches = [];
           const { setSearchQuery } = get();
           fastaDataStoreActions.resetDataset();
           setSearchQuery('');
           set({
+            isRealigning: false,
             latestMessage: null,
             meta: null,
             searchResult: null,
@@ -116,27 +139,77 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
         setCustomAminoAcidPalette: (palette: AminoAcidPalette) => set({ customAminoAcidPalette: palette }),
         setCustomNucleotidePalette: (palette: NucleotidePalette) => set({ customNucleotidePalette: palette }),
         setData: async (fasta: string, tsv?: string) => {
+          const hasExistingSession = (get().parsedFasta?.sequences.length ?? 0) > 0;
           const parsedFasta = FastaUtil.parseFasta(fasta);
 
           if (parsedFasta.error) {
-            set({
-              loadingError: parsedFasta.error,
-              loadingStatus: LOADING_STATUS.ERROR,
-            });
+            if (hasExistingSession) {
+              set({
+                latestMessage: parsedFasta.error,
+                loadingStatus: LOADING_STATUS.SUCCESS,
+              });
+            } else {
+              set({
+                loadingError: parsedFasta.error,
+                loadingStatus: LOADING_STATUS.ERROR,
+              });
+            }
             throw new Error(parsedFasta.error);
           }
 
-          await container.resolve(EditorWorkerService).loadFasta(fasta);
+          let parsedMetadata: MetadataParseResult | undefined;
+          if (tsv) {
+            parsedMetadata = MetaDataUtil.parseTsv(tsv);
+            if (parsedMetadata.error) {
+              if (hasExistingSession) {
+                set({
+                  latestMessage: parsedMetadata.error,
+                  loadingStatus: LOADING_STATUS.SUCCESS,
+                });
+              } else {
+                set({
+                  loadingError: parsedMetadata.error,
+                  loadingStatus: LOADING_STATUS.ERROR,
+                });
+              }
+              throw new Error(parsedMetadata.error);
+            }
+          }
 
+          try {
+            await container.resolve(EditorWorkerService).loadFasta(fasta);
+          } catch (error: unknown) {
+            const errorMessage = EngineErrorUtil.getEngineErrorMessage(error);
+            const hasSessionOnError = (get().parsedFasta?.sequences.length ?? 0) > 0;
+            if (hasSessionOnError) {
+              set({
+                latestMessage: errorMessage,
+                loadingStatus: LOADING_STATUS.SUCCESS,
+              });
+            } else {
+              set({
+                loadingError: errorMessage,
+                loadingStatus: LOADING_STATUS.ERROR,
+              });
+            }
+            throw error;
+          }
+
+          removedSequenceBatches = [];
           const currentState = get();
           const existingSequences = currentState.parsedFasta?.sequences || [];
+          const newSequences: FastaSequence[] = parsedFasta.sequences.map((s) => ({
+            ...s,
+            sequence: '',
+          }));
           const combinedSequences: FastaSequence[] = [
-            ...parsedFasta.sequences,
+            ...newSequences,
             ...existingSequences,
           ];
 
           const updatedParsedFasta: FastaParseResult = {
             ...parsedFasta,
+            ...computeAlignmentMetadata(combinedSequences),
             sequences: combinedSequences,
           };
 
@@ -144,17 +217,7 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
             ? `${fasta.trimEnd()}\n${currentState.rawFasta}`
             : fasta;
 
-          let parsedMetadata: MetadataParseResult | undefined;
-          if (tsv) {
-            parsedMetadata = MetaDataUtil.parseTsv(tsv);
-            if (parsedMetadata.error) {
-              set({
-                loadingError: parsedMetadata.error,
-                loadingStatus: LOADING_STATUS.ERROR,
-              });
-              throw new Error(parsedMetadata.error);
-            }
-
+          if (tsv && parsedMetadata) {
             set({
               parsedMetadata,
               rawMetadata: tsv,
@@ -200,22 +263,43 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
           if (meta && currentState.parsedFasta && currentState.parsedFasta.sequences.length !== meta.sequenceCount) {
             let sequences = currentState.parsedFasta.sequences;
             if (sequences.length > meta.sequenceCount) {
-              sequences = sequences.slice(0, meta.sequenceCount);
+              const removeCount = sequences.length - meta.sequenceCount;
+              removedSequenceBatches.push(sequences.slice(0, removeCount));
+              sequences = sequences.slice(removeCount);
             } else {
               const diff = meta.sequenceCount - sequences.length;
-              const dummy: FastaSequence[] = Array.from({ length: diff }, (_, i) => ({
-                accessionVersion: '',
-                header: '',
-                id: `seq_${sequences.length + i}`,
-                length: meta.alignmentWidth,
-                sequence: '',
-              }));
-              sequences = [...sequences, ...dummy];
+              const lastBatch = removedSequenceBatches.at(-1);
+              if (lastBatch?.length === diff) {
+                removedSequenceBatches.pop();
+                sequences = [...lastBatch, ...sequences];
+              } else {
+                const dummy: FastaSequence[] = Array.from({ length: diff }, (_, i) => ({
+                  accessionVersion: '',
+                  header: '',
+                  id: `seq_${i}`,
+                  length: meta.alignmentWidth,
+                  sequence: '',
+                }));
+                sequences = [...dummy, ...sequences];
+              }
             }
+
+            if (currentState.parsedMetadata) {
+              const fastaIds = sequences.map((s) => s.id);
+              const { bestColumn, matchCounts } = MetaDataUtil.findBestMatchingColumn(
+                currentState.parsedMetadata.columns,
+                currentState.parsedMetadata.recordsByColumn,
+                fastaIds,
+              );
+              get().setColumnMatchCounts(matchCounts);
+              get().setMatchKeyField(bestColumn);
+            }
+
             set({
               meta,
               parsedFasta: {
                 ...currentState.parsedFasta,
+                ...computeAlignmentMetadata(sequences),
                 sequences,
               },
             });

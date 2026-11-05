@@ -102,9 +102,14 @@ export class EditorWorkerService {
 
   public async loadFasta(fasta: string): Promise<number> {
     if (this.isRealigning || this.activeAlignerWorker) {
-      throw new Error('Alignment is already in progress');
+      const error = new Error('Alignment is already in progress');
+      this.messageHandler?.(EngineErrorUtil.getEngineErrorMessage(error));
+      throw error;
     }
     return await this.runCommand(async () => {
+      if (this.isRealigning || this.activeAlignerWorker) {
+        throw new Error('Alignment is already in progress');
+      }
       return await this.engineWorkerProxy.load(fasta);
     });
   }

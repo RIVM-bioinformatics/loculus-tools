@@ -56,6 +56,7 @@ export class EditorWorkerService {
         reject(new DOMException('Alignment cancelled by user', 'AbortError'));
       }
     }
+    this.isRealigning = false;
   }
 
   public async delete(rows: number[], col: number): Promise<void> {

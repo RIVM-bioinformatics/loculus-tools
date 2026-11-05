@@ -23,7 +23,10 @@ export class UrlUtil {
 
   public static getBaseURLWithPath(): string {
     const url = new URL(container.resolve(WindowService).window.location.href);
-    return `${url.protocol}//${url.host}/${url.pathname.split('/').filter(Boolean).shift()}`;
+    if (url.pathname) {
+      return `${url.protocol}//${url.host}/${url.pathname.split('/').filter(Boolean).shift()}`;
+    }
+    return `${url.protocol}//${url.host}`;
   }
 
   public static validateFastaUrl(url: string): string {

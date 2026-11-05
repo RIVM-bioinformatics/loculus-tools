@@ -618,7 +618,8 @@ try {
 
 | Method | Arguments | Returns | Purpose |
 | -------- | ----------- | --------- | --------- |
-| `load` | `fasta: string` | `Promise<number>` | Parse FASTA; returns sequence count |
+| `load` | `fasta: string` | `Promise<number>` | Parse and prepend FASTA; returns total sequence count |
+| `reset` | — | `Promise<void>` | Reset engine to initial empty state |
 | `meta` | — | `Promise<Meta>` | Alignment metadata (rows, width, undo/redo depth) |
 | `name` | `row: number` | `Promise<string>` | Row name |
 | `exportGappedFasta` | — | `Promise<string>` | Export full alignment as gapped FASTA |

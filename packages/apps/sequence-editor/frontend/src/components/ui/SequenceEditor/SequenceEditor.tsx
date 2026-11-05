@@ -106,7 +106,20 @@ export const SequenceEditor = () => {
     const verticalSize = geometry.rulerHeight + meta.sequenceCount * geometry.cellHeight;
     setHorizontalScrollBarSize(horizontalSize);
     setVerticalScrollBarSize(verticalSize);
-  }, [geometrySubject, metaSubject]);
+    const { height, width } = containerDimensionsRef.current;
+    const maxScrollLeft = Math.max(0, horizontalSize - width);
+    const maxScrollTop = Math.max(0, verticalSize - height);
+    const { scrollLeft, scrollTop } = scrollSubject.data;
+    if (scrollLeft > maxScrollLeft || scrollTop > maxScrollTop) {
+      const nextScrollLeft = Math.min(scrollLeft, maxScrollLeft);
+      const nextScrollTop = Math.min(scrollTop, maxScrollTop);
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollLeft = nextScrollLeft;
+        scrollContainerRef.current.scrollTop = nextScrollTop;
+      }
+      scrollSubject.next({ scrollLeft: nextScrollLeft, scrollTop: nextScrollTop });
+    }
+  }, [geometrySubject, metaSubject, scrollSubject]);
 
   const updateMeta = useCallback(async () => {
     const meta = await container.resolve(EditorWorkerService).getMetaData();
@@ -210,7 +223,7 @@ export const SequenceEditor = () => {
     const perform = async () => {
       await editorService.initialize();
       const currentMeta = await editorService.getMetaData();
-      if (currentMeta.sequenceCount === 0) {
+      if (currentMeta.sequenceCount === 0 && currentMeta.undoDepth === 0 && currentMeta.redoDepth === 0) {
         cachedGridRangeWithViewPortResultRef.current = null;
         cachedGridRangeWithRowNamesRef.current = null;
         scrollSubject.next({ scrollLeft: 0, scrollTop: 0 });
@@ -485,19 +498,22 @@ export const SequenceEditor = () => {
       const { command, getSelectionPostCommand } = args;
       try {
         const previousUndoDepth = metaSubject.data?.undoDepth;
+        const previousSequenceCount = metaSubject.data?.sequenceCount;
         await command();
         cachedGridRangeWithViewPortResultRef.current = null;
         cachedGridRangeWithRowNamesRef.current = null;
         const nextMeta = await updateMeta();
-        updateVisibleRange();
-        if (getSelectionPostCommand) {
-          if (previousUndoDepth !== undefined && nextMeta?.undoDepth === previousUndoDepth) {
-            return;
-          }
+        if (getSelectionPostCommand && (previousUndoDepth === undefined || nextMeta?.undoDepth !== previousUndoDepth)) {
           const selection = getSelectionPostCommand();
           selectionSubject.next(selection);
           initialSelectionRef.current = selection;
         }
+        const activeSearchQuery = sequenceEditorStore.getState().searchQuery;
+        if (activeSearchQuery && nextMeta && nextMeta.sequenceCount !== previousSequenceCount) {
+          const result = await editorService.search(activeSearchQuery, true);
+          sequenceEditorStore.getState().setSearchResult(result);
+        }
+        updateVisibleRange();
       } catch (error) {
         console.error('Failed to post command:', error);
       }
@@ -716,7 +732,10 @@ export const SequenceEditor = () => {
             return;
           }
           await execute({
-            command: async () => editorService.deleteRows(rows),
+            command: async () => {
+              await editorService.deleteRows(rows);
+              sequenceEditorStore.getState().recordDeletedRows(rows);
+            },
             getSelectionPostCommand: () => null,
           });
         })();

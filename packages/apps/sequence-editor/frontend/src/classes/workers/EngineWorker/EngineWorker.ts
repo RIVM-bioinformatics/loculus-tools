@@ -237,6 +237,9 @@ export class EngineWorker implements EngineWorkerApi {
 
   /** Converts a plain row-index list into the typed array the WASM API expects. */
   private toRowIndices(rows: number[]): Uint32Array {
+    if (!rows.every((row) => Number.isSafeInteger(row) && row >= 0 && row <= 0xFFFF_FFFF)) {
+      throw new Error('Indices must be non-negative 32-bit integers');
+    }
     return new Uint32Array(rows);
   }
 

@@ -39,7 +39,8 @@
   },
   "dependencies": {
     "lodash": "4.18.1",
-    "zustand": "5.0.16"
+    "zustand": "5.0.16",
+    "keycloak-js": "26.2.5"
   },
   "devDependencies": {
     "@emotion/cache": "11.14.0",
@@ -89,9 +90,21 @@
       "types": "./src/classes/services/FastaDataEventBusService/index.ts",
       "import": "./src/classes/services/FastaDataEventBusService/index.ts"
     },
+    "./classes/services/LoculusService": {
+      "types": "./src/classes/services/LoculusService/index.ts",
+      "import": "./src/classes/services/LoculusService/index.ts"
+    },
+    "./classes/services/UrlService": {
+      "types": "./src/classes/services/UrlService/index.ts",
+      "import": "./src/classes/services/UrlService/index.ts"
+    },
     "./components/app/App": {
       "types": "./src/components/app/App/index.ts",
       "import": "./src/components/app/App/index.ts"
+    },
+    "./components/authentication/AuthenticationLoader": {
+      "types": "./src/components/authentication/AuthenticationLoader/index.ts",
+      "import": "./src/components/authentication/AuthenticationLoader/index.ts"
     },
     "./components/fasta/FastaDataImportDialog": {
       "types": "./src/components/fasta/FastaDataImportDialog/index.ts",
@@ -177,6 +190,10 @@
       "types": "./src/models/metadata.models.ts",
       "import": "./src/models/metadata.models.ts"
     },
+    "./models/url.models": {
+      "types": "./src/models/url.models.ts",
+      "import": "./src/models/url.models.ts"
+    },
     "./pages/ErrorPage": {
       "types": "./src/pages/ErrorPage/index.ts",
       "import": "./src/pages/ErrorPage/index.ts"
@@ -237,9 +254,21 @@
         "types": "./dist/classes/services/FastaDataEventBusService/index.d.ts",
         "import": "./dist/classes/services/FastaDataEventBusService/index.js"
       },
+      "./classes/services/LoculusService": {
+        "types": "./dist/classes/services/LoculusService/index.d.ts",
+        "import": "./dist/classes/services/LoculusService/index.js"
+      },
+      "./classes/services/UrlService": {
+        "types": "./dist/classes/services/UrlService/index.d.ts",
+        "import": "./dist/classes/services/UrlService/index.js"
+      },
       "./components/app/App": {
         "types": "./dist/components/app/App/index.d.ts",
         "import": "./dist/components/app/App/index.js"
+      },
+      "./components/authentication/AuthenticationLoader": {
+        "types": "./dist/components/authentication/AuthenticationLoader/index.d.ts",
+        "import": "./dist/components/authentication/AuthenticationLoader/index.js"
       },
       "./components/fasta/FastaDataImportDialog": {
         "types": "./dist/components/fasta/FastaDataImportDialog/index.d.ts",
@@ -324,6 +353,10 @@
       "./models/metadata.models": {
         "types": "./dist/models/metadata.models.d.ts",
         "import": "./dist/models/metadata.models.js"
+      },
+      "./models/url.models": {
+        "types": "./dist/models/url.models.d.ts",
+        "import": "./dist/models/url.models.js"
       },
       "./pages/ErrorPage": {
         "types": "./dist/pages/ErrorPage/index.d.ts",

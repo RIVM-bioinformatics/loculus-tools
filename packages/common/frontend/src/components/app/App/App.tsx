@@ -14,10 +14,13 @@ import { DependencyContainerUtil } from '../../../utils/DependencyContainerUtil'
 import { ErrorPage } from '../../../pages/ErrorPage';
 import { I18nWrapper } from '../../ui/I18nWrapper';
 import { PageCommonContextProvider } from '../../../context/pageCommonContext';
+import { AuthenticationLoader } from '../../authentication/AuthenticationLoader';
 
-export type AppProps = PropsWithChildren;
+export type AppProps = PropsWithChildren<{
+  useAuthentication?: boolean;
+}>;
 
-export const App = ({ children }: AppProps) => {
+export const App = ({ children, useAuthentication }: AppProps) => {
   setupUiCore();
   const config = DependencyContainerUtil.resolveConfig<ConfigBase>();
   const { pageConfig } = config;
@@ -35,7 +38,13 @@ export const App = ({ children }: AppProps) => {
         <ErrorBoundary FallbackComponent={ErrorPage}>
           <I18nWrapper>
             <PageCommonContextProvider {...pageConfig}>
-              {children}
+              {useAuthentication ? (
+                <AuthenticationLoader>
+                  {children}
+                </AuthenticationLoader>
+              ) : (
+                children
+              )}
             </PageCommonContextProvider>
           </I18nWrapper>
         </ErrorBoundary>

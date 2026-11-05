@@ -6,7 +6,9 @@ import { PageCommonHeader } from '@rivm-loculus-tools/common-frontend/components
 import {
   useCallback,
   useMemo,
+  useSyncExternalStore,
 } from 'react';
+import { UrlService } from '@rivm-loculus-tools/common-frontend/classes/services/UrlService';
 import CodeIcon from '@mui/icons-material/Code';
 import PublishIcon from '@mui/icons-material/Publish';
 import { useStore } from 'zustand';
@@ -21,14 +23,35 @@ import {
 import { ButtonWithMenu } from '@rivm-loculus-tools/common-frontend/components/ui/ButtonWithMenu';
 import type { ButtonWithMenuProps } from '@rivm-loculus-tools/common-frontend/components/ui/ButtonWithMenu';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import { LoculusService } from '@rivm-loculus-tools/common-frontend/classes/services/LoculusService';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
 
 export const SequenceEditorPageHeader = () => {
+  const loculusService = useMemo(() => container.resolve(LoculusService), []);
+  const urlService = useMemo(() => container.resolve(UrlService), []);
+
+  const isAuthenticated = useSyncExternalStore(
+    useCallback((onStoreChange) => loculusService.subscribe(onStoreChange), [loculusService]),
+    useCallback(() => loculusService.data.authenticated, [loculusService]),
+    () => false,
+  );
+
+  const hasReturnParams = useSyncExternalStore(
+    useCallback((onStoreChange) => urlService.subscribe(onStoreChange), [urlService]),
+    useCallback(() => urlService.hasReturnParams(), [urlService]),
+    () => false,
+  );
+
+  console.log('hasReturnParams:', hasReturnParams);
+
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const resetDataset = useStore(sequenceEditorStore, (state) => state.resetDataset);
   const meta = useStore(sequenceEditorStore, (state) => state.meta);
+  const parsedMetadata = useStore(sequenceEditorStore, (state) => state.parsedMetadata);
+
+  const hasFasta = useStore(sequenceEditorStore, (state) => !!state.rawFasta);
 
   const onReset = useCallback(() => {
     resetDataset();
@@ -58,26 +81,29 @@ export const SequenceEditorPageHeader = () => {
   }, []);
 
   const onClickUploadToLoculus = useCallback(() => {
-    alert('Not implemented');
+    container.resolve(SequenceEditorEventBusService).emit('onExportToLoculus');
   }, []);
 
   const exportExportMenuItems: ButtonWithMenuProps['items'] = useMemo(() => [
     {
+      disabled: !isAuthenticated || !hasFasta || !hasReturnParams || !parsedMetadata,
       icon: <PublishIcon fontSize={'small'} />,
       label: 'Export to loculus',
       onClick: onClickUploadToLoculus,
     },
     {
+      disabled: !hasFasta,
       icon: <CodeIcon fontSize={'small'} />,
       label: 'Save as Ungapped Fasta (.fasta)',
       onClick: onClickExportFasta,
     },
     {
+      disabled: !hasFasta,
       icon: <CodeIcon fontSize={'small'} />,
       label: 'Save as Gapped Fasta (.fasta)',
       onClick: onClickExportGappedFasta,
     },
-  ], [onClickExportFasta, onClickExportGappedFasta, onClickUploadToLoculus]);
+  ], [isAuthenticated, hasFasta, hasReturnParams, parsedMetadata, onClickUploadToLoculus, onClickExportFasta, onClickExportGappedFasta]);
 
   return (
     <PageCommonHeader

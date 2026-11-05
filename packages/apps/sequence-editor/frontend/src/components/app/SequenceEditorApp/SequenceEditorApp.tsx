@@ -19,7 +19,7 @@ export const SequenceEditorApp = () => {
   }, []);
 
   return (
-    <App>
+    <App useAuthentication>
       <SequenceEditorMainPage />
     </App>
   );

@@ -77,7 +77,7 @@ export default defineConfig({
       cert: readFileSync(resolve(gitRootPath, 'cert', 'cert.pem')),
       key: readFileSync(resolve(gitRootPath, 'cert', 'key.pem')),
     } : undefined,
-    open: true,
+    open: '/?auth-endpoint=http://localhost:8080/&auth-realm=loculus-tools&auth-client-id=backend-client',
     port: 5021,
   },
   test: {

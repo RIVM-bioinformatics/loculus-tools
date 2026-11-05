@@ -53,6 +53,9 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
       if (inputFastaUrl) {
         setLoadingStatus(LOADING_STATUS.LOADING);
         try {
+          if (!UrlUtil.isValidResourceUrl(inputFastaUrl)) {
+            throw new Error('Invalid input-fasta URL.');
+          }
           const fastaRes = await fetch(inputFastaUrl);
           if (!fastaRes.ok) {
             throw new Error(`FASTA fetch failed (${fastaRes.status})`);
@@ -67,6 +70,9 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
           let metaText: string | undefined;
           if (inputMetadataUrl) {
             try {
+              if (!UrlUtil.isValidResourceUrl(inputMetadataUrl)) {
+                throw new Error('Invalid input-metadata URL.');
+              }
               const metaRes = await fetch(inputMetadataUrl);
               if (metaRes.ok) {
                 metaText = await metaRes.text();

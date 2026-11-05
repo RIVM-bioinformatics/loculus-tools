@@ -25,6 +25,7 @@ export type ButtonWithMenuProps = {
   buttonColor?: ButtonOwnProps['color'];
   disabled?: boolean;
   items: Array<{
+    disabled?: boolean;
     icon: ReactElement;
     label: string;
     onClick: () => void;
@@ -86,8 +87,9 @@ export const ButtonWithMenu = (inProps: ButtonWithMenuProps) => {
         open={isMenuOpen}
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
       >
-        {items.map(({ icon, label: itemLabel, onClick }) => (
+        {items.map(({ disabled: itemDisabled, icon, label: itemLabel, onClick }) => (
           <MenuItem
+            disabled={itemDisabled}
             key={itemLabel}
             // eslint-disable-next-line @eslint-react/kit/jsx-no-bind
             onClick={() => {

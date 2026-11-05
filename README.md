@@ -31,6 +31,28 @@ This installs all workspace dependencies and, via the root `postinstall` script 
 
 > **`postinstall` not running?** If `pnpm install` prints `Already up to date` and finishes almost instantly, it short-circuited and skipped lifecycle scripts entirely (this can happen even after editing a script in `package.json`, since that alone doesn't invalidate pnpm's up-to-date check). Run `pnpm install --force` to force scripts (including `postinstall`) to actually execute.
 
+### Local Keycloak
+
+Start the demo apps and force-recreate the local Keycloak instance from the
+repository root:
+
+```bash
+pnpm start
+```
+
+Each `pnpm start` re-imports the realm configuration, and resets Keycloak data
+stored in the container. To run Keycloak without the demo apps, use
+`docker compose up -d --force-recreate`.
+
+The realm `loculus-tools` is imported with the public OIDC client `backend-client`.
+Its redirect URLs are `https://localhost:5020/*` for the phylogeny viewer demo
+and `https://localhost:5021/*` for the sequence editor demo, matching their Vite
+development server ports. Keycloak is available at <http://localhost:8080>;
+the local admin credentials default to `admin` / `admin` and can be overridden
+with `KEYCLOAK_ADMIN_USERNAME` and `KEYCLOAK_ADMIN_PASSWORD`. These defaults are
+for local development only. The imported demo account uses `demo` / `demo` and
+has a prefilled profile (`Demo User`, `demo@example.test`).
+
 ### SSL installation
 
 Install mkcert: [docs](https://github.com/FiloSottile/mkcert)
@@ -55,3 +77,8 @@ Run from the repo root (see [package.json](package.json)):
 - `pnpm update-exports` — regenerate package exports maps.
 - `pnpm clean` — remove all `node_modules` (via lerna).
 - `pnpm start-phylogeny-viewer` — start the phylogeny-viewer dev server.
+
+## Common URLS
+
+- Login: <http://localhost:8080/realms/loculus-tools/account>
+- Logout: <http://localhost:8080/realms/loculus-tools/protocol/openid-connect/logout?client_id=backend-client&post_logout_redirect_uri=https%3A%2F%2Flocalhost%3A5021%2F%3Fauth-endpoint%3Dhttp%3A%2F%2Flocalhost%3A8080%2F%26auth-realm%3Dloculus-tools%26auth-client-id%3Dbackend-client>

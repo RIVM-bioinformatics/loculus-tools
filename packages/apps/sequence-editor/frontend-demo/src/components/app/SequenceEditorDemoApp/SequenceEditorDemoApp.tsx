@@ -44,10 +44,14 @@ export const SequenceEditorDemoApp = () => {
 
   const onClickLoadDemoData = useCallback(async () => {
     try {
-      const fastaRes = await fetch('/sample-data/sarscov2_demo.fasta');
+      const [fastaRes, metaRes] = await Promise.all([
+        fetch('/sample-data/sarscov2_demo.fasta'),
+        fetch('/sample-data/sarscov2_demo_metadata.tsv'),
+      ]);
       const demoFastaText = await fastaRes.text();
+      const demoMetadataText = await metaRes.text();
 
-      await setData(demoFastaText);
+      await setData(demoFastaText, demoMetadataText);
       container.resolve(FastaDataEventBusService).emit('onCloseImportDialog');
     } catch (err: unknown) {
       container.resolve(FastaDataEventBusService).emit('onCloseImportDialog');

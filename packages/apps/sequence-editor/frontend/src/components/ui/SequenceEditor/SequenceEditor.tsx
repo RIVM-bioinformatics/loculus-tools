@@ -20,6 +20,8 @@ import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/Devi
 import { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
 import { useStore } from 'zustand';
 import { ExportUtil } from '@rivm-loculus-tools/common-frontend/utils/ExportUtil';
+import { LoculusService } from '@rivm-loculus-tools/common-frontend/classes/services/LoculusService';
+import { UrlService } from '@rivm-loculus-tools/common-frontend/classes/services/UrlService';
 
 import { EditorWorkerService } from '../../../classes/services/EditorWorkerService';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
@@ -734,6 +736,20 @@ export const SequenceEditor = () => {
         console.log('Exporting ungapped fasta');
         const fasta = await editorService.exportUngappedFasta();
         ExportUtil.downloadFastaFile(fasta, 'sequence.ungapped.fasta');
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onExportToLoculus', async () => {
+        const loculusService = container.resolve(LoculusService);
+        const urlService = container.resolve(UrlService);
+
+        if (!urlService.hasReturnParams()) {
+          return;
+        }
+        const { organism, returnUrl } = urlService.data;
+
+        const fasta = await editorService.exportUngappedFasta();
+        const metaData = sequenceEditorStore.getState().parsedMetadata;
+        await loculusService.reviseSequences(fasta, metaData!, returnUrl, organism);
       }),
     ];
     return () => {

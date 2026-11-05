@@ -71,6 +71,14 @@ export class MetaDataUtil {
     return { bestColumn, matchCounts };
   };
 
+  public static getGroupId(metaData: MetadataParseResult): string {
+    if (!metaData?.columns?.includes('groupId')) {
+      return '';
+    }
+
+    return Object.keys(metaData.recordsByColumn.groupId)?.[0] ?? '';
+  }
+
   public static getHighlightedIds(query: string, allAccessions: string[], metadataRecords: MetadataRecord[], matchKeyField: null | string = null): string[] {
     const trimmed = query.trim().toLowerCase();
     if (!trimmed) {
@@ -108,6 +116,7 @@ export class MetaDataUtil {
 
     return Array.from(matched);
   }
+
   /**
    * Count FASTA sequence ID matches for each metadata column.
    */
@@ -191,7 +200,7 @@ export class MetaDataUtil {
     return undefined;
   };
 
-  public static parseTsv = (content: string): MetadataParseResult => {
+  public static parseTsv(content: string): MetadataParseResult {
     if (!content?.trim()) {
       return {
         columns: [],
@@ -288,5 +297,5 @@ export class MetaDataUtil {
       recordsByColumn,
       recordsBySampleId,
     };
-  };
+  }
 }

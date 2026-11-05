@@ -85,13 +85,13 @@ export class EditorWorkerService {
   public async getMetaData(): Promise<EngineMeta> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.meta();
-    });
+    }, false);
   }
 
   public async initialize(): Promise<void> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.initialize();
-    });
+    }, false);
   }
 
   public async insert(rows: number[], col: number): Promise<void> {
@@ -101,6 +101,9 @@ export class EditorWorkerService {
   }
 
   public async loadFasta(fasta: string): Promise<number> {
+    if (this.isRealigning || this.activeAlignerWorker) {
+      throw new Error('Alignment is already in progress');
+    }
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.load(fasta);
     });
@@ -166,7 +169,7 @@ export class EditorWorkerService {
   public async name(row: number): Promise<string> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.name(row);
-    });
+    }, false);
   }
 
   public async realign(signal?: AbortSignal): Promise<void> {
@@ -264,7 +267,7 @@ export class EditorWorkerService {
   public async translate(bounds: ViewportBounds, readingFrame: number): Promise<EngineViewportResult> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.translate(bounds, readingFrame);
-    });
+    }, false);
   }
 
   public async undo(): Promise<void> {
@@ -276,15 +279,17 @@ export class EditorWorkerService {
   public async viewport(bounds: ViewportBounds): Promise<EngineViewportResult> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.viewport(bounds);
-    });
+    }, false);
   }
 
-  private async runCommand<T>(command: () => Promise<T>): Promise<T> {
+  private async runCommand<T>(command: () => Promise<T>, clearMessageOnSuccess = true): Promise<T> {
     const queuedCommand = this.commandQueue.then(async (): Promise<T> => {
       try {
         await this.workerReady;
         const result = await command();
-        this.messageHandler?.(null);
+        if (clearMessageOnSuccess) {
+          this.messageHandler?.(null);
+        }
         return result;
       } catch (error: unknown) {
         const message = EngineErrorUtil.getEngineErrorMessage(error);

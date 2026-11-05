@@ -1605,35 +1605,48 @@ impl MsaEngine {
         }
 
         let n = self.nucleotide_sequences.len();
-        let to_delete: std::collections::HashSet<usize> =
-            row_indices.iter().copied().filter(|&r| r < n).collect();
+        let mut to_delete = vec![false; n];
+        let mut delete_count = 0;
+        for &r in row_indices {
+            if r < n && !to_delete[r] {
+                to_delete[r] = true;
+                delete_count += 1;
+            }
+        }
 
-        if to_delete.is_empty() {
+        if delete_count == 0 {
             return Ok(());
         }
 
         self.record_structural_undo();
 
-        let mut row_idx = 0;
-        self.nucleotide_sequences.retain(|_| {
-            let keep = !to_delete.contains(&row_idx);
-            row_idx += 1;
-            keep
-        });
+        if delete_count == n {
+            self.nucleotide_sequences.clear();
+            self.names.clear();
+            self.alignment_width = 0;
+        } else {
+            let mut row_idx = 0;
+            self.nucleotide_sequences.retain(|_| {
+                let keep = !to_delete[row_idx];
+                row_idx += 1;
+                keep
+            });
 
-        let mut name_idx = 0;
-        self.names.retain(|_| {
-            let keep = !to_delete.contains(&name_idx);
-            name_idx += 1;
-            keep
-        });
+            let mut name_idx = 0;
+            self.names.retain(|_| {
+                let keep = !to_delete[name_idx];
+                name_idx += 1;
+                keep
+            });
 
-        self.alignment_width = self
-            .nucleotide_sequences
-            .iter()
-            .map(Vec::len)
-            .max()
-            .unwrap_or(0);
+            self.alignment_width = self
+                .nucleotide_sequences
+                .iter()
+                .map(Vec::len)
+                .max()
+                .unwrap_or(0);
+        }
+
         self.aminoacid_sequences.clear();
         self.viewport_buffer.clear();
 

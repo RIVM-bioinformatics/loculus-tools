@@ -494,6 +494,8 @@ export const SequenceEditor = () => {
 
   // Executes the editor actions for the keyboard shortcuts emitted via the event bus.
   useEffect(() => {
+    let isDeletingRows = false;
+
     const execute = async (args: { command: () => Promise<void>; getSelectionPostCommand?: () => EditorSelection | null }) => {
       const { command, getSelectionPostCommand } = args;
       try {
@@ -509,7 +511,9 @@ export const SequenceEditor = () => {
           initialSelectionRef.current = selection;
         }
         const activeSearchQuery = sequenceEditorStore.getState().searchQuery;
-        if (activeSearchQuery && nextMeta && nextMeta.sequenceCount !== previousSequenceCount) {
+        if (nextMeta?.sequenceCount === 0) {
+          sequenceEditorStore.getState().setSearchResult(null);
+        } else if (activeSearchQuery && nextMeta && nextMeta.sequenceCount !== previousSequenceCount) {
           const result = await editorService.search(activeSearchQuery, true);
           sequenceEditorStore.getState().setSearchResult(result);
         }
@@ -723,22 +727,25 @@ export const SequenceEditor = () => {
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onDeleteRows', () => {
-        void (async () => {
-          if (!metaSubject.data) {
-            return;
-          }
-          const rows = EditorUtil.getRowsToDelete(selectionSubject.data, metaSubject.data);
-          if (!rows || rows.length === 0) {
-            return;
-          }
-          await execute({
-            command: async () => {
-              await editorService.deleteRows(rows);
-              sequenceEditorStore.getState().recordDeletedRows(rows);
-            },
-            getSelectionPostCommand: () => null,
-          });
-        })();
+        if (isDeletingRows || !metaSubject.data) {
+          return;
+        }
+        const rows = EditorUtil.getRowsToDelete(selectionSubject.data, metaSubject.data);
+        if (!rows || rows.length === 0) {
+          return;
+        }
+
+        isDeletingRows = true;
+        selectionSubject.next(null);
+        void execute({
+          command: async () => {
+            await editorService.deleteRows(rows);
+            sequenceEditorStore.getState().recordDeletedRows(rows);
+          },
+          getSelectionPostCommand: () => null,
+        }).finally(() => {
+          isDeletingRows = false;
+        });
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onMutateSelection', (base) => {

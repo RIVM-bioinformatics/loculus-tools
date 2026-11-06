@@ -500,6 +500,13 @@ impl MsaEngine {
         }
     }
 
+    /// Reset the engine to its initial empty state, clearing all sequences,
+    /// names, cached amino-acid translations, viewport buffer, and undo/redo history.
+    #[wasm_bindgen]
+    pub fn reset(&mut self) {
+        *self = Self::new();
+    }
+
     /// Parse FASTA content and populate the engine.
     ///
     /// Performs a line-by-line scan. Sequences may span multiple lines;

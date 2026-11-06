@@ -1588,6 +1588,68 @@ impl MsaEngine {
         self.move_rows_relative(row_indices, 1)
     }
 
+    /// Delete one or more rows from the matrix by row index.
+    ///
+    /// Out-of-bounds indices are ignored, and duplicate indices are deduplicated.
+    /// If no valid in-bounds rows are specified or the matrix is already empty,
+    /// this is a safe no-op and records no undo snapshot.
+    ///
+    /// Otherwise, records an atomic `StructuralSnapshot` before removing the rows,
+    /// removes the rows from both `nucleotide_sequences` and `names`, recomputes
+    /// `alignment_width` from the remaining sequences (or sets it to 0 if all
+    /// rows were deleted), and clears the amino-acid translation cache and
+    /// viewport buffer.
+    pub fn delete_rows(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
+        if row_indices.is_empty() || self.nucleotide_sequences.is_empty() {
+            return Ok(());
+        }
+
+        let n = self.nucleotide_sequences.len();
+        let mut to_delete = vec![false; n];
+        let mut delete_count = 0;
+        for &r in row_indices {
+            if r < n && !to_delete[r] {
+                to_delete[r] = true;
+                delete_count += 1;
+            }
+        }
+
+        if delete_count == 0 {
+            return Ok(());
+        }
+
+        self.record_structural_undo();
+
+        if delete_count == n {
+            self.nucleotide_sequences.clear();
+            self.names.clear();
+            self.alignment_width = 0;
+        } else {
+            let mut row_idx = 0;
+            self.nucleotide_sequences.retain(|_| {
+                let keep = !to_delete[row_idx];
+                row_idx += 1;
+                keep
+            });
+
+            let mut name_idx = 0;
+            self.names.retain(|_| {
+                let keep = !to_delete[name_idx];
+                name_idx += 1;
+                keep
+            });
+
+            self.alignment_width = self
+                .nucleotide_sequences
+                .iter()
+                .map(Vec::len)
+                .max()
+                .unwrap_or(0);
+        }
+
+        Ok(())
+    }
+
     /// Re-align all sequences in the matrix using MAFFT FFT-NS-1.
     /// To use FFT-NS-1, initialize the MAFFT engine with `AlignmentMode::FftNs2` and set `with_retree(1)`.
     /// This forces the number of tree build steps to 1, ensuring FFT-NS-1 behavior.

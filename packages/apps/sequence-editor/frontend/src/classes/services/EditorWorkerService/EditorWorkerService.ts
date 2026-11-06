@@ -250,6 +250,12 @@ export class EditorWorkerService {
     });
   }
 
+  public async reset(): Promise<void> {
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.reset();
+    });
+  }
+
   public async search(query: string, checkRecordNames: boolean): Promise<EngineSearchResult> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.search(query, checkRecordNames);

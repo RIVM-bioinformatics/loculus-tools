@@ -145,6 +145,7 @@ export type EngineViewportResult = {
 export interface EngineWorkerApi {
   applyAlignedFasta: (fasta: string) => Promise<void>;
   delete: (rows: number[], column: number) => Promise<void>;
+  deleteRows: (rows: number[]) => Promise<void>;
   deleteColumn: (column: number) => Promise<void>;
   exportGappedFasta: () => Promise<string>;
   exportUngappedFasta: () => Promise<string>;

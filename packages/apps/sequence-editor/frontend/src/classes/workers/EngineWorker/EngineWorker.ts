@@ -168,6 +168,11 @@ export class EngineWorker implements EngineWorkerApi {
     return engine.redo();
   }
 
+  public async reset(): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.reset();
+  }
+
   public async search(query: string, checkRecordNames: boolean): Promise<EngineSearchResult> {
     const engine = await this.requireEngine();
     return engine.search(query, checkRecordNames) as EngineSearchResult;

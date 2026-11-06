@@ -164,6 +164,7 @@ export interface EngineWorkerApi {
   mutate: (rows: number[], columns: number[], base: string) => Promise<void>;
   name: (row: number) => Promise<string>;
   redo: () => Promise<boolean>;
+  reset: () => Promise<void>;
   search: (query: string, checkRecordNames: boolean) => Promise<EngineSearchResult>;
   translate: (bounds: ViewportBounds, readingFrame: number) => Promise<EngineViewportResult>;
   undo: () => Promise<boolean>;

@@ -48,6 +48,7 @@ interface EngineClient {
   insert: (rows: number[], col: number) => Promise<void>;
   delete: (rows: number[], col: number) => Promise<void>;
   deleteColumn: (col: number) => Promise<void>;
+  deleteRows: (rows: number[]) => Promise<void>;
   moveHorizontal: (rows: number[], cols: number[], direction: "Left" | "Right") => Promise<void>;
   moveRows: (rows: number[], options: MoveRowsOptions) => Promise<void>;
   moveRowsRelative: (rows: number[], delta: number) => Promise<void>;
@@ -357,6 +358,17 @@ the width-shrinking inverse of a full-column insert.
 await engine.deleteColumn(4);
 ```
 
+### `deleteRows(rows: number[]): Promise<void>`
+
+Deletes the specified row indices from the matrix in a single atomic transaction.
+- Out-of-bounds indices are ignored.
+- Records an undo step if at least one row was removed.
+- Recomputes alignment width from remaining rows (or 0 if all rows were deleted).
+
+```ts
+await engine.deleteRows([1, 3]);
+```
+
 ### `moveHorizontal(rows: number[], cols: number[], direction: "Left" | "Right"): Promise<void>`
 
 Moves a contiguous block of IUPAC characters horizontally by **1 position**
@@ -629,6 +641,7 @@ try {
 | `insert` | `rows: number[], col` | `Promise<void>` | Insert a `-` at col on target rows; append `-` on non-targets |
 | `delete` | `rows: number[], col` | `Promise<void>` | Delete a column on a subset (validates target is `-`; non-targets untouched) |
 | `deleteColumn` | `col: number` | `Promise<void>` | Delete a column from all rows |
+| `deleteRows` | `rows: number[]` | `Promise<void>` | Delete specified rows from alignment |
 | `moveHorizontal` | `rows: number[], cols: number[], direction` | `Promise<void>` | Move IUPAC block 1 position left/right within specified rows |
 | `moveRowsUp` | `rows: number[]` | `Promise<void>` | Move specified rows up by 1 |
 | `moveRowsDown` | `rows: number[]` | `Promise<void>` | Move specified rows down by 1 |

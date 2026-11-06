@@ -307,7 +307,7 @@ sends a command and awaits an acknowledgment.
 The mutation core is governed by a fixed set of editing constraints. These
 constraints define exactly which combinations of actions are allowed and which
 are rejected. Every mutation method below enforces them and returns a
-`StructuredEngineError` (see [section 5.7](#57-structured-errors)) when a
+`StructuredEngineError` (see [section 5.10](#510-structured-errors)) when a
 constraint is violated, leaving the matrix **unchanged**
 (all-or-nothing).
 
@@ -457,7 +457,16 @@ Reorder rows without character constraints, updating both `sequences` and `names
 - **Undo History & No-Op Rule**: Every row movement records at most **one** `StructuralSnapshot` undo command (capturing both sequences and names). If the resulting order is identical to the current order (e.g. attempting to move rows already at boundary), no snapshot is recorded.
 - Returns `Ok(())`.
 
-### 5.7 Sequence re-alignment (`realign`)
+### 5.7 Row Deletion (`delete_rows`)
+
+`MsaEngine::delete_rows(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError>`
+
+- **Atomicity**: Deduplicates and bounds-checks `row_indices`. If no valid rows exist, returns `Ok(())` without pushing an undo entry. Otherwise, creates an atomic `StructuralSnapshot`.
+- **Width recalculation**: Recomputes `alignment_width` from the maximum length of remaining rows, or `0` if all rows are removed.
+- **Cache invalidation**: Clears `aminoacid_sequences` and `viewport_buffer`.
+- **Zero-row state**: The matrix safely supports `sequence_count == 0`; `undo()` restores all deleted rows and original width.
+
+### 5.8 Sequence re-alignment (`realign`)
 
 Re-aligns all loaded sequences across the whole matrix using the pure-Rust `mafft` crate (`AlignmentMode::FftNs2` with `ScoringModel::Dna` and `with_retree(1)` for FFT-NS-1).
 
@@ -471,13 +480,13 @@ Re-aligns all loaded sequences across the whole matrix using the pure-Rust `maff
 - Invalidates and clears `aminoacid_sequences` cache so subsequent translated views reflect the new alignment coordinates.
 - Returns `Ok(())`.
 
-### 5.8 External alignment integration (`apply_aligned_fasta` & `align_fasta`)
+### 5.9 External alignment integration (`apply_aligned_fasta` & `align_fasta`)
 
 To support non-blocking and cancelable sequence re-alignment, the engine provides:
 - Standalone `align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>`: Computes MAFFT FFT-NS-1 on an unaligned or gapped FASTA string, suitable for execution inside an ephemeral worker without initializing the full engine. Preserves all-gap rows and returns formatted FASTA or returns `StructuredEngineError` if UTF-8 encoding or validation fails.
 - Method `apply_aligned_fasta(&mut self, fasta_content: &str) -> Result<(), StructuredEngineError>`: Validates that sequence counts match, all aligned rows have uniform equal lengths, sequence headers and order match the current matrix, and ungapped residue identities are strictly conserved. Takes a `StructuralSnapshot` onto `undo_stack`, replaces the nucleotide matrix, updates `alignment_width`, and clears `aminoacid_sequences`.
 
-### 5.9 Structured errors
+### 5.10 Structured errors
 
 WASM-facing edit methods and `load_fasta` return
 `Result<_, StructuredEngineError>`. The
@@ -731,7 +740,7 @@ implemented in `www/` and are described in the companion documents.
 | ------ | -------- |
 | Core data structures & memory layout | ✅ Done (`MsaEngine`, viewport buffer) |
 | WASM boundary API | ✅ Done (`load_fasta`, `update_viewport`, `update_viewport_into`, metadata getters) |
-| Mutation core | ✅ Done (`mutate_base`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_relative`, `move_rows_grouped`, `move_rows_to_top`, `move_rows_to_bottom`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
+| Mutation core | ✅ Done (`mutate_base`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `delete_rows`, `move_horizontal`, `move_rows_relative`, `move_rows_grouped`, `move_rows_to_top`, `move_rows_to_bottom`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
 | Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
 | Web Worker bridge | ✅ Done (in `www/`, consumes the engine) |
 | MUI test harness | ✅ Done (in `www/`, consumes the engine) |

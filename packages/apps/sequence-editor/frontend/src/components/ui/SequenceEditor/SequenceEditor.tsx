@@ -20,8 +20,8 @@ import { DevicePixelRatioService } from '@gen-epix/ui-core/classes/services/Devi
 import { KeyboardShortcutService } from '@gen-epix/ui-core/classes/services/KeyboardShortcutService';
 import { useStore } from 'zustand';
 import { ExportUtil } from '@rivm-loculus-tools/common-frontend/utils/ExportUtil';
-import { LoculusService } from '@rivm-loculus-tools/common-frontend/classes/services/LoculusService';
-import { UrlService } from '@rivm-loculus-tools/common-frontend/classes/services/UrlService';
+import type { UploadToLoculusModalRefMethods } from '@rivm-loculus-tools/common-frontend/components/loculus/UploadToLoculusModal';
+import { UploadToLoculusModal } from '@rivm-loculus-tools/common-frontend/components/loculus/UploadToLoculusModal';
 
 import { EditorWorkerService } from '../../../classes/services/EditorWorkerService';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
@@ -64,6 +64,7 @@ export const SequenceEditor = () => {
   const setLatestMessage = useStore(sequenceEditorStore, (state) => state.setLatestMessage);
   const setMeta = useStore(sequenceEditorStore, (state) => state.setMeta);
   const setSelection = useStore(sequenceEditorStore, (state) => state.setSelection);
+  const uploadToLoculusModalRef = useRef<null | UploadToLoculusModalRefMethods>(null);
   const sequenceEditorGotoPositionDialogRef = useRef<null | SequenceEditorGotoPositionDialogRefMethods>(null);
   const sequenceEditorRealignModalRef = useRef<null | SequenceEditorRealignModalRefMethods>(null);
   const editorService = useMemo(() => container.resolve(EditorWorkerService), []);
@@ -739,17 +740,9 @@ export const SequenceEditor = () => {
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onExportToLoculus', async () => {
-        const loculusService = container.resolve(LoculusService);
-        const urlService = container.resolve(UrlService);
-
-        if (!urlService.hasReturnParams()) {
-          return;
-        }
-        const { organism, returnUrl } = urlService.data;
-
         const fasta = await editorService.exportUngappedFasta();
-        const metaData = sequenceEditorStore.getState().parsedMetadata;
-        await loculusService.reviseSequences(fasta, metaData!, returnUrl, organism);
+        const { parsedMetadata: metaData, rawFasta: originalFasta } = sequenceEditorStore.getState();
+        uploadToLoculusModalRef.current?.open({ fasta, metaData, rawFasta: originalFasta });
       }),
     ];
     return () => {
@@ -1008,6 +1001,7 @@ export const SequenceEditor = () => {
         ref={sequenceEditorGotoPositionDialogRef}
       />
       <SequenceEditorRealignModal ref={sequenceEditorRealignModalRef} />
+      <UploadToLoculusModal ref={uploadToLoculusModalRef} />
     </Box>
   );
 };

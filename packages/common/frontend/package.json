@@ -130,6 +130,10 @@
       "types": "./src/components/fasta/FastaPageHeaderResetButton/index.ts",
       "import": "./src/components/fasta/FastaPageHeaderResetButton/index.ts"
     },
+    "./components/loculus/UploadToLoculusModal": {
+      "types": "./src/components/loculus/UploadToLoculusModal/index.ts",
+      "import": "./src/components/loculus/UploadToLoculusModal/index.ts"
+    },
     "./components/ui/ButtonWithMenu": {
       "types": "./src/components/ui/ButtonWithMenu/index.ts",
       "import": "./src/components/ui/ButtonWithMenu/index.ts"
@@ -293,6 +297,10 @@
       "./components/fasta/FastaPageHeaderResetButton": {
         "types": "./dist/components/fasta/FastaPageHeaderResetButton/index.d.ts",
         "import": "./dist/components/fasta/FastaPageHeaderResetButton/index.js"
+      },
+      "./components/loculus/UploadToLoculusModal": {
+        "types": "./dist/components/loculus/UploadToLoculusModal/index.d.ts",
+        "import": "./dist/components/loculus/UploadToLoculusModal/index.js"
       },
       "./components/ui/ButtonWithMenu": {
         "types": "./dist/components/ui/ButtonWithMenu/index.d.ts",

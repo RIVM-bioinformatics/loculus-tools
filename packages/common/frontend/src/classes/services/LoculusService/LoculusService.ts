@@ -11,6 +11,15 @@ export type LoculusServiceSubject = {
   authenticated: boolean;
 };
 
+export type RevisedSequences = {
+  addedSequencesWithoutMetadata: string[];
+  fasta: string;
+  groupId: string;
+  metadata: string;
+  removedSequences: string[];
+  sequenceCount: number;
+};
+
 @singleton()
 export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> {
   public get code(): null | string {
@@ -22,6 +31,48 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
     super(new Subject<LoculusServiceSubject>({
       authenticated: false,
     }));
+  }
+
+  public static createRevisedSequences(
+    fasta: string,
+    metaData: MetadataParseResult,
+    rawFasta: string = fasta,
+  ): RevisedSequences {
+    const parsedFasta = FastaUtil.parseFasta(fasta);
+    if (parsedFasta.error) {
+      throw new Error(parsedFasta.error);
+    }
+    const parsedRawFasta = FastaUtil.parseFasta(rawFasta);
+    if (parsedRawFasta.error) {
+      throw new Error(parsedRawFasta.error);
+    }
+
+    const hasMetadataMatch = (sequenceId: string) => (
+      Object.values(metaData.recordsByColumn).some((recordsByValue) => recordsByValue[sequenceId])
+    );
+    const editedSequenceIds = new Set(parsedFasta.sequences.map((sequence) => sequence.id));
+    const originalSequenceIds = new Set(parsedRawFasta.sequences.map((sequence) => sequence.id));
+    const matchingSequences = parsedFasta.sequences.filter((sequence) => hasMetadataMatch(sequence.id));
+    const matchingIds = new Set(matchingSequences.map((sequence) => sequence.id));
+    const metadataRows = metaData.records.filter((record) => (
+      Object.values(record).some((value) => matchingIds.has(value))
+    ));
+
+    return {
+      addedSequencesWithoutMetadata: parsedFasta.sequences
+        .filter((sequence) => !originalSequenceIds.has(sequence.id) && !hasMetadataMatch(sequence.id))
+        .map((sequence) => sequence.id),
+      fasta: matchingSequences.map((sequence) => `>${sequence.header}\n${sequence.sequence}`).join('\n'),
+      groupId: MetaDataUtil.getGroupId(metaData),
+      metadata: [
+        metaData.columns.join('\t'),
+        ...metadataRows.map((record) => metaData.columns.map((column) => record[column] ?? '').join('\t')),
+      ].join('\n'),
+      removedSequences: parsedRawFasta.sequences
+        .filter((sequence) => !editedSequenceIds.has(sequence.id))
+        .map((sequence) => sequence.id),
+      sequenceCount: matchingSequences.length,
+    };
   }
 
   public clear(): void {
@@ -72,38 +123,18 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
     console.log('Revising sequences with returnUrl:', returnUrl);
     console.log('Revising sequences with organism:', organism);
 
-    const groupId = MetaDataUtil.getGroupId(metaData);
-
-    const parsedFasta = FastaUtil.parseFasta(fasta);
-    if (parsedFasta.error) {
-      throw new Error(parsedFasta.error);
-    }
-
-    const matchingSequences = parsedFasta.sequences.filter((sequence) => (
-      Object.values(metaData.recordsByColumn).some((recordsByValue) => recordsByValue[sequence.id])
-    ));
-    const matchingIds = new Set(matchingSequences.map((sequence) => sequence.id));
-    const metadataRows = metaData.records.filter((record) => (
-      Object.values(record).some((value) => matchingIds.has(value))
-    ));
-    const revisedFasta = matchingSequences
-      .map((sequence) => `>${sequence.header}\n${sequence.sequence}`)
-      .join('\n');
-    const revisedMetadata = [
-      metaData.columns.join('\t'),
-      ...metadataRows.map((record) => metaData.columns.map((column) => record[column] ?? '').join('\t')),
-    ].join('\n');
+    const revisedSequences = LoculusService.createRevisedSequences(fasta, metaData);
 
     const body = new FormData();
-    body.append('sequenceFile', new File([revisedFasta], 'sequences.fasta', { type: 'text/plain' }));
+    body.append('sequenceFile', new File([revisedSequences.fasta], 'sequences.fasta', { type: 'text/plain' }));
     body.append(
       'metadataFile',
-      new File([revisedMetadata], 'metadata.tsv', { type: 'text/tab-separated-values' }),
+      new File([revisedSequences.metadata], 'metadata.tsv', { type: 'text/tab-separated-values' }),
     );
 
     const url = `${returnUrl.replace(/\/$/, '')}/${encodeURIComponent(organism)}/revise?${new URLSearchParams({
       dataUseTermsType: 'OPEN',
-      groupId,
+      groupId: revisedSequences.groupId,
     })}`;
 
     const response = await this.keycloak?.fetch(url, {

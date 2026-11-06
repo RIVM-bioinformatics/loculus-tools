@@ -42,6 +42,11 @@ export class EngineWorker implements EngineWorkerApi {
     engine.delete_column(column);
   }
 
+  public async deleteRows(rows: number[]): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.delete_rows(this.toRowIndices(rows));
+  }
+
   public async exportGappedFasta(): Promise<string> {
     const engine = await this.requireEngine();
     const bytes = engine.export_gapped_fasta();
@@ -166,6 +171,11 @@ export class EngineWorker implements EngineWorkerApi {
   public async redo(): Promise<boolean> {
     const engine = await this.requireEngine();
     return engine.redo();
+  }
+
+  public async reset(): Promise<void> {
+    const engine = await this.requireEngine();
+    engine.reset();
   }
 
   public async search(query: string, checkRecordNames: boolean): Promise<EngineSearchResult> {

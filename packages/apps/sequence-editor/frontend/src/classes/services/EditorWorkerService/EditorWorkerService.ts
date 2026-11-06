@@ -70,6 +70,12 @@ export class EditorWorkerService {
     });
   }
 
+  public async deleteRows(rows: number[]): Promise<void> {
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.deleteRows(rows);
+    });
+  }
+
   public async exportGappedFasta(): Promise<string> {
     return await this.runCommand(async () => {
       return await this.engineWorkerProxy.exportGappedFasta();
@@ -241,6 +247,12 @@ export class EditorWorkerService {
   public async redo(): Promise<void> {
     return await this.runCommand(async () => {
       await this.engineWorkerProxy.redo();
+    });
+  }
+
+  public async reset(): Promise<void> {
+    return await this.runCommand(async () => {
+      await this.engineWorkerProxy.reset();
     });
   }
 

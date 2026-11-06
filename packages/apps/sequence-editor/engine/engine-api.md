@@ -42,11 +42,13 @@ interface EngineClient {
 
   // Operations
   load: (fasta: string) => Promise<number>;
+  reset: () => Promise<void>;
   viewport: (r: ViewportRequest) => Promise<ViewportResult & { bytes: Uint8Array }>;
   mutate: (rows: number[], col: number, base: string) => Promise<void>;
   insert: (rows: number[], col: number) => Promise<void>;
   delete: (rows: number[], col: number) => Promise<void>;
   deleteColumn: (col: number) => Promise<void>;
+  deleteRows: (rows: number[]) => Promise<void>;
   moveHorizontal: (rows: number[], cols: number[], direction: "Left" | "Right") => Promise<void>;
   moveRows: (rows: number[], options: MoveRowsOptions) => Promise<void>;
   moveRowsRelative: (rows: number[], delta: number) => Promise<void>;
@@ -87,6 +89,15 @@ if (!engine.ready) {
 }
 ```
 
+### `reset(): Promise<void>`
+
+Resets the engine to its initial empty state, clearing all sequences, names,
+matrix width, viewport buffer, amino-acid translations, and undo/redo stacks.
+
+```ts
+await engine.reset();
+```
+
 ### `error: string | null`
 
 Set to the last error message surfaced by the worker (e.g. a WASM init failure
@@ -108,8 +119,8 @@ loops, where React state may not have flushed yet).
 
 ### `load(fasta: string): Promise<number>`
 
-Parses FASTA content into the engine and returns the **number of sequences**
-loaded.
+Parses FASTA content into the engine and returns the **total number of sequences**
+now in the engine.
 
 ```ts
 const count = await engine.load(">seq1\nATGCATGC\n>seq2\nATGGTG-A");
@@ -118,7 +129,14 @@ console.log(count); // 2
 
 **Behavior to know:**
 
-- Calling `load` **replaces** all previous data and clears the undo/redo history.
+- Calling `load` **prepends** parsed sequences in order ahead of any existing rows.
+- If the engine already contains state (sequences or undo/redo history), a
+  `StructuralSnapshot` is recorded before prepending, making the addition
+  undoable via `undo()`. An initial load into a fresh or reset engine keeps
+  `undoDepth === 0`.
+- Calling `load` with empty or whitespace-only input is a no-op that returns the
+  current sequence count without creating an undo snapshot.
+- The global alignment width updates to `max(existing_width, batch_width)`.
 - Sequence bytes are uppercased; internal whitespace is skipped; sequences may
   span multiple lines.
 - Sequence bodies accept only IUPAC nucleotides (`ACGTURYSWKMBDHVN`, either
@@ -338,6 +356,17 @@ the width-shrinking inverse of a full-column insert.
 
 ```ts
 await engine.deleteColumn(4);
+```
+
+### `deleteRows(rows: number[]): Promise<void>`
+
+Deletes the specified row indices from the matrix in a single atomic transaction.
+- Out-of-bounds indices are ignored.
+- Records an undo step if at least one row was removed.
+- Recomputes alignment width from remaining rows (or 0 if all rows were deleted).
+
+```ts
+await engine.deleteRows([1, 3]);
 ```
 
 ### `moveHorizontal(rows: number[], cols: number[], direction: "Left" | "Right"): Promise<void>`
@@ -601,7 +630,8 @@ try {
 
 | Method | Arguments | Returns | Purpose |
 | -------- | ----------- | --------- | --------- |
-| `load` | `fasta: string` | `Promise<number>` | Parse FASTA; returns sequence count |
+| `load` | `fasta: string` | `Promise<number>` | Parse and prepend FASTA; returns total sequence count |
+| `reset` | — | `Promise<void>` | Reset engine to initial empty state |
 | `meta` | — | `Promise<Meta>` | Alignment metadata (rows, width, undo/redo depth) |
 | `name` | `row: number` | `Promise<string>` | Row name |
 | `exportGappedFasta` | — | `Promise<string>` | Export full alignment as gapped FASTA |
@@ -611,6 +641,7 @@ try {
 | `insert` | `rows: number[], col` | `Promise<void>` | Insert a `-` at col on target rows; append `-` on non-targets |
 | `delete` | `rows: number[], col` | `Promise<void>` | Delete a column on a subset (validates target is `-`; non-targets untouched) |
 | `deleteColumn` | `col: number` | `Promise<void>` | Delete a column from all rows |
+| `deleteRows` | `rows: number[]` | `Promise<void>` | Delete specified rows from alignment |
 | `moveHorizontal` | `rows: number[], cols: number[], direction` | `Promise<void>` | Move IUPAC block 1 position left/right within specified rows |
 | `moveRowsUp` | `rows: number[]` | `Promise<void>` | Move specified rows up by 1 |
 | `moveRowsDown` | `rows: number[]` | `Promise<void>` | Move specified rows down by 1 |

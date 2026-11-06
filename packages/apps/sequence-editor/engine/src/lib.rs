@@ -1594,11 +1594,10 @@ impl MsaEngine {
     /// If no valid in-bounds rows are specified or the matrix is already empty,
     /// this is a safe no-op and records no undo snapshot.
     ///
-    /// Otherwise, records an atomic `StructuralSnapshot` before removing the rows,
+    /// Otherwise, records a `StructuralSnapshot` before removing the rows,
     /// removes the rows from both `nucleotide_sequences` and `names`, recomputes
     /// `alignment_width` from the remaining sequences (or sets it to 0 if all
-    /// rows were deleted), and clears the amino-acid translation cache and
-    /// viewport buffer.
+    /// rows were deleted).
     pub fn delete_rows(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || self.nucleotide_sequences.is_empty() {
             return Ok(());

@@ -145,8 +145,8 @@ export type EngineViewportResult = {
 export interface EngineWorkerApi {
   applyAlignedFasta: (fasta: string) => Promise<void>;
   delete: (rows: number[], column: number) => Promise<void>;
-  deleteRows: (rows: number[]) => Promise<void>;
   deleteColumn: (column: number) => Promise<void>;
+  deleteRows: (rows: number[]) => Promise<void>;
   exportGappedFasta: () => Promise<string>;
   exportUngappedFasta: () => Promise<string>;
   /** Idempotently initializes the WASM engine; resolves once it is ready. */

@@ -60,8 +60,6 @@ import { SequenceEditorGotoPositionDialog } from './SequenceEditorGotoPositionDi
 export const SequenceEditor = () => {
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
-  const setIsRealigning = useStore(sequenceEditorStore, (state) => state.setIsRealigning);
-  const setLatestMessage = useStore(sequenceEditorStore, (state) => state.setLatestMessage);
   const setMeta = useStore(sequenceEditorStore, (state) => state.setMeta);
   const setSelection = useStore(sequenceEditorStore, (state) => state.setSelection);
   const uploadToLoculusModalRef = useRef<null | UploadToLoculusModalRefMethods>(null);
@@ -74,10 +72,11 @@ export const SequenceEditor = () => {
   const selectionDragRef = useRef<EditorPathProperties | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollbarSpacerRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState<{ height: number; width: number }>({ height: 0, width: 0 });
   const [devicePixelRatio, setDevicePixelRatio] = useState(() => container.resolve(DevicePixelRatioService).data);
-  const [verticalScrollBarSize, setVerticalScrollBarSize] = useState(0);
-  const [horizontalScrollBarSize, setHorizontalScrollBarSize] = useState(0);
+  const verticalScrollBarSizeRef = useRef(0);
+  const horizontalScrollBarSizeRef = useRef(0);
   const scrollSubject = useMemo(() => new Subject<{ scrollLeft: number; scrollTop: number }>({ scrollLeft: 0, scrollTop: 0 }), []);
   const containerDimensionsRef = useRef(containerDimensions);
   const metaSubject = useMemo(() => new Subject<EngineMeta | null>(null), []);
@@ -92,6 +91,8 @@ export const SequenceEditor = () => {
   const processingVisibleRangeRef = useRef(false);
   const theme = useTheme();
 
+  console.log('SequenceEditor rendered');
+
   useEffect(() => {
     if (isRealigning) {
       sequenceEditorRealignModalRef.current?.open();
@@ -101,15 +102,33 @@ export const SequenceEditor = () => {
   }, [isRealigning]);
 
   const updateScrollbars = useCallback(() => {
-    const geometry = geometrySubject.data;
-    const meta = metaSubject.data;
-    if (!geometry || !meta) {
+    const spacer = scrollbarSpacerRef.current;
+    if (!spacer) {
       return;
     }
-    const horizontalSize = geometry.labelWidth + geometry.cellWidth + meta.alignmentWidth * geometry.cellWidth;
-    const verticalSize = geometry.rulerHeight + meta.sequenceCount * geometry.cellHeight;
-    setHorizontalScrollBarSize(horizontalSize);
-    setVerticalScrollBarSize(verticalSize);
+
+    const geometry = geometrySubject.data;
+    const meta = metaSubject.data;
+    if (geometry && meta) {
+      const horizontalSize = geometry.labelWidth + geometry.cellWidth + meta.alignmentWidth * geometry.cellWidth;
+      const verticalSize = geometry.rulerHeight + meta.sequenceCount * geometry.cellHeight;
+      if (horizontalScrollBarSizeRef.current !== horizontalSize) {
+        horizontalScrollBarSizeRef.current = horizontalSize;
+      }
+      if (verticalScrollBarSizeRef.current !== verticalSize) {
+        verticalScrollBarSizeRef.current = verticalSize;
+      }
+    }
+
+    const { height, width } = containerDimensionsRef.current;
+    const spacerWidth = `${Math.max(horizontalScrollBarSizeRef.current, width)}px`;
+    const spacerHeight = `${Math.max(verticalScrollBarSizeRef.current, height)}px`;
+    if (spacer.style.width !== spacerWidth) {
+      spacer.style.width = spacerWidth;
+    }
+    if (spacer.style.height !== spacerHeight) {
+      spacer.style.height = spacerHeight;
+    }
   }, [geometrySubject, metaSubject]);
 
   const updateMeta = useCallback(async () => {
@@ -146,13 +165,15 @@ export const SequenceEditor = () => {
   }, [geometrySubject, metaSubject, scrollSubject, visibleRangeSubject]);
 
   const updateDimensionsDebounced = useDebouncedCallback((width: number, height: number) => {
+    console.log('updateDimensionsDebounced:', width, height);
     setContainerDimensions({ height, width });
   }, 0, { trailing: true });
 
   useEffect(() => {
     containerDimensionsRef.current = containerDimensions;
+    updateScrollbars();
     updateVisibleRange();
-  }, [containerDimensions, updateVisibleRange]);
+  }, [containerDimensions, updateScrollbars, updateVisibleRange]);
 
   const maxLabelWidth = containerDimensions.width > 0 ? containerDimensions.width / 2 : MIN_LABEL_WIDTH;
 
@@ -167,11 +188,11 @@ export const SequenceEditor = () => {
     ];
     return () => {
       removers.forEach(remove => remove());
-      setLatestMessage(null);
+      sequenceEditorStore.getState().setLatestMessage(null);
       setMeta(null);
       setSelection(null);
     };
-  }, [metaSubject, selectionSubject, setLatestMessage, setMeta, setSelection]);
+  }, [metaSubject, selectionSubject, setMeta, setSelection]);
 
   useEffect(() => {
     if (containerDimensions.width <= 0) {
@@ -216,7 +237,6 @@ export const SequenceEditor = () => {
       await editorService.initialize();
       await editorService.loadFasta(rawFasta);
       await updateMeta();
-      updateVisibleRange();
     };
     perform().catch((error) => {
       console.error(error);
@@ -379,6 +399,7 @@ export const SequenceEditor = () => {
       }),
       selectionSubject.subscribe(() => updateVisibleRange()),
       container.resolve(DevicePixelRatioService).subscribe((nextDevicePixelRatio) => {
+        console.log('Device pixel ratio changed:', nextDevicePixelRatio);
         setDevicePixelRatio(nextDevicePixelRatio);
         updateScrollbars();
         updateVisibleRange();
@@ -458,15 +479,20 @@ export const SequenceEditor = () => {
 
   // Executes the editor actions for the keyboard shortcuts emitted via the event bus.
   useEffect(() => {
-    const execute = async (args: { command: () => Promise<void>; getSelectionPostCommand?: () => EditorSelection | null }) => {
-      const { command, getSelectionPostCommand } = args;
+    const execute = async (args: {
+      command: () => Promise<void>;
+      getSelectionPostCommand?: () => EditorSelection | null;
+      invalidateRowNames?: boolean;
+    }) => {
+      const { command, getSelectionPostCommand, invalidateRowNames } = args;
       try {
         const previousUndoDepth = metaSubject.data?.undoDepth;
         await command();
         cachedGridRangeWithViewPortResultRef.current = null;
-        cachedGridRangeWithRowNamesRef.current = null;
+        if (invalidateRowNames) {
+          cachedGridRangeWithRowNamesRef.current = null;
+        }
         const nextMeta = await updateMeta();
-        updateVisibleRange();
         if (getSelectionPostCommand) {
           if (previousUndoDepth !== undefined && nextMeta?.undoDepth === previousUndoDepth) {
             return;
@@ -546,6 +572,7 @@ export const SequenceEditor = () => {
         },
         getSelectionPostCommand: () =>
           EditorUtil.getMovedRowsEndSelection(selectionSubject.data, direction, metaSubject.data),
+        invalidateRowNames: true,
       });
     };
 
@@ -566,6 +593,7 @@ export const SequenceEditor = () => {
           }
         },
         getSelectionPostCommand: () => EditorUtil.getMovedRowsRelativeSelection(selectionSubject.data, direction, metaSubject.data),
+        invalidateRowNames: true,
       });
     };
 
@@ -691,6 +719,7 @@ export const SequenceEditor = () => {
         void execute({
           command: async () => editorService.undo(),
           getSelectionPostCommand: () => null,
+          invalidateRowNames: true,
         });
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
@@ -717,6 +746,7 @@ export const SequenceEditor = () => {
             }
           },
           getSelectionPostCommand: () => (wasCancelled ? selectionSubject.data : null),
+          invalidateRowNames: true,
         });
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
@@ -724,6 +754,7 @@ export const SequenceEditor = () => {
         void execute({
           command: async () => editorService.redo(),
           getSelectionPostCommand: () => null,
+          invalidateRowNames: true,
         });
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
@@ -749,7 +780,7 @@ export const SequenceEditor = () => {
       removers.forEach(remover => remover());
       editorService.cancelRealign();
     };
-  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject, setIsRealigning, setLatestMessage]);
+  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject]);
 
   useEffect(() => {
     updateVisibleRange();
@@ -960,10 +991,9 @@ export const SequenceEditor = () => {
           }}
         >
           <Box
+            ref={scrollbarSpacerRef}
             sx={{
-              height: `${Math.max(verticalScrollBarSize, containerDimensions.height)}px`,
               pointerEvents: 'none',
-              width: `${Math.max(horizontalScrollBarSize, containerDimensions.width)}px`,
             }}
           />
         </Box>

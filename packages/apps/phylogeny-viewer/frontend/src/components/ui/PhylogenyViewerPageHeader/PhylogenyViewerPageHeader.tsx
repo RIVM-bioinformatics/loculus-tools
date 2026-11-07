@@ -5,7 +5,6 @@ import {
 } from 'react';
 import { PageCommonHeader } from '@rivm-loculus-tools/common-frontend/components/ui/PageCommonHeader';
 import { FastaPageHeaderCenterComponent } from '@rivm-loculus-tools/common-frontend/components/fasta/FastaPageHeaderCenterComponent';
-import { UrlUtil } from '@rivm-loculus-tools/common-frontend/utils/UrlUtil';
 import { useStore } from 'zustand';
 import { FastaPageHeaderResetButton } from '@rivm-loculus-tools/common-frontend/components/fasta/FastaPageHeaderResetButton';
 import { FastaPageHeaderImportButton } from '@rivm-loculus-tools/common-frontend/components/fasta/FastaPageHeaderImportButton';
@@ -50,7 +49,6 @@ export const PhylogenyViewerPageHeader = () => {
     resetDataset();
     resetCalculation();
     resetTreeView();
-    UrlUtil.clearSearchParams();
   }, [resetCalculation, resetDataset, resetTreeView]);
 
   const hasTree = Boolean(newick);

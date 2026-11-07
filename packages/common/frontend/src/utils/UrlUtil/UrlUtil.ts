@@ -4,10 +4,9 @@ import { WindowService } from '@gen-epix/ui-core/classes/services/WindowService'
 
 export class UrlUtil {
   public static clearSearchParams(): void {
-    // !FIXME
-    // const url = new URL(container.resolve(WindowService).window.location.href);
-    // url.search = '';
-    // container.resolve(WindowService).window.history.replaceState(null, '', url.toString());
+    const url = new URL(container.resolve(WindowService).window.location.href);
+    url.search = '';
+    container.resolve(WindowService).window.history.replaceState(null, '', url.toString());
   }
 
   public static fastaLabelFromUrl(url: string): string {

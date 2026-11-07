@@ -15,6 +15,7 @@ import { UrlUtil } from '../../../utils/UrlUtil';
 import type { FastaDataImportDialogRefMethods } from '../FastaDataImportDialog';
 import { FastaDataImportDialog } from '../FastaDataImportDialog';
 import { ErrorUtil } from '../../../utils/ErrorUtil';
+import { LoculusService } from '../../../classes/services/LoculusService';
 
 
 export type FastaDataImportDialogLoaderProps = {
@@ -111,6 +112,7 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
     } finally {
       // clear any search params from the URL
       UrlUtil.clearSearchParams();
+      container.resolve(LoculusService).clear();
     }
   }, [handleError, setData]);
 

@@ -96,7 +96,7 @@ export default defineConfig({
       cert: readFileSync(resolve(gitRootPath, 'cert', 'cert.pem')),
       key: readFileSync(resolve(gitRootPath, 'cert', 'key.pem')),
     } : undefined,
-    open: '/?auth-endpoint=http://localhost:8080/&auth-realm=loculus-tools&auth-client-id=backend-client&return-url=https://localhost:5021&organism=sarscov2',
+    open: '/?auth-endpoint=http://localhost:8080/&auth-realm=loculus-tools&auth-client-id=backend-client&return-url=https://localhost:5021&organism=sarscov2&input-fasta=https://localhost:5021/sample-data/sarscov2_demo.fasta&input-metadata=https://localhost:5021/sample-data/sarscov2_demo_metadata.tsv',
     port: 5021,
   },
   test: {

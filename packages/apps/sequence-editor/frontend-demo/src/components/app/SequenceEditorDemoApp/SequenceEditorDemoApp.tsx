@@ -21,6 +21,7 @@ import {
   Typography,
 } from '@mui/material';
 import { container } from 'tsyringe';
+import { LoculusService } from '@rivm-loculus-tools/common-frontend/classes/services/LoculusService';
 
 export const SequenceEditorDemoApp = () => {
   const setData = useStore(sequenceEditorStore, (state) => state.setData);
@@ -59,6 +60,7 @@ export const SequenceEditorDemoApp = () => {
       container.resolve(FastaDataEventBusService).emit('onShowImportDialog', errorMessage);
     } finally {
       UrlUtil.clearSearchParams();
+      container.resolve(LoculusService).clear();
     }
   }, [setData]);
 

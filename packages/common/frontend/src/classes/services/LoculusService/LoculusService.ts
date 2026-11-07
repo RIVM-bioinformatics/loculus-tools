@@ -117,7 +117,13 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
     });
   }
 
-  public async reviseSequences(fasta: string, metaData: MetadataParseResult, returnUrl: string, organism: string): Promise<void> {
+  public async reviseSequences(
+    fasta: string,
+    metaData: MetadataParseResult,
+    returnUrl: string,
+    organism: string,
+    abortController: AbortController,
+  ): Promise<void> {
     console.log('Revising sequences with fasta:', fasta);
     console.log('Revising sequences with metadata:', metaData);
     console.log('Revising sequences with returnUrl:', returnUrl);
@@ -140,6 +146,7 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
     const response = await this.keycloak?.fetch(url, {
       body,
       method: 'POST',
+      signal: abortController.signal,
     });
 
     if (!response?.ok) {

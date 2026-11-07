@@ -50,49 +50,58 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
     const inputFastaUrl = urlParams.get('input-fasta');
     const inputMetadataUrl = urlParams.get('input-metadata');
 
+    const fetchFasta = async () => {
+      if (!inputFastaUrl || !UrlUtil.isValidResourceUrl(inputFastaUrl)) {
+        throw new Error('Invalid input-fasta URL.');
+      }
+      const fastaRes = await fetch(inputFastaUrl);
+      if (!fastaRes.ok) {
+        throw new Error(`FASTA fetch failed (${fastaRes.status})`);
+      }
+      const fastaText = await fastaRes.text();
+      if (!fastaText.trim()) {
+        setLoadingStatus(LOADING_STATUS.ERROR);
+        throw new Error('The input-fasta URL returned no sequence data. Check that the URL and requested accession(s) are correct.');
+      }
+      return fastaText;
+    };
+
+    const fetchMetadata = async () => {
+      if (!inputMetadataUrl) {
+        return undefined;
+      }
+      try {
+        if (!UrlUtil.isValidResourceUrl(inputMetadataUrl)) {
+          throw new Error('Invalid input-metadata URL.');
+        }
+        const metaRes = await fetch(inputMetadataUrl);
+        return metaRes.ok ? await metaRes.text() : undefined;
+      } catch (metaErr) {
+        console.warn('[App] Failed to auto-fetch metadata:', metaErr);
+        return undefined;
+      }
+    };
+
+    const loadDeepLinkedData = async () => {
+      setLoadingStatus(LOADING_STATUS.LOADING);
+      try {
+        const fastaText = await fetchFasta();
+        const metaText = await fetchMetadata();
+        await setData(fastaText, metaText);
+      } catch (fastaErr) {
+        console.error('[App] Failed to auto-load FASTA:', fastaErr);
+        const message = fastaErr instanceof Error ? fastaErr.message : 'Failed to auto-load FASTA from the provided URL.';
+        container.resolve(FastaDataEventBusService).emit('onShowImportDialog', message);
+      }
+    };
+
     const handleDeepLinking = async () => {
       if (inputFastaUrl) {
-        setLoadingStatus(LOADING_STATUS.LOADING);
-        try {
-          if (!UrlUtil.isValidResourceUrl(inputFastaUrl)) {
-            throw new Error('Invalid input-fasta URL.');
-          }
-          const fastaRes = await fetch(inputFastaUrl);
-          if (!fastaRes.ok) {
-            throw new Error(`FASTA fetch failed (${fastaRes.status})`);
-          }
-          const fastaText = await fastaRes.text();
-
-          if (!fastaText.trim()) {
-            setLoadingStatus(LOADING_STATUS.ERROR);
-            throw new Error('The input-fasta URL returned no sequence data. Check that the URL and requested accession(s) are correct.');
-          }
-
-          let metaText: string | undefined;
-          if (inputMetadataUrl) {
-            try {
-              if (!UrlUtil.isValidResourceUrl(inputMetadataUrl)) {
-                throw new Error('Invalid input-metadata URL.');
-              }
-              const metaRes = await fetch(inputMetadataUrl);
-              if (metaRes.ok) {
-                metaText = await metaRes.text();
-              }
-            } catch (metaErr) {
-              console.warn('[App] Failed to auto-fetch metadata:', metaErr);
-            }
-          }
-
-          await setData(fastaText, metaText);
-        } catch (fastaErr) {
-          console.error('[App] Failed to auto-load FASTA:', fastaErr);
-          const message = fastaErr instanceof Error ? fastaErr.message : 'Failed to auto-load FASTA from the provided URL.';
-          container.resolve(FastaDataEventBusService).emit('onShowImportDialog', message);
-        }
-      } else {
-        // PV1-02: Show data loading modal if no data provided via URL query params
-        container.resolve(FastaDataEventBusService).emit('onShowImportDialog');
+        await loadDeepLinkedData();
+        return;
       }
+      // PV1-02: Show data loading modal if no data provided via URL query params
+      container.resolve(FastaDataEventBusService).emit('onShowImportDialog');
     };
 
     void handleDeepLinking();

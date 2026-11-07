@@ -87,19 +87,30 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
     let authenticated = false;
 
     try {
-      this.keycloak = new Keycloak({
+      const keycloak = new Keycloak({
         clientId: authClientId,
         realm: authRealm,
         url: authEndpoint,
       });
-      this.keycloak.onAuthLogout = () => {
+      this.keycloak = keycloak;
+      keycloak.onAuthLogout = () => {
         console.log('Keycloak logged out');
         this.next({
           authenticated: false,
         });
       };
+      keycloak.onTokenExpired = () => {
+        if (this.keycloak !== keycloak) {
+          return;
+        }
 
-      authenticated = await this.keycloak.init({
+        void keycloak.updateToken(-1).catch((error: unknown) => {
+          console.error('Failed to refresh Keycloak token:', error);
+          void keycloak.clearToken();
+        });
+      };
+
+      authenticated = await keycloak.init({
         enableLogging: true,
         onLoad: 'check-sso',
         pkceMethod: 'S256',
@@ -150,6 +161,10 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
     });
 
     if (!response?.ok) {
+      if (response?.status === 401 || response?.status === 403) {
+        throw new Error('Your Loculus session is no longer valid. Please log in to Loculus again in a separate tab, then try uploading again.');
+      }
+
       const errorText = await response?.text();
       throw new Error(`Failed to revise sequences: ${errorText}`);
     }

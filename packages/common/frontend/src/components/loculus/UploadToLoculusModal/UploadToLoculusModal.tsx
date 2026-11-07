@@ -159,13 +159,13 @@ export const UploadToLoculusModal = withDialog<UploadToLoculusModalProps, Upload
         }] : []),
         {
           disabled: isUploading || validation.errors.length > 0 || validation.revisedSequences === null,
-          label: 'Upload',
+          label: uploadError ? 'Try again' : 'Upload',
           onClick: onClickUpload,
           variant: 'contained',
         },
       ];
     onActionsChange?.(actions);
-  }, [didUpload, isUploading, onActionsChange, onCancelUpload, onClickUpload, validation.errors.length, validation.revisedSequences]);
+  }, [didUpload, isUploading, onActionsChange, onCancelUpload, onClickUpload, uploadError, validation.errors.length, validation.revisedSequences]);
 
   return (
     <Box sx={{ display: 'grid', gap: 2, position: 'relative' }}>

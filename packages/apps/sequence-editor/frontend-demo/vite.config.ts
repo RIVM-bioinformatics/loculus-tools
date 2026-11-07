@@ -15,6 +15,8 @@ import { createPaletteSchemaPlugin } from '@rivm-loculus-tools/sequence-editor/v
 import packageJson from './package.json' with { type: 'json' };
 
 const gitRootPath = findGitRootPath();
+const reviseMockStatusCode = 200;
+const reviseMockDelayMs = 3000;
 
 let commitHash = 'not-a-git-repo';
 try {
@@ -51,6 +53,23 @@ export default defineConfig({
     createPaletteSchemaPlugin(),
     react(),
     svgr(),
+    {
+      configureServer: (server) => {
+        server.middlewares.use((request, response, next) => {
+          if (request.method !== 'POST' || !/^\/[^/]+\/revise(?:\?.*)?$/.test(request.url ?? '')) {
+            next();
+            return;
+          }
+
+          setTimeout(() => {
+            response.statusCode = reviseMockStatusCode;
+            response.setHeader('Content-Type', 'application/json');
+            response.end(JSON.stringify({ message: 'Sequences revised successfully (mock).' }));
+          }, reviseMockDelayMs);
+        });
+      },
+      name: 'sequence-editor-demo-revise-mock',
+    },
   ],
   resolve: {
     // All peer dependencies of @rivm-loculus-tools/phylogeny-viewer should be deduplicated to the local node_modules version
@@ -77,7 +96,7 @@ export default defineConfig({
       cert: readFileSync(resolve(gitRootPath, 'cert', 'cert.pem')),
       key: readFileSync(resolve(gitRootPath, 'cert', 'key.pem')),
     } : undefined,
-    open: true,
+    open: '/?auth-endpoint=http://localhost:8080/&auth-realm=loculus-tools&auth-client-id=backend-client&return-url=https://localhost:5021&organism=sarscov2&input-fasta=https://localhost:5021/sample-data/sarscov2_demo.fasta&input-metadata=https://localhost:5021/sample-data/sarscov2_demo_metadata.tsv',
     port: 5021,
   },
   test: {

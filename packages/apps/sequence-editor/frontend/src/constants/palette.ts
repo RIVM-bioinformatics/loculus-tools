@@ -10,29 +10,17 @@ import type {
 } from '../models/palette.models';
 import { PaletteUtil } from '../utils/PaletteUtil';
 
-export const PALETTE_SCHEMA_ASSET_PATH = 'assets/palette.schema.json';
-export const PALETTE_SCHEMA_URL_PATH = `/${PALETTE_SCHEMA_ASSET_PATH}`;
+import {
+  AMINO_ACID_SYMBOLS as aminoAcidSymbolValues,
+  NUCLEOTIDE_SYMBOLS as nucleotideSymbolValues,
+} from './paletteSchemaData';
 
-export const NUCLEOTIDE_SYMBOLS: readonly NucleotideSymbol[] = [
-  NucleotideSymbol.A,
-  NucleotideSymbol.C,
-  NucleotideSymbol.G,
-  NucleotideSymbol.T,
-  NucleotideSymbol.U,
-  NucleotideSymbol.R,
-  NucleotideSymbol.Y,
-  NucleotideSymbol.S,
-  NucleotideSymbol.W,
-  NucleotideSymbol.K,
-  NucleotideSymbol.M,
-  NucleotideSymbol.B,
-  NucleotideSymbol.D,
-  NucleotideSymbol.H,
-  NucleotideSymbol.V,
-  NucleotideSymbol.N,
-  NucleotideSymbol.GAP,
-  NucleotideSymbol.UNKNOWN,
-] as const;
+export {
+  PALETTE_SCHEMA_ASSET_PATH,
+  PALETTE_SCHEMA_URL_PATH,
+} from './paletteSchemaData';
+
+export const NUCLEOTIDE_SYMBOLS: readonly NucleotideSymbol[] = nucleotideSymbolValues as readonly NucleotideSymbol[];
 
 export const NUCLEOTIDE_SYMBOL_LABELS: Readonly<Record<NucleotideSymbol, string>> = {
   [NucleotideSymbol.A]: 'Adenine',
@@ -55,31 +43,7 @@ export const NUCLEOTIDE_SYMBOL_LABELS: Readonly<Record<NucleotideSymbol, string>
   [NucleotideSymbol.Y]: 'Pyrimidine (C, T, or U)',
 };
 
-export const AMINO_ACID_SYMBOLS: readonly AminoAcidSymbol[] = [
-  AminoAcidSymbol.A,
-  AminoAcidSymbol.C,
-  AminoAcidSymbol.D,
-  AminoAcidSymbol.E,
-  AminoAcidSymbol.F,
-  AminoAcidSymbol.G,
-  AminoAcidSymbol.H,
-  AminoAcidSymbol.I,
-  AminoAcidSymbol.K,
-  AminoAcidSymbol.L,
-  AminoAcidSymbol.M,
-  AminoAcidSymbol.N,
-  AminoAcidSymbol.P,
-  AminoAcidSymbol.Q,
-  AminoAcidSymbol.R,
-  AminoAcidSymbol.S,
-  AminoAcidSymbol.T,
-  AminoAcidSymbol.V,
-  AminoAcidSymbol.W,
-  AminoAcidSymbol.Y,
-  AminoAcidSymbol.X,
-  AminoAcidSymbol.STOP,
-  AminoAcidSymbol.GAP,
-] as const;
+export const AMINO_ACID_SYMBOLS: readonly AminoAcidSymbol[] = aminoAcidSymbolValues as readonly AminoAcidSymbol[];
 
 export const AMINO_ACID_SYMBOL_LABELS: Readonly<Record<AminoAcidSymbol, string>> = {
   [AminoAcidSymbol.A]: 'Alanine',

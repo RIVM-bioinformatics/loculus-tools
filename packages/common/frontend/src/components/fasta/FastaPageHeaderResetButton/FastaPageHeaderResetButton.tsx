@@ -10,6 +10,10 @@ import {
 import { Confirmation } from '@gen-epix/ui-core-components/components/Confirmation';
 import type { ConfirmationRefMethods } from '@gen-epix/ui-core-components/components/Confirmation';
 import { t } from 'i18next';
+import { container } from 'tsyringe';
+
+import { UrlUtil } from '../../../utils/UrlUtil';
+import { LoculusService } from '../../../classes/services/LoculusService';
 
 export type FastaPageHeaderResetButtonProps = {
   onReset: () => void;
@@ -22,6 +26,8 @@ export const FastaPageHeaderResetButton = ({ onReset }: FastaPageHeaderResetButt
   }, []);
 
   const onConfirm = useCallback(() => {
+    UrlUtil.clearSearchParams();
+    container.resolve(LoculusService).clear();
     onReset();
   }, [onReset]);
 

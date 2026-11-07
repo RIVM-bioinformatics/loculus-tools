@@ -56,9 +56,9 @@ export const SequenceEditorRealignModal = withDialog<SequenceEditorRealignModalP
         display: 'flex',
         flexDirection: 'column',
         gap: 2,
-        maxWidth: 480,
         p: 3,
         textAlign: 'center',
+        width: '100%',
       }}
     >
       <CircularProgress

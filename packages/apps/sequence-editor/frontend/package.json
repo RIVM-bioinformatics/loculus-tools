@@ -150,6 +150,10 @@
       "types": "./src/constants/palette.ts",
       "import": "./src/constants/palette.ts"
     },
+    "./constants/paletteSchemaData": {
+      "types": "./src/constants/paletteSchemaData.ts",
+      "import": "./src/constants/paletteSchemaData.ts"
+    },
     "./models/config.models": {
       "types": "./src/models/config.models.ts",
       "import": "./src/models/config.models.ts"
@@ -256,6 +260,10 @@
       "./constants/palette": {
         "types": "./dist/constants/palette.d.ts",
         "import": "./dist/constants/palette.js"
+      },
+      "./constants/paletteSchemaData": {
+        "types": "./dist/constants/paletteSchemaData.d.ts",
+        "import": "./dist/constants/paletteSchemaData.js"
       },
       "./models/config.models": {
         "types": "./dist/models/config.models.d.ts",

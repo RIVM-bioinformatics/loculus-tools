@@ -18,7 +18,7 @@ import type { Target } from 'vite-plugin-static-copy';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import { esmExternalRequirePlugin } from 'vite';
 
-import { createPaletteSchemaPlugin } from './src/vite/paletteSchemaPlugin/paletteSchemaPlugin';
+import { createPaletteSchemaPlugin } from './src/vite/paletteSchemaPlugin/paletteSchemaPlugin.ts'; // eslint-disable-line import-x/extensions
 
 type PackageManifest = {
   peerDependencies?: Record<string, string>;

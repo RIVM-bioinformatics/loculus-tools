@@ -5,7 +5,7 @@ import {
   NUCLEOTIDE_SYMBOLS,
   PALETTE_SCHEMA_ASSET_PATH,
   PALETTE_SCHEMA_URL_PATH,
-} from '../../constants/palette';
+} from '../../constants/paletteSchemaData.ts'; // eslint-disable-line import-x/extensions
 
 const paletteEntryFields = [
   'background',

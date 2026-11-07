@@ -1,0 +1,45 @@
+{
+  "realm": "loculus-tools",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "backend-client",
+      "name": "Loculus Tools Demo",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "https://localhost:5020/*",
+        "https://localhost:5021/*"
+      ],
+      "webOrigins": [
+        "https://localhost:5020",
+        "https://localhost:5021"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "demo",
+      "enabled": true,
+      "email": "demo@example.test",
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "User",
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

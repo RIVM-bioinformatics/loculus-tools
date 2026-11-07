@@ -6,13 +6,13 @@ import { PageCommonHeader } from '@rivm-loculus-tools/common-frontend/components
 import {
   useCallback,
   useMemo,
+  useSyncExternalStore,
 } from 'react';
+import { UrlService } from '@rivm-loculus-tools/common-frontend/classes/services/UrlService';
 import CodeIcon from '@mui/icons-material/Code';
 import PublishIcon from '@mui/icons-material/Publish';
 import { useStore } from 'zustand';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
-import UndoIcon from '@mui/icons-material/Undo';
-import RedoIcon from '@mui/icons-material/Redo';
 import {
   CircularProgress,
   IconButton,
@@ -21,26 +21,41 @@ import {
 import { ButtonWithMenu } from '@rivm-loculus-tools/common-frontend/components/ui/ButtonWithMenu';
 import type { ButtonWithMenuProps } from '@rivm-loculus-tools/common-frontend/components/ui/ButtonWithMenu';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import { LoculusService } from '@rivm-loculus-tools/common-frontend/classes/services/LoculusService';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
 
+import { SequenceEditorUndoRedoButtons } from './SequenceEditorUndoRedoButtons';
+
 export const SequenceEditorPageHeader = () => {
+  const loculusService = useMemo(() => container.resolve(LoculusService), []);
+  const urlService = useMemo(() => container.resolve(UrlService), []);
+
+  const isAuthenticated = useSyncExternalStore(
+    useCallback((onStoreChange) => loculusService.subscribe(onStoreChange), [loculusService]),
+    useCallback(() => loculusService.data.authenticated, [loculusService]),
+    () => false,
+  );
+
+  const hasReturnParams = useSyncExternalStore(
+    useCallback((onStoreChange) => urlService.subscribe(onStoreChange), [urlService]),
+    useCallback(() => urlService.hasReturnParams(), [urlService]),
+    () => false,
+  );
+
+  console.log('hasReturnParams:', hasReturnParams);
+
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const resetDataset = useStore(sequenceEditorStore, (state) => state.resetDataset);
-  const meta = useStore(sequenceEditorStore, (state) => state.meta);
+
+  const sequenceCount = useStore(sequenceEditorStore, (state) => state.meta?.sequenceCount);
+  const parsedMetadata = useStore(sequenceEditorStore, (state) => state.parsedMetadata);
+  const hasFasta = useStore(sequenceEditorStore, (state) => !!state.rawFasta);
 
   const onReset = useCallback(() => {
     resetDataset();
   }, [resetDataset]);
-
-  const onUndoButtonClick = useCallback(() => {
-    container.resolve(SequenceEditorEventBusService).emit('onUndo');
-  }, []);
-
-  const onRedoButtonClick = useCallback(() => {
-    container.resolve(SequenceEditorEventBusService).emit('onRedo');
-  }, []);
 
   const onRealignButtonClick = useCallback(() => {
     if (isRealigning) {
@@ -58,60 +73,42 @@ export const SequenceEditorPageHeader = () => {
   }, []);
 
   const onClickUploadToLoculus = useCallback(() => {
-    alert('Not implemented');
+    container.resolve(SequenceEditorEventBusService).emit('onExportToLoculus');
   }, []);
 
   const exportExportMenuItems: ButtonWithMenuProps['items'] = useMemo(() => [
     {
+      disabled: !isAuthenticated || !hasFasta || !hasReturnParams || !parsedMetadata,
       icon: <PublishIcon fontSize={'small'} />,
       label: 'Export to loculus',
       onClick: onClickUploadToLoculus,
     },
     {
+      disabled: !hasFasta,
       icon: <CodeIcon fontSize={'small'} />,
       label: 'Save as Ungapped Fasta (.fasta)',
       onClick: onClickExportFasta,
     },
     {
+      disabled: !hasFasta,
       icon: <CodeIcon fontSize={'small'} />,
       label: 'Save as Gapped Fasta (.fasta)',
       onClick: onClickExportGappedFasta,
     },
-  ], [onClickExportFasta, onClickExportGappedFasta, onClickUploadToLoculus]);
+  ], [isAuthenticated, hasFasta, hasReturnParams, parsedMetadata, onClickUploadToLoculus, onClickExportFasta, onClickExportGappedFasta]);
 
   return (
     <PageCommonHeader
       centerComponent={<FastaPageHeaderCenterComponent store={sequenceEditorStore} />}
       rightComponent={(
         <>
-          <Tooltip title={'Undo last action'}>
-            <IconButton
-              color={'inherit'}
-              disabled={meta?.undoDepth === 0}
-              onClick={onUndoButtonClick}
-              size={'small'}
-              sx={{ opacity: 0.85 }}
-            >
-              <UndoIcon fontSize={'small'} />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={'Redo last action'}>
-            <IconButton
-              color={'inherit'}
-              disabled={meta?.redoDepth === 0}
-              onClick={onRedoButtonClick}
-              size={'small'}
-              sx={{ opacity: 0.85 }}
-            >
-              <RedoIcon fontSize={'small'} />
-            </IconButton>
-          </Tooltip>
+          <SequenceEditorUndoRedoButtons />
           <Tooltip title={isRealigning ? 'Re-aligning sequences...' : 'Re-align all sequences (MAFFT FFT-NS-1)'}>
             <span>
               <IconButton
                 aria-label={isRealigning ? 'Re-aligning sequences...' : 'Re-align all sequences (MAFFT FFT-NS-1)'}
                 color={'inherit'}
-                disabled={isRealigning || (meta?.sequenceCount ?? 0) < 2}
+                disabled={isRealigning || (sequenceCount ?? 0) < 2}
                 onClick={onRealignButtonClick}
                 size={'small'}
                 sx={{ opacity: 0.85 }}

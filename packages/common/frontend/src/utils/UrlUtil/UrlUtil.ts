@@ -7,6 +7,7 @@ export class UrlUtil {
     const url = new URL(container.resolve(WindowService).window.location.href);
     url.search = '';
     container.resolve(WindowService).window.history.replaceState(null, '', url.toString());
+    container.resolve(WindowService).window.dispatchEvent(new Event('loculus:urlparamschange'));
   }
 
   public static fastaLabelFromUrl(url: string): string {

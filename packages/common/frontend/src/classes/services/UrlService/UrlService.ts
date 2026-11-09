@@ -24,6 +24,7 @@ export class UrlService extends SubscribableAbstract<UrlParams> {
 
     this.windowService.window.addEventListener('hashchange', this.updateParams);
     this.windowService.window.addEventListener('popstate', this.updateParams);
+    this.windowService.window.addEventListener('loculus:urlparamschange', this.updateParams);
     this.updateParams();
   }
 

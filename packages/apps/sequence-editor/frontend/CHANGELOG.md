@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.8.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.7.1...sequence-editor-frontend-v1.8.0) (2026-11-09)
+
+
+### Features
+
+* **frontend:** loculus callback ([#86](https://github.com/RIVM-bioinformatics/loculus-tools/issues/86)) ([751f264](https://github.com/RIVM-bioinformatics/loculus-tools/commit/751f2642aed114413c6396b551469ea61e537cdf))
+* **frontent:** make fasta loading label configurable ([f60206d](https://github.com/RIVM-bioinformatics/loculus-tools/commit/f60206d842daec3bb59466bf4d52052bf0f9618a))
+
+
+### Bug Fixes
+
+* **frontend:** fix keyboard shortcuts ([766677c](https://github.com/RIVM-bioinformatics/loculus-tools/commit/766677c9b74b8b8330086b246a9359031f9a8e47))
+* **frontend:** prioritize UI-elements over cells in sequence edtior ([22b3bd0](https://github.com/RIVM-bioinformatics/loculus-tools/commit/22b3bd0416a4a41aeb8b0a3a3ee3c33a0ecdb0f2))
+
 ## [1.7.1](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.7.0...sequence-editor-frontend-v1.7.1) (2026-11-03)
 
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.9.0...common-frontend-v0.10.0) (2026-11-09)
+
+
+### Features
+
+* **frontend:** loculus callback ([#86](https://github.com/RIVM-bioinformatics/loculus-tools/issues/86)) ([751f264](https://github.com/RIVM-bioinformatics/loculus-tools/commit/751f2642aed114413c6396b551469ea61e537cdf))
+* **frontent:** make fasta loading label configurable ([f60206d](https://github.com/RIVM-bioinformatics/loculus-tools/commit/f60206d842daec3bb59466bf4d52052bf0f9618a))
+
+
+### Bug Fixes
+
+* **frontend:** fix getBaseURLWithPath when no path was givven ([680679e](https://github.com/RIVM-bioinformatics/loculus-tools/commit/680679e259574409d190c7acc69866d09ecc2a4c))
+* **frontend:** only auth url and return url should be of same top level domain ([ef4829e](https://github.com/RIVM-bioinformatics/loculus-tools/commit/ef4829ee5e5bada77872166d4fd708b31d8c7ff1))
+
 ## [0.9.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.8.0...common-frontend-v0.9.0) (2026-11-03)
 
 

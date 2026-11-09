@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.7.0...phylogeny-viewer-frontend-v1.8.0) (2026-11-09)
+
+
+### Features
+
+* **frontend:** allow to set aioli tools through config ([2607e10](https://github.com/RIVM-bioinformatics/loculus-tools/commit/2607e10eb535594e5b1d859e9fad6e890c5c6efc))
+
 ## [1.7.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.6.0...phylogeny-viewer-frontend-v1.7.0) (2026-11-09)
 
 

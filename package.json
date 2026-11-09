@@ -13,7 +13,7 @@
     "build-wasm": "node scripts/build-wasm.mjs",
     "shorten-index-imports": "node scripts/shorten-index-imports.mjs",
     "prepare": "husky",
-    "start": "docker compose up -d --force-recreate && trap 'docker compose stop' EXIT && trap 'exit 130' INT && trap 'exit 143' TERM && lerna run start --scope @rivm-loculus-tools/phylogeny-viewer-demo --scope @rivm-loculus-tools/sequence-editor-demo --stream",
+    "start": "docker compose up -d --force-recreate --wait --wait-timeout 120 && trap 'docker compose stop' EXIT && trap 'exit 130' INT && trap 'exit 143' TERM && lerna run start --scope @rivm-loculus-tools/phylogeny-viewer-demo --scope @rivm-loculus-tools/sequence-editor-demo --stream",
     "start-phylo": "pnpm --filter @rivm-loculus-tools/phylogeny-viewer-demo start",
     "start-seq": "pnpm --filter @rivm-loculus-tools/sequence-editor-demo start",
     "update-exports": "lerna run update-exports",

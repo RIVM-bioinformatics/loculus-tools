@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.6.0...phylogeny-viewer-frontend-v1.7.0) (2026-11-09)
+
+
+### Features
+
+* **frontend:** better define aoili typings and allow to pass config object in Aioli constructor ([6bad29c](https://github.com/RIVM-bioinformatics/loculus-tools/commit/6bad29c5dcec47f7cec8903e34a69d803f9f98ab))
+* **frontend:** loculus callback ([#86](https://github.com/RIVM-bioinformatics/loculus-tools/issues/86)) ([751f264](https://github.com/RIVM-bioinformatics/loculus-tools/commit/751f2642aed114413c6396b551469ea61e537cdf))
+
 ## [1.6.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.5.1...phylogeny-viewer-frontend-v1.6.0) (2026-11-03)
 
 

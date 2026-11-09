@@ -1,5 +1,9 @@
 import { FastaUtil } from '@rivm-loculus-tools/common-frontend/utils/FastaUtil';
-import { singleton } from 'tsyringe';
+import {
+  inject,
+  singleton,
+} from 'tsyringe';
+import { CONFIG_TOKEN } from '@rivm-loculus-tools/common-frontend/constants/config.constants';
 
 import type {
   FastTreeMLParams,
@@ -7,11 +11,12 @@ import type {
 } from '../../../models/calculation.models';
 import type { AioliService } from '../../abstracts/AioliServiceAbstract';
 import { AioliServiceAbstract } from '../../abstracts/AioliServiceAbstract';
+import type { PhylogenyViewerConfig } from '../../../models/config.models';
 
 @singleton()
 export class FastTreeAioliService extends AioliServiceAbstract implements AioliService {
-  public constructor() {
-    super('fasttree/2.1.11');
+  public constructor(@inject(CONFIG_TOKEN) config: PhylogenyViewerConfig) {
+    super('fasttree/2.1.11', config);
   }
 
   private static extractNewickTree(output: string): string {

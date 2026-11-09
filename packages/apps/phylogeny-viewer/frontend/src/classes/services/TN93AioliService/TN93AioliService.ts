@@ -1,9 +1,14 @@
 import { RapidNeighborJoining } from 'neighbor-joining';
 import { FastaUtil } from '@rivm-loculus-tools/common-frontend/utils/FastaUtil';
-import { singleton } from 'tsyringe';
+import {
+  inject,
+  singleton,
+} from 'tsyringe';
+import { CONFIG_TOKEN } from '@rivm-loculus-tools/common-frontend/constants/config.constants';
 
 import type { AioliService } from '../../abstracts/AioliServiceAbstract';
 import { AioliServiceAbstract } from '../../abstracts/AioliServiceAbstract';
+import type { PhylogenyViewerConfig } from '../../../models/config.models';
 
 type DistanceEntry = {
   distance: number;
@@ -13,8 +18,8 @@ type DistanceEntry = {
 
 @singleton()
 export class TN93AioliService extends AioliServiceAbstract implements AioliService {
-  public constructor() {
-    super('tn93/1.0.11');
+  public constructor(@inject(CONFIG_TOKEN) config: PhylogenyViewerConfig) {
+    super('tn93/1.0.11', config);
   }
 
   private static buildDistanceMatrix(entries: DistanceEntry[]): { matrix: number[][]; taxa: string[] } {

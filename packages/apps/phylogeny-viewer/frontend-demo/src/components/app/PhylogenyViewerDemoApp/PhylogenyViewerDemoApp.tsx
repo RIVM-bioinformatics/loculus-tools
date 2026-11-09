@@ -108,7 +108,7 @@ export const PhylogenyViewerDemoApp = () => {
         ),
       },
       theme: createPhylogenyViewerTheme('light'),
-    };
+    } satisfies PhylogenyViewerConfig;
   }, [afterAppBarRightComponent, extraFastaDataImportDialogLoaderActions]);
 
 

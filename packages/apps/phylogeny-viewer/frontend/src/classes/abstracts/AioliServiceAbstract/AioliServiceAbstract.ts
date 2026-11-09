@@ -1,16 +1,20 @@
 import type { AioliInstance } from '@biowasm/aioli';
 import Aioli from '@biowasm/aioli';
 
+import type { PhylogenyViewerConfig } from '../../../models/config.models';
+
 export interface AioliService {
   getTree(fastaContent: string): Promise<string>;
 }
 
 export abstract class AioliServiceAbstract {
   private aioli: AioliInstance | null = null;
+  private readonly config: PhylogenyViewerConfig;
   private readonly tool: string;
 
-  protected constructor(tool: string) {
+  protected constructor(tool: string, config: PhylogenyViewerConfig) {
     this.tool = tool;
+    this.config = config;
   }
 
   public abstract getTree(fastaContent: string): Promise<string>;
@@ -41,7 +45,14 @@ export abstract class AioliServiceAbstract {
 
   private async init(): Promise<AioliInstance> {
     if (!this.aioli) {
-      this.aioli = await new Aioli(this.tool);
+      if (this.config.aioliCDNUrl) {
+        this.aioli = await new Aioli(this.tool, {
+          urlCDN: this.config.aioliCDNUrl,
+          urlCDNStg: this.config.aioliCDNUrl,
+        });
+      } else {
+        this.aioli = await new Aioli(this.tool);
+      }
     }
     return this.aioli;
   }

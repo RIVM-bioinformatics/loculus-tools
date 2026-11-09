@@ -35,7 +35,7 @@ export const PageCommon = ({ children, isNoInteraction, title }: PageCommonProps
     <Box
       sx={{
         display: 'grid',
-        gridTemplateRows: 'max-content auto',
+        gridTemplateRows: HeaderComponent ? 'max-content auto' : 'auto',
         height: '100vh',
         overflow: 'hidden',
         position: 'relative',

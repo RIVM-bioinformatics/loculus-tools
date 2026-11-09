@@ -7,7 +7,9 @@ export class UrlUtil {
     const url = new URL(container.resolve(WindowService).window.location.href);
     url.search = '';
     container.resolve(WindowService).window.history.replaceState(null, '', url.toString());
+    container.resolve(WindowService).window.dispatchEvent(new Event('loculus:urlparamschange'));
   }
+
   public static fastaLabelFromUrl(url: string): string {
     try {
       const urlObject = new URL(url);
@@ -29,16 +31,17 @@ export class UrlUtil {
     return `${url.protocol}//${url.host}`;
   }
 
-  public static validateFastaUrl(url: string): string {
+
+  public static isValidResourceUrl(url: string): boolean {
     let urlObject: URL;
     try {
       urlObject = new URL(url.trim());
     } catch {
-      throw new Error('Enter a valid FASTA URL.');
+      return false;
     }
     if (urlObject.protocol !== 'http:' && urlObject.protocol !== 'https:') {
-      throw new Error('FASTA URLs must use HTTP or HTTPS.');
+      return false;
     }
-    return urlObject.href;
+    return true;
   }
 }

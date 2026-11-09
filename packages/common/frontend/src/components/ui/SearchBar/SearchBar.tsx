@@ -152,6 +152,7 @@ export const SearchBar = (inProps: SearchBarProps) => {
 
   return (
     <SearchBarFilledInput
+      autoComplete={'off'}
       endAdornment={(
         <InputAdornment position={'end'}>
           {searchResultStatusText && (

@@ -42,7 +42,7 @@ export class UrlService extends SubscribableAbstract<UrlParams> {
     let returnUrl = returnUrlFromUrl && UrlUtil.isValidResourceUrl(returnUrlFromUrl) ? returnUrlFromUrl : undefined;
 
     // validate that each URL has the same top-level domain:
-    const topLevelDomains = [authEndpoint, inputFastaUrl, inputMetadataUrl, returnUrl]
+    const topLevelDomains = [authEndpoint, returnUrl]
       .filter((u): u is string => u !== undefined)
       .map((u) => {
         try {

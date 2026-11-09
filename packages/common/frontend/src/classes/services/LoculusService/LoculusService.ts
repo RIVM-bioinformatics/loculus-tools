@@ -142,8 +142,23 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
 
     const revisedSequences = LoculusService.createRevisedSequences(fasta, metaData);
 
+    const sequenceFasta = revisedSequences.fasta.split('\n').map((line) => {
+      if (!line.startsWith('>')) {
+        return line;
+      }
+
+      const header = line.slice(1);
+      const accessionVersion = header.split(/[|\t]/)[0].trim();
+      const submissionId = metaData.recordsByColumn.accessionVersion?.[accessionVersion]?.submissionId;
+      if (!submissionId) {
+        throw new Error(`Metadata is missing a submissionId for accessionVersion "${accessionVersion}".`);
+      }
+
+      return `>${submissionId}${header.slice(accessionVersion.length)}`;
+    }).join('\n');
+
     const body = new FormData();
-    body.append('sequenceFile', new File([revisedSequences.fasta], 'sequences.fasta', { type: 'text/plain' }));
+    body.append('sequenceFile', new File([sequenceFasta], 'sequences.fasta', { type: 'text/plain' }));
     body.append(
       'metadataFile',
       new File([revisedSequences.metadata], 'metadata.tsv', { type: 'text/tab-separated-values' }),

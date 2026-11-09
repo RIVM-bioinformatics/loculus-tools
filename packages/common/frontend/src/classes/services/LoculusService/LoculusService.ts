@@ -85,6 +85,7 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
   public async init(kwArgs: { authClientId: string; authEndpoint: string; authRealm: string }): Promise<void> {
     const { authClientId, authEndpoint, authRealm } = kwArgs;
     let authenticated = false;
+    let initializedKeycloak: Keycloak | null = null;
 
     try {
       const keycloak = new Keycloak({
@@ -92,6 +93,7 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
         realm: authRealm,
         url: authEndpoint,
       });
+      initializedKeycloak = keycloak;
       this.keycloak = keycloak;
       keycloak.onAuthLogout = () => {
         this.next({
@@ -119,6 +121,10 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
       });
     } catch (error) {
       console.error('Failed to initialize Keycloak:', error);
+    }
+
+    if (initializedKeycloak && this.keycloak !== initializedKeycloak) {
+      return;
     }
 
     this.next({

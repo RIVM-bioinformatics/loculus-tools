@@ -19,7 +19,7 @@ type DistanceEntry = {
 @singleton()
 export class TN93AioliService extends AioliServiceAbstract implements AioliService {
   public constructor(@inject(CONFIG_TOKEN) config: PhylogenyViewerConfig) {
-    super('tn93/1.0.11', config);
+    super(config.aioli?.tn93Tool ?? 'tn93/1.0.11', config);
   }
 
   private static buildDistanceMatrix(entries: DistanceEntry[]): { matrix: number[][]; taxa: string[] } {

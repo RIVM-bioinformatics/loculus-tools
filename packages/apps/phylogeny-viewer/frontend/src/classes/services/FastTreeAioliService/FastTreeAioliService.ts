@@ -16,7 +16,7 @@ import type { PhylogenyViewerConfig } from '../../../models/config.models';
 @singleton()
 export class FastTreeAioliService extends AioliServiceAbstract implements AioliService {
   public constructor(@inject(CONFIG_TOKEN) config: PhylogenyViewerConfig) {
-    super('fasttree/2.1.11', config);
+    super(config?.aioli?.fasttreeTool ?? 'fasttree/2.2.0', config);
   }
 
   private static extractNewickTree(output: string): string {

@@ -45,10 +45,10 @@ export abstract class AioliServiceAbstract {
 
   private async init(): Promise<AioliInstance> {
     if (!this.aioli) {
-      if (this.config.aioliCDNUrl) {
+      if (this.config.aioli?.cdnUrl) {
         this.aioli = await new Aioli(this.tool, {
-          urlCDN: this.config.aioliCDNUrl,
-          urlCDNStg: this.config.aioliCDNUrl,
+          urlCDN: this.config.aioli.cdnUrl,
+          urlCDNStg: this.config.aioli.cdnUrl,
         });
       } else {
         this.aioli = await new Aioli(this.tool);

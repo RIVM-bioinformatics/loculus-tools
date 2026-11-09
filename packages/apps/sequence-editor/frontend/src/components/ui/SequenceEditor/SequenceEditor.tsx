@@ -91,8 +91,6 @@ export const SequenceEditor = () => {
   const processingVisibleRangeRef = useRef(false);
   const theme = useTheme();
 
-  console.log('SequenceEditor rendered');
-
   useEffect(() => {
     if (isRealigning) {
       sequenceEditorRealignModalRef.current?.open();
@@ -165,7 +163,6 @@ export const SequenceEditor = () => {
   }, [geometrySubject, metaSubject, scrollSubject, visibleRangeSubject]);
 
   const updateDimensionsDebounced = useDebouncedCallback((width: number, height: number) => {
-    console.log('updateDimensionsDebounced:', width, height);
     setContainerDimensions({ height, width });
   }, 0, { trailing: true });
 
@@ -399,7 +396,6 @@ export const SequenceEditor = () => {
       }),
       selectionSubject.subscribe(() => updateVisibleRange()),
       container.resolve(DevicePixelRatioService).subscribe((nextDevicePixelRatio) => {
-        console.log('Device pixel ratio changed:', nextDevicePixelRatio);
         setDevicePixelRatio(nextDevicePixelRatio);
         updateScrollbars();
         updateVisibleRange();
@@ -759,13 +755,11 @@ export const SequenceEditor = () => {
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onExportGappedFasta', async () => {
-        console.log('Exporting gapped fasta');
         const fasta = await editorService.exportGappedFasta();
         ExportUtil.downloadFastaFile(fasta, 'sequence.gapped.fasta');
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onExportUngappedFasta', async () => {
-        console.log('Exporting ungapped fasta');
         const fasta = await editorService.exportUngappedFasta();
         ExportUtil.downloadFastaFile(fasta, 'sequence.ungapped.fasta');
       }),

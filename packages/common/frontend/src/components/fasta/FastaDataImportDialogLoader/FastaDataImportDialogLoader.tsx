@@ -9,6 +9,7 @@ import type { StoreApi } from 'zustand';
 import { useStore } from 'zustand';
 
 import { FastaDataEventBusService } from '../../../classes/services/FastaDataEventBusService';
+import { UrlService } from '../../../classes/services/UrlService';
 import { LOADING_STATUS } from '../../../models/fasta.models';
 import type { FastaDataStore } from '../../../stores/fastaDataStore';
 import { UrlUtil } from '../../../utils/UrlUtil';
@@ -46,9 +47,7 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
 
   useEffect(() => {
     // Scan URL parameters for deep-linking
-    const urlParams = new URLSearchParams(window.location.search);
-    const inputFastaUrl = urlParams.get('input-fasta');
-    const inputMetadataUrl = urlParams.get('input-metadata');
+    const { inputFastaUrl, inputMetadataUrl } = UrlService.getParamsFromUrl(window.location.href);
 
     const fetchFasta = async () => {
       if (!inputFastaUrl || !UrlUtil.isValidResourceUrl(inputFastaUrl)) {

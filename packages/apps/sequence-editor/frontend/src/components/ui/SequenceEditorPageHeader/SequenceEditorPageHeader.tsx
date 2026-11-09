@@ -44,8 +44,6 @@ export const SequenceEditorPageHeader = () => {
     () => false,
   );
 
-  console.log('hasReturnParams:', hasReturnParams);
-
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const resetDataset = useStore(sequenceEditorStore, (state) => state.resetDataset);
 

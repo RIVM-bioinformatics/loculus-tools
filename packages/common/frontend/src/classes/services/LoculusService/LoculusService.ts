@@ -94,7 +94,6 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
       });
       this.keycloak = keycloak;
       keycloak.onAuthLogout = () => {
-        console.log('Keycloak logged out');
         this.next({
           authenticated: false,
         });
@@ -118,7 +117,6 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
         silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
         useNonce: true,
       });
-      console.log('Keycloak initialized, authenticated:', authenticated);
     } catch (error) {
       console.error('Failed to initialize Keycloak:', error);
     }
@@ -135,10 +133,6 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
     organism: string,
     abortController: AbortController,
   ): Promise<void> {
-    console.log('Revising sequences with fasta:', fasta);
-    console.log('Revising sequences with metadata:', metaData);
-    console.log('Revising sequences with returnUrl:', returnUrl);
-    console.log('Revising sequences with organism:', organism);
 
     const revisedSequences = LoculusService.createRevisedSequences(fasta, metaData);
 

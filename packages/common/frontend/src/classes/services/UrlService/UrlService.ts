@@ -30,19 +30,44 @@ export class UrlService extends SubscribableAbstract<UrlParams> {
   public static getParamsFromUrl(url: string): UrlParams {
     const urlObject = new URL(url);
     const urlParams = new URLSearchParams(urlObject.search);
-    const authEndpoint = urlParams.get('auth-endpoint') ?? undefined;
-    const inputFastaUrl = urlParams.get('input-fasta') ?? undefined;
-    const inputMetadataUrl = urlParams.get('input-metadata') ?? undefined;
-    const returnUrl = urlParams.get('return-url') ?? undefined;
+    const authEndpointFromUrl = urlParams.get('auth-endpoint');
+    const inputFastaUrlFromUrl = urlParams.get('input-fasta');
+    const inputMetadataUrlFromUrl = urlParams.get('input-metadata');
+    const returnUrlFromUrl = urlParams.get('return-url');
+
+    let authEndpoint = authEndpointFromUrl && UrlUtil.isValidResourceUrl(authEndpointFromUrl) ? authEndpointFromUrl : undefined;
+    let inputFastaUrl = inputFastaUrlFromUrl && UrlUtil.isValidResourceUrl(inputFastaUrlFromUrl) ? inputFastaUrlFromUrl : undefined;
+    let inputMetadataUrl = inputMetadataUrlFromUrl && UrlUtil.isValidResourceUrl(inputMetadataUrlFromUrl) ? inputMetadataUrlFromUrl : undefined;
+    let returnUrl = returnUrlFromUrl && UrlUtil.isValidResourceUrl(returnUrlFromUrl) ? returnUrlFromUrl : undefined;
+
+    // validate that each URL has the same top-level domain:
+    const topLevelDomains = [authEndpoint, inputFastaUrl, inputMetadataUrl, returnUrl]
+      .filter((u): u is string => u !== undefined)
+      .map((u) => {
+        try {
+          const hostname = new URL(u).hostname;
+          const parts = hostname.split('.');
+          return parts.slice(-2).join('.');
+        } catch {
+          return '';
+        }
+      });
+    if (topLevelDomains.length > 1 && new Set(topLevelDomains).size > 1) {
+      console.warn('URLs have mismatched top-level domains. Clearing all URL parameters.');
+      authEndpoint = undefined;
+      inputFastaUrl = undefined;
+      inputMetadataUrl = undefined;
+      returnUrl = undefined;
+    }
 
     return {
       authClientId: urlParams.get('auth-client-id') ?? undefined,
-      authEndpoint: authEndpoint && UrlUtil.isValidResourceUrl(authEndpoint) ? authEndpoint : undefined,
+      authEndpoint,
       authRealm: urlParams.get('auth-realm') ?? undefined,
-      inputFastaUrl: inputFastaUrl && UrlUtil.isValidResourceUrl(inputFastaUrl) ? inputFastaUrl : undefined,
-      inputMetadataUrl: inputMetadataUrl && UrlUtil.isValidResourceUrl(inputMetadataUrl) ? inputMetadataUrl : undefined,
+      inputFastaUrl,
+      inputMetadataUrl,
       organism: urlParams.get('organism') ?? undefined,
-      returnUrl: returnUrl && UrlUtil.isValidResourceUrl(returnUrl) ? returnUrl : undefined,
+      returnUrl,
     };
   }
 

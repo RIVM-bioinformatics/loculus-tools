@@ -141,6 +141,8 @@ export const UploadToLoculusModal = withDialog<UploadToLoculusModalProps, Upload
 
   const onCancelUpload = useCallback(() => {
     abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setIsUploading(false);
     onClose?.();
   }, [onClose]);
 

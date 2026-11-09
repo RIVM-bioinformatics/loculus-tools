@@ -154,8 +154,12 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
       groupId: revisedSequences.groupId,
     })}`;
 
-    const response = await this.keycloak?.fetch(url, {
+    const response = await fetch(url, {
       body,
+      headers: {
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        Authorization: `Bearer ${this.keycloak?.token ?? ''}`,
+      },
       method: 'POST',
       signal: abortController.signal,
     });

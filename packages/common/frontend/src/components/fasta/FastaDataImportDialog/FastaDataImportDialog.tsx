@@ -47,6 +47,7 @@ export interface FastaDataImportDialogOpenProps {
 
 export interface FastaDataImportDialogProps extends WithDialogRenderProps<FastaDataImportDialogOpenProps> {
   extraActions?: DialogAction[];
+  fastaDescription?: string;
   onDataChange: (fasta: string, metaData?: string) => void;
   onError: (error: unknown) => void;
 }
@@ -56,6 +57,7 @@ export type FastaDataImportDialogRefMethods = WithDialogRefMethods<FastaDataImpo
 export const FastaDataImportDialog = withDialog<FastaDataImportDialogProps, FastaDataImportDialogOpenProps>((
   {
     extraActions,
+    fastaDescription = 'Pre-aligned nucleotide or amino-acid sequence data.',
     onActionsChange,
     onClose,
     onDataChange,
@@ -220,7 +222,7 @@ export const FastaDataImportDialog = withDialog<FastaDataImportDialogProps, Fast
             sx={{ display: 'block', mb: 2 }}
             variant={'caption'}
           >
-            {'Pre-aligned nucleotide or amino-acid sequence data.'}
+            {fastaDescription}
           </Typography>
           <Tabs
             onChange={onChangeFastaTab}

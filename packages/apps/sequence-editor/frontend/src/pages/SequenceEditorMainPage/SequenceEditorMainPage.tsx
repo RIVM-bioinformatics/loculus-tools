@@ -34,6 +34,7 @@ export const SequenceEditorMainPage = () => {
       )}
       <FastaDataImportDialogLoader
         extraActions={config?.fastaImportExtraActions}
+        fastaDescription={'Nucleotide or amino-acid sequence data.'}
         store={sequenceEditorStore}
       />
       <BackdropSpinner

@@ -21,10 +21,11 @@ import { LoculusService } from '../../../classes/services/LoculusService';
 
 export type FastaDataImportDialogLoaderProps = {
   extraActions?: DialogAction[];
+  fastaDescription?: string;
   store: StoreApi<FastaDataStore>;
 };
 
-export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataImportDialogLoaderProps) => {
+export const FastaDataImportDialogLoader = ({ extraActions, fastaDescription, store }: FastaDataImportDialogLoaderProps) => {
   const setData = useStore(store, (state) => state.setData);
   const setLoadingStatus = useStore(store, (state) => state.setLoadingStatus);
   const fastaDataImportDialogRef = useRef<FastaDataImportDialogRefMethods>(null);
@@ -132,6 +133,7 @@ export const FastaDataImportDialogLoader = ({ extraActions, store }: FastaDataIm
     <>
       <FastaDataImportDialog
         extraActions={extraActions}
+        fastaDescription={fastaDescription}
         onDataChange={onDataChange}
         onError={onError}
         ref={fastaDataImportDialogRef}

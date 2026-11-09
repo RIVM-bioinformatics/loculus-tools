@@ -146,6 +146,7 @@ export interface EngineWorkerApi {
   applyAlignedFasta: (fasta: string) => Promise<void>;
   delete: (rows: number[], column: number) => Promise<void>;
   deleteColumn: (column: number) => Promise<void>;
+  deleteRows: (rows: number[]) => Promise<void>;
   exportGappedFasta: () => Promise<string>;
   exportUngappedFasta: () => Promise<string>;
   /** Idempotently initializes the WASM engine; resolves once it is ready. */
@@ -164,6 +165,7 @@ export interface EngineWorkerApi {
   mutate: (rows: number[], columns: number[], base: string) => Promise<void>;
   name: (row: number) => Promise<string>;
   redo: () => Promise<boolean>;
+  reset: () => Promise<void>;
   search: (query: string, checkRecordNames: boolean) => Promise<EngineSearchResult>;
   translate: (bounds: ViewportBounds, readingFrame: number) => Promise<EngineViewportResult>;
   undo: () => Promise<boolean>;

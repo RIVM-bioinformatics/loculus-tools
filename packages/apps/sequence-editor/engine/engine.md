@@ -190,18 +190,24 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 | Method | Signature (JS-facing) | Description |
 |--------|----------------------|-------------|
 | `new()` | `new MsaEngine()` | Construct an empty engine. |
+| `reset()` | `reset(): void` | Reset the engine to its initial empty state, clearing all sequences, names, caches, and undo/redo history. |
 
 ### 4.2 Loading
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `load_fasta` | `load_fasta(fasta: string): number` | Validate and parse FASTA atomically; throw a structured error on invalid input. |
+| `load_fasta` | `load_fasta(fasta: string): number` | Validate and parse FASTA atomically; prepend sequences ahead of existing rows, update width, and create an undo snapshot if prior state exists. Throw a structured error on invalid input. |
 
 `load_fasta` behavior:
 
 - Parses into temporary sequence/name buffers first. Only after the complete
-  input is valid does it replace existing data and clear undo/redo history;
+  input is valid are sequences prepended ahead of existing rows;
   invalid input leaves the current engine state intact.
+- If the engine already contains state (sequences or undo/redo history), a
+  `StructuralSnapshot` is recorded so the addition can be undone (`Ctrl+Z` / `Cmd+Z`).
+  Initial load into a fresh or reset engine keeps `undo_depth == 0`.
+- Empty or whitespace-only input is a no-op that returns the current sequence
+  count without creating an undo snapshot.
 - Scans line by line. A line starting with `>` begins a new record; the complete
   trimmed header after `>` becomes the row name. Validation diagnostics use the
   first whitespace-delimited token as the sequence ID.
@@ -215,12 +221,12 @@ raw pointers are only meaningful within that worker's WASM linear memory.
   1-based sequence position, and 1-based input line. Scalar context fields
   mirror the first occurrence.
 - Sequence data before the first header rejects with `InvalidFastaFormat`.
-- The **longest** sequence sets `alignment_width` (not the first). Subsequent
-  sequences are loaded as-is even if they differ in length — the engine does
-  **not** enforce uniform length. The caller can detect ragged alignments via
-  `get_row_length`.
+- The global `alignment_width` is updated to `max(existing_width, batch_width)`.
+  Sequences are loaded as-is even if they differ in length — the engine does
+  **not** enforce uniform length. Shorter sequences pad with spaces during
+  viewport extraction. The caller can detect ragged alignments via `get_row_length`.
 - Blank lines are ignored.
-- Returns the number of sequences parsed.
+- Returns the total number of sequences in the engine.
 
 > **Assumption:** The input is expected to be *pre-aligned* (as provided by
 > Loculus). The engine does not perform alignment itself.
@@ -301,7 +307,7 @@ sends a command and awaits an acknowledgment.
 The mutation core is governed by a fixed set of editing constraints. These
 constraints define exactly which combinations of actions are allowed and which
 are rejected. Every mutation method below enforces them and returns a
-`StructuredEngineError` (see [section 5.7](#57-structured-errors)) when a
+`StructuredEngineError` (see [section 5.10](#510-structured-errors)) when a
 constraint is violated, leaving the matrix **unchanged**
 (all-or-nothing).
 
@@ -451,7 +457,16 @@ Reorder rows without character constraints, updating both `sequences` and `names
 - **Undo History & No-Op Rule**: Every row movement records at most **one** `StructuralSnapshot` undo command (capturing both sequences and names). If the resulting order is identical to the current order (e.g. attempting to move rows already at boundary), no snapshot is recorded.
 - Returns `Ok(())`.
 
-### 5.7 Sequence re-alignment (`realign`)
+### 5.7 Row Deletion (`delete_rows`)
+
+`MsaEngine::delete_rows(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError>`
+
+- **Atomicity**: Deduplicates and bounds-checks `row_indices`. If no valid rows exist, returns `Ok(())` without pushing an undo entry. Otherwise, creates an atomic `StructuralSnapshot`.
+- **Width recalculation**: Recomputes `alignment_width` from the maximum length of remaining rows, or `0` if all rows are removed.
+- **Cache invalidation**: Clears `aminoacid_sequences` and `viewport_buffer`.
+- **Zero-row state**: The matrix safely supports `sequence_count == 0`; `undo()` restores all deleted rows and original width.
+
+### 5.8 Sequence re-alignment (`realign`)
 
 Re-aligns all loaded sequences across the whole matrix using the pure-Rust `mafft` crate (`AlignmentMode::FftNs2` with `ScoringModel::Dna` and `with_retree(1)` for FFT-NS-1).
 
@@ -465,13 +480,13 @@ Re-aligns all loaded sequences across the whole matrix using the pure-Rust `maff
 - Invalidates and clears `aminoacid_sequences` cache so subsequent translated views reflect the new alignment coordinates.
 - Returns `Ok(())`.
 
-### 5.8 External alignment integration (`apply_aligned_fasta` & `align_fasta`)
+### 5.9 External alignment integration (`apply_aligned_fasta` & `align_fasta`)
 
 To support non-blocking and cancelable sequence re-alignment, the engine provides:
 - Standalone `align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>`: Computes MAFFT FFT-NS-1 on an unaligned or gapped FASTA string, suitable for execution inside an ephemeral worker without initializing the full engine. Preserves all-gap rows and returns formatted FASTA or returns `StructuredEngineError` if UTF-8 encoding or validation fails.
 - Method `apply_aligned_fasta(&mut self, fasta_content: &str) -> Result<(), StructuredEngineError>`: Validates that sequence counts match, all aligned rows have uniform equal lengths, sequence headers and order match the current matrix, and ungapped residue identities are strictly conserved. Takes a `StructuralSnapshot` onto `undo_stack`, replaces the nucleotide matrix, updates `alignment_width`, and clears `aminoacid_sequences`.
 
-### 5.9 Structured errors
+### 5.10 Structured errors
 
 WASM-facing edit methods and `load_fasta` return
 `Result<_, StructuredEngineError>`. The
@@ -725,7 +740,7 @@ implemented in `www/` and are described in the companion documents.
 | ------ | -------- |
 | Core data structures & memory layout | ✅ Done (`MsaEngine`, viewport buffer) |
 | WASM boundary API | ✅ Done (`load_fasta`, `update_viewport`, `update_viewport_into`, metadata getters) |
-| Mutation core | ✅ Done (`mutate_base`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `move_horizontal`, `move_rows_relative`, `move_rows_grouped`, `move_rows_to_top`, `move_rows_to_bottom`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
+| Mutation core | ✅ Done (`mutate_base`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `delete_rows`, `move_horizontal`, `move_rows_relative`, `move_rows_grouped`, `move_rows_to_top`, `move_rows_to_bottom`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
 | Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
 | Web Worker bridge | ✅ Done (in `www/`, consumes the engine) |
 | MUI test harness | ✅ Done (in `www/`, consumes the engine) |

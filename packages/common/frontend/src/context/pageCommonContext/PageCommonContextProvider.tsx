@@ -17,17 +17,19 @@ export const PageCommonContextProvider = ({ children, ...props }: PageCommonCont
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isNoInteraction, setIsNoInteraction] = useState(false);
   const drawerContainerId = useId();
+  const drawerButtonId = useId();
 
   const contextValue = useMemo<PageCommonContextData>(() => {
     return {
       ...props,
+      drawerButtonId,
       drawerContainerId,
       isDrawerOpen,
       isNoInteraction,
       setIsDrawerOpen,
       setIsNoInteraction,
     };
-  }, [isDrawerOpen, isNoInteraction, drawerContainerId, props]);
+  }, [props, drawerButtonId, drawerContainerId, isDrawerOpen, isNoInteraction]);
 
   return (
     <PageCommonContext value={contextValue}>

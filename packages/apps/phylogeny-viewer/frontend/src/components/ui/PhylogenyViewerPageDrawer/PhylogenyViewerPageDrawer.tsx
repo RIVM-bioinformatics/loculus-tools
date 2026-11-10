@@ -73,7 +73,7 @@ export const PhylogenyViewerPageDrawer = () => {
         </Button>
       </Box>
       {/* Accordions */}
-      <Box sx={{ pb: 3 }}>
+      <Box>
         {/* 1. Tree Calculation */}
         <Accordion
           disableGutters
@@ -96,7 +96,7 @@ export const PhylogenyViewerPageDrawer = () => {
               </Typography>
             </Box>
           </AccordionSummary>
-          <AccordionDetails sx={{ pb: 2, pt: 0, px: 2 }}>
+          <AccordionDetails sx={{ pb: 1, pt: 1, px: 2 }}>
             <PhylogenyViewerPageDrawerCalculationSettings />
           </AccordionDetails>
         </Accordion>
@@ -122,7 +122,7 @@ export const PhylogenyViewerPageDrawer = () => {
               </Typography>
             </Box>
           </AccordionSummary>
-          <AccordionDetails sx={{ pb: 2, pt: 0, px: 2 }}>
+          <AccordionDetails sx={{ pb: 1, pt: 0, px: 2 }}>
             <PhylogenyViewerPageDrawerViewSettings />
           </AccordionDetails>
         </Accordion>
@@ -149,7 +149,7 @@ export const PhylogenyViewerPageDrawer = () => {
               </Typography>
             </Box>
           </AccordionSummary>
-          <AccordionDetails sx={{ pb: 2, pt: 0, px: 2 }}>
+          <AccordionDetails sx={{ pb: 1, pt: 0, px: 2 }}>
             <PhylogenyViewerPageDrawerMetadataStyling />
           </AccordionDetails>
         </Accordion>

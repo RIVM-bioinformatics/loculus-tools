@@ -25,11 +25,29 @@ export const PageCommon = ({ children, isNoInteraction, title }: PageCommonProps
 
   useUpdateDocumentTitle(title);
   const theme = useTheme();
-  const { drawerContainerId, isDrawerOpen, setIsNoInteraction } = use(PageCommonContext);
+  const { drawerButtonId, drawerContainerId, isDrawerOpen, setIsDrawerOpen, setIsNoInteraction } = use(PageCommonContext);
 
   useEffect(() => {
     setIsNoInteraction(!!isNoInteraction);
   }, [isNoInteraction, setIsNoInteraction]);
+
+
+  useEffect(() => {
+    // when the focus is inside the drawer and the drawer is open, pressing Escape should close the drawer
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isDrawerOpen) {
+        const drawer = document.getElementById(drawerContainerId);
+        if (drawer?.contains(document.activeElement)) {
+          setIsDrawerOpen(false);
+          document.getElementById(drawerButtonId)?.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [drawerButtonId, drawerContainerId, isDrawerOpen, setIsDrawerOpen]);
 
   return (
     <Box
@@ -60,6 +78,7 @@ export const PageCommon = ({ children, isNoInteraction, title }: PageCommonProps
           sx={{
             flexGrow: 1,
             height: '100%',
+            marginLeft: isDrawerOpen ? `${DRAWER_WIDTH}px` : 0,
             overflow: 'hidden',
             position: 'relative',
             transition: () =>

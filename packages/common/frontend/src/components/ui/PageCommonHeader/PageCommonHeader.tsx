@@ -40,7 +40,7 @@ export const PageCommonHeader = (inProps: PageCommonHeaderProps) => {
   }), [theme]);
 
 
-  const { afterAppBarComponent, afterAppBarRightComponent, appBarHeight = 48, appBarIcon, beforeAppBarComponent, beforeAppBarRightComponent, isDrawerOpen, isNoInteraction, setIsDrawerOpen } = use(PageCommonContext);
+  const { afterAppBarComponent, afterAppBarRightComponent, appBarHeight = 48, appBarIcon, beforeAppBarComponent, beforeAppBarRightComponent, drawerButtonId, isDrawerOpen, isNoInteraction, setIsDrawerOpen } = use(PageCommonContext);
 
   const onToggleDrawerButtonClick = useCallback(() => {
     setIsDrawerOpen(!isDrawerOpen);
@@ -75,6 +75,7 @@ export const PageCommonHeader = (inProps: PageCommonHeaderProps) => {
                 aria-label={'open drawer'}
                 color={'inherit'}
                 edge={'start'}
+                id={drawerButtonId}
                 onClick={onToggleDrawerButtonClick}
                 size={'small'}
               >

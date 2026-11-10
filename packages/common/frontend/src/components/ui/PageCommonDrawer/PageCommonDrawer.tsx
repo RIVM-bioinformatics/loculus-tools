@@ -1,5 +1,8 @@
 import { Drawer } from '@mui/material';
-import { use } from 'react';
+import {
+  use,
+  useEffect,
+} from 'react';
 import type { ReactNode } from 'react';
 
 import { DRAWER_WIDTH } from '../../../constants/page.constants';
@@ -11,6 +14,19 @@ export type PageCommonDrawerProps = {
 
 export const PageCommonDrawer = ({ children }: PageCommonDrawerProps) => {
   const { drawerContainerId, isDrawerOpen } = use(PageCommonContext);
+
+  useEffect(() => {
+    if (isDrawerOpen) {
+      // find the first button inside the drawer and focus it
+      const drawer = document.getElementById(drawerContainerId);
+      if (drawer) {
+        const firstButton = drawer.querySelector('button');
+        if (firstButton) {
+          (firstButton as HTMLElement).focus();
+        }
+      }
+    }
+  }, [drawerContainerId, isDrawerOpen]);
 
   return (
     <Drawer
@@ -29,7 +45,7 @@ export const PageCommonDrawer = ({ children }: PageCommonDrawerProps) => {
           width: isDrawerOpen ? DRAWER_WIDTH : 0,
         },
       }}
-      variant={'persistent'}
+      variant={'permanent'}
     >
       {children}
     </Drawer>

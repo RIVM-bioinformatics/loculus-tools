@@ -11,6 +11,7 @@ export type PageCommonConfig = {
 };
 
 export type PageCommonContextData = {
+  readonly drawerButtonId: string;
   readonly drawerContainerId: string;
   readonly isDrawerOpen: boolean;
   readonly isNoInteraction: boolean;

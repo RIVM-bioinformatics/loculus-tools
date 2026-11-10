@@ -47,7 +47,7 @@ export const SequenceEditorPageHeader = () => {
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const resetDataset = useStore(sequenceEditorStore, (state) => state.resetDataset);
 
-  const sequenceCount = useStore(sequenceEditorStore, (state) => state.meta?.sequenceCount);
+  const sequenceCount = useStore(sequenceEditorStore, (state) => state.engineMeta?.sequenceCount ?? 0);
   const parsedMetadata = useStore(sequenceEditorStore, (state) => state.parsedMetadata);
   const hasFasta = useStore(sequenceEditorStore, (state) => !!state.rawFasta);
 
@@ -95,9 +95,16 @@ export const SequenceEditorPageHeader = () => {
     },
   ], [isAuthenticated, hasFasta, hasReturnParams, parsedMetadata, onClickUploadToLoculus, onClickExportFasta, onClickExportGappedFasta]);
 
+  const metaDataCount = parsedMetadata?.records?.length || 0;
+
   return (
     <PageCommonHeader
-      centerComponent={<FastaPageHeaderCenterComponent store={sequenceEditorStore} />}
+      centerComponent={(
+        <FastaPageHeaderCenterComponent
+          metaDataCount={metaDataCount}
+          sequenceCount={sequenceCount}
+        />
+      )}
       rightComponent={(
         <>
           <SequenceEditorUndoRedoButtons />

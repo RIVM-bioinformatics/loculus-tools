@@ -16,9 +16,18 @@ const emitDirection = (eventName: 'onExpandSelection' | 'onMoveCells' | 'onMoveR
   container.resolve(SequenceEditorEventBusService).emit(eventName, direction);
 };
 
-const emitVoid = (eventName: 'onCopySelection' | 'onDeleteBackward' | 'onGotoPosition' | 'onInsert' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo'): KeyboardShortcutConfig['callback'] => (event) => {
+const emitVoid = (eventName: 'onCopySelection' | 'onDeleteBackward' | 'onGotoPosition' | 'onInsert' | 'onPasteFasta' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo'): KeyboardShortcutConfig['callback'] => (event) => {
   event.preventDefault();
   container.resolve(SequenceEditorEventBusService).emit(eventName);
+};
+
+const emitPasteFasta = (): KeyboardShortcutConfig['callback'] => (event) => {
+  const target = event.target;
+  if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select'))) {
+    return;
+  }
+  event.preventDefault();
+  container.resolve(SequenceEditorEventBusService).emit('onPasteFasta');
 };
 
 const emitMutateSelection = (base: string): KeyboardShortcutConfig['callback'] => (event) => {
@@ -126,6 +135,11 @@ export const KEYBOARD_SHORTCUTS: { [key: string]: KeyboardShortcut } = {
     callback: emitDirection('onMoveSelection', EDITOR_DIRECTION.UP),
     description: 'Move selection up',
     shortcut: { code: 'ArrowUp' },
+  },
+  pasteFasta: {
+    callback: emitPasteFasta(),
+    description: 'Paste FASTA from clipboard',
+    shortcut: { key: 'v', modifiers: [['Meta'], ['Control']] },
   },
   redo: {
     callback: emitVoid('onRedo'),

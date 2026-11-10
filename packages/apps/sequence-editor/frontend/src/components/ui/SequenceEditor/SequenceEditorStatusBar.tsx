@@ -14,12 +14,12 @@ export const SequenceEditorStatusBar = () => {
   const theme = useTheme();
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const latestMessage = useStore(sequenceEditorStore, (state) => state.latestMessage);
-  const meta = useStore(sequenceEditorStore, (state) => state.meta);
+  const engineMeta = useStore(sequenceEditorStore, (state) => state.engineMeta);
   const selection = useStore(sequenceEditorStore, (state) => state.selection);
 
   const normalizedSelection = useMemo(
-    () => EditorUtil.getStatusBarSelectionStats(selection, meta),
-    [meta, selection],
+    () => EditorUtil.getStatusBarSelectionStats(selection, engineMeta),
+    [engineMeta, selection],
   );
 
   return (
@@ -72,7 +72,7 @@ export const SequenceEditorStatusBar = () => {
           {`Total selected chars: ${normalizedSelection.totalSelectedChars}`}
         </Box>
         <Box>
-          {`Alignment: ${meta?.sequenceCount ?? '0'} sequences, ${meta?.alignmentWidth ?? '0'} positions`}
+          {`Alignment: ${engineMeta?.sequenceCount ?? '0'} sequences, ${engineMeta?.alignmentWidth ?? '0'} positions`}
         </Box>
       </Box>
     </Box>

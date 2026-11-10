@@ -71,7 +71,6 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     name: 'Selection',
     shortcuts: [
-      KEYBOARD_SHORTCUTS.copySelection,
       KEYBOARD_SHORTCUTS.moveSelectionLeft,
       KEYBOARD_SHORTCUTS.moveSelectionRight,
       KEYBOARD_SHORTCUTS.moveSelectionUp,
@@ -82,6 +81,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       KEYBOARD_SHORTCUTS.expandSelectionDown,
       KEYBOARD_SHORTCUTS.moveCellLeft,
       KEYBOARD_SHORTCUTS.moveCellRight,
+      KEYBOARD_SHORTCUTS.copySelection,
     ],
   },
   {
@@ -112,6 +112,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       KEYBOARD_SHORTCUTS.deleteBase,
       KEYBOARD_SHORTCUTS.undo,
       KEYBOARD_SHORTCUTS.redo,
+      KEYBOARD_SHORTCUTS.pasteFasta,
     ],
   },
 ];

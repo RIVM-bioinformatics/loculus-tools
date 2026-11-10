@@ -688,6 +688,37 @@ export class EditorUtil {
     return undefined;
   }
 
+  public static getPostPasteSequencesSelection(selection: EditorSelection | null, insertedFasta: string): EditorSelection | null {
+    if (!selection) {
+      return null;
+    }
+
+    const prependedNumRows = insertedFasta.trim().split('\n').filter(line => line.startsWith('>')).map((_, index) => index);
+
+    if (selection.cols) {
+      return {
+        cols: selection.cols,
+      };
+    }
+    if (selection.rows) {
+      // move the current selection down by the number of prepended rows
+      return {
+        rows: selection.rows.map(row => row + prependedNumRows.length),
+      };
+    }
+    if (selection.cells) {
+      return {
+        cells: {
+          endCol: selection.cells.endCol,
+          endRow: selection.cells.endRow + prependedNumRows.length,
+          startCol: selection.cells.startCol,
+          startRow: selection.cells.startRow + prependedNumRows.length,
+        },
+      };
+    }
+    return null;
+  }
+
   public static getPostUpsertSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION): EditorSelection | null {
     if (!selection) {
       return null;

@@ -25,6 +25,11 @@ export const PhylogenyViewerPageHeader = () => {
   const resetDataset = useStore(phylogenyViewerStore, (state) => state.resetDataset);
   const resetCalculation = useStore(phylogenyViewerStore, (state) => state.resetCalculation);
   const resetTreeView = useStore(phylogenyViewerStore, (state) => state.resetTreeView);
+  const parsedFasta = useStore(phylogenyViewerStore, (state) => state.parsedFasta);
+  const parsedMetadata = useStore(phylogenyViewerStore, (state) => state.parsedMetadata);
+
+  const sequenceCount = parsedFasta?.sequences?.length || 0;
+  const metaDataCount = parsedMetadata?.records?.length || 0;
 
 
   const onClickExportNewick = useCallback(() => {
@@ -78,7 +83,12 @@ export const PhylogenyViewerPageHeader = () => {
 
   return (
     <PageCommonHeader
-      centerComponent={<FastaPageHeaderCenterComponent store={phylogenyViewerStore} />}
+      centerComponent={(
+        <FastaPageHeaderCenterComponent
+          metaDataCount={metaDataCount}
+          sequenceCount={sequenceCount}
+        />
+      )}
       rightComponent={(
         <>
           <FastaPageHeaderImportButton />

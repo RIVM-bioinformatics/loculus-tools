@@ -7,14 +7,11 @@ import type {
   ComponentsOverrides,
   Theme,
 } from '@mui/material/styles';
-import type { StoreApi } from 'zustand';
-import { useStore } from 'zustand';
-
-import type { FastaDataStore } from '../../../stores/fastaDataStore';
 
 
 export type FastaPageHeaderCenterComponentProps = {
-  store: StoreApi<FastaDataStore>;
+  metaDataCount: number;
+  sequenceCount: number;
 };
 
 export type FastaPageHeaderCenterComponentTheme = {
@@ -31,24 +28,19 @@ const FastaPageHeaderCenterChip = styled(Chip, {
   fontWeight: 600,
 });
 
-export const FastaPageHeaderCenterComponent = ({ store }: FastaPageHeaderCenterComponentProps) => {
-  const parsedFasta = useStore(store, (state) => state.parsedFasta);
-  const parsedMetadata = useStore(store, (state) => state.parsedMetadata);
-
-  const seqCount = parsedFasta?.sequences?.length || 0;
-  const metaCount = parsedMetadata?.records?.length || 0;
+export const FastaPageHeaderCenterComponent = ({ metaDataCount, sequenceCount }: FastaPageHeaderCenterComponentProps) => {
 
   return (
     <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-      {seqCount > 0 && (
+      {sequenceCount > 0 && (
         <FastaPageHeaderCenterChip
-          label={`${seqCount} Sequences`}
+          label={`${sequenceCount} Sequences`}
           size={'small'}
         />
       )}
-      {metaCount > 0 && (
+      {metaDataCount > 0 && (
         <FastaPageHeaderCenterChip
-          label={`${metaCount} Metadata Records`}
+          label={`${metaDataCount} Metadata Records`}
           size={'small'}
         />
       )}

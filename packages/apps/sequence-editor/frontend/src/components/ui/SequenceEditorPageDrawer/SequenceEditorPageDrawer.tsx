@@ -57,7 +57,7 @@ export const SequenceEditorPageDrawer = () => {
   const setCustomAminoAcidPalette = useStore(sequenceEditorStore, (state) => state.setCustomAminoAcidPalette);
   const setCustomNucleotidePalette = useStore(sequenceEditorStore, (state) => state.setCustomNucleotidePalette);
   const setNucleotidePalette = useStore(sequenceEditorStore, (state) => state.setNucleotidePalette);
-  const meta = useStore(sequenceEditorStore, (state) => state.meta);
+  const engineMeta = useStore(sequenceEditorStore, (state) => state.engineMeta);
   const [expandedAccordions, setExpandedAccordions] = useState<ACCORDIONS[]>([]);
 
   const toggleAccordion = useCallback((panel: ACCORDIONS) => {
@@ -114,7 +114,7 @@ export const SequenceEditorPageDrawer = () => {
     <PageCommonDrawer>
       {/* Header with Close and Data Load trigger */}
       <Box sx={{ borderBottom: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 1.5, p: 2 }}>
-        {meta && (
+        {engineMeta && (
           <>
             <Typography
               sx={{ fontWeight: 600 }}
@@ -126,7 +126,7 @@ export const SequenceEditorPageDrawer = () => {
               sx={{ fontWeight: 400 }}
               variant={'body2'}
             >
-              {`${meta.sequenceCount} sequences x ${meta.alignmentWidth} bases`}
+              {`${engineMeta.sequenceCount} sequences x ${engineMeta.alignmentWidth} bases`}
             </Typography>
           </>
         )}

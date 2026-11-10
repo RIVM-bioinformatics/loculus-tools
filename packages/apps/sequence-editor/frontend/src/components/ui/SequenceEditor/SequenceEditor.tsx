@@ -22,6 +22,7 @@ import { useStore } from 'zustand';
 import { ExportUtil } from '@rivm-loculus-tools/common-frontend/utils/ExportUtil';
 import type { UploadToLoculusModalRefMethods } from '@rivm-loculus-tools/common-frontend/components/loculus/UploadToLoculusModal';
 import { UploadToLoculusModal } from '@rivm-loculus-tools/common-frontend/components/loculus/UploadToLoculusModal';
+import { WindowService } from '@gen-epix/ui-core/classes/services/WindowService';
 
 import { EditorWorkerService } from '../../../classes/services/EditorWorkerService';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
@@ -60,7 +61,7 @@ import { SequenceEditorGotoPositionDialog } from './SequenceEditorGotoPositionDi
 export const SequenceEditor = () => {
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
-  const setMeta = useStore(sequenceEditorStore, (state) => state.setMeta);
+  const setEngineMeta = useStore(sequenceEditorStore, (state) => state.setEngineMeta);
   const setSelection = useStore(sequenceEditorStore, (state) => state.setSelection);
   const uploadToLoculusModalRef = useRef<null | UploadToLoculusModalRefMethods>(null);
   const sequenceEditorGotoPositionDialogRef = useRef<null | SequenceEditorGotoPositionDialogRefMethods>(null);
@@ -181,7 +182,7 @@ export const SequenceEditor = () => {
   useEffect(() => {
     const removers = [
       metaSubject.subscribe(data => {
-        setMeta(data);
+        setEngineMeta(data);
       }),
       selectionSubject.subscribe(data => {
         setSelection(data);
@@ -190,10 +191,10 @@ export const SequenceEditor = () => {
     return () => {
       removers.forEach(remove => remove());
       sequenceEditorStore.getState().setLatestMessage(null);
-      setMeta(null);
+      setEngineMeta(null);
       setSelection(null);
     };
-  }, [metaSubject, selectionSubject, setMeta, setSelection]);
+  }, [metaSubject, selectionSubject, setEngineMeta, setSelection]);
 
   useEffect(() => {
     if (containerDimensions.width <= 0) {
@@ -496,6 +497,7 @@ export const SequenceEditor = () => {
       register(KEYBOARD_SHORTCUTS.deleteBackward),
       register(KEYBOARD_SHORTCUTS.deleteSelection),
       register(KEYBOARD_SHORTCUTS.deleteBase),
+      register(KEYBOARD_SHORTCUTS.pasteFasta),
 
       // Undo (Cmd+Z / Ctrl+Z)
       register(KEYBOARD_SHORTCUTS.undo),
@@ -516,14 +518,18 @@ export const SequenceEditor = () => {
   // Executes the editor actions for the keyboard shortcuts emitted via the event bus.
   useEffect(() => {
     const execute = async (args: {
+      abortSignal?: AbortSignal;
       command: () => Promise<void>;
       getSelectionPostCommand?: () => EditorSelection | null;
       invalidateRowNames?: boolean;
     }) => {
-      const { command, getSelectionPostCommand, invalidateRowNames } = args;
+      const { abortSignal, command, getSelectionPostCommand, invalidateRowNames } = args;
       try {
         const previousUndoDepth = metaSubject.data?.undoDepth;
         await command();
+        if (abortSignal?.aborted) {
+          return;
+        }
         cachedGridRangeWithViewPortResultRef.current = null;
         if (invalidateRowNames) {
           cachedGridRangeWithRowNamesRef.current = null;
@@ -538,7 +544,9 @@ export const SequenceEditor = () => {
           initialSelectionRef.current = selection;
         }
       } catch (error) {
-        console.error('Failed to post command:', error);
+        if (!abortSignal?.aborted) {
+          console.error('Failed to post command:', error);
+        }
       }
     };
 
@@ -657,7 +665,61 @@ export const SequenceEditor = () => {
 
     const eventBusService = container.resolve(SequenceEditorEventBusService);
     let searchAbortController: AbortController | null = null;
+    let clipboardAbortController: AbortController | null = null;
+    const loadClipboardFasta = async (fasta: string) => {
+      if (sequenceEditorStore.getState().isRealigning) {
+        return;
+      }
+      if (!fasta.trimStart().startsWith('>')) {
+        return;
+      }
+      clipboardAbortController?.abort();
+      const abortController = new AbortController();
+      clipboardAbortController = abortController;
+      try {
+        await execute({
+          abortSignal: abortController.signal,
+          command: async () => {
+            const loadCommand = editorService.loadFasta(fasta, abortController.signal);
+            await loadCommand;
+            if (loadCommand.abortSignal?.aborted) {
+              return;
+            }
+            if (sequenceEditorStore.getState().searchQuery) {
+              eventBusService.emit('onSearch', sequenceEditorStore.getState().searchQuery);
+            }
+            sequenceEditorStore.getState().setLatestMessage('Pasted sequences from clipboard');
+          },
+          getSelectionPostCommand: () => EditorUtil.getPostPasteSequencesSelection(selectionSubject.data, fasta),
+          invalidateRowNames: true,
+        });
+      } catch (error) {
+        if (!abortController.signal.aborted) {
+          console.error('Failed to load FASTA from clipboard:', error);
+          sequenceEditorStore.getState().setLatestMessage('Failed to load FASTA from clipboard.');
+        }
+      } finally {
+        if (clipboardAbortController === abortController) {
+          clipboardAbortController = null;
+        }
+      }
+    };
+    const onWindowPaste = (event: ClipboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select'))) {
+        return;
+      }
+      const fasta = event.clipboardData?.getData('text/plain') ?? '';
+      if (!fasta.trimStart().startsWith('>')) {
+        return;
+      }
+      event.preventDefault();
+      void loadClipboardFasta(fasta);
+    };
+    // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+    container.resolve(WindowService).window.addEventListener('paste', onWindowPaste);
     const removers = [
+      () => container.resolve(WindowService).window.removeEventListener('paste', onWindowPaste),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onSearch', async (searchQuery) => {
         if (!searchQuery) {
@@ -694,9 +756,21 @@ export const SequenceEditor = () => {
             return;
           }
           await navigator.clipboard.writeText(selectedFasta);
+          sequenceEditorStore.getState().setLatestMessage('Copied selected sequences to clipboard');
         } catch (error) {
           console.error('Failed to copy selected sequences:', error);
           sequenceEditorStore.getState().setLatestMessage('Failed to copy selected sequences to clipboard.');
+        }
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onPasteFasta', async () => {
+        try {
+          console.log('Reading FASTA from clipboard');
+          const clipboardText = await navigator.clipboard.readText();
+          await loadClipboardFasta(clipboardText);
+        } catch (error) {
+          console.error('Failed to read FASTA from clipboard:', error);
+          sequenceEditorStore.getState().setLatestMessage('Failed to read FASTA from clipboard.');
         }
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
@@ -843,7 +917,9 @@ export const SequenceEditor = () => {
       }),
     ];
     return () => {
+      window.removeEventListener('paste', onWindowPaste);
       searchAbortController?.abort();
+      clipboardAbortController?.abort();
       removers.forEach(remover => remover());
       editorService.cancelRealign();
     };

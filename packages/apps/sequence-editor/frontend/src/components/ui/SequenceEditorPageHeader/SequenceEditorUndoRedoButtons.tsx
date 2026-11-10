@@ -12,8 +12,8 @@ import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
 
 export const SequenceEditorUndoRedoButtons = () => {
-  const undoDepth = useStore(sequenceEditorStore, (state) => state.meta?.undoDepth);
-  const redoDepth = useStore(sequenceEditorStore, (state) => state.meta?.redoDepth);
+  const undoDepth = useStore(sequenceEditorStore, (state) => state.engineMeta?.undoDepth);
+  const redoDepth = useStore(sequenceEditorStore, (state) => state.engineMeta?.redoDepth);
 
   const onUndoButtonClick = useCallback(() => {
     container.resolve(SequenceEditorEventBusService).emit('onUndo');

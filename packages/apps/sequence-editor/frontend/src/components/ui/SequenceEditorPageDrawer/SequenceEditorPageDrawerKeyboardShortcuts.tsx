@@ -63,7 +63,7 @@ type ShortcutGroup = {
   shortcuts: Shortcut[];
 };
 
-const isMacOs = typeof navigator !== 'undefined' && /^(Mac|iPhone|iPad|iPod)/.test(
+const isMacOs = typeof navigator !== 'undefined' && /^(Mac|iPhone|iPad|iPod)/i.test(
   (navigator as { userAgentData?: { platform?: string } } & Navigator).userAgentData?.platform ?? navigator.platform,
 );
 
@@ -91,6 +91,8 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       KEYBOARD_SHORTCUTS.moveRowDown,
       KEYBOARD_SHORTCUTS.moveRowToStart,
       KEYBOARD_SHORTCUTS.moveRowToEnd,
+      KEYBOARD_SHORTCUTS.deleteRows,
+      KEYBOARD_SHORTCUTS.deleteRowsMac,
     ],
   },
   {
@@ -213,7 +215,7 @@ export const SequenceEditorPageDrawerKeyboardShortcuts = () => (
           {group.name}
         </Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-          {group.shortcuts.map((shortcut) => (
+          {group.shortcuts.filter(shortcut => (!shortcut.macOnly || isMacOs) && (!shortcut.nonMacOnly || !isMacOs)).map((shortcut) => (
             <ListItemButton
               data-shortcut={shortcut.description}
               key={shortcut.description}

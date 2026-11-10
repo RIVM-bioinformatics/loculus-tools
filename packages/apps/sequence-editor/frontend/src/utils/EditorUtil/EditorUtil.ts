@@ -688,6 +688,29 @@ export class EditorUtil {
     return undefined;
   }
 
+  public static getPostDeleteRowsSelection(selection: EditorSelection | null, sequenceCount: number): EditorSelection | null {
+    const rows = selection?.rows;
+    if (!rows?.length) {
+      return null;
+    }
+
+    const deletedRows = Array.from(new Set(rows.filter(row => Number.isInteger(row) && row >= 0 && row < sequenceCount))).sort((a, b) => a - b);
+    if (deletedRows.length === 0) {
+      return null;
+    }
+
+    const remainingRowCount = sequenceCount - deletedRows.length;
+    if (remainingRowCount === 0) {
+      return null;
+    }
+
+    const startRow = Math.min(deletedRows[0], remainingRowCount - 1);
+    const selectedRowCount = Math.min(deletedRows.length, remainingRowCount - startRow);
+    return {
+      rows: Array.from({ length: selectedRowCount }, (_, index) => startRow + index),
+    };
+  }
+
   public static getPostPasteSequencesSelection(selection: EditorSelection | null, insertedFasta: string): EditorSelection | null {
     if (!selection) {
       return null;

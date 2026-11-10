@@ -8,6 +8,8 @@ import { EDITOR_DIRECTION } from '../models/editor.models';
 type KeyboardShortcut = {
   callback: KeyboardShortcutConfig['callback'];
   description: string;
+  macOnly?: boolean;
+  nonMacOnly?: boolean;
   shortcut: Pick<KeyboardShortcutConfig, 'code' | 'key' | 'modifiers'>;
 };
 
@@ -16,7 +18,7 @@ const emitDirection = (eventName: 'onExpandSelection' | 'onMoveCells' | 'onMoveR
   container.resolve(SequenceEditorEventBusService).emit(eventName, direction);
 };
 
-const emitVoid = (eventName: 'onCopySelection' | 'onDeleteBackward' | 'onGotoPosition' | 'onInsert' | 'onPasteFasta' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo'): KeyboardShortcutConfig['callback'] => (event) => {
+const emitVoid = (eventName: 'onCopySelection' | 'onDeleteBackward' | 'onDeleteRows' | 'onGotoPosition' | 'onInsert' | 'onPasteFasta' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo'): KeyboardShortcutConfig['callback'] => (event) => {
   event.preventDefault();
   container.resolve(SequenceEditorEventBusService).emit(eventName);
 };
@@ -50,6 +52,18 @@ export const KEYBOARD_SHORTCUTS: { [key: string]: KeyboardShortcut } = {
     callback: emitMutateSelection('-'),
     description: 'Delete base',
     shortcut: { key: '-' },
+  },
+  deleteRows: {
+    callback: emitVoid('onDeleteRows'),
+    description: 'Delete selected rows',
+    nonMacOnly: true,
+    shortcut: { code: 'Delete', modifiers: [['Control'], ['Meta']] },
+  },
+  deleteRowsMac: {
+    callback: emitVoid('onDeleteRows'),
+    description: 'Delete selected rows',
+    macOnly: true,
+    shortcut: { code: 'Backspace', modifiers: [['Meta']] },
   },
   deleteSelection: {
     callback: emitMutateSelection('-'),

@@ -496,6 +496,8 @@ export const SequenceEditor = () => {
       register(KEYBOARD_SHORTCUTS.insertGap),
       register(KEYBOARD_SHORTCUTS.deleteBackward),
       register(KEYBOARD_SHORTCUTS.deleteSelection),
+      register(KEYBOARD_SHORTCUTS.deleteRows),
+      register(KEYBOARD_SHORTCUTS.deleteRowsMac),
       register(KEYBOARD_SHORTCUTS.deleteBase),
       register(KEYBOARD_SHORTCUTS.pasteFasta),
 
@@ -850,6 +852,23 @@ export const SequenceEditor = () => {
             command: async () => editorService.delete(upsertArguments.rows, upsertArguments.col),
             getSelectionPostCommand: () => EditorUtil.getPostUpsertSelection(selectionSubject.data, EDITOR_DIRECTION.LEFT),
           });
+        })();
+      }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onDeleteRows', () => {
+        void (async () => {
+          const selection = selectionSubject.data;
+          const rows = selection?.rows;
+          const meta = metaSubject.data;
+          if (!rows?.length || !meta) {
+            return;
+          }
+          await execute({
+            command: async () => editorService.deleteRows(rows),
+            getSelectionPostCommand: () => EditorUtil.getPostDeleteRowsSelection(selection, meta.sequenceCount),
+            invalidateRowNames: true,
+          });
+          sequenceEditorStore.getState().setLatestMessage(`${rows.length} row${rows.length > 1 ? 's' : ''} deleted`);
         })();
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener

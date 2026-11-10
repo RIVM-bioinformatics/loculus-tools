@@ -61,3 +61,17 @@ describe('EditorUtil.getSelectedFasta', () => {
     );
   });
 });
+
+describe('EditorUtil.getPostDeleteRowsSelection', () => {
+  it('selects the rows that move into the deleted selection block', () => {
+    expect(EditorUtil.getPostDeleteRowsSelection({ rows: [1, 3] }, 5)).toEqual({ rows: [1, 2] });
+  });
+
+  it('keeps the selection within the remaining rows when deleting at the end', () => {
+    expect(EditorUtil.getPostDeleteRowsSelection({ rows: [3, 4] }, 5)).toEqual({ rows: [2] });
+  });
+
+  it('clears the selection when all rows are deleted', () => {
+    expect(EditorUtil.getPostDeleteRowsSelection({ rows: [0, 1] }, 2)).toBeNull();
+  });
+});

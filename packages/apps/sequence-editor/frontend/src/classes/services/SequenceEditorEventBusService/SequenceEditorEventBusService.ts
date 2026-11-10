@@ -7,6 +7,7 @@ export type SequenceEditorEventBusServiceEvent = {
   onCancelRealign: void;
   onCopySelection: void;
   onDeleteBackward: void;
+  onDeleteRows: void;
   onExpandSelection: EDITOR_DIRECTION;
   onExportGappedFasta: void;
   onExportToLoculus: void;

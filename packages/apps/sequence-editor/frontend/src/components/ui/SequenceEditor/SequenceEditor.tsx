@@ -232,7 +232,6 @@ export const SequenceEditor = () => {
   useEffect(() => {
     const abortController = new AbortController();
     const perform = async () => {
-      console.log('running perform() in SequenceEditor useEffect');
       cachedGridRangeWithViewPortResultRef.current = null;
       cachedGridRangeWithRowNamesRef.current = null;
       scrollSubject.next({ scrollLeft: 0, scrollTop: 0 });
@@ -463,6 +462,8 @@ export const SequenceEditor = () => {
     });
 
     const removers = [
+      register(KEYBOARD_SHORTCUTS.copySelection),
+
       // Expand selection with shift + arrow keys
       register(KEYBOARD_SHORTCUTS.expandSelectionLeft),
       register(KEYBOARD_SHORTCUTS.expandSelectionRight),
@@ -680,6 +681,24 @@ export const SequenceEditor = () => {
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onExpandSelection', (direction) => expandSelection(direction)),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onCopySelection', async () => {
+        const selection = selectionSubject.data;
+        if (!selection) {
+          return;
+        }
+        try {
+          const fasta = await editorService.exportGappedFasta();
+          const selectedFasta = EditorUtil.getSelectedFasta(fasta, selection);
+          if (!selectedFasta) {
+            return;
+          }
+          await navigator.clipboard.writeText(selectedFasta);
+        } catch (error) {
+          console.error('Failed to copy selected sequences:', error);
+          sequenceEditorStore.getState().setLatestMessage('Failed to copy selected sequences to clipboard.');
+        }
+      }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onGotoPosition', () => sequenceEditorGotoPositionDialogRef.current?.open({})),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener

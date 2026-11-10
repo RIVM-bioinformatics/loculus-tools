@@ -1,4 +1,6 @@
 import padStart from 'lodash/padStart';
+import { StringUtil } from '@gen-epix/ui-core/utils/StringUtil';
+import { FastaUtil } from '@rivm-loculus-tools/common-frontend/utils/FastaUtil';
 
 import type {
   EditorAssembly,
@@ -463,7 +465,6 @@ export class EditorUtil {
     return null;
   }
 
-
   public static getMovedRowsEndSelection(selection: EditorSelection | null, direction: EDITOR_DIRECTION, metaData: EngineMeta | null): EditorSelection | null {
     if (!selection || !metaData) {
       return null;
@@ -472,6 +473,7 @@ export class EditorUtil {
     const targetRow = direction === EDITOR_DIRECTION.UP ? 0 : metaData.sequenceCount;
     return EditorUtil.getMovedRowsGroupedSelection(selection, targetRow, metaData);
   }
+
 
   public static getMovedRowsGroupedSelection(selection: EditorSelection | null, targetRow: number, metaData: EngineMeta | null): EditorSelection | null {
     if (!selection || !metaData) {
@@ -762,6 +764,50 @@ export class EditorUtil {
       }
     }
     return rows;
+  }
+
+  public static getSelectedFasta(fasta: string, selection: EditorSelection | null): string {
+    if (!selection) {
+      return '';
+    }
+
+    const parseResult = FastaUtil.parseFasta(fasta);
+    if (parseResult.error) {
+      throw new Error(parseResult.error);
+    }
+
+    const getValidRows = (rows: number[]): string[] => [...new Set(rows)]
+      .filter((row) => Number.isInteger(row) && row >= 0 && row < parseResult.sequences.length)
+      .sort((firstRow, secondRow) => firstRow - secondRow)
+      .map((row) => parseResult.sequences[row].sequence);
+
+    let selectedSequences: string[];
+    if (selection.cells) {
+      const { endCol, endRow, startCol, startRow } = selection.cells;
+      const firstRow = Math.min(startRow, endRow);
+      const lastRow = Math.max(startRow, endRow);
+      const firstCol = Math.min(startCol, endCol);
+      const lastCol = Math.max(startCol, endCol);
+      selectedSequences = getValidRows(
+        Array.from({ length: lastRow - firstRow + 1 }, (_, index) => firstRow + index),
+      ).map((sequence) => sequence.slice(firstCol, lastCol + 1));
+    } else if (selection.cols) {
+      const columns = [...new Set(selection.cols)]
+        .filter((column) => Number.isInteger(column) && column >= 0)
+        .sort((firstColumn, secondColumn) => firstColumn - secondColumn);
+      if (columns.length === 0) {
+        return '';
+      }
+      selectedSequences = getValidRows(
+        Array.from({ length: parseResult.sequences.length }, (_, row) => row),
+      ).map((sequence) => columns.map((column) => sequence[column] ?? '').join(''));
+    } else {
+      selectedSequences = getValidRows(selection.rows ?? []);
+    }
+
+    return selectedSequences
+      .map((sequence) => `>${StringUtil.createUuid()}\n${sequence}\n`)
+      .join('');
   }
 
   public static getSelectionFromPathProperties(params: { endPath: EditorPathProperties; startPath: EditorPathProperties }): EditorSelection | undefined {

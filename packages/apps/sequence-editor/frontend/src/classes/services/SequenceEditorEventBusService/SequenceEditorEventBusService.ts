@@ -5,6 +5,7 @@ import type { EDITOR_DIRECTION } from '../../../models/editor.models';
 
 export type SequenceEditorEventBusServiceEvent = {
   onCancelRealign: void;
+  onCopySelection: void;
   onDeleteBackward: void;
   onExpandSelection: EDITOR_DIRECTION;
   onExportGappedFasta: void;

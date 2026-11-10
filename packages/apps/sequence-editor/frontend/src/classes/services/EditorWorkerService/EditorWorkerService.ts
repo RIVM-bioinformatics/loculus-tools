@@ -110,7 +110,6 @@ export class EditorWorkerService {
 
   public loadFasta(fasta: string, abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
     return this.runCommand(async () => {
-      console.log('loading FASTA');
       await this.engineWorkerProxy.initialize();
       await this.engineWorkerProxy.reset();
       await this.engineWorkerProxy.load(fasta);

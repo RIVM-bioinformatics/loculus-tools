@@ -71,6 +71,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     name: 'Selection',
     shortcuts: [
+      KEYBOARD_SHORTCUTS.copySelection,
       KEYBOARD_SHORTCUTS.moveSelectionLeft,
       KEYBOARD_SHORTCUTS.moveSelectionRight,
       KEYBOARD_SHORTCUTS.moveSelectionUp,

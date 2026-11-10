@@ -16,7 +16,7 @@ const emitDirection = (eventName: 'onExpandSelection' | 'onMoveCells' | 'onMoveR
   container.resolve(SequenceEditorEventBusService).emit(eventName, direction);
 };
 
-const emitVoid = (eventName: 'onDeleteBackward' | 'onGotoPosition' | 'onInsert' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo'): KeyboardShortcutConfig['callback'] => (event) => {
+const emitVoid = (eventName: 'onCopySelection' | 'onDeleteBackward' | 'onGotoPosition' | 'onInsert' | 'onRedo' | 'onScrollPageDown' | 'onScrollPageUp' | 'onScrollToLineEnd' | 'onScrollToLineStart' | 'onUndo'): KeyboardShortcutConfig['callback'] => (event) => {
   event.preventDefault();
   container.resolve(SequenceEditorEventBusService).emit(eventName);
 };
@@ -27,6 +27,11 @@ const emitMutateSelection = (base: string): KeyboardShortcutConfig['callback'] =
 };
 
 export const KEYBOARD_SHORTCUTS: { [key: string]: KeyboardShortcut } = {
+  copySelection: {
+    callback: emitVoid('onCopySelection'),
+    description: 'Copy selected sequence data',
+    shortcut: { key: 'c', modifiers: [['Meta'], ['Control']] },
+  },
   deleteBackward: {
     callback: emitVoid('onDeleteBackward'),
     description: 'Delete backward',

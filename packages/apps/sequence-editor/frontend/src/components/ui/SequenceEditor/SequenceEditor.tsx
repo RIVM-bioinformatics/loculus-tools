@@ -129,8 +129,12 @@ export const SequenceEditor = () => {
     }
   }, [geometrySubject, metaSubject]);
 
-  const updateMeta = useCallback(async () => {
-    const meta = await container.resolve(EditorWorkerService).getMetaData();
+  const updateMeta = useCallback(async (abortSignal?: AbortSignal) => {
+    const metaCommand = container.resolve(EditorWorkerService).getMetaData(abortSignal);
+    const meta = await metaCommand;
+    if (metaCommand.abortSignal?.aborted) {
+      return null;
+    }
     metaSubject.next(meta);
     return meta;
   }, [metaSubject]);
@@ -226,23 +230,42 @@ export const SequenceEditor = () => {
   }, [editorService, updateDimensionsDebounced]);
 
   useEffect(() => {
+    const abortController = new AbortController();
     const perform = async () => {
+      console.log('running perform() in SequenceEditor useEffect');
       cachedGridRangeWithViewPortResultRef.current = null;
       cachedGridRangeWithRowNamesRef.current = null;
       scrollSubject.next({ scrollLeft: 0, scrollTop: 0 });
       selectionSubject.next(null);
-      await editorService.initialize();
-      await editorService.loadFasta(rawFasta);
-      await updateMeta();
+      const initializeCommand = editorService.initialize(abortController.signal);
+      await initializeCommand;
+      if (initializeCommand.abortSignal?.aborted) {
+        return;
+      }
+      const resetCommand = editorService.reset(abortController.signal);
+      await resetCommand;
+      if (resetCommand.abortSignal?.aborted) {
+        return;
+      }
+      const loadCommand = editorService.loadFasta(rawFasta, abortController.signal);
+      await loadCommand;
+      if (loadCommand.abortSignal?.aborted) {
+        return;
+      }
+      await updateMeta(abortController.signal);
     };
     perform().catch((error) => {
-      console.error(error);
+      if (!abortController.signal.aborted) {
+        console.error(error);
+      }
     });
+    return () => abortController.abort();
   }, [editorService, rawFasta, scrollSubject, selectionSubject, updateMeta, updateVisibleRange]);
 
   useEffect(() => {
     let animationFrame: null | number = null;
     let isActive = true;
+    let activeAbortController: AbortController | null = null;
     let searchResult: EngineSearchResult | null = null;
     let searchResultHighlightedIndex: null | number = null;
 
@@ -257,6 +280,10 @@ export const SequenceEditor = () => {
           const visibleGridRangeWithArguments = pendingVisibleRangeRef.current;
           pendingVisibleRangeRef.current = null;
           const requestId = visibleRangeRequestRef.current;
+          const abortController = activeAbortController;
+          if (!abortController || abortController.signal.aborted) {
+            return;
+          }
 
           if (!cachedGridRangeWithRowNamesRef.current || !EditorUtil.isWithinGridRange({
             cachedGridRange: cachedGridRangeWithRowNamesRef.current.range,
@@ -264,10 +291,14 @@ export const SequenceEditor = () => {
           })) {
             const rowNames: string[] = [];
             for (let i = visibleGridRangeWithArguments.visibleGridRange.cache.startRow; i <= visibleGridRangeWithArguments.visibleGridRange.cache.endRow; i++) {
-              rowNames.push(await editorService.name(i));
+              const nameCommand = editorService.name(i, abortController.signal);
+              rowNames.push(await nameCommand);
+              if (nameCommand.abortSignal?.aborted) {
+                return;
+              }
             }
 
-            if (!isActive) {
+            if (!isActive || abortController.signal.aborted) {
               return;
             }
             cachedGridRangeWithRowNamesRef.current = {
@@ -280,13 +311,14 @@ export const SequenceEditor = () => {
             cachedGridRange: cachedGridRangeWithViewPortResultRef.current.range,
             visibleGridRange: visibleGridRangeWithArguments.visibleGridRange.visible,
           })) {
-            const viewportResult = await container.resolve(EditorWorkerService).viewport({
+            const viewportCommand = editorService.viewport({
               endCol: visibleGridRangeWithArguments.visibleGridRange.cache.endCol,
               endRow: visibleGridRangeWithArguments.visibleGridRange.cache.endRow,
               startCol: visibleGridRangeWithArguments.visibleGridRange.cache.startCol,
               startRow: visibleGridRangeWithArguments.visibleGridRange.cache.startRow,
-            });
-            if (!isActive) {
+            }, abortController.signal);
+            const viewportResult = await viewportCommand;
+            if (!isActive || viewportCommand.abortSignal?.aborted) {
               return;
             }
             cachedGridRangeWithViewPortResultRef.current = {
@@ -327,6 +359,10 @@ export const SequenceEditor = () => {
             });
           });
         }
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          throw error;
+        }
       } finally {
         processingVisibleRangeRef.current = false;
         if (isActive && pendingVisibleRangeRef.current) {
@@ -360,6 +396,8 @@ export const SequenceEditor = () => {
         if (!visibleGridRangeWithArguments) {
           return;
         }
+        activeAbortController?.abort();
+        activeAbortController = new AbortController();
         pendingVisibleRangeRef.current = visibleGridRangeWithArguments;
         visibleRangeRequestRef.current += 1;
         void processVisibleRange();
@@ -367,6 +405,7 @@ export const SequenceEditor = () => {
     ];
     return () => {
       isActive = false;
+      activeAbortController?.abort();
       pendingVisibleRangeRef.current = null;
       if (animationFrame !== null) {
         cancelAnimationFrame(animationFrame);
@@ -616,14 +655,28 @@ export const SequenceEditor = () => {
     };
 
     const eventBusService = container.resolve(SequenceEditorEventBusService);
+    let searchAbortController: AbortController | null = null;
     const removers = [
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onSearch', async (searchQuery) => {
         if (!searchQuery) {
+          searchAbortController?.abort();
           return;
         }
-        const result = await editorService.search(searchQuery, true);
-        sequenceEditorStore.getState().setSearchResult(result);
+        searchAbortController?.abort();
+        const abortController = new AbortController();
+        searchAbortController = abortController;
+        const searchCommand = editorService.search(searchQuery, true, abortController.signal);
+        try {
+          const result = await searchCommand;
+          if (!searchCommand.abortSignal?.aborted) {
+            sequenceEditorStore.getState().setSearchResult(result);
+          }
+        } catch (error) {
+          if (!abortController.signal.aborted) {
+            console.error('Failed to search sequences:', error);
+          }
+        }
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onExpandSelection', (direction) => expandSelection(direction)),
@@ -771,6 +824,7 @@ export const SequenceEditor = () => {
       }),
     ];
     return () => {
+      searchAbortController?.abort();
       removers.forEach(remover => remover());
       editorService.cancelRealign();
     };

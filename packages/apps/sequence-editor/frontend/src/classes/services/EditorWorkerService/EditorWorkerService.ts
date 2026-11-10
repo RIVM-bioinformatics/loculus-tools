@@ -16,6 +16,8 @@ import { EDITOR_DIRECTION } from '../../../models/editor.models';
 import { EngineErrorUtil } from '../../../utils/EngineErrorUtil/EngineErrorUtil';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 
+type CommandResultWithAbortSignal<T> = { abortSignal?: AbortSignal } & Promise<T>;
+
 @singleton()
 export class EditorWorkerService {
   private activeAlignerWorker: null | Worker = null;
@@ -58,121 +60,124 @@ export class EditorWorkerService {
     }
   }
 
-  public async delete(rows: number[], col: number): Promise<void> {
-    return await this.runCommand(async () => {
-      await this.engineWorkerProxy.delete(rows, col);
-    });
-  }
-
-  public async deleteColumn(col: number): Promise<void> {
-    return await this.runCommand(async () => {
-      await this.engineWorkerProxy.deleteColumn(col);
-    });
-  }
-
-  public async deleteRows(rows: number[]): Promise<void> {
-    return await this.runCommand(async () => {
-      await this.engineWorkerProxy.deleteRows(rows);
-    });
-  }
-
-  public async exportGappedFasta(): Promise<string> {
-    return await this.runCommand(async () => {
-      return await this.engineWorkerProxy.exportGappedFasta();
-    });
-  }
-
-  public async exportUngappedFasta(): Promise<string> {
-    return await this.runCommand(async () => {
-      return await this.engineWorkerProxy.exportUngappedFasta();
-    });
-  }
-
-  public async getMetaData(): Promise<EngineMeta> {
-    return await this.runCommand(async () => {
-      return await this.engineWorkerProxy.meta();
-    });
-  }
-
-  public async initialize(): Promise<void> {
-    return await this.runCommand(async () => {
-      return await this.engineWorkerProxy.initialize();
-    });
-  }
-
-  public async insert(rows: number[], col: number): Promise<void> {
-    return await this.runCommand(async () => {
-      await this.engineWorkerProxy.insert(rows, col);
-    });
-  }
-
-  public async loadFasta(fasta: string): Promise<void> {
+  public delete(rows: number[], col: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
     return this.runCommand(async () => {
-      await this.engineWorkerProxy.load(fasta);
-    });
+      await this.engineWorkerProxy.delete(rows, col);
+    }, abortSignal);
   }
 
-  public async moveHorizontal(rows: number[], cols: number[], direction: EDITOR_DIRECTION): Promise<void> {
+  public deleteColumn(col: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
+      await this.engineWorkerProxy.deleteColumn(col);
+    }, abortSignal);
+  }
+
+  public deleteRows(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
+      await this.engineWorkerProxy.deleteRows(rows);
+    }, abortSignal);
+  }
+
+  public exportGappedFasta(abortSignal?: AbortSignal): CommandResultWithAbortSignal<string> {
+    return this.runCommand(async () => {
+      return await this.engineWorkerProxy.exportGappedFasta();
+    }, abortSignal);
+  }
+
+  public exportUngappedFasta(abortSignal?: AbortSignal): CommandResultWithAbortSignal<string> {
+    return this.runCommand(async () => {
+      return await this.engineWorkerProxy.exportUngappedFasta();
+    }, abortSignal);
+  }
+
+  public getMetaData(abortSignal?: AbortSignal): CommandResultWithAbortSignal<EngineMeta> {
+    return this.runCommand(async () => {
+      return await this.engineWorkerProxy.meta();
+    }, abortSignal);
+  }
+
+  public initialize(abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
+      return await this.engineWorkerProxy.initialize();
+    }, abortSignal);
+  }
+
+  public insert(rows: number[], col: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
+      await this.engineWorkerProxy.insert(rows, col);
+    }, abortSignal);
+  }
+
+  public loadFasta(fasta: string, abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
+      console.log('loading FASTA');
+      await this.engineWorkerProxy.initialize();
+      await this.engineWorkerProxy.reset();
+      await this.engineWorkerProxy.load(fasta);
+    }, abortSignal);
+  }
+
+  public moveHorizontal(rows: number[], cols: number[], direction: EDITOR_DIRECTION, abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
     if (direction !== EDITOR_DIRECTION.LEFT && direction !== EDITOR_DIRECTION.RIGHT) {
       throw new Error('Invalid horizontal move direction');
     }
-    return await this.runCommand(async () => {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.moveHorizontal(rows, cols, direction === EDITOR_DIRECTION.LEFT ? MoveDirection.Left : MoveDirection.Right);
-    });
+    }, abortSignal);
   }
 
-  public async moveRows(rows: number[], options: MoveRowsOptions): Promise<void> {
-    return await this.runCommand(async () => {
+  public moveRows(rows: number[], options: MoveRowsOptions, abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.moveRows(rows, options);
-    });
+    }, abortSignal);
   }
 
-  public async moveRowsDown(rows: number[]): Promise<void> {
-    return await this.runCommand(async () => {
+  public moveRowsDown(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.moveRowsDown(rows);
-    });
+    }, abortSignal);
   }
 
-  public async moveRowsGrouped(rows: number[], targetRow: number): Promise<void> {
-    return await this.runCommand(async () => {
+  public moveRowsGrouped(rows: number[], targetRow: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.moveRowsGrouped(rows, targetRow);
-    });
+    }, abortSignal);
   }
 
-  public async moveRowsRelative(rows: number[], delta: number): Promise<void> {
-    return await this.runCommand(async () => {
+  public moveRowsRelative(rows: number[], delta: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.moveRowsRelative(rows, delta);
-    });
+    }, abortSignal);
   }
 
-  public async moveRowsToBottom(rows: number[]): Promise<void> {
-    return await this.runCommand(async () => {
+  public moveRowsToBottom(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.moveRowsToBottom(rows);
-    });
+    }, abortSignal);
   }
 
-  public async moveRowsToTop(rows: number[]): Promise<void> {
-    return await this.runCommand(async () => {
+  public moveRowsToTop(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.moveRowsToTop(rows);
-    });
+    }, abortSignal);
   }
 
-  public async moveRowsUp(rows: number[]): Promise<void> {
-    return await this.runCommand(async () => {
+  public moveRowsUp(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.moveRowsUp(rows);
-    });
+    }, abortSignal);
   }
 
-  public async mutate(rows: number[], cols: number[], base: string): Promise<void> {
-    return await this.runCommand(async () => {
+  public mutate(rows: number[], cols: number[], base: string, abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.mutate(rows, cols, base);
-    });
+    }, abortSignal);
   }
 
-  public async name(row: number): Promise<string> {
-    return await this.runCommand(async () => {
+  public name(row: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<string> {
+    return this.runCommand(async () => {
       return await this.engineWorkerProxy.name(row);
-    });
+    }, abortSignal);
   }
 
   public async realign(signal?: AbortSignal): Promise<void> {
@@ -224,7 +229,7 @@ export class EditorWorkerService {
       await this.runCommand(async () => {
         checkAborted();
         await this.engineWorkerProxy.applyAlignedFasta(alignedFasta);
-      });
+      }, internalAbortController.signal);
     } finally {
       if (signal && onAbort) {
         signal.removeEventListener('abort', onAbort);
@@ -244,55 +249,66 @@ export class EditorWorkerService {
     }
   }
 
-  public async redo(): Promise<void> {
-    return await this.runCommand(async () => {
+  public redo(abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.redo();
-    });
+    }, abortSignal);
   }
 
-  public async reset(): Promise<void> {
-    return await this.runCommand(async () => {
+  public reset(abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.reset();
-    });
+    }, abortSignal);
   }
 
-  public async search(query: string, checkRecordNames: boolean): Promise<EngineSearchResult> {
-    return await this.runCommand(async () => {
+  public search(query: string, checkRecordNames: boolean, abortSignal?: AbortSignal): CommandResultWithAbortSignal<EngineSearchResult> {
+    return this.runCommand(async () => {
       return await this.engineWorkerProxy.search(query, checkRecordNames);
-    });
+    }, abortSignal);
   }
 
-  public async translate(bounds: ViewportBounds, readingFrame: number): Promise<EngineViewportResult> {
-    return await this.runCommand(async () => {
+  public translate(bounds: ViewportBounds, readingFrame: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<EngineViewportResult> {
+    return this.runCommand(async () => {
       return await this.engineWorkerProxy.translate(bounds, readingFrame);
-    });
+    }, abortSignal);
   }
 
-  public async undo(): Promise<void> {
-    return await this.runCommand(async () => {
+  public undo(abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+    return this.runCommand(async () => {
       await this.engineWorkerProxy.undo();
-    });
+    }, abortSignal);
   }
 
-  public async viewport(bounds: ViewportBounds): Promise<EngineViewportResult> {
-    return await this.runCommand(async () => {
+  public viewport(bounds: ViewportBounds, abortSignal?: AbortSignal): CommandResultWithAbortSignal<EngineViewportResult> {
+    return this.runCommand(async () => {
       return await this.engineWorkerProxy.viewport(bounds);
-    });
+    }, abortSignal);
   }
 
-  private async runCommand<T>(command: () => Promise<T>): Promise<T> {
+  private runCommand<T>(command: () => Promise<T>, abortSignal?: AbortSignal): CommandResultWithAbortSignal<T> {
     const queuedCommand = this.commandQueue.then(async (): Promise<T> => {
       const { setLatestMessage } = sequenceEditorStore.getState();
       try {
+        if (abortSignal?.aborted) {
+          throw new DOMException('Command cancelled', 'AbortError');
+        }
         await this.workerReady;
+        if (abortSignal?.aborted) {
+          throw new DOMException('Command cancelled', 'AbortError');
+        }
         const result = await command();
+        if (abortSignal?.aborted) {
+          throw new DOMException('Command cancelled', 'AbortError');
+        }
         if (sequenceEditorStore.getState().latestMessage) {
           setLatestMessage(null);
         }
         return result;
       } catch (error: unknown) {
-        setLatestMessage(EngineErrorUtil.getEngineErrorMessage(error));
-        console.error('COMMAND ERROR', error);
+        if (!abortSignal?.aborted) {
+          setLatestMessage(EngineErrorUtil.getEngineErrorMessage(error));
+          console.error('COMMAND ERROR', error);
+        }
         throw error;
       }
     });
@@ -302,6 +318,6 @@ export class EditorWorkerService {
       () => undefined,
     );
 
-    return await queuedCommand;
+    return Object.assign(queuedCommand, { abortSignal });
   }
 }

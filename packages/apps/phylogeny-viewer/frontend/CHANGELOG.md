@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.8.0...phylogeny-viewer-frontend-v1.9.0) (2026-11-11)
+
+
+### Features
+
+* **frontend:** better drawer interaction ([56c6b48](https://github.com/RIVM-bioinformatics/loculus-tools/commit/56c6b4835a0b18563d535b846c60ed8c22b2267a))
+* **frontend:** implement pasting sequences in sequence editor ([b955244](https://github.com/RIVM-bioinformatics/loculus-tools/commit/b9552449fc2044cca17d38221e59bf31a1df7928))
+
 ## [1.8.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/phylogeny-viewer-frontend-v1.7.0...phylogeny-viewer-frontend-v1.8.0) (2026-11-09)
 
 

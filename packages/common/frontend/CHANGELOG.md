@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.11.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.10.0...common-frontend-v0.11.0) (2026-11-11)
+
+
+### Features
+
+* **frontend:** better drawer interaction ([56c6b48](https://github.com/RIVM-bioinformatics/loculus-tools/commit/56c6b4835a0b18563d535b846c60ed8c22b2267a))
+* **frontend:** implement pasting sequences in sequence editor ([b955244](https://github.com/RIVM-bioinformatics/loculus-tools/commit/b9552449fc2044cca17d38221e59bf31a1df7928))
+
+
+### Bug Fixes
+
+* **frontend:** fix loculus authentication ([59d4c15](https://github.com/RIVM-bioinformatics/loculus-tools/commit/59d4c156841b50f3900b680ba8e802474b78da7c))
+* **frontend:** revice sequences with submissionId ([426ed1b](https://github.com/RIVM-bioinformatics/loculus-tools/commit/426ed1b6edfe73356f07e3c11cc819b1b9f018b3))
+
 ## [0.10.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.9.0...common-frontend-v0.10.0) (2026-11-09)
 
 

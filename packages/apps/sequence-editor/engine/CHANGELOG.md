@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.4.0...sequence-editor-wasm-v0.5.0) (2026-11-11)
+
+
+### Features
+
+* **engine:** prepend data and delete rows ([#85](https://github.com/RIVM-bioinformatics/loculus-tools/issues/85)) ([363bb26](https://github.com/RIVM-bioinformatics/loculus-tools/commit/363bb2619b23ebe522ea34769afca1746c69a432))
+
 ## [0.4.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-wasm-v0.3.0...sequence-editor-wasm-v0.4.0) (2026-11-03)
 
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.9.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.8.0...sequence-editor-frontend-v1.9.0) (2026-11-11)
+
+
+### Features
+
+* **engine:** prepend data and delete rows ([#85](https://github.com/RIVM-bioinformatics/loculus-tools/issues/85)) ([363bb26](https://github.com/RIVM-bioinformatics/loculus-tools/commit/363bb2619b23ebe522ea34769afca1746c69a432))
+* **frontend:** impelement row deleting functionality in the sequence editor ([cf443fb](https://github.com/RIVM-bioinformatics/loculus-tools/commit/cf443fbf478c7c46a0a6cf1f81d1a36577e5a176))
+* **frontend:** implement copy to clipboard in sequence edtior ([57ddf40](https://github.com/RIVM-bioinformatics/loculus-tools/commit/57ddf405ddb80a8e7cdb01cbb4a47544b4606d9c))
+* **frontend:** implement pasting sequences in sequence editor ([b955244](https://github.com/RIVM-bioinformatics/loculus-tools/commit/b9552449fc2044cca17d38221e59bf31a1df7928))
+
+
+### Bug Fixes
+
+* **frontend:** implement an abort controller for requests to the engine ([1a781d4](https://github.com/RIVM-bioinformatics/loculus-tools/commit/1a781d43dbe4366ae0f2885b89e0ff1e63486baf))
+
 ## [1.8.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/sequence-editor-frontend-v1.7.1...sequence-editor-frontend-v1.8.0) (2026-11-09)
 
 

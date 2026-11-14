@@ -1,9 +1,9 @@
 ---
-name: "test-failure"
+name: test-failure
 description: "Reproduce and fix a test failure in loculus-tools with the correct package runner and behavior-focused coverage."
+disable-model-invocation: true
 argument-hint: "Paste the test failure or specify the failing test and package."
 ---
-
 Use the [unit-test builder skill](../skills/unit-test-builder/SKILL.md) for the testing procedure.
 
 Failure or target: ${input:failure:Paste the test failure or specify the failing test and package.}

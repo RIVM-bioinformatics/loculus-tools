@@ -1,9 +1,9 @@
 ---
-name: "review-change"
+name: review-change
 description: "Review a loculus-tools diff, pull request, or review thread for valid behavioral, architectural, and compatibility risks."
+disable-model-invocation: true
 argument-hint: "Provide a PR number, diff, issue, review comments, or packages/files to inspect."
 ---
-
 Use the [deep-dive researcher skill](../skills/deep-dive-researcher/SKILL.md) for evidence gathering and the [review-pr skill](../skills/review-pr/SKILL.md) when reviewing a GitHub pull request.
 
 Review scope: ${input:scope:Provide a PR number, diff, issue, review comments, or packages/files to inspect.}

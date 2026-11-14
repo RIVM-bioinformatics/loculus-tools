@@ -1,9 +1,9 @@
 ---
-name: "issue-to-fix"
+name: issue-to-fix
 description: "Investigate a loculus-tools issue, defect, or review comment and implement a behavior-backed fix."
+disable-model-invocation: true
 argument-hint: "Describe the issue, failure, review comment, or affected package and files."
 ---
-
 Use the [deep-dive researcher skill](../skills/deep-dive-researcher/SKILL.md) for investigation, the [create-issue skill](../skills/create-issue/SKILL.md) when secondary findings require opening tracked issues, and the [unit-test builder skill](../skills/unit-test-builder/SKILL.md) when the issue requires creating or updating tests.
 
 Request: ${input:request:Describe the issue, failure, review comment, or affected package and files.}

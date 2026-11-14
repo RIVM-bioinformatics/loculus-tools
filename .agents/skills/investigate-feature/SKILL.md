@@ -1,9 +1,9 @@
 ---
-name: "investigate-feature"
+name: investigate-feature
 description: "Assess a loculus-tools feature idea for viability across packages and scope practical implementation options."
+disable-model-invocation: true
 argument-hint: "Describe the feature idea, target application/package, constraints, or relevant files."
 ---
-
 Use the [deep-dive researcher skill](../skills/deep-dive-researcher/SKILL.md) for the investigation. This is a research and planning prompt: do not edit files unless the request explicitly asks for implementation.
 
 Feature idea: ${input:feature:Describe the feature idea, target application/package, constraints, or relevant files.}

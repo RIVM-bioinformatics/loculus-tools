@@ -12,6 +12,7 @@ description: >-
 
 Create well-structured, reproducible, and actionable GitHub issues using the GitHub CLI
 (`gh`), enforcing mandatory AI attribution, applicable labels, and structured markdown bodies.
+Use the user's description of the bug, technical debt, or feature request as the issue request.
 
 ## Workflow
 
@@ -32,7 +33,7 @@ Create well-structured, reproducible, and actionable GitHub issues using the Git
    Use the canonical structured template:
    - `## Summary`: A clear, 1-2 sentence overview of the issue or feature request.
    - `## Context & Problem`: Detailed technical description of observed defects, bottlenecks, or limitations. Ground claims in concrete code paths, complexity analysis (e.g. $O(N)$ memory growth), or reproduction steps.
-   - `## Proposed Objectives` / `## Proposed Solution`: Bulleted checklist or design goals of what needs to be changed or delivered.
+   - For bugs, include `## Steps to Reproduce` and `## Proposed Fix` when applicable. For other requests, use `## Proposed Objectives` or `## Proposed Solution` for a bulleted checklist or design goals of what needs to be changed or delivered.
    - `## Related Issues`: References to linked issues, PRs, or blocked tasks (`#<number>`).
    - **Mandatory Attribution**: Must include the exact disclaimer at the end:
      ```markdown
@@ -41,6 +42,9 @@ Create well-structured, reproducible, and actionable GitHub issues using the Git
      ```
 
 4. **Execution:**
+   - If the user asks only to prepare the issue or command, do not create the issue. Use `--dry-run` to preview planned fields or `--print-command` to provide a ready-to-run command.
+   - Use `--body-only` when only the prepared body is needed.
+   - Assign to `@me` by default unless the user requests a different assignee or no assignee.
    - Prefer using the deterministic helper script:
      ```bash
      .agents/scripts/create-issue.sh \

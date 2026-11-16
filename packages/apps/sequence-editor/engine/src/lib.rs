@@ -337,6 +337,23 @@ fn inclusive_range_len(start: usize, end: usize) -> Option<usize> {
     end.checked_sub(start)?.checked_add(1)
 }
 
+/// Deduplicate indices while preserving first-seen order.
+/// Fast-paths strictly ascending slices (such as full-row or rectangular column ranges)
+/// to avoid allocating and hashing a multi-million-entry `HashSet`.
+fn dedup_indices(indices: &[usize]) -> Vec<usize> {
+    if indices.windows(2).all(|w| w[0] < w[1]) {
+        return indices.to_vec();
+    }
+    let mut seen = std::collections::HashSet::with_capacity(indices.len());
+    let mut unique = Vec::with_capacity(indices.len());
+    for &idx in indices {
+        if seen.insert(idx) {
+            unique.push(idx);
+        }
+    }
+    unique
+}
+
 /// Direction for horizontal character movement.
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -404,6 +421,7 @@ fn parse_fasta_records(
                 // Empty records (a header with no following sequence) are
                 // retained with a length of zero rather than being dropped.
                 staged_names.push(name);
+                current_seq.shrink_to_fit();
                 staged_sequences.push(std::mem::take(&mut current_seq));
             }
             current_position = 0;
@@ -476,6 +494,7 @@ fn parse_fasta_records(
     if let Some(name) = current_name {
         // Retain a trailing empty record (header with no sequence) as well.
         staged_names.push(name);
+        current_seq.shrink_to_fit();
         staged_sequences.push(current_seq);
     }
 
@@ -1100,21 +1119,8 @@ impl MsaEngine {
         }
 
         // Deduplicate row and column indices while preserving order.
-        let mut seen_rows = std::collections::HashSet::new();
-        let mut unique_rows = Vec::new();
-        for &r in row_indices {
-            if seen_rows.insert(r) {
-                unique_rows.push(r);
-            }
-        }
-
-        let mut seen_cols = std::collections::HashSet::new();
-        let mut unique_cols = Vec::new();
-        for &c in col_indices {
-            if seen_cols.insert(c) {
-                unique_cols.push(c);
-            }
-        }
+        let unique_rows = dedup_indices(row_indices);
+        let unique_cols = dedup_indices(col_indices);
 
         // Validate: all existing characters at target positions must be IUPAC or '-'.
         // All-or-nothing: if any in-bounds target character is invalid, fail without mutating.
@@ -1152,11 +1158,6 @@ impl MsaEngine {
             return Ok(());
         }
 
-        self.undo_stack.push(UndoCommand::Substitutions {
-            positions: positions.clone(),
-        });
-        self.redo_stack.clear();
-
         for &(r, c, _) in &positions {
             if let Some(seq) = self.nucleotide_sequences.get_mut(r)
                 && c < seq.len()
@@ -1164,6 +1165,10 @@ impl MsaEngine {
                 seq[c] = new_base;
             }
         }
+
+        self.undo_stack
+            .push(UndoCommand::Substitutions { positions });
+        self.redo_stack.clear();
 
         Ok(())
     }
@@ -1304,13 +1309,7 @@ impl MsaEngine {
         let end = *col_indices.iter().max().unwrap();
 
         // Deduplicate row indices while preserving order.
-        let mut seen_rows = std::collections::HashSet::new();
-        let mut unique_rows = Vec::new();
-        for &r in row_indices {
-            if seen_rows.insert(r) {
-                unique_rows.push(r);
-            }
-        }
+        let unique_rows = dedup_indices(row_indices);
 
         // Filter rows that are in-bounds and long enough to contain the block.
         // Out-of-range rows or shorter rows are safely skipped.

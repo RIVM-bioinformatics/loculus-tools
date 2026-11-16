@@ -3,6 +3,7 @@ import { expose } from 'comlink';
 import type { MoveDirection } from '@rivm-loculus-tools/sequence-editor-wasm';
 import init, { MsaEngine } from '@rivm-loculus-tools/sequence-editor-wasm';
 
+import { MAX_WASM_INDEX } from '../../../constants/editor';
 import type {
   EngineMeta,
   EngineSearchResult,
@@ -34,11 +35,13 @@ export class EngineWorker implements EngineWorkerApi {
 
   public async delete(rows: number[], column: number): Promise<void> {
     const engine = await this.requireEngine();
+    this.validateIndex(column, 'Column');
     engine.delete_at_subset(this.toRowIndices(rows), column);
   }
 
   public async deleteColumn(column: number): Promise<void> {
     const engine = await this.requireEngine();
+    this.validateIndex(column, 'Column');
     engine.delete_column(column);
   }
 
@@ -81,6 +84,7 @@ export class EngineWorker implements EngineWorkerApi {
 
   public async insert(rows: number[], column: number): Promise<void> {
     const engine = await this.requireEngine();
+    this.validateIndex(column, 'Column');
     engine.insert_at_subset(this.toRowIndices(rows), column);
   }
 
@@ -135,6 +139,7 @@ export class EngineWorker implements EngineWorkerApi {
 
   public async moveRowsGrouped(rows: number[], targetRow: number): Promise<void> {
     const engine = await this.requireEngine();
+    this.validateIndex(targetRow, 'Target row');
     engine.move_rows_grouped(this.toRowIndices(rows), targetRow);
   }
 
@@ -165,6 +170,7 @@ export class EngineWorker implements EngineWorkerApi {
 
   public async name(row: number): Promise<string> {
     const engine = await this.requireEngine();
+    this.validateIndex(row, 'Row');
     return engine.get_name(row);
   }
 
@@ -235,19 +241,29 @@ export class EngineWorker implements EngineWorkerApi {
     return this.engine;
   }
 
-  /** Converts a plain row-index list into the typed array the WASM API expects. */
-  private toRowIndices(rows: number[]): Uint32Array {
-    return new Uint32Array(rows);
+  /** Converts a plain row/column-index list into the typed array the WASM API expects. */
+  private toRowIndices(indices: number[]): Uint32Array {
+    for (const index of indices) {
+      this.validateIndex(index, 'Index');
+    }
+    return new Uint32Array(indices);
   }
 
-  /** Validates that viewport/translation bounds are safe, non-negative, and ordered. */
+  /** Validates that viewport/translation bounds are safe, non-negative 32-bit integers and ordered. */
   private validateBounds(bounds: ViewportBounds): void {
     const values = [bounds.startRow, bounds.endRow, bounds.startCol, bounds.endCol];
-    if (!values.every((value) => Number.isSafeInteger(value) && value >= 0)) {
-      throw new Error('Viewport bounds must be non-negative safe integers');
+    if (!values.every((value) => Number.isSafeInteger(value) && value >= 0 && value <= MAX_WASM_INDEX)) {
+      throw new Error('Viewport bounds must be non-negative 32-bit safe integers');
     }
     if (bounds.startRow > bounds.endRow || bounds.startCol > bounds.endCol) {
       throw new Error('Viewport bounds must be ordered (start <= end)');
+    }
+  }
+
+  /** Validates that an index is a non-negative 32-bit safe integer representable on wasm32. */
+  private validateIndex(value: number, label = 'Index'): void {
+    if (!Number.isSafeInteger(value) || value < 0 || value > MAX_WASM_INDEX) {
+      throw new Error(`${label} must be a non-negative 32-bit integer`);
     }
   }
 }

@@ -2898,3 +2898,43 @@ fn delete_rows_interleaved_with_mutations_and_prepends() {
     assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.undo_depth(), 0);
 }
+
+#[test]
+fn large_bacterial_scale_sequence_loads_slices_and_mutates_full_row() {
+    let seq = "ACGT".repeat(1_250_000);
+    assert_eq!(seq.len(), 5_000_000);
+    let mut fasta = String::with_capacity(seq.len() * 2 + 32);
+    fasta.push_str(">bact_1\n");
+    fasta.push_str(&seq);
+    fasta.push_str("\n>bact_2\n");
+    fasta.push_str(&seq);
+
+    let mut e = MsaEngine::new();
+    let count = e.load_fasta(&fasta).expect("valid 5M bp FASTA");
+    assert_eq!(count, 2);
+    assert_eq!(e.get_alignment_width(), 5_000_000);
+    assert_eq!(e.nucleotide_sequences[0].capacity(), 5_000_000);
+    assert_eq!(e.nucleotide_sequences[1].capacity(), 5_000_000);
+
+    // Extract a viewport slice at the tail end of the 5M bp alignment.
+    let mut out = vec![0u8; 16];
+    let written = e.update_viewport_into(0, 1, 4_999_992, 4_999_999, &mut out);
+    assert_eq!(written, 16);
+    assert_eq!(&out, b"ACGTACGTACGTACGT");
+
+    // Mutate an ascending full-row range of columns and verify undo/redo.
+    let cols: Vec<usize> = (0..5_000_000).collect();
+    e.mutate_base(&[0], &cols, b'N')
+        .expect("full-row mutation across 5M columns succeeds");
+    assert_eq!(e.get_base(0, 0), b'N');
+    assert_eq!(e.get_base(0, 4_999_999), b'N');
+    assert_eq!(e.get_base(1, 4_999_999), b'T');
+
+    assert!(e.undo());
+    assert_eq!(e.get_base(0, 0), b'A');
+    assert_eq!(e.get_base(0, 4_999_999), b'T');
+
+    assert!(e.redo());
+    assert_eq!(e.get_base(0, 0), b'N');
+    assert_eq!(e.get_base(0, 4_999_999), b'N');
+}

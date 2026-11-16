@@ -69,4 +69,11 @@ export class ExportUtil {
     DownloadUtil.createDownloadUrl(url, filename);
     URL.revokeObjectURL(url);
   }
+
+  public static downloadTsvFile(tsv: string, filename = 'metadata.tsv'): void {
+    const blob = new Blob([tsv], { type: 'text/tab-separated-values;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    DownloadUtil.createDownloadUrl(url, filename);
+    URL.revokeObjectURL(url);
+  }
 }

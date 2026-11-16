@@ -1,0 +1,264 @@
+{
+  "name": "@rivm-loculus-tools/record-merger",
+  "version": "0.1.0",
+  "license": "EUPL-1.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RIVM-bioinformatics/loculus-tools"
+  },
+  "type": "module",
+  "scripts": {
+    "validate": "pnpm run lint && pnpm run check-types",
+    "lint": "eslint ./src --report-unused-disable-directives --max-warnings 0",
+    "lint-fix": "eslint ./src --report-unused-disable-directives --max-warnings 0 --fix",
+    "update-exports": "node scripts/update-exports.js",
+    "check-types": "tsc --noEmit",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "peerDependencies": {
+    "@emotion/cache": "*",
+    "@emotion/react": "*",
+    "@emotion/styled": "*",
+    "@gen-epix/ui-core-components": "*",
+    "@gen-epix/ui-core-form": "*",
+    "@gen-epix/ui-core": "*",
+    "@mui/icons-material": "*",
+    "@mui/material": "*",
+    "@mui/styled-engine": "*",
+    "@mui/system": "*",
+    "@mui/utils": "*",
+    "@mui/x-date-pickers": "*",
+    "@rivm-loculus-tools/common-frontend": "*",
+    "i18next": "*",
+    "react-dom": "*",
+    "react-error-boundary": "*",
+    "react-hook-form": "*",
+    "react-i18next": "*",
+    "react": "*",
+    "reflect-metadata": "*",
+    "tsyringe": "*",
+    "yup": "*"
+  },
+  "dependencies": {
+    "@biowasm/aioli": "3.2.4",
+    "@hookform/resolvers": "6.0.2",
+    "@jbrowse/react-linear-genome-view2": "^3.0.0",
+    "i18next": "26.5.11",
+    "lodash": "4.18.1",
+    "tsyringe": "4.10.0",
+    "zustand": "5.0.16"
+  },
+  "devDependencies": {
+    "@emotion/cache": "11.14.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@gen-epix/eslint-config": "0.9.0",
+    "@gen-epix/ui-core-components": "4.6.0",
+    "@gen-epix/ui-core-form": "4.5.1",
+    "@gen-epix/ui-core": "3.10.0",
+    "@mui/icons-material": "9.5.0",
+    "@mui/material": "9.5.0",
+    "@mui/styled-engine": "9.5.0",
+    "@mui/system": "9.5.0",
+    "@mui/utils": "9.5.0",
+    "@rivm-loculus-tools/common-frontend": "workspace:^",
+    "@types/lodash": "4.17.27",
+    "@types/node": "26.6.6",
+    "@types/react-dom": "19.3.0",
+    "@types/react": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "eslint": "10.13.0",
+    "react-dom": "19.3.1",
+    "react-error-boundary": "6.1.6",
+    "react-hook-form": "7.91.0",
+    "react-i18next": "17.1.9",
+    "react": "19.3.1",
+    "typescript": "6.0.3",
+    "vite-plugin-dts": "5.1.2",
+    "vite-plugin-lib-inject-css": "2.2.2",
+    "vite-plugin-static-copy": "4.1.1",
+    "vite-plugin-svgr": "5.2.0",
+    "vite": "8.3.5",
+    "vitest-browser-react": "2.3.0",
+    "vitest": "5.0.5",
+    "yup": "1.7.1"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./types": {
+      "types": "./src/@types/record-merger.d.ts",
+      "import": "./src/@types/record-merger.d.ts"
+    },
+    "./classes/services/RecordMergerAioliService": {
+      "types": "./src/classes/services/RecordMergerAioliService/index.ts",
+      "import": "./src/classes/services/RecordMergerAioliService/index.ts"
+    },
+    "./components/app/RecordMergerApp": {
+      "types": "./src/components/app/RecordMergerApp/index.ts",
+      "import": "./src/components/app/RecordMergerApp/index.ts"
+    },
+    "./components/ui/AlignmentInspectView": {
+      "types": "./src/components/ui/AlignmentInspectView/index.ts",
+      "import": "./src/components/ui/AlignmentInspectView/index.ts"
+    },
+    "./components/ui/JBrowseAlignmentView": {
+      "types": "./src/components/ui/JBrowseAlignmentView/index.ts",
+      "import": "./src/components/ui/JBrowseAlignmentView/index.ts"
+    },
+    "./components/ui/MergeReviewView": {
+      "types": "./src/components/ui/MergeReviewView/index.ts",
+      "import": "./src/components/ui/MergeReviewView/index.ts"
+    },
+    "./components/ui/PipelineParameterFields": {
+      "types": "./src/components/ui/PipelineParameterFields/index.ts",
+      "import": "./src/components/ui/PipelineParameterFields/index.ts"
+    },
+    "./components/ui/RecordMergerImportDialog": {
+      "types": "./src/components/ui/RecordMergerImportDialog/index.ts",
+      "import": "./src/components/ui/RecordMergerImportDialog/index.ts"
+    },
+    "./components/ui/RecordMergerImportDialogLoader": {
+      "types": "./src/components/ui/RecordMergerImportDialogLoader/index.ts",
+      "import": "./src/components/ui/RecordMergerImportDialogLoader/index.ts"
+    },
+    "./components/ui/RecordMergerPageDrawer": {
+      "types": "./src/components/ui/RecordMergerPageDrawer/index.ts",
+      "import": "./src/components/ui/RecordMergerPageDrawer/index.ts"
+    },
+    "./components/ui/RecordMergerPageHeader": {
+      "types": "./src/components/ui/RecordMergerPageHeader/index.ts",
+      "import": "./src/components/ui/RecordMergerPageHeader/index.ts"
+    },
+    "./components/ui/RecordMergerWorkflowStepper": {
+      "types": "./src/components/ui/RecordMergerWorkflowStepper/index.ts",
+      "import": "./src/components/ui/RecordMergerWorkflowStepper/index.ts"
+    },
+    "./components/ui/RecordSelectionView": {
+      "types": "./src/components/ui/RecordSelectionView/index.ts",
+      "import": "./src/components/ui/RecordSelectionView/index.ts"
+    },
+    "./components/ui/StatusChip": {
+      "types": "./src/components/ui/StatusChip/index.ts",
+      "import": "./src/components/ui/StatusChip/index.ts"
+    },
+    "./components/ui/UploadCombinedRecordView": {
+      "types": "./src/components/ui/UploadCombinedRecordView/index.ts",
+      "import": "./src/components/ui/UploadCombinedRecordView/index.ts"
+    },
+    "./models/config.models": {
+      "types": "./src/models/config.models.ts",
+      "import": "./src/models/config.models.ts"
+    },
+    "./models/pipeline.models": {
+      "types": "./src/models/pipeline.models.ts",
+      "import": "./src/models/pipeline.models.ts"
+    },
+    "./pages/RecordMergerPageMainPage": {
+      "types": "./src/pages/RecordMergerPageMainPage/index.ts",
+      "import": "./src/pages/RecordMergerPageMainPage/index.ts"
+    },
+    "./stores/recordMergerStore": {
+      "types": "./src/stores/recordMergerStore/index.ts",
+      "import": "./src/stores/recordMergerStore/index.ts"
+    },
+    "./theme/demoTheme": {
+      "types": "./src/theme/demoTheme/index.ts",
+      "import": "./src/theme/demoTheme/index.ts"
+    },
+    "./utils/RecordMergerStandardConfigUtil": {
+      "types": "./src/utils/RecordMergerStandardConfigUtil/index.ts",
+      "import": "./src/utils/RecordMergerStandardConfigUtil/index.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      "./types": {
+        "types": "./dist/@types/record-merger.d.ts",
+        "import": "./dist/@types/record-merger.d.ts"
+      },
+      "./classes/services/RecordMergerAioliService": {
+        "types": "./dist/classes/services/RecordMergerAioliService/index.d.ts",
+        "import": "./dist/classes/services/RecordMergerAioliService/index.js"
+      },
+      "./components/app/RecordMergerApp": {
+        "types": "./dist/components/app/RecordMergerApp/index.d.ts",
+        "import": "./dist/components/app/RecordMergerApp/index.js"
+      },
+      "./components/ui/AlignmentInspectView": {
+        "types": "./dist/components/ui/AlignmentInspectView/index.d.ts",
+        "import": "./dist/components/ui/AlignmentInspectView/index.js"
+      },
+      "./components/ui/JBrowseAlignmentView": {
+        "types": "./dist/components/ui/JBrowseAlignmentView/index.d.ts",
+        "import": "./dist/components/ui/JBrowseAlignmentView/index.js"
+      },
+      "./components/ui/MergeReviewView": {
+        "types": "./dist/components/ui/MergeReviewView/index.d.ts",
+        "import": "./dist/components/ui/MergeReviewView/index.js"
+      },
+      "./components/ui/PipelineParameterFields": {
+        "types": "./dist/components/ui/PipelineParameterFields/index.d.ts",
+        "import": "./dist/components/ui/PipelineParameterFields/index.js"
+      },
+      "./components/ui/RecordMergerImportDialog": {
+        "types": "./dist/components/ui/RecordMergerImportDialog/index.d.ts",
+        "import": "./dist/components/ui/RecordMergerImportDialog/index.js"
+      },
+      "./components/ui/RecordMergerImportDialogLoader": {
+        "types": "./dist/components/ui/RecordMergerImportDialogLoader/index.d.ts",
+        "import": "./dist/components/ui/RecordMergerImportDialogLoader/index.js"
+      },
+      "./components/ui/RecordMergerPageDrawer": {
+        "types": "./dist/components/ui/RecordMergerPageDrawer/index.d.ts",
+        "import": "./dist/components/ui/RecordMergerPageDrawer/index.js"
+      },
+      "./components/ui/RecordMergerPageHeader": {
+        "types": "./dist/components/ui/RecordMergerPageHeader/index.d.ts",
+        "import": "./dist/components/ui/RecordMergerPageHeader/index.js"
+      },
+      "./components/ui/RecordMergerWorkflowStepper": {
+        "types": "./dist/components/ui/RecordMergerWorkflowStepper/index.d.ts",
+        "import": "./dist/components/ui/RecordMergerWorkflowStepper/index.js"
+      },
+      "./components/ui/RecordSelectionView": {
+        "types": "./dist/components/ui/RecordSelectionView/index.d.ts",
+        "import": "./dist/components/ui/RecordSelectionView/index.js"
+      },
+      "./components/ui/StatusChip": {
+        "types": "./dist/components/ui/StatusChip/index.d.ts",
+        "import": "./dist/components/ui/StatusChip/index.js"
+      },
+      "./components/ui/UploadCombinedRecordView": {
+        "types": "./dist/components/ui/UploadCombinedRecordView/index.d.ts",
+        "import": "./dist/components/ui/UploadCombinedRecordView/index.js"
+      },
+      "./models/config.models": {
+        "types": "./dist/models/config.models.d.ts",
+        "import": "./dist/models/config.models.js"
+      },
+      "./models/pipeline.models": {
+        "types": "./dist/models/pipeline.models.d.ts",
+        "import": "./dist/models/pipeline.models.js"
+      },
+      "./pages/RecordMergerPageMainPage": {
+        "types": "./dist/pages/RecordMergerPageMainPage/index.d.ts",
+        "import": "./dist/pages/RecordMergerPageMainPage/index.js"
+      },
+      "./stores/recordMergerStore": {
+        "types": "./dist/stores/recordMergerStore/index.d.ts",
+        "import": "./dist/stores/recordMergerStore/index.js"
+      },
+      "./theme/demoTheme": {
+        "types": "./dist/theme/demoTheme/index.d.ts",
+        "import": "./dist/theme/demoTheme/index.js"
+      },
+      "./utils/RecordMergerStandardConfigUtil": {
+        "types": "./dist/utils/RecordMergerStandardConfigUtil/index.d.ts",
+        "import": "./dist/utils/RecordMergerStandardConfigUtil/index.js"
+      }
+    }
+  }
+}

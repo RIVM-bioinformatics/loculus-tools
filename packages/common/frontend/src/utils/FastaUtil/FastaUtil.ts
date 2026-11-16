@@ -4,6 +4,22 @@ import type {
 } from '../../models/fasta.models';
 
 export class FastaUtil {
+  public static mergeFastas(fastaContents: string[]): string {
+    const validChunks: string[] = [];
+    for (const content of fastaContents) {
+      const trimmed = content?.trim();
+      if (!trimmed) {
+        continue;
+      }
+      const parsed = FastaUtil.parseFasta(trimmed);
+      if (parsed.error) {
+        throw new Error(parsed.error);
+      }
+      validChunks.push(trimmed);
+    }
+    return validChunks.join('\n');
+  }
+
   public static parseFasta(content: string): FastaParseResult {
     if (!content?.trim()) {
       return FastaUtil.createErrorResult('The FASTA input is empty.');

@@ -157,17 +157,72 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
       return `>${submissionId}${header.slice(accessionVersion.length)}`;
     }).join('\n');
 
-    const body = new FormData();
-    body.append('sequenceFile', new File([sequenceFasta], 'sequences.fasta', { type: 'text/plain' }));
-    body.append(
-      'metadataFile',
-      new File([revisedSequences.metadata], 'metadata.tsv', { type: 'text/tab-separated-values' }),
-    );
-
     const url = `${returnUrl.replace(/\/$/, '')}/${encodeURIComponent(organism)}/revise?${new URLSearchParams({
       dataUseTermsType: 'OPEN',
       groupId: revisedSequences.groupId,
     })}`;
+
+    await this.postSequencePayload({
+      abortController,
+      errorPrefix: 'Failed to revise sequences',
+      fasta: sequenceFasta,
+      metadataTsv: revisedSequences.metadata,
+      url,
+    });
+  }
+
+  /**
+   * Submit a single combined consensus sequence and its metadata TSV to Loculus.
+   */
+  public async submitCombinedSequence(kwArgs: {
+    abortController: AbortController;
+    dataUseTermsType?: string;
+    fasta: string;
+    groupId?: string;
+    metadataTsv: string;
+    organism: string;
+    returnUrl: string;
+  }): Promise<void> {
+    const {
+      abortController,
+      dataUseTermsType = 'OPEN',
+      fasta,
+      groupId,
+      metadataTsv,
+      organism,
+      returnUrl,
+    } = kwArgs;
+
+    const searchParams = new URLSearchParams({
+      dataUseTermsType,
+      ...(groupId ? { groupId } : {}),
+    });
+    const url = `${returnUrl.replace(/\/$/, '')}/${encodeURIComponent(organism)}/submit?${searchParams}`;
+
+    await this.postSequencePayload({
+      abortController,
+      errorPrefix: 'Failed to submit combined record',
+      fasta,
+      metadataTsv,
+      url,
+    });
+  }
+
+  private async postSequencePayload(kwArgs: {
+    abortController: AbortController;
+    errorPrefix: string;
+    fasta: string;
+    metadataTsv: string;
+    url: string;
+  }): Promise<void> {
+    const { abortController, errorPrefix, fasta, metadataTsv, url } = kwArgs;
+
+    const body = new FormData();
+    body.append('sequenceFile', new File([fasta], 'sequences.fasta', { type: 'text/plain' }));
+    body.append(
+      'metadataFile',
+      new File([metadataTsv], 'metadata.tsv', { type: 'text/tab-separated-values' }),
+    );
 
     const response = await fetch(url, {
       body,
@@ -185,7 +240,7 @@ export class LoculusService extends SubscribableAbstract<LoculusServiceSubject> 
       }
 
       const errorText = await response?.text();
-      throw new Error(`Failed to revise sequences: ${errorText}`);
+      throw new Error(`${errorPrefix}: ${errorText}`);
     }
   }
 }

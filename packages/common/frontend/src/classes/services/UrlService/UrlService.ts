@@ -32,13 +32,20 @@ export class UrlService extends SubscribableAbstract<UrlParams> {
     const urlObject = new URL(url);
     const urlParams = new URLSearchParams(urlObject.search);
     const authEndpointFromUrl = urlParams.get('auth-endpoint');
-    const inputFastaUrlFromUrl = urlParams.get('input-fasta');
+    const rawFastaUrls = urlParams.getAll('input-fasta');
     const inputMetadataUrlFromUrl = urlParams.get('input-metadata');
+    const inputReferenceUrlFromUrl = urlParams.get('input-reference');
     const returnUrlFromUrl = urlParams.get('return-url');
 
+    const validFastaUrls = rawFastaUrls
+      .map((u) => u.trim())
+      .filter((u) => Boolean(u) && UrlUtil.isValidResourceUrl(u));
+
     let authEndpoint = authEndpointFromUrl && UrlUtil.isValidResourceUrl(authEndpointFromUrl) ? authEndpointFromUrl : undefined;
-    let inputFastaUrl = inputFastaUrlFromUrl && UrlUtil.isValidResourceUrl(inputFastaUrlFromUrl) ? inputFastaUrlFromUrl : undefined;
+    let inputFastaUrls: string[] | undefined = validFastaUrls.length > 0 ? validFastaUrls : undefined;
+    let inputFastaUrl = inputFastaUrls?.[0];
     let inputMetadataUrl = inputMetadataUrlFromUrl && UrlUtil.isValidResourceUrl(inputMetadataUrlFromUrl) ? inputMetadataUrlFromUrl : undefined;
+    let inputReferenceUrl = inputReferenceUrlFromUrl && UrlUtil.isValidResourceUrl(inputReferenceUrlFromUrl) ? inputReferenceUrlFromUrl : undefined;
     let returnUrl = returnUrlFromUrl && UrlUtil.isValidResourceUrl(returnUrlFromUrl) ? returnUrlFromUrl : undefined;
 
     // validate that each URL has the same top-level domain:
@@ -57,7 +64,9 @@ export class UrlService extends SubscribableAbstract<UrlParams> {
       console.warn('URLs have mismatched top-level domains. Clearing all URL parameters.');
       authEndpoint = undefined;
       inputFastaUrl = undefined;
+      inputFastaUrls = undefined;
       inputMetadataUrl = undefined;
+      inputReferenceUrl = undefined;
       returnUrl = undefined;
     }
 
@@ -66,7 +75,9 @@ export class UrlService extends SubscribableAbstract<UrlParams> {
       authEndpoint,
       authRealm: urlParams.get('auth-realm') ?? undefined,
       inputFastaUrl,
+      inputFastaUrls,
       inputMetadataUrl,
+      inputReferenceUrl,
       organism: urlParams.get('organism') ?? undefined,
       returnUrl,
     };

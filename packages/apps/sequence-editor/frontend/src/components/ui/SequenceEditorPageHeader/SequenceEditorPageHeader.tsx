@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { UrlService } from '@rivm-loculus-tools/common-frontend/classes/services/UrlService';
+import ImportExportIcon from '@mui/icons-material/ImportExport';
 import CodeIcon from '@mui/icons-material/Code';
 import PublishIcon from '@mui/icons-material/Publish';
 import { useStore } from 'zustand';
@@ -22,15 +23,18 @@ import { ButtonWithMenu } from '@rivm-loculus-tools/common-frontend/components/u
 import type { ButtonWithMenuProps } from '@rivm-loculus-tools/common-frontend/components/ui/ButtonWithMenu';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import { LoculusService } from '@rivm-loculus-tools/common-frontend/classes/services/LoculusService';
+import { useConfig } from '@rivm-loculus-tools/common-frontend/hooks/useConfig';
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
+import type { SequenceEditorConfig } from '../../../models/config.models';
 
 import { SequenceEditorUndoRedoButtons } from './SequenceEditorUndoRedoButtons';
 
 export const SequenceEditorPageHeader = () => {
   const loculusService = useMemo(() => container.resolve(LoculusService), []);
   const urlService = useMemo(() => container.resolve(UrlService), []);
+  const config = useConfig<SequenceEditorConfig>();
 
   const isAuthenticated = useSyncExternalStore(
     useCallback((onStoreChange) => loculusService.subscribe(onStoreChange), [loculusService]),
@@ -74,26 +78,38 @@ export const SequenceEditorPageHeader = () => {
     container.resolve(SequenceEditorEventBusService).emit('onExportToLoculus');
   }, []);
 
-  const exportExportMenuItems: ButtonWithMenuProps['items'] = useMemo(() => [
-    {
-      disabled: !isAuthenticated || !hasFasta || !hasReturnParams || !parsedMetadata,
-      icon: <PublishIcon fontSize={'small'} />,
-      label: 'Export to loculus',
-      onClick: onClickUploadToLoculus,
-    },
-    {
-      disabled: !hasFasta,
-      icon: <CodeIcon fontSize={'small'} />,
-      label: 'Save as Ungapped Fasta (.fasta)',
-      onClick: onClickExportFasta,
-    },
-    {
-      disabled: !hasFasta,
-      icon: <CodeIcon fontSize={'small'} />,
-      label: 'Save as Gapped Fasta (.fasta)',
-      onClick: onClickExportGappedFasta,
-    },
-  ], [isAuthenticated, hasFasta, hasReturnParams, parsedMetadata, onClickUploadToLoculus, onClickExportFasta, onClickExportGappedFasta]);
+  const onClickOpenInPhylogenyViewer = useCallback(() => {
+    container.resolve(SequenceEditorEventBusService).emit('onOpenInPhylogenyViewer');
+  }, []);
+
+  const exportExportMenuItems: ButtonWithMenuProps['items'] = useMemo(() => {
+    return [
+      {
+        disabled: !isAuthenticated || !hasFasta || !hasReturnParams || !parsedMetadata,
+        icon: <PublishIcon fontSize={'small'} />,
+        label: 'Export to loculus',
+        onClick: onClickUploadToLoculus,
+      },
+      config.phylogenyViewerUrl && {
+        disabled: !hasFasta,
+        icon: <ImportExportIcon fontSize={'small'} />,
+        label: 'Open in Phylogeny Viewer',
+        onClick: onClickOpenInPhylogenyViewer,
+      },
+      {
+        disabled: !hasFasta,
+        icon: <CodeIcon fontSize={'small'} />,
+        label: 'Save as Ungapped Fasta (.fasta)',
+        onClick: onClickExportFasta,
+      },
+      {
+        disabled: !hasFasta,
+        icon: <CodeIcon fontSize={'small'} />,
+        label: 'Save as Gapped Fasta (.fasta)',
+        onClick: onClickExportGappedFasta,
+      },
+    ].filter(Boolean) as ButtonWithMenuProps['items'];
+  }, [isAuthenticated, hasFasta, hasReturnParams, parsedMetadata, onClickUploadToLoculus, config.phylogenyViewerUrl, onClickOpenInPhylogenyViewer, onClickExportFasta, onClickExportGappedFasta]);
 
   const metaDataCount = parsedMetadata?.records?.length || 0;
 

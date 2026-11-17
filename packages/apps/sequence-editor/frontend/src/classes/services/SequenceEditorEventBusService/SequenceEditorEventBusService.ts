@@ -19,6 +19,7 @@ export type SequenceEditorEventBusServiceEvent = {
   onMoveRowsEnd: EDITOR_DIRECTION;
   onMoveSelection: EDITOR_DIRECTION;
   onMutateSelection: string;
+  onOpenInPhylogenyViewer: void;
   onPasteFasta: void;
   onRealign: void;
   onRedo: void;

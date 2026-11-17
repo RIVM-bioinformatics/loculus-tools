@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.11.0...common-frontend-v0.12.0) (2026-11-17)
+
+
+### Features
+
+* implement open in phylogeny viewer and update dependencies ([#91](https://github.com/RIVM-bioinformatics/loculus-tools/issues/91)) ([151daea](https://github.com/RIVM-bioinformatics/loculus-tools/commit/151daea0186ac9f555c730dd8deb82fe9a54a31c))
+* update depencies and use nodejs 26.x ([151daea](https://github.com/RIVM-bioinformatics/loculus-tools/commit/151daea0186ac9f555c730dd8deb82fe9a54a31c))
+
 ## [0.11.0](https://github.com/RIVM-bioinformatics/loculus-tools/compare/common-frontend-v0.10.0...common-frontend-v0.11.0) (2026-11-11)
 
 

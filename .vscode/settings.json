@@ -15,5 +15,8 @@
   },
   "chat.promptFilesLocations": {
     ".agents/prompts": true
-  }
+  },
+  "cSpell.words": [
+    "Ungapped"
+  ]
 }

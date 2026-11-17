@@ -4,6 +4,7 @@ import type { Theme } from '@mui/material';
 import type { PageCommonConfig } from '../context/pageCommonContext';
 
 export interface ConfigBase {
+  allowedPostMessageOrigins?: string[];
   applicationName: string;
   readonly drawerComponent?: () => ReactElement;
   getTouchIconUrl?: () => string | undefined;

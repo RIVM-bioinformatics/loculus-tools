@@ -17,6 +17,7 @@ import type { FastaDataImportDialogRefMethods } from '../FastaDataImportDialog';
 import { FastaDataImportDialog } from '../FastaDataImportDialog';
 import { ErrorUtil } from '../../../utils/ErrorUtil';
 import { LoculusService } from '../../../classes/services/LoculusService';
+import { useConfig } from '../../../hooks/useConfig';
 
 
 export type FastaDataImportDialogLoaderProps = {
@@ -26,6 +27,7 @@ export type FastaDataImportDialogLoaderProps = {
 };
 
 export const FastaDataImportDialogLoader = ({ extraActions, fastaDescription, store }: FastaDataImportDialogLoaderProps) => {
+  const config = useConfig();
   const setData = useStore(store, (state) => state.setData);
   const setLoadingStatus = useStore(store, (state) => state.setLoadingStatus);
   const fastaDataImportDialogRef = useRef<FastaDataImportDialogRefMethods>(null);
@@ -45,6 +47,42 @@ export const FastaDataImportDialogLoader = ({ extraActions, fastaDescription, st
       removers.forEach((remove) => remove());
     };
   }, []);
+
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent<unknown>) => {
+      if (
+        !config.allowedPostMessageOrigins?.includes(event.origin)
+        ||
+        event.source !== window.opener
+        || typeof event.data !== 'object'
+        || event.data === null
+        || !('type' in event.data)
+        || event.data.type !== 'import-data'
+        || !('fasta' in event.data)
+        || typeof event.data.fasta !== 'string'
+      ) {
+        if (!config.allowedPostMessageOrigins?.length) {
+          console.warn(`Message received from ${event.origin} but no allowed origins are configured in 'config.allowedPostMessageOrigins'.`);
+        } else {
+          console.warn(`Invalid message received. Check that ${event.origin} is one of ${config.allowedPostMessageOrigins?.join(', ')}.`);
+        }
+        return;
+      }
+
+      const metaData = 'metaData' in event.data && typeof event.data.metaData === 'string'
+        ? event.data.metaData
+        : undefined;
+      await setData(event.data.fasta, metaData);
+      fastaDataImportDialogRef.current?.close();
+    };
+    window.addEventListener('message', handleMessage);
+    const openerWindow = window.opener as null | Window;
+    openerWindow?.postMessage({ type: 'data-receiver-ready' }, '*');
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [config.allowedPostMessageOrigins, setData]);
 
   useEffect(() => {
     // Scan URL parameters for deep-linking

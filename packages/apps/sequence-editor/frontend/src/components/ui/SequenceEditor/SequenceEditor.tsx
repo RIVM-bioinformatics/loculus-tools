@@ -942,11 +942,22 @@ export const SequenceEditor = () => {
         if (!config.phylogenyViewerUrl) {
           return;
         }
-        const fasta = await editorService.exportGappedFasta();
-        const metaData = sequenceEditorStore.getState().rawMetadata;
         const viewerOrigin = new URL(config.phylogenyViewerUrl).origin;
         const browserWindow = container.resolve(WindowService).window;
         let phylogenyViewerWindow: null | Window = null;
+        let fasta: null | string = null;
+        let metaData: string | undefined;
+        let viewerReady = false;
+        let hasSentData = false;
+        const sendDataIfReady = () => {
+          const targetWindow = phylogenyViewerWindow;
+          if (!viewerReady || fasta === null || !targetWindow || hasSentData) {
+            return;
+          }
+          hasSentData = true;
+          hasSentData = true;
+          targetWindow.postMessage({ fasta, metaData, type: 'import-data' }, viewerOrigin);
+        };
         const handleViewerReady = (event: MessageEvent<unknown>) => {
           if (
             event.origin !== viewerOrigin
@@ -959,14 +970,27 @@ export const SequenceEditor = () => {
             return;
           }
 
+          viewerReady = true;
           browserWindow.removeEventListener('message', handleViewerReady);
-          phylogenyViewerWindow?.postMessage({ fasta, metaData, type: 'import-data' }, viewerOrigin);
+          sendDataIfReady();
         };
         // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
         browserWindow.addEventListener('message', handleViewerReady);
+        // Open before the asynchronous export so the browser retains the click's user activation.
         phylogenyViewerWindow = browserWindow.open(config.phylogenyViewerUrl);
         if (!phylogenyViewerWindow) {
           browserWindow.removeEventListener('message', handleViewerReady);
+          return;
+        }
+
+        try {
+          fasta = await editorService.exportGappedFasta();
+          metaData = sequenceEditorStore.getState().rawMetadata;
+          sendDataIfReady();
+        } catch (error) {
+          browserWindow.removeEventListener('message', handleViewerReady);
+          phylogenyViewerWindow.close();
+          throw error;
         }
       }),
     ];

@@ -3,4 +3,5 @@ import type { ConfigBase } from '@rivm-loculus-tools/common-frontend/models/conf
 
 export interface SequenceEditorConfig extends ConfigBase {
   fastaImportExtraActions?: DialogAction[];
+  phylogenyViewerUrl?: string;
 }

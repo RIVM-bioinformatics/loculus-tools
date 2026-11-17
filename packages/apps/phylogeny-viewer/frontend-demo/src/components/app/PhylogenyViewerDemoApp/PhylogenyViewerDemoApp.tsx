@@ -78,6 +78,7 @@ export const PhylogenyViewerDemoApp = () => {
     const standardConfig = PhylogenyViewerStandardConfigUtil.createConfig();
     return {
       ...standardConfig,
+      allowedPostMessageOrigins: ['https://localhost:5021'],
       fastaImportExtraActions: extraFastaDataImportDialogLoaderActions,
       getTouchIconUrl: () => '/assets/favicon.svg',
       pageConfig: {

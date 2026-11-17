@@ -23,6 +23,7 @@ import { ExportUtil } from '@rivm-loculus-tools/common-frontend/utils/ExportUtil
 import type { UploadToLoculusModalRefMethods } from '@rivm-loculus-tools/common-frontend/components/loculus/UploadToLoculusModal';
 import { UploadToLoculusModal } from '@rivm-loculus-tools/common-frontend/components/loculus/UploadToLoculusModal';
 import { WindowService } from '@gen-epix/ui-core/classes/services/WindowService';
+import { useConfig } from '@rivm-loculus-tools/common-frontend/hooks/useConfig';
 
 import { EditorWorkerService } from '../../../classes/services/EditorWorkerService';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
@@ -53,12 +54,14 @@ import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorSearchBar } from '../SequenceEditorSearchBar';
 import type { SequenceEditorRealignModalRefMethods } from '../SequenceEditorRealignModal';
 import { SequenceEditorRealignModal } from '../SequenceEditorRealignModal';
+import type { SequenceEditorConfig } from '../../../models/config.models';
 
 import { SequenceEditorStatusBar } from './SequenceEditorStatusBar';
 import type { SequenceEditorGotoPositionDialogRefMethods } from './SequenceEditorGotoPositionDialog';
 import { SequenceEditorGotoPositionDialog } from './SequenceEditorGotoPositionDialog';
 
 export const SequenceEditor = () => {
+  const config = useConfig<SequenceEditorConfig>();
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
   const setEngineMeta = useStore(sequenceEditorStore, (state) => state.setEngineMeta);
@@ -934,6 +937,38 @@ export const SequenceEditor = () => {
         const { parsedMetadata: metaData, rawFasta: originalFasta } = sequenceEditorStore.getState();
         uploadToLoculusModalRef.current?.open({ fasta, metaData, rawFasta: originalFasta });
       }),
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+      eventBusService.addEventListener('onOpenInPhylogenyViewer', async () => {
+        if (!config.phylogenyViewerUrl) {
+          return;
+        }
+        const fasta = await editorService.exportUngappedFasta();
+        const metaData = sequenceEditorStore.getState().rawMetadata;
+        const viewerOrigin = new URL(config.phylogenyViewerUrl).origin;
+        const browserWindow = container.resolve(WindowService).window;
+        let phylogenyViewerWindow: null | Window = null;
+        const handleViewerReady = (event: MessageEvent<unknown>) => {
+          if (
+            event.origin !== viewerOrigin
+            || event.source !== phylogenyViewerWindow
+            || typeof event.data !== 'object'
+            || event.data === null
+            || !('type' in event.data)
+            || event.data.type !== 'data-receiver-ready'
+          ) {
+            return;
+          }
+
+          browserWindow.removeEventListener('message', handleViewerReady);
+          phylogenyViewerWindow?.postMessage({ fasta, metaData, type: 'import-data' }, viewerOrigin);
+        };
+        // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
+        browserWindow.addEventListener('message', handleViewerReady);
+        phylogenyViewerWindow = browserWindow.open(config.phylogenyViewerUrl);
+        if (!phylogenyViewerWindow) {
+          browserWindow.removeEventListener('message', handleViewerReady);
+        }
+      }),
     ];
     return () => {
       window.removeEventListener('paste', onWindowPaste);
@@ -942,7 +977,7 @@ export const SequenceEditor = () => {
       removers.forEach(remover => remover());
       editorService.cancelRealign();
     };
-  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject]);
+  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject, config.phylogenyViewerUrl]);
 
   useEffect(() => {
     updateVisibleRange();

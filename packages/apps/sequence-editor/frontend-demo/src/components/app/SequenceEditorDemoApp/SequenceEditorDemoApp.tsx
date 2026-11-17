@@ -76,6 +76,7 @@ export const SequenceEditorDemoApp = () => {
 
   const config = useMemo(() => {
     const standardConfig = SequenceEditorStandardConfigUtil.createConfig();
+
     return {
       ...standardConfig,
       fastaImportExtraActions: extraFastaDataImportDialogLoaderActions,
@@ -107,6 +108,7 @@ export const SequenceEditorDemoApp = () => {
           </Box>
         ),
       },
+      phylogenyViewerUrl: 'https://localhost:5020/',
       theme: createSequenceEditorTheme('light'),
     };
   }, [afterAppBarRightComponent, extraFastaDataImportDialogLoaderActions]);

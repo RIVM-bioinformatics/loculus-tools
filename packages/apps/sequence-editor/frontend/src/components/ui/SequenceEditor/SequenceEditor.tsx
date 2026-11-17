@@ -942,7 +942,7 @@ export const SequenceEditor = () => {
         if (!config.phylogenyViewerUrl) {
           return;
         }
-        const fasta = await editorService.exportUngappedFasta();
+        const fasta = await editorService.exportGappedFasta();
         const metaData = sequenceEditorStore.getState().rawMetadata;
         const viewerOrigin = new URL(config.phylogenyViewerUrl).origin;
         const browserWindow = container.resolve(WindowService).window;

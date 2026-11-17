@@ -10,6 +10,11 @@ import { useStore } from 'zustand';
 
 import { FastaDataEventBusService } from '../../../classes/services/FastaDataEventBusService';
 import { UrlService } from '../../../classes/services/UrlService';
+import {
+  DATA_RECEIVER_CHANNEL_PARAM,
+  DATA_RECEIVER_READY_MESSAGE_TYPE,
+  IMPORT_DATA_MESSAGE_TYPE,
+} from '../../../constants/config.constants';
 import { LOADING_STATUS } from '../../../models/fasta.models';
 import type { FastaDataStore } from '../../../stores/fastaDataStore';
 import { UrlUtil } from '../../../utils/UrlUtil';
@@ -49,17 +54,55 @@ export const FastaDataImportDialogLoader = ({ extraActions, fastaDescription, st
   }, []);
 
   useEffect(() => {
+    const viewerUrl = new URL(window.location.href);
+    const channelName = viewerUrl.searchParams.get(DATA_RECEIVER_CHANNEL_PARAM);
+    viewerUrl.searchParams.delete(DATA_RECEIVER_CHANNEL_PARAM);
+    if (channelName) {
+      window.history.replaceState(window.history.state, '', `${viewerUrl.pathname}${viewerUrl.search}${viewerUrl.hash}`);
+    }
+
+    const broadcastChannel = channelName
+      && /^loculus-data-[\da-f-]{36}$/i.test(channelName)
+      && typeof BroadcastChannel !== 'undefined'
+      ? new BroadcastChannel(channelName)
+      : null;
+    let importStarted = false;
+
+    const handleImportData = async (data: unknown) => {
+      if (importStarted) {
+        return;
+      }
+
+      if (
+        typeof data !== 'object'
+        || data === null
+        || !('type' in data)
+        || data.type !== IMPORT_DATA_MESSAGE_TYPE
+        || !('fasta' in data)
+        || typeof data.fasta !== 'string'
+      ) {
+        if (!config.allowedPostMessageOrigins?.length) {
+          console.warn(`Message received but no allowed origins are configured in 'config.allowedPostMessageOrigins'.`);
+        } else {
+          console.warn('Invalid message received. Check the message type and data.');
+        }
+        return;
+      }
+
+      importStarted = true;
+      const metaData = 'metaData' in data && typeof data.metaData === 'string'
+        ? data.metaData
+        : undefined;
+      await setData(data.fasta, metaData);
+      fastaDataImportDialogRef.current?.close();
+      broadcastChannel?.close();
+    };
+
     const handleMessage = async (event: MessageEvent<unknown>) => {
       if (
         !config.allowedPostMessageOrigins?.includes(event.origin)
         ||
         event.source !== window.opener
-        || typeof event.data !== 'object'
-        || event.data === null
-        || !('type' in event.data)
-        || event.data.type !== 'import-data'
-        || !('fasta' in event.data)
-        || typeof event.data.fasta !== 'string'
       ) {
         if (!config.allowedPostMessageOrigins?.length) {
           console.warn(`Message received from ${event.origin} but no allowed origins are configured in 'config.allowedPostMessageOrigins'.`);
@@ -69,18 +112,32 @@ export const FastaDataImportDialogLoader = ({ extraActions, fastaDescription, st
         return;
       }
 
-      const metaData = 'metaData' in event.data && typeof event.data.metaData === 'string'
-        ? event.data.metaData
-        : undefined;
-      await setData(event.data.fasta, metaData);
-      fastaDataImportDialogRef.current?.close();
+      await handleImportData(event.data);
+    };
+    const handleBroadcastMessage = async (event: MessageEvent<unknown>) => {
+      if (
+        typeof event.data !== 'object'
+        || event.data === null
+        || !('type' in event.data)
+        || event.data.type !== IMPORT_DATA_MESSAGE_TYPE
+      ) {
+        return;
+      }
+
+      await handleImportData(event.data);
     };
     window.addEventListener('message', handleMessage);
+    if (broadcastChannel) {
+      broadcastChannel.addEventListener('message', handleBroadcastMessage);
+      broadcastChannel.postMessage({ type: DATA_RECEIVER_READY_MESSAGE_TYPE });
+    }
     const openerWindow = window.opener as null | Window;
-    openerWindow?.postMessage({ type: 'data-receiver-ready' }, '*');
+    openerWindow?.postMessage({ type: DATA_RECEIVER_READY_MESSAGE_TYPE }, '*');
 
     return () => {
       window.removeEventListener('message', handleMessage);
+      broadcastChannel?.removeEventListener('message', handleBroadcastMessage);
+      broadcastChannel?.close();
     };
   }, [config.allowedPostMessageOrigins, setData]);
 

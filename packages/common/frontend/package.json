@@ -178,6 +178,10 @@
       "types": "./src/hooks/useConfig/index.ts",
       "import": "./src/hooks/useConfig/index.ts"
     },
+    "./hooks/useFastaDataTransfer": {
+      "types": "./src/hooks/useFastaDataTransfer/index.ts",
+      "import": "./src/hooks/useFastaDataTransfer/index.ts"
+    },
     "./hooks/useUpdateDocumentTitle": {
       "types": "./src/hooks/useUpdateDocumentTitle/index.ts",
       "import": "./src/hooks/useUpdateDocumentTitle/index.ts"
@@ -345,6 +349,10 @@
       "./hooks/useConfig": {
         "types": "./dist/hooks/useConfig/index.d.ts",
         "import": "./dist/hooks/useConfig/index.js"
+      },
+      "./hooks/useFastaDataTransfer": {
+        "types": "./dist/hooks/useFastaDataTransfer/index.d.ts",
+        "import": "./dist/hooks/useFastaDataTransfer/index.js"
       },
       "./hooks/useUpdateDocumentTitle": {
         "types": "./dist/hooks/useUpdateDocumentTitle/index.d.ts",

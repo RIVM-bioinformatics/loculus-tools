@@ -23,12 +23,8 @@ import { ExportUtil } from '@rivm-loculus-tools/common-frontend/utils/ExportUtil
 import type { UploadToLoculusModalRefMethods } from '@rivm-loculus-tools/common-frontend/components/loculus/UploadToLoculusModal';
 import { UploadToLoculusModal } from '@rivm-loculus-tools/common-frontend/components/loculus/UploadToLoculusModal';
 import { WindowService } from '@gen-epix/ui-core/classes/services/WindowService';
-import {
-  DATA_RECEIVER_CHANNEL_PARAM,
-  DATA_RECEIVER_READY_MESSAGE_TYPE,
-  IMPORT_DATA_MESSAGE_TYPE,
-} from '@rivm-loculus-tools/common-frontend/constants/config.constants';
 import { useConfig } from '@rivm-loculus-tools/common-frontend/hooks/useConfig';
+import { useFastaDataTransfer } from '@rivm-loculus-tools/common-frontend/hooks/useFastaDataTransfer';
 
 import { EditorWorkerService } from '../../../classes/services/EditorWorkerService';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
@@ -67,6 +63,7 @@ import { SequenceEditorGotoPositionDialog } from './SequenceEditorGotoPositionDi
 
 export const SequenceEditor = () => {
   const config = useConfig<SequenceEditorConfig>();
+  const transferFastaData = useFastaDataTransfer();
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const rawFasta = useStore(sequenceEditorStore, (state) => state.rawFasta);
   const setEngineMeta = useStore(sequenceEditorStore, (state) => state.setEngineMeta);
@@ -947,102 +944,10 @@ export const SequenceEditor = () => {
         if (!config.phylogenyViewerUrl) {
           return;
         }
-        const viewerUrl = new URL(config.phylogenyViewerUrl);
-        const viewerOrigin = viewerUrl.origin;
-        const browserWindow = container.resolve(WindowService).window;
-        let phylogenyViewerWindow: null | Window = null;
-        const channelName = viewerOrigin === browserWindow.location.origin && typeof BroadcastChannel !== 'undefined'
-          ? `loculus-data-${browserWindow.crypto.randomUUID()}`
-          : null;
-        const broadcastChannel = channelName ? new BroadcastChannel(channelName) : null;
-        if (channelName) {
-          viewerUrl.searchParams.set(DATA_RECEIVER_CHANNEL_PARAM, channelName);
-        }
-
-        let fasta: null | string = null;
-        let metaData: string | undefined;
-        let readyTransport: 'broadcast' | 'window' | null = null;
-        let hasSentData = false;
-        const handshakeAbortController = new AbortController();
-        const sendDataIfReady = () => {
-          const targetWindow = phylogenyViewerWindow;
-          if (readyTransport === null || fasta === null || hasSentData) {
-            return;
-          }
-
-          const message = { fasta, metaData, type: IMPORT_DATA_MESSAGE_TYPE };
-          if (readyTransport === 'broadcast') {
-            if (!broadcastChannel) {
-              return;
-            }
-            broadcastChannel.postMessage(message);
-          } else {
-            if (!targetWindow) {
-              return;
-            }
-            targetWindow.postMessage(message, viewerOrigin);
-          }
-
-          hasSentData = true;
-          handshakeAbortController.abort();
-          broadcastChannel?.close();
-        };
-        const markViewerReady = (transport: 'broadcast' | 'window') => {
-          if (readyTransport !== null) {
-            return;
-          }
-          readyTransport = transport;
-          sendDataIfReady();
-        };
-        const handleViewerReady = (event: MessageEvent<unknown>) => {
-          if (
-            event.origin !== viewerOrigin
-            || event.source !== phylogenyViewerWindow
-            || typeof event.data !== 'object'
-            || event.data === null
-            || !('type' in event.data)
-            || event.data.type !== DATA_RECEIVER_READY_MESSAGE_TYPE
-          ) {
-            return;
-          }
-
-          markViewerReady('window');
-        };
-        const handleBroadcastMessage = (event: MessageEvent<unknown>) => {
-          if (
-            typeof event.data !== 'object'
-            || event.data === null
-            || !('type' in event.data)
-            || event.data.type !== DATA_RECEIVER_READY_MESSAGE_TYPE
-          ) {
-            return;
-          }
-
-          markViewerReady('broadcast');
-        };
-
-        browserWindow.addEventListener('message', handleViewerReady, { signal: handshakeAbortController.signal });
-        if (broadcastChannel) {
-
-          broadcastChannel.addEventListener('message', handleBroadcastMessage, { signal: handshakeAbortController.signal });
-        }
-        // COOP may sever window.opener; the channel provides a same-origin fallback.
-        phylogenyViewerWindow = browserWindow.open(viewerUrl.toString());
-        if (!phylogenyViewerWindow && !broadcastChannel) {
-          handshakeAbortController.abort();
-          return;
-        }
-
-        try {
-          fasta = await editorService.exportGappedFasta();
-          metaData = sequenceEditorStore.getState().rawMetadata;
-          sendDataIfReady();
-        } catch (error) {
-          handshakeAbortController.abort();
-          broadcastChannel?.close();
-          phylogenyViewerWindow?.close();
-          throw error;
-        }
+        await transferFastaData(config.phylogenyViewerUrl, async () => ({
+          fasta: await editorService.exportGappedFasta(),
+          metaData: sequenceEditorStore.getState().rawMetadata,
+        }));
       }),
     ];
     return () => {
@@ -1052,7 +957,7 @@ export const SequenceEditor = () => {
       removers.forEach(remover => remover());
       editorService.cancelRealign();
     };
-  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject, config.phylogenyViewerUrl]);
+  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject, config.phylogenyViewerUrl, transferFastaData]);
 
   useEffect(() => {
     updateVisibleRange();

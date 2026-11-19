@@ -8,6 +8,10 @@
 
 mod alphabets;
 mod search_algorithms;
+mod constants;
+
+use constants::{DEFAULT_MAX_UNDO_DEPTH, DEFAULT_MAX_HISTORY_BYTES};
+
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
 use mafft::{AlignmentMode, MafftEngine, ScoringModel, SeqType, Sequence, SequenceSet};

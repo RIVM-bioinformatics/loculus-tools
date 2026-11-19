@@ -13,6 +13,7 @@ import {
 } from '@rivm-loculus-tools/common-frontend/stores/fastaDataStore';
 
 import type {
+  AminoAcidReadingFrame,
   EditorSelection,
   EngineMeta,
   EngineSearchResult,
@@ -31,6 +32,7 @@ export type SequenceEditorStore = SequenceEditorStoreActions & SequenceEditorSto
 
 export interface SequenceEditorStoreActions extends FastaDataStoreActions {
   setAminoAcidPalette: (palette: AminoAcidPalette) => void;
+  setOverlayReadingFrame: (frame: AminoAcidReadingFrame | null) => void;
   setCustomAminoAcidPalette: (palette: AminoAcidPalette) => void;
   setCustomNucleotidePalette: (palette: NucleotidePalette) => void;
   setEngineMeta: (meta: EngineMeta | null) => void;
@@ -45,6 +47,7 @@ export interface SequenceEditorStoreActions extends FastaDataStoreActions {
 
 export interface SequenceEditorStoreState extends FastaDataStoreState {
   aminoAcidPalette: AminoAcidPalette;
+  overlayReadingFrame: AminoAcidReadingFrame | null;
   customAminoAcidPalette: AminoAcidPalette;
   customNucleotidePalette: NucleotidePalette;
   engineMeta: EngineMeta | null;
@@ -60,6 +63,7 @@ export interface SequenceEditorStoreState extends FastaDataStoreState {
 const createSequenceEditorStoreInitialState = (): SequenceEditorStoreState => ({
   ...createFastaDataStoreInitialState(),
   aminoAcidPalette: ALI_VIEW_DEFAULT_AMINO_ACID_PALETTE,
+  overlayReadingFrame: null,
   customAminoAcidPalette: {
     name: CUSTOM_PALETTE_NAME,
     paletteColors: { ...ALI_VIEW_DEFAULT_AMINO_ACID_PALETTE.paletteColors },
@@ -93,6 +97,7 @@ export const sequenceEditorStore = createStore<SequenceEditorStore>()(
           setSearchQuery('');
         },
         setAminoAcidPalette: (palette: AminoAcidPalette) => set({ aminoAcidPalette: palette }),
+        setOverlayReadingFrame: (frame: AminoAcidReadingFrame | null) => set({ overlayReadingFrame: frame }),
         setCustomAminoAcidPalette: (palette: AminoAcidPalette) => set({ customAminoAcidPalette: palette }),
         setCustomNucleotidePalette: (palette: NucleotidePalette) => set({ customNucleotidePalette: palette }),
         setEngineMeta: (engineMeta: EngineMeta | null) => set({ engineMeta }),

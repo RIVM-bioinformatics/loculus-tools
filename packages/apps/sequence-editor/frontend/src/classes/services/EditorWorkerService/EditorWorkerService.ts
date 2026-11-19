@@ -5,6 +5,7 @@ import { singleton } from 'tsyringe';
 
 import type {
   AlignerWorkerApi,
+  AminoAcidReadingFrame,
   EngineMeta,
   EngineSearchResult,
   EngineViewportResult,
@@ -276,7 +277,7 @@ export class EditorWorkerService {
     }, abortSignal);
   }
 
-  public viewport(bounds: ViewportBounds, abortSignal?: AbortSignal, overlayReadingFrame?: number): CommandResultWithAbortSignal<EngineViewportResult> {
+  public viewport(bounds: ViewportBounds, abortSignal?: AbortSignal, overlayReadingFrame?: AminoAcidReadingFrame): CommandResultWithAbortSignal<EngineViewportResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.viewport(bounds, overlayReadingFrame);
     }, abortSignal);

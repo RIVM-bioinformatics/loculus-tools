@@ -522,6 +522,29 @@ pub fn get_aminoacid_codon_overlay(
   Ok(aminoacid_codon_overlay)
 }
 
+fn extract_overlay_viewport(
+    overlay: &[Vec<u8>],
+    start_row: usize,
+    end_row: usize,
+    start_col: usize,
+    cols: usize,
+) -> Vec<u8> {
+    let rows = end_row - start_row + 1;
+    let mut viewport = Vec::with_capacity(rows * cols);
+
+    for row in start_row..=end_row {
+        let sequence_overlay = overlay.get(row).map(Vec::as_slice).unwrap_or_default();
+        let slice_end = start_col.saturating_add(cols).min(sequence_overlay.len());
+        let available_cols = slice_end.saturating_sub(start_col);
+        if available_cols > 0 {
+            viewport.extend_from_slice(&sequence_overlay[start_col..slice_end]);
+        }
+        viewport.resize(viewport.len() + cols - available_cols, b' ');
+    }
+
+    viewport
+}
+
 #[wasm_bindgen]
 impl MsaEngine {
     /// Construct an empty engine.
@@ -698,10 +721,14 @@ impl MsaEngine {
                     &js_sys::Uint8Array::new_with_length(0),
                 )
             }
-            Some(Ok(overlay)) => js_sys::Array::of2(
-                &js_sys::Uint8Array::from(&self.viewport_buffer[..]),
-                &js_sys::Uint8Array::from(overlay.concat().as_slice()),
-            ),
+            Some(Ok(overlay)) => {
+                let overlay_viewport =
+                    extract_overlay_viewport(&overlay, start_row, row_end, start_col, cols);
+                js_sys::Array::of2(
+                    &js_sys::Uint8Array::from(&self.viewport_buffer[..]),
+                    &js_sys::Uint8Array::from(overlay_viewport.as_slice()),
+                )
+            }
             None => js_sys::Array::of2(
                 &js_sys::Uint8Array::from(&self.viewport_buffer[..]),
                 &js_sys::Uint8Array::new_with_length(0),

@@ -237,6 +237,19 @@ const baseAt = (row: number, col: number) =>
   String.fromCharCode(bytes[row * cols + col]);
 ```
 
+The viewport can also include a codon-aligned amino-acid overlay for reading
+frame 1, 2, or 3. The overlay has the same row-major dimensions as `bytes`;
+incomplete codons are represented by `X` and columns beyond a sequence's end
+are padded with spaces.
+
+```ts
+const viewport = await engine.viewport({
+  startRow: 0, endRow: 2, startCol: 0, endCol: 7,
+}, 1);
+const aminoAcidAt = (row: number, col: number) =>
+  String.fromCharCode(viewport.aminoAcidCodonOverlay![row * viewport.cols + col]);
+```
+
 ### `exportGappedFasta(): Promise<string>`
 
 Serializes the full alignment as deterministic, unwrapped gapped FASTA.
@@ -656,18 +669,13 @@ try {
 The following features are planned and will extend the `EngineClient` API. They
 are not yet implemented.
 
-### Amino-acid translation
+### Amino-acid overlay
 
-A button will toggle the view between nucleotides and amino acids, with a
-choice of reading frame (1, 2, or 3). The engine will translate nucleotides to
-amino acids **on the fly for the visible viewport only**, keeping nucleotides
-as the single source of truth. Expected API additions:
-
-- `setRenderMode(mode)` / `setReadingFrame(frame)` — switch between nucleotide
-  and amino-acid display, and select the frame.
-- `getDisplayWidth()` — report the display width (≈1/3 of the nucleotide width
-  in amino-acid mode) so the frontend can resize scroll areas.
-- The viewport bytes will be translated amino acids when in amino-acid mode.
+The viewport supports an optional codon-aligned amino-acid overlay for reading
+frames 1, 2, and 3. Nucleotide bytes remain the source of truth and retain their
+existing coordinates; the overlay is returned as a viewport-sized byte array
+with the same row and column stride. The frontend keeps the nucleotide bases
+visible and colors each base with the amino-acid palette entry for its codon.
 
 ### Sequence search
 

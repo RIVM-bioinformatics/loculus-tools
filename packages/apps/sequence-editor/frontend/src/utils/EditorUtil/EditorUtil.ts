@@ -3,6 +3,7 @@ import { StringUtil } from '@gen-epix/ui-core/utils/StringUtil';
 import { FastaUtil } from '@rivm-loculus-tools/common-frontend/utils/FastaUtil';
 
 import type {
+  AminoAcidReadingFrame,
   EditorAssembly,
   EditorPathProperties,
   EditorSelection,
@@ -35,6 +36,8 @@ export class EditorUtil {
     devicePixelRatio,
     geometry,
     meta,
+    aminoAcidPalette,
+    overlayReadingFrame,
     palette,
     rowNames,
     rowNamesStartRow,
@@ -51,6 +54,8 @@ export class EditorUtil {
     devicePixelRatio: number;
     geometry: GridGeometry;
     meta: EngineMeta;
+    aminoAcidPalette: AminoAcidPalette;
+    overlayReadingFrame: AminoAcidReadingFrame | null;
     palette: AminoAcidPalette | NucleotidePalette;
     rowNames: string[];
     rowNamesStartRow: number;
@@ -186,9 +191,16 @@ export class EditorUtil {
           const byte = bytes[row * cols + col];
           const cellCol = startCol + col;
           const cellRow = startRow + row;
-          const charCode = byte ?? '';
-          const label = String.fromCharCode(charCode);
-          const colors = PaletteUtil.paletteEntryFor(palette, label);
+          const nucleotideLabel = String.fromCharCode(byte ?? '');
+          const overlayIndex = row * cols + col;
+          const overlayByte = viewport.aminoAcidCodonOverlay?.[overlayIndex];
+          const overlayLabel = overlayByte === undefined || overlayByte === 32
+            ? null
+            : String.fromCodePoint(overlayByte);
+          const label = nucleotideLabel;
+          const colors = overlayReadingFrame !== null && overlayLabel !== null
+            ? PaletteUtil.paletteEntryFor(aminoAcidPalette, overlayLabel)
+            : PaletteUtil.paletteEntryFor(palette, nucleotideLabel);
           let cellBackground = colors.background;
           if (byte === null) {
             cellBackground = '#e9eef2';

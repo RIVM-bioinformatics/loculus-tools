@@ -14,6 +14,7 @@ import PublishIcon from '@mui/icons-material/Publish';
 import { useStore } from 'zustand';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import {
+  Button,
   CircularProgress,
   IconButton,
   Tooltip,
@@ -25,6 +26,7 @@ import { LoculusService } from '@rivm-loculus-tools/common-frontend/classes/serv
 
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
+import type { AminoAcidReadingFrame } from '../../../models/editor.models';
 
 import { SequenceEditorUndoRedoButtons } from './SequenceEditorUndoRedoButtons';
 
@@ -46,6 +48,8 @@ export const SequenceEditorPageHeader = () => {
 
   const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const resetDataset = useStore(sequenceEditorStore, (state) => state.resetDataset);
+  const overlayReadingFrame = useStore(sequenceEditorStore, (state) => state.overlayReadingFrame);
+  const setOverlayReadingFrame = useStore(sequenceEditorStore, (state) => state.setOverlayReadingFrame);
 
   const sequenceCount = useStore(sequenceEditorStore, (state) => state.engineMeta?.sequenceCount ?? 0);
   const parsedMetadata = useStore(sequenceEditorStore, (state) => state.parsedMetadata);
@@ -54,6 +58,10 @@ export const SequenceEditorPageHeader = () => {
   const onReset = useCallback(() => {
     resetDataset();
   }, [resetDataset]);
+
+  const onClickReadingFrame = useCallback((frame: AminoAcidReadingFrame) => {
+    setOverlayReadingFrame(overlayReadingFrame === frame ? null : frame);
+  }, [overlayReadingFrame, setOverlayReadingFrame]);
 
   const onRealignButtonClick = useCallback(() => {
     if (isRealigning) {
@@ -130,6 +138,20 @@ export const SequenceEditorPageHeader = () => {
             </span>
           </Tooltip>
           <FastaPageHeaderResetButton onReset={onReset} />
+          {([1, 2, 3] as const).map((frame) => (
+            <Button
+              key={frame}
+              aria-label={`Show amino-acid overlay for reading frame ${frame}`}
+              aria-pressed={overlayReadingFrame === frame}
+              color={'inherit'}
+              disabled={!hasFasta}
+              onClick={() => onClickReadingFrame(frame)}
+              size={'small'}
+              variant={overlayReadingFrame === frame ? 'outlined' : 'text'}
+            >
+              {`frame${frame}`}
+            </Button>
+          ))}
           <FastaPageHeaderImportButton />
           <ButtonWithMenu
             items={exportExportMenuItems}

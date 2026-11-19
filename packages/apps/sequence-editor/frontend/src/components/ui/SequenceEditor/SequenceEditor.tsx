@@ -316,7 +316,7 @@ export const SequenceEditor = () => {
               endRow: visibleGridRangeWithArguments.visibleGridRange.cache.endRow,
               startCol: visibleGridRangeWithArguments.visibleGridRange.cache.startCol,
               startRow: visibleGridRangeWithArguments.visibleGridRange.cache.startRow,
-            }, abortController.signal);
+            }, abortController.signal, sequenceEditorStore.getState().overlayReadingFrame ?? undefined);
             const viewportResult = await viewportCommand;
             if (!isActive || viewportCommand.abortSignal?.aborted) {
               return;
@@ -345,6 +345,8 @@ export const SequenceEditor = () => {
               devicePixelRatio: container.resolve(DevicePixelRatioService).data,
               geometry: visibleGridRangeWithArguments.geometry,
               meta: metaSubject.data,
+              aminoAcidPalette: sequenceEditorStore.getState().aminoAcidPalette,
+              overlayReadingFrame: sequenceEditorStore.getState().overlayReadingFrame,
               palette: sequenceEditorStore.getState().nucleotidePalette,
               rowNames: cachedGridRangeWithRowNamesRef.current.rowNames,
               rowNamesStartRow: cachedGridRangeWithRowNamesRef.current.range.startRow,
@@ -388,6 +390,10 @@ export const SequenceEditor = () => {
           });
           shouldProcess = true;
         }
+        if (state.overlayReadingFrame !== prevState.overlayReadingFrame) {
+          cachedGridRangeWithViewPortResultRef.current = null;
+          shouldProcess = true;
+        }
         if (shouldProcess) {
           updateVisibleRange();
         }
@@ -418,7 +424,10 @@ export const SequenceEditor = () => {
   useEffect(() => {
     const unsubscribeItems = [
       sequenceEditorStore.subscribe((state, prevState) => {
-        if (state.nucleotidePalette !== prevState.nucleotidePalette) {
+        if (
+          state.nucleotidePalette !== prevState.nucleotidePalette
+          || state.aminoAcidPalette !== prevState.aminoAcidPalette
+        ) {
           updateVisibleRange();
         }
       }),

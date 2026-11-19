@@ -4,6 +4,7 @@ import type { MoveDirection } from '@rivm-loculus-tools/sequence-editor-wasm';
 import init, { MsaEngine } from '@rivm-loculus-tools/sequence-editor-wasm';
 
 import type {
+  AminoAcidReadingFrame,
   EngineMeta,
   EngineSearchResult,
   EngineViewportResult,
@@ -201,7 +202,7 @@ export class EngineWorker implements EngineWorkerApi {
     return engine.undo();
   }
 
-  public async viewport(bounds: ViewportBounds, overlayReadingFrame?: number): Promise<EngineViewportResult> {
+  public async viewport(bounds: ViewportBounds, overlayReadingFrame?: AminoAcidReadingFrame): Promise<EngineViewportResult> {
     const engine = await this.requireEngine();
     this.validateBounds(bounds);
     if (overlayReadingFrame !== undefined && ![1, 2, 3].includes(overlayReadingFrame)) {
@@ -222,6 +223,9 @@ export class EngineWorker implements EngineWorkerApi {
 
     const viewport = this.buildViewportResult(bytes, bounds);
     if (overlayReadingFrame !== undefined) {
+      if (overlayBytes.length !== bytes.length) {
+        throw new RangeError('Expected the amino-acid overlay to match the viewport dimensions');
+      }
       viewport.aminoAcidCodonOverlay = overlayBytes;
     }
     return viewport;

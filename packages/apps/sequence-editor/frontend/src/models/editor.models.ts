@@ -30,6 +30,8 @@ export interface AlignerWorkerApi {
   align: (fastaContent: string) => Promise<string>;
 }
 
+export type AminoAcidReadingFrame = 1 | 2 | 3;
+
 export type EditorAssembly = {
   cells: EditorAssemblyCells;
   divider: EditorAssemblyDivider;
@@ -130,7 +132,7 @@ export type EngineTiming = {
 
 /** A fetched viewport or translation slice plus the metadata to interpret it. */
 export type EngineViewportResult = {
-  /** Full row-major overlay, indexed independently of the visible viewport. */
+  /** Row-major amino-acid overlay with the same dimensions and coordinates as `bytes`. */
   aminoAcidCodonOverlay?: Uint8Array;
   /** Row-major bytes, transferred from the worker via comlink. */
   bytes: Uint8Array;
@@ -171,7 +173,7 @@ export interface EngineWorkerApi {
   search: (query: string, checkRecordNames: boolean) => Promise<EngineSearchResult>;
   translate: (bounds: ViewportBounds, readingFrame: number) => Promise<EngineViewportResult>;
   undo: () => Promise<boolean>;
-  viewport: (bounds: ViewportBounds, overlayReadingFrame?: number) => Promise<EngineViewportResult>;
+  viewport: (bounds: ViewportBounds, overlayReadingFrame?: AminoAcidReadingFrame) => Promise<EngineViewportResult>;
 }
 
 export type GridGeometry = {

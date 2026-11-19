@@ -2,8 +2,8 @@
 //!
 //! The engine stores the alignment matrix as `Vec<Vec<u8>>` of ASCII bytes
 //! (e.g. `b'A'`, `b'-'`). All public methods are exposed to JavaScript via
-//! `wasm-bindgen`. Viewport extraction returns a `js_sys::Uint8Array` so the
-//! owning Web Worker can transfer the buffer across `postMessage` without
+//! `wasm-bindgen`. Viewport extraction returns JavaScript typed arrays so the
+//! owning Web Worker can transfer their buffers across `postMessage` without
 //! handing out raw pointers into WASM linear memory.
 
 mod alphabets;
@@ -317,7 +317,7 @@ impl From<TranslateError> for StructuredEngineError {
         match error {
             TranslateError::InvalidReadingFrame { frame } => Self {
                 code: "InvalidReadingFrame".to_owned(),
-                message: format!("Invalid reading frame {frame}; expected frame 0, 1, or 2"),
+                message: format!("Invalid reading frame {frame}; expected frame 1, 2, or 3"),
                 context: Some(Box::new(ErrorContext {
                     frame: Some(frame),
                     ..ErrorContext::default()
@@ -482,6 +482,46 @@ fn parse_fasta_records(
     Ok((staged_names, staged_sequences))
 }
 
+pub fn get_aminoacid_codon_overlay(
+    reading_frame: u8,
+    nucleotide_sequences: &[Vec<u8>],
+) -> Result<Vec<Vec<u8>>, StructuredEngineError> {
+  if nucleotide_sequences.is_empty() {
+    return Ok(Vec::new());
+  }
+  if reading_frame == 0 || reading_frame > 3 {
+    return Err(TranslateError::InvalidReadingFrame {
+      frame: reading_frame,
+      }
+      .into());
+    }
+
+  let mut aminoacid_codon_overlay = Vec::new();
+  let frame_offset = usize::from(reading_frame - 1);
+  for seq in nucleotide_sequences.iter() {
+    let mut aminoacid_codon_overlay_per_seq: Vec<u8> = Vec::new();
+
+    //Check if the sequence is shorter than the frame offset and adjust accordingly
+    let sequence_frame_offset = frame_offset.min(seq.len());
+    
+    // add X for incomplete codon at the start based on reading_frame
+    aminoacid_codon_overlay_per_seq.extend(vec![b'X'; sequence_frame_offset]);
+
+    // translate codons in the sequence starting from the reading frame offset
+    for codon in seq[sequence_frame_offset..].chunks(3){
+      if codon.len() < 3 {
+        // if the codon is incomplete, fill with X
+        aminoacid_codon_overlay_per_seq.extend(vec![b'X'; codon.len()]);
+      } else { 
+        let translated_codon = translate_codon([codon[0], codon[1], codon[2]]);
+        aminoacid_codon_overlay_per_seq.extend(vec![translated_codon; 3]);
+      }
+    }
+    aminoacid_codon_overlay.push(aminoacid_codon_overlay_per_seq);
+  }
+  Ok(aminoacid_codon_overlay)
+}
+
 #[wasm_bindgen]
 impl MsaEngine {
     /// Construct an empty engine.
@@ -550,7 +590,7 @@ impl MsaEngine {
     }
 
     /// Extract a windowed slice of the matrix into the reusable viewport buffer
-    /// and return it as a `Uint8Array`.
+    /// and return the nucleotide and translation buffers as `Uint8Array`s.
     ///
     /// The slice covers rows `[start_row, end_row]` inclusive and columns
     /// `[start_col, end_col]` inclusive. Row indices are clamped to the
@@ -566,44 +606,71 @@ impl MsaEngine {
         end_row: usize,
         start_col: usize,
         end_col: usize,
-    ) -> js_sys::Uint8Array {
+        include_translation_map: bool,
+        reading_frame: u8,
+    ) -> js_sys::Array {
         self.viewport_buffer.clear();
 
         // Clamp row range to valid bounds.
         if self.nucleotide_sequences.is_empty() {
-            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+            return js_sys::Array::of2(
+                &js_sys::Uint8Array::new_with_length(0),
+                &js_sys::Uint8Array::new_with_length(0),
+            );
         }
         let row_end = end_row.min(self.nucleotide_sequences.len() - 1);
         if start_row > row_end {
-            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+            return js_sys::Array::of2(
+                &js_sys::Uint8Array::new_with_length(0),
+                &js_sys::Uint8Array::new_with_length(0),
+            );
         }
         // If the start column is greater than the end column, return an empty slice.
         if start_col > end_col {
-            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+            return js_sys::Array::of2(
+                &js_sys::Uint8Array::new_with_length(0),
+                &js_sys::Uint8Array::new_with_length(0),
+            );
         }
 
         // Compute the number of rows and columns in the requested slice, checking for overflow.
         let rows = match inclusive_range_len(start_row, row_end) {
             Some(rows) => rows,
-            None => return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0)),
+            None => return js_sys::Array::of2(
+                &js_sys::Uint8Array::new_with_length(0),
+                &js_sys::Uint8Array::new_with_length(0),
+            ),
         };
 
         // Fixed column stride: every row contributes exactly this many bytes.
         let cols = match inclusive_range_len(start_col, end_col) {
             Some(cols) => cols,
-            None => return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0)),
+            None => return js_sys::Array::of2(
+                &js_sys::Uint8Array::new_with_length(0),
+                &js_sys::Uint8Array::new_with_length(0),
+            ),
         };
 
         // Check that the total byte length does not exceed the maximum allowed for the viewport buffer.
         let byte_len = match rows.checked_mul(cols) {
             Some(byte_len) if byte_len <= MAX_VIEWPORT_BYTES => byte_len,
-            _ => return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0)),
+            _ => return js_sys::Array::of2(
+                &js_sys::Uint8Array::new_with_length(0),
+                &js_sys::Uint8Array::new_with_length(0),
+            ),
         };
 
         // Reserve the necessary capacity in the viewport buffer. If it fails, return an empty Uint8Array.
         if self.viewport_buffer.try_reserve_exact(byte_len).is_err() {
-            return js_sys::Uint8Array::new(&wasm_bindgen::JsValue::from(0));
+            return js_sys::Array::of2(
+                &js_sys::Uint8Array::new_with_length(0),
+                &js_sys::Uint8Array::new_with_length(0),
+            );
         }
+
+      
+        let overlay = include_translation_map
+            .then(|| get_aminoacid_codon_overlay(reading_frame, &self.nucleotide_sequences));
 
         // Actual viewport extraction logic
         for r in start_row..=row_end {
@@ -622,8 +689,24 @@ impl MsaEngine {
                     .resize(self.viewport_buffer.len() + cols - seq_cols, b' ');
             }
         }
-
-        js_sys::Uint8Array::from(&self.viewport_buffer[..])
+        
+        match overlay {
+            Some(Err(error)) => {
+                console_log!("Failed to create codon overlay: {error}");
+                js_sys::Array::of2(
+                    &js_sys::Uint8Array::from(&self.viewport_buffer[..]),
+                    &js_sys::Uint8Array::new_with_length(0),
+                )
+            }
+            Some(Ok(overlay)) => js_sys::Array::of2(
+                &js_sys::Uint8Array::from(&self.viewport_buffer[..]),
+                &js_sys::Uint8Array::from(overlay.concat().as_slice()),
+            ),
+            None => js_sys::Array::of2(
+                &js_sys::Uint8Array::from(&self.viewport_buffer[..]),
+                &js_sys::Uint8Array::new_with_length(0),
+            ),
+        }
     }
 
     /// Extract a windowed slice and write it directly into a caller-provided

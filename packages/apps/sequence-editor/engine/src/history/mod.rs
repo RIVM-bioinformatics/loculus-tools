@@ -56,3 +56,69 @@ pub(crate) fn push_to_undo_stack(engine: &mut MsaEngine, cmd: UndoCommand) {
     push_to_undo_bounded(engine, cmd);
     engine.aminoacid_sequences.clear();
 }
+
+
+pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
+  let cmd = match engine.undo_stack.pop_back() {
+      Some(c) => c,
+      None => return false,
+  };
+  // Here you would typically handle the command, e.g., apply it and push to redo stack
+  // For now, let's just return true to indicate a command was popped
+  let redo_cmd = match cmd {
+    UndoCommand::Substitutions(SubstitutionRecord { mut positions }) => {
+        let mut write_idx = 0;
+        for read_idx in 0..positions.len() {
+            let (row, col, target_base) = positions[read_idx];
+            if let Some(seq) = engine.nucleotide_sequences.get_mut(row)
+                && let Some(base) = seq.get_mut(col)
+            {
+                let prev_base = *base;
+                *base = target_base;
+                positions[write_idx] = (row, col, prev_base);
+                write_idx += 1;
+            }
+        }
+        positions.truncate(write_idx);
+        if positions.is_empty() {
+            return false;
+        }
+        UndoCommand::Substitutions(SubstitutionRecord { positions })
+      }
+    };
+  engine.push_to_redo_bounded(redo_cmd);
+  true
+}
+
+
+pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
+  let cmd = match engine.redo_stack.pop_back() {
+      Some(c) => c,
+      None => return false,
+  };
+  // Here you would typically handle the command, e.g., apply it and push to undo stack
+  // For now, let's just return true to indicate a command was popped
+  let cmd = match cmd {
+    UndoCommand::Substitutions(SubstitutionRecord { mut positions }) => {
+        let mut write_idx = 0;
+        for read_idx in 0..positions.len() {
+            let (row, col, target_base) = positions[read_idx];
+            if let Some(seq) = engine.nucleotide_sequences.get_mut(row)
+                && let Some(base) = seq.get_mut(col)
+            {
+                let prev_base = *base;
+                *base = target_base;
+                positions[write_idx] = (row, col, prev_base);
+                write_idx += 1;
+            }
+        }
+        positions.truncate(write_idx);
+        if positions.is_empty() {
+            return false;
+        }
+        UndoCommand::Substitutions(SubstitutionRecord { positions })
+      }
+    };
+  engine.push_to_undo_bounded(cmd);
+  true
+}

@@ -9,7 +9,10 @@
 mod alphabets;
 mod search_algorithms;
 mod constants;
+mod history;
 
+use history::UndoCommand;
+use history::structs::SubstitutionRecord;
 use constants::{DEFAULT_MAX_UNDO_DEPTH, DEFAULT_MAX_HISTORY_BYTES};
 
 
@@ -17,6 +20,7 @@ use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
 use mafft::{AlignmentMode, MafftEngine, ScoringModel, SeqType, Sequence, SequenceSet};
 use search_algorithms::{MAX_SEARCH_RESULTS, Match, MatrixType, SearchResult, naive_search};
 use serde::Serialize;
+use std::collections::VecDeque;
 use wasm_bindgen::prelude::*;
 
 // Bound to the JS `console.log`, so this works in both the main thread and
@@ -349,17 +353,6 @@ pub enum MoveDirection {
     Right,
 }
 
-#[derive(Clone)]
-enum UndoCommand {
-    /// Cheap character changes: store exactly what changed and where.
-    Substitutions { positions: Vec<(usize, usize, u8)> },
-    /// Structural inserts/deletes: a lightweight clone of the full matrix.
-    StructuralSnapshot {
-        matrix_snapshot: Vec<Vec<u8>>,
-        names_snapshot: Vec<String>,
-        width_snapshot: usize,
-    },
-}
 
 /// Struct that stores 3 amino acid sequences, one for each reading frame.
 struct AminoacidSequence {
@@ -383,7 +376,7 @@ pub struct MsaEngine {
     names: Vec<String>,
     alignment_width: usize,
     viewport_buffer: Vec<u8>,
-    undo_stack: Vec<UndoCommand>,
+    undo_stack: VecDeque<UndoCommand>,
     redo_stack: Vec<UndoCommand>,
 }
 
@@ -1140,12 +1133,12 @@ impl MsaEngine {
             }
         }
 
-        // Capture old bases for the positions we will actually touch, for undo.
+        // Capture old bases only for positions whose value actually changes.
         let mut positions: Vec<(usize, usize, u8)> = Vec::new();
         for &r in &unique_rows {
             if let Some(seq) = self.nucleotide_sequences.get(r) {
                 for &c in &unique_cols {
-                    if c < seq.len() {
+                    if c < seq.len() && seq[c] != new_base {
                         positions.push((r, c, seq[c]));
                     }
                 }
@@ -1156,11 +1149,6 @@ impl MsaEngine {
             return Ok(());
         }
 
-        self.undo_stack.push(UndoCommand::Substitutions {
-            positions: positions.clone(),
-        });
-        self.redo_stack.clear();
-
         for &(r, c, _) in &positions {
             if let Some(seq) = self.nucleotide_sequences.get_mut(r)
                 && c < seq.len()
@@ -1168,6 +1156,8 @@ impl MsaEngine {
                 seq[c] = new_base;
             }
         }
+
+        history::push_to_undo_stack(self, UndoCommand::Substitutions(SubstitutionRecord { positions }));
 
         Ok(())
     }

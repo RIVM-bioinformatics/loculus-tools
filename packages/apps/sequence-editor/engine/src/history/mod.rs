@@ -1,7 +1,7 @@
 pub(crate) mod structs;
 pub(crate) mod enums;
 
-pub use structs::SubstitutionRecord;
+pub use structs::{SubstitutionRecord, PrependedSequencesRecord};
 pub use enums::UndoCommand;
 
 pub use crate::MsaEngine;
@@ -13,6 +13,12 @@ impl UndoCommand {
         let heap = match self {
             Self::Substitutions(SubstitutionRecord { positions }) => {
                 positions.capacity() * std::mem::size_of::<(usize, usize, u8)>()
+            }
+            Self::PrependedSequences(PrependedSequencesRecord { count, names, sequences, previous_alignment_width }) => {
+                count * std::mem::size_of::<usize>()
+                + names.capacity() * std::mem::size_of::<String>()
+                + sequences.capacity() * std::mem::size_of::<Vec<u8>>()
+                + previous_alignment_width * std::mem::size_of::<usize>()
             }
         };
         base.saturating_add(heap)
@@ -110,7 +116,20 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
         }
         UndoCommand::Substitutions(SubstitutionRecord { positions })
       }
-    };
+    UndoCommand::PrependedSequences(PrependedSequencesRecord { count, previous_alignment_width, .. }) => {
+      let actual_count = count.min(engine.nucleotide_sequences.len());
+      if actual_count == 0 {
+          UndoCommand::recompute_history_bytes(engine);
+          return false;
+        }
+      let drained_sequences = engine.nucleotide_sequences.drain(..actual_count).collect();
+      let drained_names = engine.names.drain(..actual_count).collect();
+      let redo_prev_width = engine.alignment_width;
+      engine.alignment_width = previous_alignment_width;
+      engine.viewport_buffer.clear();
+      UndoCommand::PrependedSequences(PrependedSequencesRecord { count: actual_count, names: drained_names, sequences: drained_sequences, previous_alignment_width: redo_prev_width })
+    }
+  };
   push_to_redo_bounded(engine, redo_cmd);
   engine.revision = engine.revision.wrapping_add(1);
   true
@@ -124,7 +143,7 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
   };
   // Here you would typically handle the command, e.g., apply it and push to undo stack
   // For now, let's just return true to indicate a command was popped
-  let cmd = match cmd {
+  match cmd {
     UndoCommand::Substitutions(SubstitutionRecord { mut positions }) => {
         let mut write_idx = 0;
         for read_idx in 0..positions.len() {
@@ -142,10 +161,26 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
         if positions.is_empty() {
             return false;
         }
-        UndoCommand::Substitutions(SubstitutionRecord { positions })
+        push_to_undo_bounded(engine, UndoCommand::Substitutions(SubstitutionRecord { positions }));
       }
+    UndoCommand::PrependedSequences(PrependedSequencesRecord { count, mut names, mut sequences, .. }) => {
+      let prev_alignment_width = engine.alignment_width;
+      let batch_width = sequences.iter().map(|seq| seq.len()).max().unwrap_or(0);
+      sequences.append(&mut engine.nucleotide_sequences);
+      names.append(&mut engine.names);
+      engine.nucleotide_sequences = sequences;
+      engine.names = names;
+      engine.alignment_width = engine.alignment_width.max(batch_width);
+      engine.viewport_buffer.clear();
+      push_to_undo_bounded(engine, UndoCommand::PrependedSequences(
+        PrependedSequencesRecord { 
+          count, 
+          names: Vec::new(), 
+          sequences: Vec::new(), 
+          previous_alignment_width: prev_alignment_width }));
+    }
     };
-  push_to_undo_bounded(engine, cmd);
+
   engine.revision = engine.revision.wrapping_add(1);
   true
 }

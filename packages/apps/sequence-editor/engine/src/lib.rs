@@ -568,9 +568,12 @@ impl MsaEngine {
     /// of any existing rows.
     ///
     /// If the engine already contains state (sequences or undo/redo history),
-    /// a `StructuralSnapshot` is recorded so the addition can be undone.
+    /// a compact `PrependSequences` command is recorded so the addition can be undone.
     /// If the engine is empty and has no history, no undo record is created
-    /// (`undo_depth == 0`).
+    /// (`undo_depth == 0`) while `revision` still advances.
+    ///
+    /// Empty or headerless-empty input is a no-op (`revision`, `redo_stack`, and
+    /// `aminoacid_sequences` are left untouched).
     ///
     /// The global `alignment_width` is updated to `max(existing_width, batch_width)`.
     /// Shorter sequences are NOT automatically padded in memory; callers can
@@ -589,19 +592,25 @@ impl MsaEngine {
             || !self.undo_stack.is_empty()
             || !self.redo_stack.is_empty();
 
-        if has_existing_state {
-            self.record_structural_undo();
-        }
-
+        let count = staged_sequences.len();
+        let prev_alignment_width = self.alignment_width;
         let batch_width = staged_sequences.iter().map(Vec::len).max().unwrap_or(0);
         staged_sequences.append(&mut self.nucleotide_sequences);
         staged_names.append(&mut self.names);
 
         self.nucleotide_sequences = staged_sequences;
         self.names = staged_names;
-        self.aminoacid_sequences.clear();
         self.alignment_width = self.alignment_width.max(batch_width);
         self.viewport_buffer.clear();
+
+        if has_existing_state {
+          history::push_to_undo_stack(self, UndoCommand::PrependedSequences(
+              PrependedSequencesRecord { count, names: Vec::new(), sequences: Vec::new(), previous_alignment_width: prev_alignment_width }
+          ));
+        } else {
+            self.aminoacid_sequences.clear();
+            self.revision = self.revision.wrapping_add(1);
+        }
 
         Ok(self.nucleotide_sequences.len())
     }

@@ -1832,98 +1832,17 @@ impl MsaEngine {
     }
 
     /// Undo the most recent command. Returns `true` if an undo was applied,
-    /// `false` if the undo stack is empty.
-    ///
-    /// For `Substitutions`, the old bases are restored and the command is
-    /// pushed onto the redo stack. For `StructuralSnapshot`, the snapshot
-    /// becomes the current state and the *current* (post-edit) state is
-    /// captured as a new `StructuralSnapshot` on the redo stack so that redo
-    /// can re-apply the structural change.
+    /// `false` if the undo stack is empty or the command had no applicable target.
     pub fn undo(&mut self) -> bool {
-        let cmd = match self.undo_stack.pop() {
-            Some(c) => c,
-            None => return false,
-        };
-        match cmd {
-            UndoCommand::Substitutions { positions } => {
-                let mut redo_positions = Vec::with_capacity(positions.len());
-                for (row, col, old_base) in positions {
-                    if let Some(seq) = self.nucleotide_sequences.get_mut(row)
-                        && let Some(base) = seq.get_mut(col)
-                    {
-                        redo_positions.push((row, col, *base));
-                        *base = old_base;
-                    }
-                }
-                if !redo_positions.is_empty() {
-                    self.redo_stack.push(UndoCommand::Substitutions {
-                        positions: redo_positions,
-                    });
-                }
-            }
-            UndoCommand::StructuralSnapshot {
-                matrix_snapshot,
-                names_snapshot,
-                width_snapshot,
-            } => {
-                // Capture current state for redo, then restore the snapshot.
-                let redo_snapshot = UndoCommand::StructuralSnapshot {
-                    matrix_snapshot: self.nucleotide_sequences.clone(),
-                    names_snapshot: self.names.clone(),
-                    width_snapshot: self.alignment_width,
-                };
-                self.nucleotide_sequences = matrix_snapshot;
-                self.names = names_snapshot;
-                self.alignment_width = width_snapshot;
-                self.redo_stack.push(redo_snapshot);
-            }
-        }
-        self.aminoacid_sequences.clear();
-        true
+        let result = crate::history::apply_undo_action(self);
+        result
     }
 
     /// Redo the most recently undone command. Returns `true` if a redo was
-    /// applied, `false` if the redo stack is empty.
+    /// applied, `false` if the redo stack is empty or the command had no applicable target.
     pub fn redo(&mut self) -> bool {
-        let cmd = match self.redo_stack.pop() {
-            Some(c) => c,
-            None => return false,
-        };
-        match cmd {
-            UndoCommand::Substitutions { positions } => {
-                let mut undo_positions = Vec::with_capacity(positions.len());
-                for (row, col, new_base) in positions {
-                    if let Some(seq) = self.nucleotide_sequences.get_mut(row)
-                        && let Some(base) = seq.get_mut(col)
-                    {
-                        undo_positions.push((row, col, *base));
-                        *base = new_base;
-                    }
-                }
-                if !undo_positions.is_empty() {
-                    self.undo_stack.push(UndoCommand::Substitutions {
-                        positions: undo_positions,
-                    });
-                }
-            }
-            UndoCommand::StructuralSnapshot {
-                matrix_snapshot,
-                names_snapshot,
-                width_snapshot,
-            } => {
-                let undo_snapshot = UndoCommand::StructuralSnapshot {
-                    matrix_snapshot: self.nucleotide_sequences.clone(),
-                    names_snapshot: self.names.clone(),
-                    width_snapshot: self.alignment_width,
-                };
-                self.nucleotide_sequences = matrix_snapshot;
-                self.names = names_snapshot;
-                self.alignment_width = width_snapshot;
-                self.undo_stack.push(undo_snapshot);
-            }
-        }
-        self.aminoacid_sequences.clear();
-        true
+        let result = crate::history::apply_redo_action(self);
+        result
     }
 
     /// Number of commands on the undo stack.

@@ -4,4 +4,5 @@ pub use super::structs::{SubstitutionRecord, PrependedSequencesRecord};
 pub enum UndoCommand {
   Substitutions(SubstitutionRecord),
   PrependedSequences(PrependedSequencesRecord),
+  InsertAtSubset(InsertAtSubsetRecord),
 }

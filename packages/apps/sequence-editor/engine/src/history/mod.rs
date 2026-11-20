@@ -1,7 +1,7 @@
 pub(crate) mod structs;
 pub(crate) mod enums;
 
-pub use structs::{SubstitutionRecord, PrependedSequencesRecord};
+pub use structs::{SubstitutionRecord, PrependedSequencesRecord, InsertAtSubsetRecord};
 pub use enums::UndoCommand;
 
 pub use crate::MsaEngine;
@@ -11,14 +11,29 @@ impl UndoCommand {
     pub fn estimated_byte_size(&self) -> usize {
         let base = std::mem::size_of::<Self>();
         let heap = match self {
-            Self::Substitutions(SubstitutionRecord { positions }) => {
+            Self::Substitutions(SubstitutionRecord { 
+              positions 
+            }) => {
                 positions.capacity() * std::mem::size_of::<(usize, usize, u8)>()
             }
-            Self::PrependedSequences(PrependedSequencesRecord { count, names, sequences, previous_alignment_width }) => {
+            Self::PrependedSequences(PrependedSequencesRecord { 
+              count, 
+              names, 
+              sequences, 
+              previous_alignment_width 
+            }) => {
                 count * std::mem::size_of::<usize>()
                 + names.capacity() * std::mem::size_of::<String>()
                 + sequences.capacity() * std::mem::size_of::<Vec<u8>>()
                 + previous_alignment_width * std::mem::size_of::<usize>()
+              }
+            Self::InsertAtSubset(InsertAtSubsetRecord { 
+              target_rows,
+              padded_short_rows,
+              ..
+            }) => {
+                target_rows.capacity() * std::mem::size_of::<usize>()
+                + padded_short_rows.capacity() * std::mem::size_of::<usize>()
             }
         };
         base.saturating_add(heap)
@@ -97,7 +112,9 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
   // Here you would typically handle the command, e.g., apply it and push to redo stack
   // For now, let's just return true to indicate a command was popped
   let redo_cmd = match cmd {
-    UndoCommand::Substitutions(SubstitutionRecord { mut positions }) => {
+    UndoCommand::Substitutions(SubstitutionRecord { 
+      mut positions 
+    }) => {
         let mut write_idx = 0;
         for read_idx in 0..positions.len() {
             let (row, col, target_base) = positions[read_idx];
@@ -116,7 +133,10 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
         }
         UndoCommand::Substitutions(SubstitutionRecord { positions })
       }
-    UndoCommand::PrependedSequences(PrependedSequencesRecord { count, previous_alignment_width, .. }) => {
+    UndoCommand::PrependedSequences(PrependedSequencesRecord { 
+      count, 
+      previous_alignment_width, .. 
+    }) => {
       let actual_count = count.min(engine.nucleotide_sequences.len());
       if actual_count == 0 {
           UndoCommand::recompute_history_bytes(engine);
@@ -128,6 +148,30 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
       engine.alignment_width = previous_alignment_width;
       engine.viewport_buffer.clear();
       UndoCommand::PrependedSequences(PrependedSequencesRecord { count: actual_count, names: drained_names, sequences: drained_sequences, previous_alignment_width: redo_prev_width })
+      }
+    UndoCommand::InsertAtSubset(InsertAtSubsetRecord {
+      target_rows, 
+      insertion_col, 
+      padded_short_rows, 
+      previous_alignment_width 
+    }) => {
+      let mut target_cursor = 0;
+      for (r, seq) in engine.nucleotide_sequences.iter_mut().enumerate() {
+          if target_rows.get(target_cursor) == Some(&r) {
+              if insertion_col < seq.len() {
+                  seq.remove(insertion_col);
+              } 
+              target_cursor += 1;
+          } else {
+            seq.pop();
+          }
+      }
+      for &r in &padded_short_rows {
+        if let Some(seq) = engine.nucleotide_sequences.get_mut(r) {
+          seq.truncate(previous_alignment_width);
+        }
+      }
+      UndoCommand::InsertAtSubset(InsertAtSubsetRecord { target_rows, insertion_col, padded_short_rows, previous_alignment_width })
     }
   };
   push_to_redo_bounded(engine, redo_cmd);
@@ -162,7 +206,7 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
             return false;
         }
         push_to_undo_bounded(engine, UndoCommand::Substitutions(SubstitutionRecord { positions }));
-      }
+    }
     UndoCommand::PrependedSequences(PrependedSequencesRecord { count, mut names, mut sequences, .. }) => {
       let prev_alignment_width = engine.alignment_width;
       let batch_width = sequences.iter().map(|seq| seq.len()).max().unwrap_or(0);
@@ -178,6 +222,34 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
           names: Vec::new(), 
           sequences: Vec::new(), 
           previous_alignment_width: prev_alignment_width }));
+    }
+    UndoCommand::InsertAtSubset(InsertAtSubsetRecord {
+      target_rows,
+      insertion_col,
+      padded_short_rows,
+      previous_alignment_width
+    } ) => {
+      let mut target_cursor = 0;
+      for (r, seq) in engine.nucleotide_sequences.iter_mut().enumerate() {
+        if seq.len() < insertion_col {
+          seq.resize(insertion_col, b'-');
+        }
+        if target_rows.get(target_cursor) == Some(&r) {
+          seq.insert(insertion_col, b'-');
+          target_cursor += 1;
+        } else {
+          seq.push(b'-');
+        }
+      }
+      engine.alignment_width = engine.nucleotide_sequences.iter().map(|seq| seq.len()).max().unwrap_or(0);
+      push_to_undo_bounded(engine, UndoCommand::InsertAtSubset(
+        InsertAtSubsetRecord { 
+          target_rows, 
+          insertion_col, 
+          padded_short_rows, 
+          previous_alignment_width 
+        }
+      ));
     }
     };
 

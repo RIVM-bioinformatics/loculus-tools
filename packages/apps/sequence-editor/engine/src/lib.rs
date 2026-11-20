@@ -12,7 +12,7 @@ mod constants;
 mod history;
 
 use history::UndoCommand;
-use history::structs::SubstitutionRecord;
+use history::structs::{ SubstitutionRecord, PrependedSequencesRecord };
 use constants::{DEFAULT_MAX_UNDO_DEPTH, DEFAULT_MAX_HISTORY_BYTES};
 
 
@@ -1236,31 +1236,40 @@ impl MsaEngine {
     /// the gap at the clamped insertion column; non-target rows have a `-`
     /// appended at the end to keep matrix width consistent.
     ///
-    /// Returns success; no validation is needed since only `-` can be inserted.
+    /// If the matrix is empty or no valid in-bounds row indices are provided,
+    /// this is doing nothing.
     pub fn insert_at_subset(
         &mut self,
         row_indices: &[usize],
         col_idx: usize,
     ) -> Result<(), StructuredEngineError> {
-        if self.nucleotide_sequences.is_empty() {
+        if self.nucleotide_sequences.is_empty() || row_indices.is_empty() {
             return Ok(());
         }
 
+        let n = self.nucleotide_sequences.len();
+        let mut target_rows: Vec<usize> = row_indices.iter().copied().filter(|&r| r < n).collect();
+        target_rows.sort_unstable();
+        target_rows.dedup();
+        if target_rows.is_empty() {
+            return Ok(());
+        }
+
+        let previous_alignment_width = self.alignment_width;
         // Clamp the insertion column to the current alignment width. If `col_idx` is greater than the current width, the gap will be appended to all rows.
-        let insertion_col = col_idx.min(self.alignment_width);
-        self.record_structural_undo();
+        let insertion_col = col_idx.min(previous_alignment_width);
+        let mut padded_short_rows = Vec::new();
+        let mut target_cursor = 0;
 
-        // Use a HashSet for O(1) lookups of target rows.
-        let target_rows: std::collections::HashSet<usize> = row_indices.iter().copied().collect();
-
-        for r in 0..self.nucleotide_sequences.len() {
-            let seq = &mut self.nucleotide_sequences[r];
+        for (r, seq) in self.nucleotide_sequences.iter_mut().enumerate() {
             // Pad rows that are shorter than the insertion column before inserting.
-            while seq.len() < insertion_col {
-                seq.push(b'-');
+            if seq.len() < insertion_col {
+                padded_short_rows.push((r, seq.len()));
+                seq.resize(insertion_col, b'-');
             }
-            if target_rows.contains(&r) {
+            if target_rows.get(target_cursor) == Some(&r) {
                 seq.insert(insertion_col, b'-');
+                target_cursor += 1;
             } else {
                 seq.push(b'-'); // Balance unselected rows by appending gap at end
             }
@@ -1271,6 +1280,14 @@ impl MsaEngine {
             .map(Vec::len)
             .max()
             .unwrap_or(0);
+        history::push_to_undo_stack(self, UndoCommand::InsertAtSubset(
+          InsertAtSubsetRecord {
+              target_rows,
+              insertion_col,
+              padded_short_rows,
+              previous_alignment_width,
+            }
+        ));
         Ok(())
     }
 

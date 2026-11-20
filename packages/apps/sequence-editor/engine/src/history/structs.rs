@@ -12,3 +12,12 @@ pub struct PrependedSequencesRecord {
   pub sequences: Vec<Vec<u8>>,
   pub previous_alignment_width: usize,
 }
+
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct InsertAtSubsetRecord {
+  pub target_rows: Vec<usize>,
+  pub insertion_col: usize,
+  pub padded_short_rows: Vec<(usize, usize)>,
+  pub previous_alignment_width: usize,
+}

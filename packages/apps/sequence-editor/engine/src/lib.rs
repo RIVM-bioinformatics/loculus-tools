@@ -362,22 +362,27 @@ struct AminoacidSequence {
 }
 
 /// The core MSA engine. Owns the alignment matrix, row names, the reusable
-/// viewport buffer, and the undo/redo stacks.
+/// viewport buffer, and the bounded undo/redo stacks.
 #[wasm_bindgen]
 pub struct MsaEngine {
-    /// `sequences`; the inner matrix which is a sequences of ASCII bytes (e.g. `b'A'`, `b'-'`).
+    /// `nucleotide_sequences`; the inner matrix of ASCII bytes (e.g. `b'A'`, `b'-'`).
+    /// `aminoacid_sequences`; lazily computed 3-frame amino-acid translation cache.
     /// `names`; row names / identifiers (one per sequence, in order).
     /// `alignment_width`; global alignment width (number of columns). Set to
     /// the length of the longest sequence after all sequences are loaded.
     /// `viewport_buffer`; reusable buffer for viewport extraction. Cleared and refilled on each `update_viewport` call to avoid per-scroll allocations.
-    /// `undo_stack` and `redo_stack`; transactional history of edits for undo/redo functionality. Each command captures the minimal information needed to reverse or re-apply an edit.
+    /// `undo_stack` and `redo_stack`; bounded transactional history of compact edits.
     nucleotide_sequences: Vec<Vec<u8>>,
     aminoacid_sequences: Vec<AminoacidSequence>,
     names: Vec<String>,
     alignment_width: usize,
     viewport_buffer: Vec<u8>,
     undo_stack: VecDeque<UndoCommand>,
-    redo_stack: Vec<UndoCommand>,
+    redo_stack: VecDeque<UndoCommand>,
+    history_bytes: usize,
+    max_undo_depth: usize,
+    max_history_bytes: usize,
+    revision: usize,
 }
 
 fn parse_fasta_records(
@@ -492,16 +497,71 @@ impl MsaEngine {
             // Pre-allocate for a typical screen-sized viewport (rows * cols).
             // Will grow automatically if a larger slice is requested.
             viewport_buffer: Vec::with_capacity(5000),
-            undo_stack: Vec::new(),
-            redo_stack: Vec::new(),
+            undo_stack: VecDeque::new(),
+            redo_stack: VecDeque::new(),
+            history_bytes: 0,
+            max_undo_depth: DEFAULT_MAX_UNDO_DEPTH,
+            max_history_bytes: DEFAULT_MAX_HISTORY_BYTES,
+            revision: 0,
         }
     }
 
     /// Reset the engine to its initial empty state, clearing all sequences,
-    /// names, cached amino-acid translations, viewport buffer, and undo/redo history.
+    /// names, cached amino-acid translations, viewport buffer, and undo/redo history,
+    /// Advances the `revision` so in-flight async workflows are rejected.
     #[wasm_bindgen]
     pub fn reset(&mut self) {
+        let next_revision = self.revision.wrapping_add(1);
+        let max_undo_depth = self.max_undo_depth;
+        let max_history_bytes = self.max_history_bytes;
         *self = Self::new();
+        self.revision = next_revision;
+        self.max_undo_depth = max_undo_depth;
+        self.max_history_bytes = max_history_bytes;
+    }
+
+
+    /// Get the current revision number of the engine.
+    pub fn get_revision(&self) -> usize {
+      self.revision
+    }
+
+    /// Estimated total heap size (in bytes) of the undo and redo stacks.
+    pub fn get_history_bytes(&self) -> usize {
+        self.history_bytes
+    }
+
+    /// Configured maximum number of commands retained on the undo stack.
+    pub fn get_max_undo_depth(&self) -> usize {
+        self.max_undo_depth
+    }
+
+    /// Update the maximum undo depth and evicting the oldest undo entries if exceeded.
+    pub fn set_max_undo_depth(&mut self, max_depth: usize) {
+        self.max_undo_depth = max_depth;
+        while self.undo_stack.len() > self.max_undo_depth {
+            self.undo_stack.pop_front();
+        }
+        UndoCommand::recompute_history_bytes(self);
+    }
+
+    /// Configured maximum estimated heap byte budget for undo/redo history.
+    pub fn get_max_history_bytes(&self) -> usize {
+        self.max_history_bytes
+    }
+
+    /// Update the maximum history byte size and evicting the oldest entries if exceeded.
+    pub fn set_max_history_bytes(&mut self, max_bytes: usize) {
+        self.max_history_bytes = max_bytes;
+        UndoCommand::recompute_history_bytes(self);
+        while !self.undo_stack.is_empty() && self.history_bytes > self.max_history_bytes {
+            self.undo_stack.pop_front();
+            UndoCommand::recompute_history_bytes(self);
+        }
+        while !self.redo_stack.is_empty() && self.history_bytes > self.max_history_bytes {
+            self.redo_stack.remove(0);
+            UndoCommand::recompute_history_bytes(self);
+        }
     }
 
     /// Parse FASTA content and prepend the parsed sequences in order ahead

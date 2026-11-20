@@ -50,10 +50,35 @@ pub(crate) fn push_to_undo_bounded(engine: &mut MsaEngine, cmd: UndoCommand) {
   UndoCommand::recompute_history_bytes(engine);
 }
 
+pub(crate) fn push_to_redo_bounded(engine: &mut MsaEngine, cmd: UndoCommand) {
+  let cmd_bytes = cmd.estimated_byte_size();
+  if cmd_bytes > engine.max_history_bytes {
+      engine.redo_stack.clear();
+      UndoCommand::recompute_history_bytes(engine);
+      return;
+  }
+  engine.redo_stack.push_back(cmd);
+  UndoCommand::recompute_history_bytes(engine);
+  while engine.history_bytes > engine.max_history_bytes {
+    if let Some(evicted) = engine.undo_stack.pop_front() {
+      engine.history_bytes = engine.history_bytes.saturating_sub(evicted.estimated_byte_size());
+    }
+    else if !engine.redo_stack.is_empty() {
+      let evicted = engine.redo_stack.pop_front().unwrap();
+      engine.history_bytes = engine.history_bytes.saturating_sub(evicted.estimated_byte_size());
+    }
+    else {
+      break;
+    }
+  }
+  UndoCommand::recompute_history_bytes(engine);
+}
+
 // Record a new undoable command, clearing the redo stack/branch 
 pub(crate) fn push_to_undo_stack(engine: &mut MsaEngine, cmd: UndoCommand) {
     engine.redo_stack.clear();
     push_to_undo_bounded(engine, cmd);
+    engine.revision = engine.revision.wrapping_add(1);
     engine.aminoacid_sequences.clear();
 }
 
@@ -86,7 +111,8 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
         UndoCommand::Substitutions(SubstitutionRecord { positions })
       }
     };
-  engine.push_to_redo_bounded(redo_cmd);
+  push_to_redo_bounded(engine, redo_cmd);
+  engine.revision = engine.revision.wrapping_add(1);
   true
 }
 
@@ -119,6 +145,7 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
         UndoCommand::Substitutions(SubstitutionRecord { positions })
       }
     };
-  engine.push_to_undo_bounded(cmd);
+  push_to_undo_bounded(engine, cmd);
+  engine.revision = engine.revision.wrapping_add(1);
   true
 }

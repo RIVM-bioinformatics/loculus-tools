@@ -264,6 +264,25 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
           previous_alignment_width 
         }
       ));
+      }
+    UndoCommand::DeleteAtSubset(DeleteAtSubsetRecord { 
+      target_rows, 
+      column_index
+    }) => {
+      for &row in &target_rows {
+        if let Some(seq) = engine.nucleotide_sequences.get_mut(row) {
+          if column_index < seq.len() {
+            seq.remove(column_index);
+            seq.push(b'-');
+          }
+        }
+      }
+      push_to_undo_bounded(engine, UndoCommand::DeleteAtSubset(
+        DeleteAtSubsetRecord { 
+          target_rows, 
+          column_index 
+        }
+      ));
     }
     };
 

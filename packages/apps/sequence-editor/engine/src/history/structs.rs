@@ -21,3 +21,10 @@ pub struct InsertAtSubsetRecord {
   pub padded_short_rows: Vec<(usize, usize)>,
   pub previous_alignment_width: usize,
 }
+
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct DeleteAtSubsetRecord {
+  pub target_rows: Vec<usize>,
+  pub column_index: usize,
+}

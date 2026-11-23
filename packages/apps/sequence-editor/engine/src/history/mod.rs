@@ -166,13 +166,27 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
             seq.pop();
           }
       }
-      for &r in &padded_short_rows {
+      for &(r, original_len) in &padded_short_rows {
         if let Some(seq) = engine.nucleotide_sequences.get_mut(r) {
-          seq.truncate(previous_alignment_width);
+          seq.truncate(original_len);
         }
       }
       UndoCommand::InsertAtSubset(InsertAtSubsetRecord { target_rows, insertion_col, padded_short_rows, previous_alignment_width })
-    }
+      }
+    UndoCommand::DeleteAtSubset(DeleteAtSubsetRecord { 
+      target_rows, 
+      column_index 
+    }) => {
+      for &r in &target_rows {
+        if let Some(seq) = engine.nucleotide_sequences.get_mut(r)
+          && column_index < seq.len()
+          {
+            seq.pop();
+            seq.insert(column_index, b'-')
+          }
+      }
+      UndoCommand::DeleteAtSubset(DeleteAtSubsetRecord { target_rows, column_index })
+      }
   };
   push_to_redo_bounded(engine, redo_cmd);
   engine.revision = engine.revision.wrapping_add(1);

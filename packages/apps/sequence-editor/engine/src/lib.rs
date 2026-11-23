@@ -1303,12 +1303,25 @@ impl MsaEngine {
         row_indices: &[usize],
         col_idx: usize,
     ) -> Result<(), StructuredEngineError> {
-        // Validate: all target positions must be '-'.
+        if row_indices.is_empty() || self.nucleotide_sequences.is_empty() {
+            return Ok(());
+        }
+
+        let n = self.nucleotide_sequences.len();
+        let mut seen = vec![false; n];
+        let mut target_rows = Vec::new();
+
+        // Validate and collect unique in-bounds rows where `col_idx < seq.len()`.
         for &r in row_indices {
-            if let Some(seq) = self.nucleotide_sequences.get(r)
-                && col_idx < seq.len()
-                && !is_gap(seq[col_idx])
-            {
+            if r >= n || seen[r] {
+                continue;
+            }
+            seen[r] = true;
+            let seq = &self.nucleotide_sequences[r];
+            if col_idx >= seq.len() {
+                continue;
+            }
+            if !is_gap(seq[col_idx]) {
                 return Err(DeleteError::TargetNotGap {
                     row: r,
                     col: col_idx,
@@ -1316,19 +1329,23 @@ impl MsaEngine {
                 }
                 .into());
             }
+            target_rows.push(r);
         }
 
-        self.record_structural_undo();
+        if target_rows.is_empty() {
+            return Ok(());
+        }
 
-        let target_rows: std::collections::HashSet<usize> = row_indices.iter().copied().collect();
-
-        for r in 0..self.nucleotide_sequences.len() {
+        for &r in &target_rows {
             let seq = &mut self.nucleotide_sequences[r];
-            if col_idx < seq.len() && target_rows.contains(&r) {
-                seq.remove(col_idx);
-                seq.push(b'-'); // Pad at end to keep width unchanged
-            }
+            seq.remove(col_idx);
+            seq.push(b'-'); // Pad at end to keep width unchanged
         }
+
+        history::push_to_undo_stack(self, UndoCommand::DeleteAtSubset(DeleteAtSubsetRecord {
+            target_rows,
+            column_index: col_idx,
+        }));
         // Width unchanged
         Ok(())
     }

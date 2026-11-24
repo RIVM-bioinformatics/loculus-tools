@@ -1506,8 +1506,6 @@ impl MsaEngine {
             }
         }
 
-        self.record_structural_undo();
-
         for &r in &target_rows {
             let seq = &mut self.nucleotide_sequences[r];
             match direction {
@@ -1525,6 +1523,13 @@ impl MsaEngine {
                 }
             }
         }
+
+        history::push_to_undo_stack(self, UndoCommand::HorizontalMove(HorizontalMoveRecord {
+            rows: target_rows,
+            start_col: start,
+            end_col: end,
+            direction,
+        }));
 
         Ok(())
     }

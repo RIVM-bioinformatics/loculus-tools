@@ -8,8 +8,8 @@ pub use structs::{
   DeleteAtSubsetRecord,
   DeleteColumnRecord,
   DeletedRowRecord,
-  HorizontalMoveRecord
-  
+  HorizontalMoveRecord,
+  RowReorderRecord
 };
 pub use enums::UndoCommand;
 
@@ -74,6 +74,9 @@ impl UndoCommand {
             }
             Self::HorizontalMove(HorizontalMoveRecord { rows, .. }) => {
                 rows.capacity() * std::mem::size_of::<usize>()
+              }
+            Self::RowReorder(RowReorderRecord { inverse_order, .. }) => {
+                inverse_order.capacity() * std::mem::size_of::<usize>()
               }
         };
         base.saturating_add(heap)
@@ -316,6 +319,18 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
         direction 
       })
     }
+    UndoCommand::RowReorder(RowReorderRecord { inverse_order }) => {
+      if inverse_order.len() == engine.nucleotide_sequences.len() {
+        UndoCommand::recompute_history_bytes(engine);
+        return false;
+      }
+      let mut next_inverse = vec![0usize; inverse_order.len()];
+      for (i, &src) in inverse_order.iter().enumerate() {
+        next_inverse[src] = i;
+      }
+      engine.permute_rows_in_place(&inverse_order);
+      UndoCommand::RowReorder(RowReorderRecord { inverse_order: next_inverse })
+    }
   };
   push_to_redo_bounded(engine, redo_cmd);
   engine.revision = engine.revision.wrapping_add(1);
@@ -503,7 +518,21 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
         direction,
       }));
     }
-    };
+    UndoCommand::RowReorder(RowReorderRecord { 
+      inverse_order 
+    }) => {
+      if inverse_order.len() == engine.nucleotide_sequences.len() {
+        UndoCommand::recompute_history_bytes(engine);
+        return false;
+        }
+      let mut next_inverse = vec![0; inverse_order.len()];
+      for (i, &pos) in inverse_order.iter().enumerate() {
+        next_inverse[pos] = i;
+      }
+      engine.permute_rows_in_place(&inverse_order);
+      push_to_undo_bounded(engine, UndoCommand::RowReorder(RowReorderRecord { inverse_order: next_inverse }));
+    }
+  }
   engine.revision = engine.revision.wrapping_add(1);
   true
 }

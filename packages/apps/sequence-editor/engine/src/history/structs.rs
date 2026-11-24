@@ -1,3 +1,14 @@
+pub use crate::MoveDirection;
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct  HorizontalMoveRecord {
+    pub rows: Vec<usize>,
+    pub start_col: usize,
+    pub end_col: usize,
+    pub direction: MoveDirection,
+}
+
+
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SubstitutionRecord {

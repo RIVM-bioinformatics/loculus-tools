@@ -1,11 +1,11 @@
-pub use super::structs::{
+pub use crate::history::structs::{
   SubstitutionRecord, 
   PrependedSequencesRecord, 
   InsertAtSubsetRecord, 
   DeleteAtSubsetRecord,
   DeleteColumnRecord,
-  DeletedRowRecord
-  
+  DeletedRowRecord,
+  HorizontalMoveRecord
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -15,5 +15,6 @@ pub enum UndoCommand {
   InsertAtSubset(InsertAtSubsetRecord),
   DeleteAtSubset(DeleteAtSubsetRecord),
   DeleteColumn(DeleteColumnRecord),
-  DeletedRow(DeletedRowRecord)
+  DeletedRow(DeletedRowRecord),
+  HorizontalMove(HorizontalMoveRecord)
 }

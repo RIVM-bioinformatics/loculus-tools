@@ -7,10 +7,13 @@ pub use structs::{
   InsertAtSubsetRecord,
   DeleteAtSubsetRecord,
   DeleteColumnRecord,
-  DeletedRowRecord
+  DeletedRowRecord,
+  HorizontalMoveRecord
+  
 };
 pub use enums::UndoCommand;
 
+use crate::MoveDirection;
 pub use crate::MsaEngine;
 
 
@@ -69,6 +72,9 @@ impl UndoCommand {
                 + sequences.capacity() * std::mem::size_of::<Vec<u8>>()
                 + std::mem::size_of::<usize>() // for previous_alignment_width
             }
+            Self::HorizontalMove(HorizontalMoveRecord { rows, .. }) => {
+                rows.capacity() * std::mem::size_of::<usize>()
+              }
         };
         base.saturating_add(heap)
     }
@@ -276,6 +282,39 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
       engine.alignment_width = previous_alignment_width;
 
       UndoCommand::DeletedRow(DeletedRowRecord { deleted_rows, row_indices, names, sequences, previous_alignment_width })
+      }
+    UndoCommand::HorizontalMove(HorizontalMoveRecord { 
+      rows, 
+      start_col, 
+      end_col, 
+      direction 
+    }) => {
+      for &r in &rows {
+        if let Some(seq) = engine.nucleotide_sequences.get_mut(r) {
+          match direction {
+            MoveDirection::Left => {
+              if start_col > 0 && end_col < seq.len() {
+                let gap = seq[end_col];
+                seq.copy_within(start_col -1..end_col, start_col);
+                seq[start_col-1] = gap;
+              }
+            }
+            MoveDirection::Right => {
+              if end_col + 1 < seq.len() {
+                let gap = seq[start_col];
+                seq.copy_within(start_col +1..=end_col+1, start_col);
+                seq[end_col+1] = gap;
+              }
+            }
+          }
+        }
+      }
+      UndoCommand::HorizontalMove(HorizontalMoveRecord { 
+        rows, 
+        start_col, 
+        end_col, 
+        direction 
+      })
     }
   };
   push_to_redo_bounded(engine, redo_cmd);
@@ -352,8 +391,7 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
           insertion_col, 
           padded_short_rows, 
           previous_alignment_width 
-        }
-      ));
+        }));
       }
     UndoCommand::DeleteAtSubset(DeleteAtSubsetRecord { 
       target_rows, 
@@ -390,8 +428,7 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
           column_index, 
           removed_bases, 
           previous_alignment_width 
-        }
-      ));
+        }));
       }
     UndoCommand::DeletedRow(DeletedRowRecord { 
       deleted_rows, 
@@ -423,15 +460,48 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
     }
       engine.nucleotide_sequences = kept_sequences;
       engine.names = kept_names;
-      push_to_undo_bounded(engine, UndoCommand::DeletedRow(
-      DeletedRowRecord {
+      push_to_undo_bounded(engine, UndoCommand::DeletedRow(DeletedRowRecord {
         deleted_rows,
         row_indices,
         names,
         sequences,
         previous_alignment_width: prev_alignment_width,
+        }));
       }
-    ));
+    UndoCommand::HorizontalMove(HorizontalMoveRecord { 
+      rows, 
+      start_col, 
+      end_col, 
+      direction 
+    }) => {
+      for &row in &rows {
+        if let Some(seq) = engine.nucleotide_sequences.get_mut(row) {
+          if start_col > 0 && end_col < seq.len() {
+            match direction {
+              MoveDirection::Left => {
+                if start_col > 0 && end_col < seq.len() {
+                    let gap = seq[start_col - 1];
+                    seq.copy_within(start_col..=end_col, start_col - 1);
+                    seq[end_col] = gap;
+                }
+              }
+              MoveDirection::Right => {
+                if end_col + 1 < seq.len() {
+                    let gap = seq[end_col + 1];
+                    seq.copy_within(start_col..=end_col, start_col + 1);
+                    seq[start_col] = gap;
+                }
+              }
+            }
+          }
+        }
+      }
+      push_to_undo_bounded(engine, UndoCommand::HorizontalMove(HorizontalMoveRecord {
+        rows,
+        start_col,
+        end_col,
+        direction,
+      }));
     }
     };
   engine.revision = engine.revision.wrapping_add(1);

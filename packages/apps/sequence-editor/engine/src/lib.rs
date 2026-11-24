@@ -1746,9 +1746,11 @@ impl MsaEngine {
         {
             if to_delete[row_index] {
                 deleted_rows.push(DeletedRowRecord {
-                    row_index,
-                    name,
-                    sequence,
+
+                    deleted_rows: vec![row_index],
+                    row_indices: vec![row_index],
+                    names: vec![name],
+                    sequences: vec![sequence],
                     previous_alignment_width: prev_alignment_width,
                 });
             } else {

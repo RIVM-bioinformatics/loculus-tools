@@ -39,7 +39,9 @@ pub struct DeleteColumnRecord {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DeletedRowRecord {
-    pub row_index: usize,
-    pub name: String,
-    pub sequence: Vec<u8>,
+    pub deleted_rows: Vec<usize>,
+    pub row_indices: Vec<usize>,
+    pub names: Vec<String>,
+    pub sequences: Vec<Vec<u8>>,
+    pub previous_alignment_width: usize,
 }

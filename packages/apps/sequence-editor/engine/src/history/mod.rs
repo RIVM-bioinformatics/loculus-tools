@@ -1,7 +1,14 @@
 pub(crate) mod structs;
 pub(crate) mod enums;
 
-pub use structs::{SubstitutionRecord, PrependedSequencesRecord, InsertAtSubsetRecord};
+pub use structs::{
+  SubstitutionRecord, 
+  PrependedSequencesRecord, 
+  InsertAtSubsetRecord,
+  DeleteAtSubsetRecord,
+  DeleteColumnRecord,
+  DeletedRowRecord
+};
 pub use enums::UndoCommand;
 
 pub use crate::MsaEngine;
@@ -50,14 +57,16 @@ impl UndoCommand {
                 + removed_bases.capacity() * std::mem::size_of::<Option<u8>>()
             }
             Self::DeletedRow(DeletedRowRecord {
-              row_index,
-              name,
-              sequence,
+              deleted_rows,
+              row_indices,
+              names,
+              sequences,
               ..
             }) => {
-                row_index * std::mem::size_of::<usize>()
-                + name.capacity() * std::mem::size_of::<String>()
-                + sequence.capacity() * std::mem::size_of::<u8>()
+                deleted_rows.capacity() * std::mem::size_of::<usize>()
+                + row_indices.capacity() * std::mem::size_of::<usize>()
+                + names.capacity() * std::mem::size_of::<String>()
+                + sequences.capacity() * std::mem::size_of::<Vec<u8>>()
                 + std::mem::size_of::<usize>() // for previous_alignment_width
             }
         };
@@ -226,6 +235,48 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
       engine.alignment_width = previous_alignment_width;
       UndoCommand::DeleteColumn(DeleteColumnRecord { column_index, removed_bases, previous_alignment_width })
       }
+    UndoCommand::DeletedRow(DeletedRowRecord {
+      deleted_rows,
+      row_indices,
+      names,
+      sequences,
+      previous_alignment_width 
+    }) => {
+      let total_rows = engine.nucleotide_sequences.len() + deleted_rows.len();
+      let mut restored_sequences = Vec::with_capacity(total_rows);
+      let mut restored_names = Vec::with_capacity(total_rows);
+      let mut row_indices = row_indices.clone();
+      let mut kept_iterator = std::mem::take(&mut engine.nucleotide_sequences).into_iter().zip(std::mem::take(&mut engine.names));
+      let mut deleted_iterator = deleted_rows
+        .iter()
+        .copied()
+        .zip(names.iter().cloned().zip(sequences.iter().cloned()))
+        .peekable();
+
+      for target_index in 0..total_rows {
+        if deleted_iterator.peek().is_some_and(|(row_index, _)| *row_index == target_index)
+        {
+          let (row_index, (name, seq)) = deleted_iterator.next().unwrap();
+          row_indices.push(row_index);
+          restored_sequences.push(seq);
+          restored_names.push(name);
+        } else if let Some((seq, name)) = kept_iterator.next() {
+          restored_sequences.push(seq);
+          restored_names.push(name);
+        }
+      }
+      for (row_index, (name, seq)) in deleted_iterator {
+        row_indices.push(row_index);
+        restored_sequences.push(seq);
+        restored_names.push(name);
+      }
+
+      engine.nucleotide_sequences = restored_sequences;
+      engine.names = restored_names;
+      engine.alignment_width = previous_alignment_width;
+
+      UndoCommand::DeletedRow(DeletedRowRecord { deleted_rows, row_indices, names, sequences, previous_alignment_width })
+    }
   };
   push_to_redo_bounded(engine, redo_cmd);
   engine.revision = engine.revision.wrapping_add(1);
@@ -342,8 +393,47 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
         }
       ));
       }
+    UndoCommand::DeletedRow(DeletedRowRecord { 
+      deleted_rows, 
+      row_indices, 
+      names, 
+      sequences, 
+      previous_alignment_width 
+    }) => {
+      let n = engine.nucleotide_sequences.len();
+      let prev_alignment_width = engine.alignment_width;
+      let mut to_delete = vec![false; n];
+      let mut delete_count = 0;
+      for &r in &row_indices {
+        if r <n && !to_delete[r] {
+          to_delete[r] = true;
+          delete_count += 1;
+        }
+      }
+      let mut deleted_rows: Vec<usize> = Vec::with_capacity(delete_count);
+      let mut kept_sequences = Vec::with_capacity(n - delete_count);
+      let mut kept_names = Vec::with_capacity(n - delete_count);
+      for (row_index, (sequence, name)) in engine.nucleotide_sequences.drain(..).zip(engine.names.drain(..)).enumerate() {
+      if to_delete[row_index] {
+        deleted_rows.push(row_index);
+      } else {
+        kept_sequences.push(sequence);
+        kept_names.push(name);
+      }
+    }
+      engine.nucleotide_sequences = kept_sequences;
+      engine.names = kept_names;
+      push_to_undo_bounded(engine, UndoCommand::DeletedRow(
+      DeletedRowRecord {
+        deleted_rows,
+        row_indices,
+        names,
+        sequences,
+        previous_alignment_width: prev_alignment_width,
+      }
+    ));
+    }
     };
-
   engine.revision = engine.revision.wrapping_add(1);
   true
 }

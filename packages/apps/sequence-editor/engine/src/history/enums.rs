@@ -6,7 +6,8 @@ pub use crate::history::structs::{
   DeleteColumnRecord,
   DeletedRowRecord,
   HorizontalMoveRecord,
-  RowReorderRecord
+  RowReorderRecord,
+  ReplacedMatrixRecord
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -18,5 +19,6 @@ pub enum UndoCommand {
   DeleteColumn(DeleteColumnRecord),
   DeletedRow(DeletedRowRecord),
   HorizontalMove(HorizontalMoveRecord),
-  RowReorder(RowReorderRecord)
+  RowReorder(RowReorderRecord),
+  ReplaceMatrix(ReplacedMatrixRecord)
 }

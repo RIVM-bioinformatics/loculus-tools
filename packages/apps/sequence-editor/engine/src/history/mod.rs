@@ -9,7 +9,8 @@ pub use structs::{
   DeleteColumnRecord,
   DeletedRowRecord,
   HorizontalMoveRecord,
-  RowReorderRecord
+  RowReorderRecord,
+  ReplacedMatrixRecord
 };
 pub use enums::UndoCommand;
 
@@ -77,6 +78,10 @@ impl UndoCommand {
               }
             Self::RowReorder(RowReorderRecord { inverse_order, .. }) => {
                 inverse_order.capacity() * std::mem::size_of::<usize>()
+              }
+            Self::ReplaceMatrix(ReplacedMatrixRecord { sequences, .. }) => {
+                sequences.capacity() * std::mem::size_of::<Vec<u8>>()
+                + sequences.iter().map(Vec::capacity).sum::<usize>()
               }
         };
         base.saturating_add(heap)
@@ -330,6 +335,14 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
       }
       engine.permute_rows_in_place(&inverse_order);
       UndoCommand::RowReorder(RowReorderRecord { inverse_order: next_inverse })
+      }
+    UndoCommand::ReplaceMatrix(ReplacedMatrixRecord { 
+      mut sequences, 
+      mut previous_alignment_width 
+    }) => {
+      std::mem::swap(&mut engine.nucleotide_sequences, &mut sequences);
+      std::mem::swap(&mut engine.alignment_width, &mut previous_alignment_width);
+      UndoCommand::ReplaceMatrix(ReplacedMatrixRecord { sequences, previous_alignment_width })
     }
   };
   push_to_redo_bounded(engine, redo_cmd);
@@ -531,6 +544,14 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
       }
       engine.permute_rows_in_place(&inverse_order);
       push_to_undo_bounded(engine, UndoCommand::RowReorder(RowReorderRecord { inverse_order: next_inverse }));
+      }
+    UndoCommand::ReplaceMatrix(ReplacedMatrixRecord { 
+      mut sequences, 
+      mut previous_alignment_width 
+    }) => {
+      std::mem::swap(&mut engine.nucleotide_sequences, &mut sequences);
+      std::mem::swap(&mut engine.alignment_width, &mut previous_alignment_width);
+      push_to_redo_bounded(engine, UndoCommand::ReplaceMatrix(ReplacedMatrixRecord { sequences, previous_alignment_width }));
     }
   }
   engine.revision = engine.revision.wrapping_add(1);

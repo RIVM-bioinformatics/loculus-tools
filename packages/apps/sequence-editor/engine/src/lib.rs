@@ -16,7 +16,11 @@ use history::structs::{
   SubstitutionRecord, 
   PrependedSequencesRecord, 
   InsertAtSubsetRecord,
-  DeleteAtSubsetRecord
+  DeleteAtSubsetRecord,
+  DeleteColumnRecord,
+  DeletedRowRecord,
+  HorizontalMoveRecord,
+  RowReorderRecord
 };
 use constants::{DEFAULT_MAX_UNDO_DEPTH, DEFAULT_MAX_HISTORY_BYTES};
 
@@ -1903,29 +1907,17 @@ impl MsaEngine {
         Ok(())
     }
 
-    /// Replace matrix and headers with newly aligned data, capturing a single
-    /// structural undo transaction and clearing cached translation data.
+    /// Replace matrix with newly aligned data via pointer swap, capturing a
+    /// `ReplaceMatrix` undo transaction and clearing cached translation data.
     fn replace_matrix_with_undo(&mut self, names: Vec<String>, sequences: Vec<Vec<u8>>) {
-        self.record_structural_undo();
-        self.alignment_width = sequences.first().map_or(0, |seq| seq.len());
-        self.nucleotide_sequences = sequences;
+        let prev_alignment_width = self.alignment_width;
+        self.alignment_width = sequences.first().map_or(0, Vec::len);
+        let prev_sequences = std::mem::replace(&mut self.nucleotide_sequences, sequences);
         self.names = names;
-        self.aminoacid_sequences.clear();
-    }
-
-    /// transactional history with undo/redo stacks.
-    /// Snapshot the full matrix + width for structural undo. Cheap given the
-    /// ~16MB max footprint.
-    ///> we might need to revisit this if we want to support larger alignments in the future, but it keeps the logic simple for now and is fast enough for our expected use case.
-    fn record_structural_undo(&mut self) {
-        let matrix_snapshot = self.nucleotide_sequences.clone();
-        let names_snapshot = self.names.clone();
-        self.undo_stack.push(UndoCommand::StructuralSnapshot {
-            matrix_snapshot,
-            names_snapshot,
-            width_snapshot: self.alignment_width,
-        });
-        self.redo_stack.clear();
+        history::push_to_undo_stack(self, UndoCommand::ReplaceMatrix(history::ReplacedMatrixRecord { 
+          sequences: prev_sequences, 
+          previous_alignment_width: prev_alignment_width 
+        }));
     }
 
     /// Undo the most recent command. Returns `true` if an undo was applied,

@@ -62,3 +62,10 @@ pub struct DeletedRowRecord {
 pub struct RowReorderRecord {
   pub inverse_order: Vec<usize>,
 }
+
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ReplacedMatrixRecord {
+  pub sequences: Vec<Vec<u8>>,
+  pub previous_alignment_width: usize,
+}

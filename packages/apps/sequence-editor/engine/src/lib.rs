@@ -1536,21 +1536,40 @@ impl MsaEngine {
 
     // vertical moves and reordering of rows
 
-    fn apply_row_reorder(&mut self, order: &[usize]) {
-        self.record_structural_undo();
-
-        let mut old_sequences = std::mem::take(&mut self.nucleotide_sequences);
-        let mut old_names = std::mem::take(&mut self.names);
-        let mut new_sequences = Vec::with_capacity(order.len());
-        let mut new_names = Vec::with_capacity(order.len());
-
-        for &idx in order {
-            new_sequences.push(std::mem::take(&mut old_sequences[idx]));
-            new_names.push(std::mem::take(&mut old_names[idx]));
+    fn permute_rows_in_place(&mut self, order: &[usize]) {
+        let n = order.len();
+        if n != self.nucleotide_sequences.len() || n != self.names.len() {
+            return;
         }
+        let mut visited = vec![false; n];
+        for start in 0..n {
+            if visited[start] || order[start] == start {
+                visited[start] = true;
+                continue;
+            }
+            let mut curr = start;
+            loop {
+                visited[curr] = true;
+                let next = order[curr];
+                if visited[next] {
+                    break;
+                }
+                self.nucleotide_sequences.swap(curr, next);
+                self.names.swap(curr, next);
+                curr = next;
+            }
+        }
+    }
 
-        self.nucleotide_sequences = new_sequences;
-        self.names = new_names;
+    fn apply_row_reorder(&mut self, order: &[usize]) {
+        let mut inverse_order = vec![0usize; order.len()];
+        for (i, &src) in order.iter().enumerate() {
+            inverse_order[src] = i;
+        }
+        self.permute_rows_in_place(order);
+        history::push_to_undo_stack(self, UndoCommand::RowReorder(RowReorderRecord {
+            inverse_order,
+        }));
     }
 
     /// Move the specified rows relative to their current positions by `delta`

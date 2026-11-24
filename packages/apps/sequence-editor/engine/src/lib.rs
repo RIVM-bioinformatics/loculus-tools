@@ -1733,33 +1733,42 @@ impl MsaEngine {
             return Ok(());
         }
 
-        self.record_structural_undo();
+        let prev_alignment_width = self.alignment_width;
+        let mut deleted_rows = Vec::with_capacity(delete_count);
+        let mut kept_sequences = Vec::with_capacity(n - delete_count);
+        let mut kept_names = Vec::with_capacity(n - delete_count);
 
-        if delete_count == n {
-            self.nucleotide_sequences.clear();
-            self.names.clear();
-            self.alignment_width = 0;
-        } else {
-            let mut row_idx = 0;
-            self.nucleotide_sequences.retain(|_| {
-                let keep = !to_delete[row_idx];
-                row_idx += 1;
-                keep
-            });
+        for (row_index, (sequence, name)) in self
+            .nucleotide_sequences
+            .drain(..)
+            .zip(self.names.drain(..))
+            .enumerate()
+        {
+            if to_delete[row_index] {
+                deleted_rows.push(DeletedRowRecord {
+                    row_index,
+                    name,
+                    sequence,
+                    previous_alignment_width: prev_alignment_width,
+                });
+            } else {
+                kept_sequences.push(sequence);
+                kept_names.push(name);
+            }
+        }
 
-            let mut name_idx = 0;
-            self.names.retain(|_| {
-                let keep = !to_delete[name_idx];
-                name_idx += 1;
-                keep
-            });
+        self.nucleotide_sequences = kept_sequences;
+        self.names = kept_names;
+        self.alignment_width = self
+            .nucleotide_sequences
+            .iter()
+            .map(Vec::len)
+            .max()
+            .unwrap_or(0);
+        
 
-            self.alignment_width = self
-                .nucleotide_sequences
-                .iter()
-                .map(Vec::len)
-                .max()
-                .unwrap_or(0);
+        for deleted_row in deleted_rows {
+            history::push_to_undo_stack(self, UndoCommand::DeletedRow(deleted_row));
         }
 
         Ok(())

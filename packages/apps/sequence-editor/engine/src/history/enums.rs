@@ -3,7 +3,9 @@ pub use super::structs::{
   PrependedSequencesRecord, 
   InsertAtSubsetRecord, 
   DeleteAtSubsetRecord,
-  DeleteColumnRecord
+  DeleteColumnRecord,
+  DeletedRowRecord
+  
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -12,5 +14,6 @@ pub enum UndoCommand {
   PrependedSequences(PrependedSequencesRecord),
   InsertAtSubset(InsertAtSubsetRecord),
   DeleteAtSubset(DeleteAtSubsetRecord),
-  DeleteColumn(DeleteColumnRecord)
+  DeleteColumn(DeleteColumnRecord),
+  DeletedRow(DeletedRowRecord)
 }

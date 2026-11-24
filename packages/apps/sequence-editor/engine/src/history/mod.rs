@@ -35,6 +35,31 @@ impl UndoCommand {
                 target_rows.capacity() * std::mem::size_of::<usize>()
                 + padded_short_rows.capacity() * std::mem::size_of::<usize>()
             }
+            Self::DeleteAtSubset(DeleteAtSubsetRecord {
+              target_rows,
+              ..
+            }) => {
+                target_rows.capacity() * std::mem::size_of::<usize>()
+                + std::mem::size_of::<usize>()
+            }
+            Self::DeleteColumn(DeleteColumnRecord {
+              removed_bases,
+              ..
+            }) => {
+                std::mem::size_of::<usize>()
+                + removed_bases.capacity() * std::mem::size_of::<Option<u8>>()
+            }
+            Self::DeletedRow(DeletedRowRecord {
+              row_index,
+              name,
+              sequence,
+              ..
+            }) => {
+                row_index * std::mem::size_of::<usize>()
+                + name.capacity() * std::mem::size_of::<String>()
+                + sequence.capacity() * std::mem::size_of::<u8>()
+                + std::mem::size_of::<usize>() // for previous_alignment_width
+            }
         };
         base.saturating_add(heap)
     }

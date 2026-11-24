@@ -12,7 +12,12 @@ mod constants;
 mod history;
 
 use history::UndoCommand;
-use history::structs::{ SubstitutionRecord, PrependedSequencesRecord };
+use history::structs::{
+  SubstitutionRecord, 
+  PrependedSequencesRecord, 
+  InsertAtSubsetRecord,
+  DeleteAtSubsetRecord
+};
 use constants::{DEFAULT_MAX_UNDO_DEPTH, DEFAULT_MAX_HISTORY_BYTES};
 
 
@@ -1354,19 +1359,33 @@ impl MsaEngine {
     /// This is the width-preserving inverse of a full-column insert.
     /// Returns success.
     pub fn delete_column(&mut self, col_idx: usize) -> Result<(), StructuredEngineError> {
-        // If the column is out of range for every row, nothing is removed and
-        // the width must not change, otherwise `alignment_width` would
-        // desynchronize from the actual row lengths.
-        if col_idx >= self.alignment_width {
+        // If the matrix is empty or the column is out of range for every row,
+        // nothing is removed and the width must not change.
+        if self.nucleotide_sequences.is_empty() || col_idx >= self.alignment_width {
             return Ok(());
         }
-        self.record_structural_undo();
+        let prev_alignment_width = self.alignment_width;
+        let mut removed_bases = Vec::with_capacity(self.nucleotide_sequences.len());
         for seq in self.nucleotide_sequences.iter_mut() {
             if col_idx < seq.len() {
-                seq.remove(col_idx);
+                removed_bases.push(Some(seq.remove(col_idx)));
+            } else {
+                removed_bases.push(None);
             }
         }
-        self.alignment_width -= 1;
+        self.alignment_width = self
+            .nucleotide_sequences
+            .iter()
+            .map(Vec::len)
+            .max()
+            .unwrap_or(0);
+        history::push_to_undo_stack(self, UndoCommand::DeleteColumn(
+          DeleteColumnRecord {
+            column_index: col_idx,
+            removed_bases,
+            previous_alignment_width: prev_alignment_width,
+          }
+        ));
         Ok(())
     }
 

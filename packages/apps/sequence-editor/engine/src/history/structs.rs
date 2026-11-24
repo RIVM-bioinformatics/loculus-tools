@@ -28,3 +28,11 @@ pub struct DeleteAtSubsetRecord {
   pub target_rows: Vec<usize>,
   pub column_index: usize,
 }
+
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct DeleteColumnRecord {
+  pub column_index: usize,
+  pub removed_bases: Vec<Option<u8>>,
+  pub previous_alignment_width: usize,
+}

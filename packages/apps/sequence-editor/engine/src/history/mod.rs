@@ -187,6 +187,20 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
       }
       UndoCommand::DeleteAtSubset(DeleteAtSubsetRecord { target_rows, column_index })
       }
+    UndoCommand::DeleteColumn(DeleteColumnRecord { 
+      column_index, 
+      removed_bases, 
+      previous_alignment_width 
+    }) => {
+      for (seq, &base) in engine.nucleotide_sequences.iter_mut().zip(&removed_bases) {
+        if let Some(base) = base {
+          let insert_at = column_index.min(seq.len());
+          seq.insert(insert_at, base);
+        }
+      }
+      engine.alignment_width = previous_alignment_width;
+      UndoCommand::DeleteColumn(DeleteColumnRecord { column_index, removed_bases, previous_alignment_width })
+      }
   };
   push_to_redo_bounded(engine, redo_cmd);
   engine.revision = engine.revision.wrapping_add(1);
@@ -283,7 +297,26 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
           column_index 
         }
       ));
-    }
+      }
+    UndoCommand::DeleteColumn(DeleteColumnRecord { 
+      column_index, 
+      removed_bases, 
+      previous_alignment_width 
+    }) => {
+      for seq in engine.nucleotide_sequences.iter_mut() {
+        if column_index < seq.len() {
+          seq.remove(column_index);
+        }
+      }
+      engine.alignment_width = engine.nucleotide_sequences.iter().map(Vec::len).max().unwrap_or(0);
+      push_to_undo_bounded(engine, UndoCommand::DeleteColumn(
+        DeleteColumnRecord { 
+          column_index, 
+          removed_bases, 
+          previous_alignment_width 
+        }
+      ));
+      }
     };
 
   engine.revision = engine.revision.wrapping_add(1);

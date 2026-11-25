@@ -559,7 +559,7 @@ impl MsaEngine {
             UndoCommand::recompute_history_bytes(self);
         }
         while !self.redo_stack.is_empty() && self.history_bytes > self.max_history_bytes {
-            self.redo_stack.remove(0);
+            self.redo_stack.pop_front();
             UndoCommand::recompute_history_bytes(self);
         }
     }
@@ -1957,15 +1957,13 @@ impl MsaEngine {
     /// Undo the most recent command. Returns `true` if an undo was applied,
     /// `false` if the undo stack is empty or the command had no applicable target.
     pub fn undo(&mut self) -> bool {
-        let result = crate::history::apply_undo_action(self);
-        result
+        crate::history::apply_undo_action(self)
     }
 
     /// Redo the most recently undone command. Returns `true` if a redo was
     /// applied, `false` if the redo stack is empty or the command had no applicable target.
     pub fn redo(&mut self) -> bool {
-        let result = crate::history::apply_redo_action(self);
-        result
+        crate::history::apply_redo_action(self)
     }
 
     /// Number of commands on the undo stack.

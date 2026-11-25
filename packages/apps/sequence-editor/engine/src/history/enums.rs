@@ -1,24 +1,18 @@
 pub use crate::history::structs::{
-  SubstitutionRecord, 
-  PrependedSequencesRecord, 
-  InsertAtSubsetRecord, 
-  DeleteAtSubsetRecord,
-  DeleteColumnRecord,
-  DeletedRowRecord,
-  HorizontalMoveRecord,
-  RowReorderRecord,
-  ReplacedMatrixRecord
+    DeleteAtSubsetRecord, DeleteColumnRecord, DeletedRowRecord, HorizontalMoveRecord,
+    InsertAtSubsetRecord, PrependedSequencesRecord, ReplacedMatrixRecord, RowReorderRecord,
+    SubstitutionRecord,
 };
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum UndoCommand {
-  Substitutions(SubstitutionRecord),
-  PrependedSequences(PrependedSequencesRecord),
-  InsertAtSubset(InsertAtSubsetRecord),
-  DeleteAtSubset(DeleteAtSubsetRecord),
-  DeleteColumn(DeleteColumnRecord),
-  DeletedRow(DeletedRowRecord),
-  HorizontalMove(HorizontalMoveRecord),
-  RowReorder(RowReorderRecord),
-  ReplaceMatrix(ReplacedMatrixRecord)
+    Substitutions(SubstitutionRecord),
+    PrependedSequences(PrependedSequencesRecord),
+    InsertAtSubset(InsertAtSubsetRecord),
+    DeleteAtSubset(DeleteAtSubsetRecord),
+    DeleteColumn(DeleteColumnRecord),
+    DeletedRow(DeletedRowRecord),
+    HorizontalMove(HorizontalMoveRecord),
+    RowReorder(RowReorderRecord),
+    ReplaceMatrix(ReplacedMatrixRecord),
 }

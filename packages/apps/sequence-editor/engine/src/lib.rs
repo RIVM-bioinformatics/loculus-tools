@@ -7,23 +7,16 @@
 //! handing out raw pointers into WASM linear memory.
 
 mod alphabets;
-mod search_algorithms;
 mod constants;
 mod history;
+mod search_algorithms;
 
+use constants::{DEFAULT_MAX_HISTORY_BYTES, DEFAULT_MAX_UNDO_DEPTH};
 use history::UndoCommand;
 use history::structs::{
-  SubstitutionRecord, 
-  PrependedSequencesRecord, 
-  InsertAtSubsetRecord,
-  DeleteAtSubsetRecord,
-  DeleteColumnRecord,
-  DeletedRowRecord,
-  HorizontalMoveRecord,
-  RowReorderRecord
+    DeleteAtSubsetRecord, DeleteColumnRecord, DeletedRowRecord, HorizontalMoveRecord,
+    InsertAtSubsetRecord, PrependedSequencesRecord, RowReorderRecord, SubstitutionRecord,
 };
-use constants::{DEFAULT_MAX_UNDO_DEPTH, DEFAULT_MAX_HISTORY_BYTES};
-
 
 use alphabets::{is_amino, is_gap, is_iupac, translate_codon};
 use mafft::{AlignmentMode, MafftEngine, ScoringModel, SeqType, Sequence, SequenceSet};
@@ -362,7 +355,6 @@ pub enum MoveDirection {
     Right,
 }
 
-
 /// Struct that stores 3 amino acid sequences, one for each reading frame.
 struct AminoacidSequence {
     frame_1: Vec<u8>,
@@ -529,10 +521,9 @@ impl MsaEngine {
         self.max_history_bytes = max_history_bytes;
     }
 
-
     /// Get the current revision number of the engine.
     pub fn get_revision(&self) -> usize {
-      self.revision
+        self.revision
     }
 
     /// Estimated total heap size (in bytes) of the undo and redo stacks.
@@ -613,9 +604,15 @@ impl MsaEngine {
         self.viewport_buffer.clear();
 
         if has_existing_state {
-          history::push_to_undo_stack(self, UndoCommand::PrependedSequences(
-              PrependedSequencesRecord { count, names: Vec::new(), sequences: Vec::new(), previous_alignment_width: prev_alignment_width }
-          ));
+            history::push_to_undo_stack(
+                self,
+                UndoCommand::PrependedSequences(PrependedSequencesRecord {
+                    count,
+                    names: Vec::new(),
+                    sequences: Vec::new(),
+                    previous_alignment_width: prev_alignment_width,
+                }),
+            );
         } else {
             self.aminoacid_sequences.clear();
             self.revision = self.revision.wrapping_add(1);
@@ -1236,7 +1233,10 @@ impl MsaEngine {
             }
         }
 
-        history::push_to_undo_stack(self, UndoCommand::Substitutions(SubstitutionRecord { positions }));
+        history::push_to_undo_stack(
+            self,
+            UndoCommand::Substitutions(SubstitutionRecord { positions }),
+        );
 
         Ok(())
     }
@@ -1290,14 +1290,15 @@ impl MsaEngine {
             .map(Vec::len)
             .max()
             .unwrap_or(0);
-        history::push_to_undo_stack(self, UndoCommand::InsertAtSubset(
-          InsertAtSubsetRecord {
-              target_rows,
-              insertion_col,
-              padded_short_rows,
-              previous_alignment_width,
-            }
-        ));
+        history::push_to_undo_stack(
+            self,
+            UndoCommand::InsertAtSubset(InsertAtSubsetRecord {
+                target_rows,
+                insertion_col,
+                padded_short_rows,
+                previous_alignment_width,
+            }),
+        );
         Ok(())
     }
 
@@ -1353,10 +1354,13 @@ impl MsaEngine {
             seq.push(b'-'); // Pad at end to keep width unchanged
         }
 
-        history::push_to_undo_stack(self, UndoCommand::DeleteAtSubset(DeleteAtSubsetRecord {
-            target_rows,
-            column_index: col_idx,
-        }));
+        history::push_to_undo_stack(
+            self,
+            UndoCommand::DeleteAtSubset(DeleteAtSubsetRecord {
+                target_rows,
+                column_index: col_idx,
+            }),
+        );
         // Width unchanged
         Ok(())
     }
@@ -1385,13 +1389,14 @@ impl MsaEngine {
             .map(Vec::len)
             .max()
             .unwrap_or(0);
-        history::push_to_undo_stack(self, UndoCommand::DeleteColumn(
-          DeleteColumnRecord {
-            column_index: col_idx,
-            removed_bases,
-            previous_alignment_width: prev_alignment_width,
-          }
-        ));
+        history::push_to_undo_stack(
+            self,
+            UndoCommand::DeleteColumn(DeleteColumnRecord {
+                column_index: col_idx,
+                removed_bases,
+                previous_alignment_width: prev_alignment_width,
+            }),
+        );
         Ok(())
     }
 
@@ -1530,12 +1535,15 @@ impl MsaEngine {
             }
         }
 
-        history::push_to_undo_stack(self, UndoCommand::HorizontalMove(HorizontalMoveRecord {
-            rows: target_rows,
-            start_col: start,
-            end_col: end,
-            direction,
-        }));
+        history::push_to_undo_stack(
+            self,
+            UndoCommand::HorizontalMove(HorizontalMoveRecord {
+                rows: target_rows,
+                start_col: start,
+                end_col: end,
+                direction,
+            }),
+        );
 
         Ok(())
     }
@@ -1573,9 +1581,10 @@ impl MsaEngine {
             inverse_order[src] = i;
         }
         self.permute_rows_in_place(order);
-        history::push_to_undo_stack(self, UndoCommand::RowReorder(RowReorderRecord {
-            inverse_order,
-        }));
+        history::push_to_undo_stack(
+            self,
+            UndoCommand::RowReorder(RowReorderRecord { inverse_order }),
+        );
     }
 
     /// Move the specified rows relative to their current positions by `delta`
@@ -1776,7 +1785,6 @@ impl MsaEngine {
         {
             if to_delete[row_index] {
                 deleted_rows.push(DeletedRowRecord {
-
                     deleted_rows: vec![row_index],
                     row_indices: vec![row_index],
                     names: vec![name],
@@ -1797,7 +1805,6 @@ impl MsaEngine {
             .map(Vec::len)
             .max()
             .unwrap_or(0);
-        
 
         for deleted_row in deleted_rows {
             history::push_to_undo_stack(self, UndoCommand::DeletedRow(deleted_row));
@@ -1934,10 +1941,13 @@ impl MsaEngine {
         self.alignment_width = sequences.first().map_or(0, Vec::len);
         let prev_sequences = std::mem::replace(&mut self.nucleotide_sequences, sequences);
         self.names = names;
-        history::push_to_undo_stack(self, UndoCommand::ReplaceMatrix(history::ReplacedMatrixRecord { 
-          sequences: prev_sequences, 
-          previous_alignment_width: prev_alignment_width 
-        }));
+        history::push_to_undo_stack(
+            self,
+            UndoCommand::ReplaceMatrix(history::ReplacedMatrixRecord {
+                sequences: prev_sequences,
+                previous_alignment_width: prev_alignment_width,
+            }),
+        );
     }
 
     /// Undo the most recent command. Returns `true` if an undo was applied,

@@ -115,9 +115,10 @@ The exact current status strings are:
 | Redo | `Redo complete.` or `Nothing to redo.` |
 | Export | `FASTA exported.` |
 
-Undo and redo currently pass `dirty = true` even when the engine returns
-`false` because its stack was empty. A replacement that must match the current
-implementation must keep this behavior.
+Undo, redo, and mutating commands return a `boolean` (`true` when the engine
+state actually changed, `false` for a no-op or empty stack). When a command
+returns `false`, the UI controller skips cache invalidation, metadata refresh,
+`dirty` / `dataRevision` updates, and post-command selection changes.
 
 ### 0.3 Current behavior that must not be inferred differently
 
@@ -713,7 +714,7 @@ Undo and redo are engine operations, not React cache operations. After either op
 - preserve the current scroll position unless the dataset itself was reloaded;
 - do not reconstruct bytes from old React state.
 
-A rectangle mutation must undo and redo as one command. A structural insertion must undo and redo as one structural snapshot command.
+A rectangle mutation must undo and redo as one command. A structural insertion must undo and redo as one compact `InsertAtSubset` command.
 
 ### 6.7 Horizontal movement
 
@@ -726,7 +727,7 @@ Alt+Left and Alt+Right, and the matching toolbar buttons, invoke `moveHorizontal
 - All moved characters must be IUPAC symbols, not gaps.
 - The adjacent destination must be a gap.
 - The move is rejected atomically with `MoveNotIupac` or `MoveNoGapTarget` when invalid.
-- Structural movement creates a structural history snapshot.
+- Structural movement creates a single compact `HorizontalMove` history command.
 
 ### 6.8 Row movement
 
@@ -737,7 +738,7 @@ Row movement is explicit toolbar behavior:
 - If no rows are selected, operate on the active row.
 - Rows at the relevant boundary are skipped by the engine.
 - Names and nucleotide sequences move together.
-- Row movement creates a structural history snapshot.
+- Row movement creates a single compact `RowReorder` history command.
 - A rectangle selection supplies its selected row span to row movement.
 
 After a successful row move, remap positions by simulating the engine's exact
@@ -767,7 +768,7 @@ Whole-column deletion is explicit toolbar/menu behavior and requires confirmatio
 - The active column is deleted from every row.
 - The alignment width decreases by one when the column is valid.
 - The active cell is clamped to the new final column if necessary.
-- The operation creates a structural history snapshot.
+- The operation creates a single compact `DeleteColumn` history command.
 - It is distinct from the `Delete` key, which currently mutates bases to `-`.
 
 ### 6.10 Exact keyboard-selection extension behavior
@@ -799,13 +800,13 @@ The Rust engine is the authoritative validator. All mutation methods validate be
 - deduplicates duplicate row and column indices;
 - validates every in-range target cell before changing any target cell;
 - silently skips out-of-range rows and columns;
-- stores each changed position as `(row, col, old_base)`;
+- stores each **changed** position (`seq[col] != new_base`) as `(row, col, old_base)`;
 - changes every collected position to `new_base`;
 - creates one `Substitutions` history command;
-- clears redo history after a successful recorded mutation;
+- clears redo history, increments `revision`, and clears `aminoacid_sequences` after a successful recorded mutation;
 - leaves names, row order, row lengths, and alignment width unchanged.
 
-If the shape is empty or no in-range positions exist, the operation is a no-op and creates no history command.
+If the shape is empty, no in-range positions exist, or all target cells already equal `new_base`, the operation is a no-op and leaves `undo_stack`, `redo_stack`, `revision`, and `aminoacid_sequences` untouched.
 
 If a target row/column is out of range, that position is skipped rather than treated as padding and rather than causing an error.
 
@@ -814,7 +815,7 @@ The JavaScript `mutate()` method sends only the first UTF-16 code unit of the
 character. A replacement API that accepts a string must either preserve this
 first-character rule or reject non-single-character input before sending it.
 
-If the new base equals the old base, the current engine still records the in-range position because it records positions rather than filtering equal-value writes. Any change to that behavior must update history tests and UI expectations.
+If the new base equals the old base across all targeted cells, the engine skips equal-value writes and treats the call as a no-op without recording an undo entry or advancing `revision`.
 
 The Rust method uses an all-or-nothing validation phase. It must never mutate the first part of a shape and then discover an invalid character later.
 
@@ -825,21 +826,19 @@ The Rust method uses an all-or-nothing validation phase. It must never mutate th
 - inserts only `-`;
 - clamps the requested insertion column to the current alignment width;
 - inserts at the requested position in target rows;
-- pads short target rows with gaps until the insertion position exists;
+- pads short rows with gaps until the insertion position exists, recording their original lengths in `padded_short_rows`;
 - appends one gap to every non-target row;
-- increases the global alignment width by one after the operation;
-- records a full structural snapshot;
-- clears redo history.
+- updates global alignment width from the resulting row lengths;
+- records a compact `InsertAtSubset` command;
+- clears redo history, increments `revision`, and clears `aminoacid_sequences`.
 
 The frontend must calculate target rows from the selection rectangle, but must pass only one insertion column: the normalized left edge.
 
 Additional engine edge cases:
 
-- Inserting into an empty engine returns success, changes nothing, and creates
-  no history entry.
-- Inserting into a non-empty engine with an empty row list still records a
-  structural snapshot and appends one gap to every row, because every row is a
-  non-target.
+- Inserting into an empty engine, or into a non-empty engine with an empty or
+  all-out-of-bounds row list, returns success as a no-op, changes nothing, and
+  creates no history entry.
 - A column greater than the current alignment width is clamped to the current
   width. The result is an appended gap in target rows and a width increase of
   one.
@@ -854,13 +853,13 @@ Additional engine edge cases:
 - appends `-` to each target row to preserve its length;
 - leaves non-target rows untouched;
 - leaves global alignment width unchanged;
-- records a full structural snapshot after validation;
-- clears redo history.
+- records a compact `DeleteAtSubset` command after validation;
+- clears redo history, increments `revision`, and clears `aminoacid_sequences`.
 
 Additional engine edge cases:
 
-- An empty row list passes validation and records a structural snapshot, but
-  changes no row bytes.
+- An empty row list, all-out-of-bounds row list, or column out of bounds for all
+  target rows is a strict no-op: changes nothing and records no history entry.
 - An out-of-range row is ignored during validation and mutation.
 - An out-of-range column is ignored for each row; it does not count as a
   non-gap and does not produce `DeleteNotGap`.
@@ -872,9 +871,9 @@ Additional engine edge cases:
 - applies to every row;
 - removes the cell at `col` when present;
 - decreases alignment width by one only when `col` is within the global width;
-- is a no-op outside the global width;
-- records a full structural snapshot for a valid operation;
-- clears redo history.
+- is a no-op when the matrix is empty or outside the global width;
+- records a compact `DeleteColumn` command for a valid operation;
+- clears redo history, increments `revision`, and clears `aminoacid_sequences`.
 
 ### 7.5 Horizontal movement
 
@@ -887,7 +886,7 @@ Additional engine edge cases:
 - requires a gap immediately outside the range in the requested direction across all target rows;
 - rotates the block by one position across all target rows;
 - does not change row length or global width;
-- records a single structural snapshot for the entire multi-row operation;
+- records a single compact `HorizontalMove` command for the entire multi-row operation;
 - returns `MoveNotIupac` or `MoveNoGapTarget` on failure without modifying anything (all-or-nothing).
 
 ### 7.6 Row reordering
@@ -905,19 +904,22 @@ Row reordering provides three distinct modes:
    - Snaps selected rows into a contiguous block at the top (`0..k-1`) or bottom (`N-k..N-1`).
 
 **History & No-Op Behavior**:
-- All row reordering commands move names and sequences together without changing sequence bytes within a row.
-- Each user-visible move operation records exactly **one** `StructuralSnapshot` on the undo stack.
+- All row reordering commands permute names and sequences in-place via cycle decomposition without changing sequence bytes within a row.
+- Each user-visible move operation records exactly **one** compact `RowReorder` command on the undo stack.
 - Operations that result in no actual row movements (e.g. empty inputs, moving rows that are already at the boundary) are clean no-ops and **do not record** an undo history entry.
 
 ## 8. History rules
 
 ### 8.1 History command types
 
-The engine currently has three logical history categories:
+The engine stores compact, reversible `UndoCommand` variants without full-matrix clones in a `VecDeque` bounded by `max_undo_depth` (`2000` default) and `max_history_bytes` (`256 MiB` default):
 
-1. `Substitutions` for one-column mutations.
-2. `RangeSubstitutions` for rectangular mutations.
-3. `StructuralSnapshot` for insertions, deletions, whole-column deletion, horizontal movement, and row reordering.
+1. `Substitutions` for single-cell and rectangular base mutations.
+2. `HorizontalMove` for horizontal block shifts.
+3. `RowReorder` for vertical row permutations.
+4. `InsertAtSubset`, `DeleteAtSubset`, and `DeleteColumn` for gap insertions/deletions.
+5. `DeleteRows` and `PrependSequences` for row deletion and FASTA prepending (moving row buffers without cloning).
+6. `ReplaceMatrix` for pointer-swapped `realign` and `apply_aligned_fasta` updates.
 
 ### 8.2 Atomicity
 
@@ -986,18 +988,19 @@ The UI must not remain busy forever after a worker failure.
 
 The current controller wraps operations with these exact options:
 
-| Controller method | Engine call(s) | `dirty` on success | `updateRevision` | Cursor/selection update after success |
+| Controller method | Engine call(s) | `dirty` on applied change | `updateRevision` | Cursor/selection update after applied change |
 | --- | --- | ---: | ---: | --- |
-| `loadFasta` | `load`, then `meta` | `false` | `true` plus dataset reset | Reset by dataset reset to cell `{0, 0}` and no selection |
-| `mutate` | `mutate`, then `meta` | `true` | `true` | Mutates target shape; preserves selection |
-| `insert` | `insert`, then `meta` | `true` | `true` | Caller handles insertion transform |
-| `delete` | `delete`, then `meta` | `true` | `true` | Caller moves active cell left on success |
-| `deleteColumn` | `deleteColumn`, then `meta` | `true` | `true` | Controller clamps active cell after metadata returns |
-| `moveHorizontal` | `moveHorizontal`, then `meta` | `true` | `true` | Caller shifts selected columns of cell block or column selection by one position |
-| `moveRowsUp` | `moveRowsUp`, then `meta` | `true` | `true` | No cursor/selection remapping |
-| `moveRowsDown` | `moveRowsDown`, then `meta` | `true` | `true` | No cursor/selection remapping |
-| `undo` | `undo`, then `meta` | `true` | `true` | No cursor/selection restore |
-| `redo` | `redo`, then `meta` | `true` | `true` | No cursor/selection restore |
+| `loadFasta` | `load` (`boolean`), then `meta` (includes `revision`) | `false` | `true` when `changed` plus dataset reset | Reset by dataset reset to cell `{0, 0}` and no selection |
+| `mutate` | `mutate` (`boolean`), then `meta` | `true` | `true` when `changed` | Mutates target shape; preserves selection |
+| `insert` | `insert` (`boolean`), then `meta` | `true` | `true` when `changed` | Caller handles insertion transform |
+| `delete` | `delete` (`boolean`), then `meta` | `true` | `true` when `changed` | Caller moves active cell left on success |
+| `deleteColumn` | `deleteColumn` (`boolean`), then `meta` | `true` | `true` when `changed` | Controller clamps active cell after metadata returns |
+| `moveHorizontal` | `moveHorizontal` (`boolean`), then `meta` | `true` | `true` when `changed` | Caller shifts selected columns of cell block or column selection by one position |
+| `moveRowsUp` | `moveRowsUp` (`boolean`), then `meta` | `true` | `true` when `changed` | No cursor/selection remapping |
+| `moveRowsDown` | `moveRowsDown` (`boolean`), then `meta` | `true` | `true` when `changed` | No cursor/selection remapping |
+| `undo` | `undo` (`boolean`), then `meta` | `true` | `true` when `changed` | No cursor/selection restore |
+| `redo` | `redo` (`boolean`), then `meta` | `true` | `true` when `changed` | No cursor/selection restore |
+| `realign` | `exportGappedFasta` + `meta` (`startRevision`), align, `applyAlignedFasta(fasta, startRevision)` (`boolean`), then `meta` | `true` | `true` when `changed` | Clears selection |
 | `exportGappedFasta` / `exportUngappedFasta` | `exportGappedFasta` / `exportUngappedFasta`, then browser download | `false` | `false` | None |
 
 `loadFasta` dispatches `resetForDataset` inside its queued operation and then
@@ -1017,7 +1020,7 @@ responses; it must not assume metadata and bytes arrive in one React dispatch.
 
 ### 10.1 Data revision
 
-Every successful data-changing command increments `dataRevision`:
+Every applied data-changing command (where the worker returns `true`, and `EngineMeta.revision` advances) increments `dataRevision`:
 
 - mutation;
 - rectangle mutation;
@@ -1325,7 +1328,7 @@ If scroll feels sluggish, profile in this order:
 4. whether a stale request is causing repeated invalidation;
 5. whether scroll events are causing more than one React update per animation frame;
 6. whether fixed overlay painting is being repeated unnecessarily;
-7. whether the worker is blocked by a structural snapshot or another command.
+7. whether the worker is blocked by a long-running alignment or another command.
 
 ## 17. Testing requirements
 
@@ -1374,7 +1377,12 @@ Cover:
 - structural deletion gap validation;
 - no width change for mutation and subset deletion;
 - width change for insertion and whole-column deletion;
-- redo invalidation after a new edit.
+- redo invalidation after a new edit;
+- strict no-op guards (`mutate_base` equal-base skip, empty/OOB `insert_at_subset` and `delete_at_subset`, empty `delete_column`);
+- compact undo/redo memory footprint far below full-matrix clones;
+- bounded `VecDeque` depth (`256`) and byte-budget (`64 MiB`) FIFO eviction;
+- monotonic `revision` tracking and `StaleRevision` rejection in `apply_aligned_fasta`;
+- `aminoacid_sequences` translation cache invalidation on every applied mutation, `undo()`, and `redo()`.
 
 ### 17.4 Browser tests
 

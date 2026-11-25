@@ -362,9 +362,14 @@ buffer ownership, viewport dimensions, and error propagation.
   does not force every loaded row to have the same length.
 - Sequence-editor viewport ranges are inclusive. The returned byte invariant is
   `bytes.length === rows * cols`; invalid ranges return an empty result.
-- Structural sequence edits use full matrix snapshots for undo/redo, while base
-  substitutions use compact edit records. Performance changes must preserve
-  these semantics unless the engine design documentation is updated too.
+- Both structural and base-substitution edits use compact, reversible
+  `UndoCommand` deltas or pointer swaps (`Substitutions`, `HorizontalMove`,
+  `RowReorder`, `InsertAtSubset`, `DeleteAtSubset`, `DeleteColumn`, `DeleteRows`,
+  `PrependSequences`, `ReplaceMatrix`) rather than full-matrix clones. History
+  is bounded by `DEFAULT_MAX_UNDO_DEPTH` (2000) and `DEFAULT_MAX_HISTORY_BYTES`
+  (256 MiB) via `VecDeque` eviction, and empty mutations leave history,
+  `revision`, and `aminoacid_sequences` untouched. Performance changes must
+  preserve these invariants unless the engine design documentation is updated too.
 - Phylogeny calculations run in the browser and may depend on worker-preloaded
   Biowasm tools. Avoid moving large calculations onto the React render path.
 - `mst-viewer` and `record-merger` are not currently implemented packages in

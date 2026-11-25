@@ -364,8 +364,8 @@ buffer ownership, viewport dimensions, and error propagation.
   `bytes.length === rows * cols`; invalid ranges return an empty result.
 - Both structural and base-substitution edits use compact, reversible
   `UndoCommand` deltas or pointer swaps (`Substitutions`, `HorizontalMove`,
-  `RowReorder`, `InsertAtSubset`, `DeleteAtSubset`, `DeleteColumn`, `DeleteRows`,
-  `PrependSequences`, `ReplaceMatrix`) rather than full-matrix clones. History
+  `RowReorder`, `InsertAtSubset`, `DeleteAtSubset`, `DeleteColumn`, `DeletedRow`,
+  `PrependedSequences`, `ReplaceMatrix`) rather than full-matrix clones. History
   is bounded by `DEFAULT_MAX_UNDO_DEPTH` (2000) and `DEFAULT_MAX_HISTORY_BYTES`
   (256 MiB) via `VecDeque` eviction, and empty mutations leave history,
   `revision`, and `aminoacid_sequences` untouched. Performance changes must

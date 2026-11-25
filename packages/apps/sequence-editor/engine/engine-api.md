@@ -44,7 +44,7 @@ interface EngineClient {
   load: (fasta: string) => Promise<boolean>;
   reset: () => Promise<void>;
   viewport: (r: ViewportRequest) => Promise<ViewportResult & { bytes: Uint8Array }>;
-  mutate: (rows: number[], col: number, base: string) => Promise<boolean>;
+  mutate: (rows: number[], columns: number[], base: string) => Promise<boolean>;
   insert: (rows: number[], col: number) => Promise<boolean>;
   delete: (rows: number[], col: number) => Promise<boolean>;
   deleteColumn: (col: number) => Promise<boolean>;
@@ -131,7 +131,7 @@ console.log(changed); // true
 
 - Calling `load` **prepends** parsed sequences in order ahead of any existing rows.
 - If the engine already contains state (sequences or undo/redo history), a
-  compact `PrependSequences` command is recorded before prepending, making the addition
+  compact `PrependedSequences` command is recorded before prepending, making the addition
   undoable via `undo()`. An initial load into a fresh or reset engine keeps
   `undoDepth === 0` while advancing `revision`.
 - Calling `load` with empty or whitespace-only input is a no-op that returns `false`
@@ -366,7 +366,7 @@ await engine.deleteColumn(4);
 
 Deletes the specified row indices from the matrix in a single atomic transaction.
 - Out-of-bounds indices are ignored.
-- Records a compact `DeleteRows` undo step if at least one row was removed (resolves `false` otherwise).
+- Records a compact `DeletedRow` undo step if at least one row was removed (resolves `false` otherwise).
 - Recomputes alignment width from remaining rows (or 0 if all rows were deleted).
 
 ```ts
@@ -496,7 +496,7 @@ const didRedo = await engine.redo();
 
 **Behavior to know:**
 
-- History is bounded by both command depth (`256` default) and estimated heap byte budget (`64 MiB` default), evicting oldest undo entries in FIFO order.
+- History is bounded by both command depth (`2000` default) and estimated heap byte budget (`256 MiB` default), evicting oldest undo entries in FIFO order.
 - A new applied edit after an undo **clears the redo stack** (the redo branch is
   invalidated); no-ops leave both stacks, `revision`, and caches untouched.
 - Use `meta().undoDepth` / `meta().redoDepth` to enable/disable buttons.
@@ -644,7 +644,7 @@ try {
 | `exportGappedFasta` | — | `Promise<string>` | Export full alignment as gapped FASTA |
 | `exportUngappedFasta` | — | `Promise<string>` | Export full alignment as ungapped FASTA |
 | `viewport` | `{startRow, endRow, startCol, endCol}` | `Promise<ViewportResult & {bytes}>` | Fetch a windowed slice |
-| `mutate` | `rows: number[], col, base: string` | `Promise<boolean>` | Change bases on a subset of rows (`false` on no-op) |
+| `mutate` | `rows: number[], columns: number[], base: string` | `Promise<boolean>` | Change bases on a subset of rows (`false` on no-op) |
 | `insert` | `rows: number[], col` | `Promise<boolean>` | Insert a `-` at col on target rows; append `-` on non-targets (`false` on no-op) |
 | `delete` | `rows: number[], col` | `Promise<boolean>` | Delete a column on a subset (validates target is `-`; `false` on no-op) |
 | `deleteColumn` | `col: number` | `Promise<boolean>` | Delete a column from all rows (`false` on no-op) |

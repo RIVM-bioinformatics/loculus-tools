@@ -138,7 +138,7 @@ pub struct MsaEngine {
     alignment_width: usize,                   // global column count
     viewport_buffer: Vec<u8>,                 // reusable slice buffer
     undo_stack: VecDeque<UndoCommand>,
-    redo_stack: Vec<UndoCommand>,
+    redo_stack: VecDeque<UndoCommand>,
     history_bytes: usize,
     max_undo_depth: usize,
     max_history_bytes: usize,
@@ -160,19 +160,19 @@ pub struct MsaEngine {
 
 ### 3.2 `UndoCommand`
 
-History is stored without `Clone` using compact reversible descriptors and pointer swaps (plus `DeletedRowRecord { row_index, name, sequence }`):
+History is stored without `Clone` using compact reversible record structs and pointer swaps:
 
-- **`Substitutions { positions: Vec<(usize, usize, u8)> }`**: `(row, col, base_to_restore)` tuples swapped in-place on `undo`/`redo`.
-- **`HorizontalMove { rows, start_col, end_col, direction }`**: 1-column block rotation across `rows` over inclusive `[start_col, end_col]`.
-- **`RowReorder { inverse_order: Vec<usize> }`**: row permutation applied in-place via cycle decomposition (moving `Vec<u8>`/`String` headers without cloning bytes).
-- **`InsertAtSubset { target_rows, insertion_col, padded_short_rows, prev_alignment_width }`**: records target rows plus `(row_idx, orig_len)` only for ragged short rows padded before insertion.
-- **`DeleteAtSubset { target_rows, col_idx }`**: target rows had `b'-'` removed at `col_idx` and `b'-'` appended at end.
-- **`DeleteColumn { col_idx, removed_bases, prev_alignment_width }`**: stores 1 `Option<u8>` per row (`None` for short ragged rows).
-- **`DeleteRows { deleted_rows, row_indices, prev_alignment_width }`**: owns moved `DeletedRowRecord` items on `undo_stack`; when undone onto `redo_stack`, retains only `row_indices` to re-delete.
-- **`PrependSequences { count, names, sequences, prev_alignment_width }`**: stores `count` only on `undo_stack`; when undone onto `redo_stack`, holds drained `names`/`sequences`.
-- **`ReplaceMatrix { sequences, prev_alignment_width }`**: swaps `nucleotide_sequences` via `std::mem::replace`/`std::mem::swap` for `realign` and `apply_aligned_fasta`.
+- **`Substitutions(SubstitutionRecord { positions: Vec<(usize, usize, u8)> })`**: `(row, col, base_to_restore)` tuples swapped in-place on `undo`/`redo`.
+- **`HorizontalMove(HorizontalMoveRecord { rows, start_col, end_col, direction })`**: 1-column block rotation across `rows` over inclusive `[start_col, end_col]`.
+- **`RowReorder(RowReorderRecord { inverse_order: Vec<usize> })`**: row permutation applied in-place via cycle decomposition (moving `Vec<u8>`/`String` headers without cloning bytes).
+- **`InsertAtSubset(InsertAtSubsetRecord { target_rows, insertion_col, padded_short_rows, previous_alignment_width })`**: records target rows plus `(row_idx, orig_len)` only for ragged short rows padded before insertion.
+- **`DeleteAtSubset(DeleteAtSubsetRecord { target_rows, column_index })`**: target rows had `b'-'` removed at `column_index` and `b'-'` appended at end.
+- **`DeleteColumn(DeleteColumnRecord { column_index, removed_bases, previous_alignment_width })`**: stores 1 `Option<u8>` per row (`None` for short ragged rows).
+- **`DeletedRow(DeletedRowRecord { row_indices, names, sequences, previous_alignment_width })`**: owns moved `names` and `sequences` on `undo_stack`; when undone onto `redo_stack`, clears `names`/`sequences` and retains only `row_indices` to re-delete.
+- **`PrependedSequences(PrependedSequencesRecord { count, names, sequences, previous_alignment_width })`**: stores `count` only on `undo_stack`; when undone onto `redo_stack`, holds drained `names`/`sequences`.
+- **`ReplaceMatrix(ReplacedMatrixRecord { sequences, previous_alignment_width })`**: swaps `nucleotide_sequences` via `std::mem::replace`/`std::mem::swap` for `realign` and `apply_aligned_fasta`.
 
-`UndoCommand::estimated_byte_size(&self) -> usize` computes `size_of::<Self>()` plus heap capacities of owned vectors/strings. `push_undo()` clears `redo_stack`, evicts oldest `undo_stack` entries via `pop_front()` until both `max_undo_depth` and `max_history_bytes` are satisfied, recomputes `history_bytes`, increments `revision`, and clears `aminoacid_sequences`.
+`UndoCommand::estimated_byte_size(&self) -> usize` computes `size_of::<Self>()` plus heap capacities of owned vectors/strings. `push_to_undo_stack()` clears `redo_stack`, evicts oldest `undo_stack` entries via `pop_front()` until both `max_undo_depth` and `max_history_bytes` are satisfied, recomputes `history_bytes`, increments `revision`, and clears `aminoacid_sequences`.
 
 ---
 
@@ -194,7 +194,7 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `load_fasta` | `load_fasta(fasta: string): number` | Validate and parse FASTA atomically; prepend sequences ahead of existing rows, update width, and record a compact `PrependSequences` command if prior state exists. Throw a structured error on invalid input. |
+| `load_fasta` | `load_fasta(fasta: string): number` | Validate and parse FASTA atomically; prepend sequences ahead of existing rows, update width, and record a compact `PrependedSequences` command if prior state exists. Throw a structured error on invalid input. |
 
 `load_fasta` behavior:
 
@@ -202,7 +202,7 @@ raw pointers are only meaningful within that worker's WASM linear memory.
   input is valid are sequences prepended ahead of existing rows;
   invalid input leaves the current engine state intact.
 - If the engine already contains state (sequences or undo/redo history), a
-  `PrependSequences` command is recorded so the addition can be undone (`Ctrl+Z` / `Cmd+Z`).
+  `PrependedSequences` command is recorded so the addition can be undone (`Ctrl+Z` / `Cmd+Z`).
   Initial load into a fresh or reset engine keeps `undo_depth == 0` and advances `revision`.
 - Empty or whitespace-only input is a no-op that returns the current sequence
   count without modifying `revision`, `redo_stack`, or `aminoacid_sequences`.
@@ -283,9 +283,9 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 | `redo_depth` | `(): number` | Number of commands on the redo stack. |
 | `get_revision` | `(): number` | Monotonic revision counter across applied edits, non-empty loads, `undo`, `redo`, and `reset`. |
 | `get_history_bytes` | `(): number` | Estimated heap byte footprint across undo and redo stacks. |
-| `get_max_undo_depth` | `(): number` | Configured maximum undo stack depth (default `256`). |
+| `get_max_undo_depth` | `(): number` | Configured maximum undo stack depth (default `2000`). |
 | `set_max_undo_depth` | `(max_depth: number): void` | Set maximum undo stack depth and immediately evict oldest undo entries if exceeded. |
-| `get_max_history_bytes` | `(): number` | Configured maximum history byte budget (default `64 MiB`). |
+| `get_max_history_bytes` | `(): number` | Configured maximum history byte budget (default `256 MiB`). |
 | `set_max_history_bytes` | `(max_bytes: number): void` | Set maximum history byte budget and immediately evict oldest entries if exceeded. |
 
 ### 4.5 FASTA Export
@@ -469,9 +469,9 @@ Reorder rows without character constraints, updating both `sequences` and `names
 
 `MsaEngine::delete_rows(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError>`
 
-- **Atomicity**: Deduplicates and bounds-checks `row_indices`. If no valid rows exist, returns `Ok(())` without pushing an undo entry. Otherwise, moves deleted rows in ascending index order into `DeleteRows`.
+- **Atomicity**: Deduplicates and bounds-checks `row_indices`. If no valid rows exist, returns `Ok(())` without pushing an undo entry. Otherwise, moves deleted rows in ascending index order into `DeletedRow`.
 - **Width recalculation**: Recomputes `alignment_width` from the maximum length of remaining rows, or `0` if all rows are removed.
-- **Cache invalidation**: Clears `aminoacid_sequences` via `push_undo`.
+- **Cache invalidation**: Clears `aminoacid_sequences` via `push_to_undo_stack`.
 - **Zero-row state**: The matrix safely supports `sequence_count == 0`; `undo()` restores all deleted rows and original width.
 
 ### 5.8 Sequence re-alignment (`realign`)
@@ -570,19 +570,19 @@ oversized results, or reservation failures return `InvalidViewport` with
 
 ## 6. Undo / Redo
 
-The engine maintains a bounded `VecDeque<UndoCommand>` (`undo_stack`) and `Vec<UndoCommand>` (`redo_stack`). Every applied mutation pushes onto `undo_stack` via `push_undo()`, clears `redo_stack`, evicts oldest entries in FIFO order when `max_undo_depth` (`256`) or `max_history_bytes` (`64 MiB`) would be exceeded, recomputes `history_bytes`, increments `revision`, and clears `aminoacid_sequences`.
+The engine maintains bounded `VecDeque<UndoCommand>` stacks (`undo_stack` and `redo_stack`). Every applied mutation pushes onto `undo_stack` via `push_to_undo_stack()`, clears `redo_stack`, evicts oldest entries in FIFO order when `max_undo_depth` (`2000`) or `max_history_bytes` (`256 MiB`) would be exceeded, recomputes `history_bytes`, increments `revision`, and clears `aminoacid_sequences`.
 
 ### 6.1 `undo(): boolean`
 
 Pops the most recent command (`pop_back()`) and reverses it in-place:
 
 - **`Substitutions`**: swaps `(row, col, target_base)` in-place inside `positions` with zero heap allocations (filtering out-of-bounds entries via compaction); returns `false` without incrementing `revision` if zero cells were in-bounds.
-- **`HorizontalMove` / `RowReorder` / `InsertAtSubset` / `DeleteAtSubset` / `DeleteColumn` / `DeleteRows` / `PrependSequences` / `ReplaceMatrix`**: applies the exact compact inverse in-place or via pointer swaps (`DeleteRows` moves restored rows back into the matrix and keeps only `row_indices` on `redo_stack`; `PrependSequences` drains prepended rows onto `redo_stack`; `ReplaceMatrix` swaps buffers via `std::mem::swap`).
+- **`HorizontalMove` / `RowReorder` / `InsertAtSubset` / `DeleteAtSubset` / `DeleteColumn` / `DeletedRow` / `PrependedSequences` / `ReplaceMatrix`**: applies the exact compact inverse in-place or via pointer swaps (`DeletedRow` moves restored rows back into the matrix and keeps only `row_indices` on `redo_stack`; `PrependedSequences` drains prepended rows onto `redo_stack`; `ReplaceMatrix` swaps buffers via `std::mem::swap`).
 
 Recomputes `history_bytes`, enforces `max_history_bytes` across both stacks, increments `revision`, and clears `aminoacid_sequences`. Specifically:
 
 - If the reverse command's `estimated_byte_size()` alone exceeds `max_history_bytes`, `redo_stack` is cleared and the oversized redo entry is not pushed (preserving earlier `undo_stack` entries while preventing older redo entries from skipping over the un-recorded undone step).
-- Otherwise, the reverse command is pushed onto `redo_stack`, `history_bytes` is recomputed, and if `history_bytes > max_history_bytes`, oldest `undo_stack` entries are evicted first (`pop_front()`), followed by oldest `redo_stack` entries (`remove(0)`) if `undo_stack` is empty.
+- Otherwise, the reverse command is pushed onto `redo_stack`, `history_bytes` is recomputed, and if `history_bytes > max_history_bytes`, oldest `undo_stack` entries are evicted first (`pop_front()`), followed by oldest `redo_stack` entries (`pop_front()`) if `undo_stack` is empty.
 
 Returns `true` if an undo was applied, `false` if the undo stack was empty or degenerate.
 
@@ -596,7 +596,7 @@ Returns `true` if a redo was applied, `false` if the redo stack was empty or deg
 
 - No-op mutations leave `undo_stack`, `redo_stack`, `revision`, and `aminoacid_sequences` untouched.
 - A new applied edit after an undo clears `redo_stack` (the redo branch is invalidated).
-- `history_bytes` is always recomputed from `undo_stack` + `redo_stack` so payload transitions (`DeleteRows`, `PrependSequences`, `ReplaceMatrix`) never drift, and `get_history_bytes() <= get_max_history_bytes()` holds across `push_undo()`, `undo()`, `redo()`, `set_max_undo_depth()`, and `set_max_history_bytes()`.
+- `history_bytes` is always recomputed from `undo_stack` + `redo_stack` so payload transitions (`DeletedRow`, `PrependedSequences`, `ReplaceMatrix`) never drift, and `get_history_bytes() <= get_max_history_bytes()` holds across `push_to_undo_stack()`, `undo()`, `redo()`, `set_max_undo_depth()`, and `set_max_history_bytes()`.
 - `undo()` and `redo()` clear the cached `aminoacid_sequences` so translated views remain consistent with restored nucleotide states.
 
 ---
@@ -722,8 +722,8 @@ and render.
   (no per-scroll allocation).
 - **Substitutions** are O(changed cells) and record O(changed cells) undo data.
 - **Structural edits** record compact O(affected rows/cells) deltas or O(1)
-  pointer swaps (`ReplaceMatrix`, `DeleteRows`, `PrependSequences`), bounded by
-  `max_undo_depth` (`256`) and `max_history_bytes` (`64 MiB`).
+  pointer swaps (`ReplaceMatrix`, `DeletedRow`, `PrependedSequences`), bounded by
+  `max_undo_depth` (`2000`) and `max_history_bytes` (`256 MiB`).
 - **Zero-copy path:** `update_viewport` + `sabView.set()` gives near-zero
   bridge-back latency (a single typed-array memcpy into shared memory), versus
   ~0.28ms for the `buffer.slice` + transfer path.

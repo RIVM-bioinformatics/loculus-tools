@@ -918,7 +918,7 @@ The engine stores compact, reversible `UndoCommand` variants without full-matrix
 2. `HorizontalMove` for horizontal block shifts.
 3. `RowReorder` for vertical row permutations.
 4. `InsertAtSubset`, `DeleteAtSubset`, and `DeleteColumn` for gap insertions/deletions.
-5. `DeleteRows` and `PrependSequences` for row deletion and FASTA prepending (moving row buffers without cloning).
+5. `DeletedRow` and `PrependedSequences` for row deletion and FASTA prepending (moving row buffers without cloning).
 6. `ReplaceMatrix` for pointer-swapped `realign` and `apply_aligned_fasta` updates.
 
 ### 8.2 Atomicity
@@ -1380,7 +1380,7 @@ Cover:
 - redo invalidation after a new edit;
 - strict no-op guards (`mutate_base` equal-base skip, empty/OOB `insert_at_subset` and `delete_at_subset`, empty `delete_column`);
 - compact undo/redo memory footprint far below full-matrix clones;
-- bounded `VecDeque` depth (`256`) and byte-budget (`64 MiB`) FIFO eviction;
+- bounded `VecDeque` depth (`2000`) and byte-budget (`256 MiB`) FIFO eviction;
 - monotonic `revision` tracking and `StaleRevision` rejection in `apply_aligned_fasta`;
 - `aminoacid_sequences` translation cache invalidation on every applied mutation, `undo()`, and `redo()`.
 

@@ -453,8 +453,8 @@ Sequence re-alignment uses MAFFT's fast progressive alignment (`AlignmentMode::F
 - Enforces size limits (`MAX_ALIGNMENT_SEQUENCES = 1,000`, `MAX_ALIGNMENT_TOTAL_RESIDUES = 5,000,000`, and `MAX_ALIGNMENT_OUTPUT_CELLS = 500,000,000`), rejecting with an `EngineStructuredError` code of `InputTooLarge` if exceeded.
 - Strips existing gaps prior to progressive alignment while preserving all-gap rows mid-edit as padded gap rows with length matching the new aligned width.
 - Requires at least 2 sequences containing non-gap nucleotide residues. Rejects with an `EngineStructuredError` code of `EmptySequence` without mutating the matrix or recording an undo entry if fewer than 2 sequences contain residues.
-- Captures a compact `ReplaceMatrix` swap so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()`.
-- Invalidates the amino-acid translation cache.
+- Captures a compact `ReplaceMatrix` swap so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()` (no-op if the resulting matrix is byte-for-byte identical).
+- Invalidates the amino-acid translation cache when the matrix changes.
 
 ### `applyAlignedFasta(fasta: string, expectedRevision?: number): Promise<boolean>`
 
@@ -469,8 +469,8 @@ await engine.applyAlignedFasta(alignedFasta, startRevision);
 - Validates that all aligned rows have uniform, equal row lengths.
 - Validates that sequence headers and row ordering strictly match the matrix.
 - Validates that ungapped nucleotide residue identities are strictly conserved across every sequence.
-- Records a `ReplaceMatrix` pointer swap so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()`.
-- Updates `alignment_width` and matrix sequences, incrementing `revision` and invalidating the amino-acid translation cache.
+- If the incoming matrix (`names`, `sequences`, and resulting `alignment_width`) is byte-for-byte identical to the current matrix, returns `false` as a no-op without recording a `ReplaceMatrix` undo entry, advancing `revision`, or clearing `aminoacid_sequences`.
+- Otherwise, records a `ReplaceMatrix` pointer swap so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()`, updates `alignment_width` and matrix sequences, increments `revision`, and invalidates the amino-acid translation cache.
 
 ---
 

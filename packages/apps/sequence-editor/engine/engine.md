@@ -484,15 +484,15 @@ Re-aligns all loaded sequences across the whole matrix using the pure-Rust `maff
 - Preserves all-gap or empty rows mid-edit, emitting them as uniform all-gap rows with length equal to the aligned width.
 - Requires at least 2 sequences containing non-gap nucleotide residues; rejects with `EmptySequence` error before mutating state if fewer than 2 sequences have residues.
 - Unaligned/ragged sequences are progressively aligned; `alignment_width` is updated to the maximum sequence length after alignment.
-- Swaps the previous matrix into a `ReplaceMatrix` undo entry prior to mutating, enabling complete multi-level transactional `undo()` and `redo()`.
-- Invalidates and clears `aminoacid_sequences` cache so subsequent translated views reflect the new alignment coordinates.
+- Swaps the previous matrix into a `ReplaceMatrix` undo entry prior to mutating (or returns without recording if the aligned matrix is byte-for-byte identical), enabling complete multi-level transactional `undo()` and `redo()`.
+- Invalidates and clears `aminoacid_sequences` cache when the matrix changes so subsequent translated views reflect the new alignment coordinates.
 - Returns `Ok(())`.
 
 ### 5.9 External alignment integration (`apply_aligned_fasta` & `align_fasta`)
 
 To support non-blocking and cancelable sequence re-alignment, the engine provides:
 - Standalone `align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>`: Computes MAFFT FFT-NS-1 on an unaligned or gapped FASTA string, suitable for execution inside an ephemeral worker without initializing the full engine. Preserves all-gap rows and returns formatted FASTA or returns `StructuredEngineError` if UTF-8 encoding or validation fails.
-- Method `apply_aligned_fasta(&mut self, fasta_content: &str, expected_revision: Option<usize>) -> Result<(), StructuredEngineError>`: Checks `expected_revision` first (returning `"StaleRevision"` before parsing FASTA if mismatched), then validates that sequence counts match, all aligned rows have uniform equal lengths, sequence headers and order match the current matrix, and ungapped residue identities are strictly conserved. Swaps the previous matrix into a `ReplaceMatrix` command onto `undo_stack`, updates `alignment_width`, increments `revision`, and clears `aminoacid_sequences`.
+- Method `apply_aligned_fasta(&mut self, fasta_content: &str, expected_revision: Option<usize>) -> Result<(), StructuredEngineError>`: Checks `expected_revision` first (returning `"StaleRevision"` before parsing FASTA if mismatched), then validates that sequence counts match, all aligned rows have uniform equal lengths, sequence headers and order match the current matrix, and ungapped residue identities are strictly conserved. If the resulting matrix is byte-for-byte identical to the current state (`names`, `sequences`, and `alignment_width`), leaves history, `revision`, and `aminoacid_sequences` untouched; otherwise swaps the previous matrix into a `ReplaceMatrix` command onto `undo_stack`, updates `alignment_width`, increments `revision`, and clears `aminoacid_sequences`.
 
 ### 5.10 Structured errors
 

@@ -44,7 +44,6 @@ pub struct DeleteColumnRecord {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DeletedRowRecord {
-    pub deleted_rows: Vec<usize>,
     pub row_indices: Vec<usize>,
     pub names: Vec<String>,
     pub sequences: Vec<Vec<u8>>,

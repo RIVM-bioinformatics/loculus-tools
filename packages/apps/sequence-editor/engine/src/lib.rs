@@ -1773,7 +1773,9 @@ impl MsaEngine {
         }
 
         let prev_alignment_width = self.alignment_width;
-        let mut deleted_rows = Vec::with_capacity(delete_count);
+        let mut deleted_row_indices = Vec::with_capacity(delete_count);
+        let mut deleted_names = Vec::with_capacity(delete_count);
+        let mut deleted_sequences = Vec::with_capacity(delete_count);
         let mut kept_sequences = Vec::with_capacity(n - delete_count);
         let mut kept_names = Vec::with_capacity(n - delete_count);
 
@@ -1784,13 +1786,9 @@ impl MsaEngine {
             .enumerate()
         {
             if to_delete[row_index] {
-                deleted_rows.push(DeletedRowRecord {
-                    deleted_rows: vec![row_index],
-                    row_indices: vec![row_index],
-                    names: vec![name],
-                    sequences: vec![sequence],
-                    previous_alignment_width: prev_alignment_width,
-                });
+                deleted_row_indices.push(row_index);
+                deleted_names.push(name);
+                deleted_sequences.push(sequence);
             } else {
                 kept_sequences.push(sequence);
                 kept_names.push(name);
@@ -1806,9 +1804,15 @@ impl MsaEngine {
             .max()
             .unwrap_or(0);
 
-        for deleted_row in deleted_rows {
-            history::push_to_undo_stack(self, UndoCommand::DeletedRow(deleted_row));
-        }
+        history::push_to_undo_stack(
+            self,
+            UndoCommand::DeletedRow(DeletedRowRecord {
+                row_indices: deleted_row_indices,
+                names: deleted_names,
+                sequences: deleted_sequences,
+                previous_alignment_width: prev_alignment_width,
+            }),
+        );
 
         Ok(())
     }

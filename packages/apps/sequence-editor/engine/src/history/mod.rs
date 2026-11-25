@@ -253,23 +253,27 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
             })
         }
         UndoCommand::DeletedRow(DeletedRowRecord {
-            deleted_rows,
             row_indices,
             names,
             sequences,
             previous_alignment_width,
         }) => {
-            let total_rows = engine.nucleotide_sequences.len() + deleted_rows.len();
+            let count = row_indices.len().min(names.len()).min(sequences.len());
+            if count == 0 {
+                UndoCommand::recompute_history_bytes(engine);
+                return false;
+            }
+            let total_rows = engine.nucleotide_sequences.len() + count;
             let mut restored_sequences = Vec::with_capacity(total_rows);
             let mut restored_names = Vec::with_capacity(total_rows);
-            let mut row_indices = row_indices.clone();
+            let mut next_row_indices = Vec::with_capacity(count);
             let mut kept_iterator = std::mem::take(&mut engine.nucleotide_sequences)
                 .into_iter()
                 .zip(std::mem::take(&mut engine.names));
-            let mut deleted_iterator = deleted_rows
-                .iter()
-                .copied()
-                .zip(names.iter().cloned().zip(sequences.iter().cloned()))
+            let mut deleted_iterator = row_indices
+                .into_iter()
+                .zip(names.into_iter().zip(sequences))
+                .take(count)
                 .peekable();
 
             for target_index in 0..total_rows {
@@ -277,8 +281,8 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
                     .peek()
                     .is_some_and(|(row_index, _)| *row_index == target_index)
                 {
-                    let (row_index, (name, seq)) = deleted_iterator.next().unwrap();
-                    row_indices.push(row_index);
+                    let (_, (name, seq)) = deleted_iterator.next().unwrap();
+                    next_row_indices.push(target_index);
                     restored_sequences.push(seq);
                     restored_names.push(name);
                 } else if let Some((seq, name)) = kept_iterator.next() {
@@ -286,8 +290,13 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
                     restored_names.push(name);
                 }
             }
-            for (row_index, (name, seq)) in deleted_iterator {
-                row_indices.push(row_index);
+            for (_, (name, seq)) in deleted_iterator {
+                let inserted_at = restored_sequences.len();
+                next_row_indices.push(inserted_at);
+                restored_sequences.push(seq);
+                restored_names.push(name);
+            }
+            for (seq, name) in kept_iterator {
                 restored_sequences.push(seq);
                 restored_names.push(name);
             }
@@ -297,10 +306,9 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
             engine.alignment_width = previous_alignment_width;
 
             UndoCommand::DeletedRow(DeletedRowRecord {
-                deleted_rows,
-                row_indices,
-                names,
-                sequences,
+                row_indices: next_row_indices,
+                names: Vec::new(),
+                sequences: Vec::new(),
                 previous_alignment_width,
             })
         }
@@ -501,13 +509,7 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
                 }),
             );
         }
-        UndoCommand::DeletedRow(DeletedRowRecord {
-            deleted_rows,
-            row_indices,
-            names,
-            sequences,
-            previous_alignment_width,
-        }) => {
+        UndoCommand::DeletedRow(DeletedRowRecord { row_indices, .. }) => {
             let n = engine.nucleotide_sequences.len();
             let prev_alignment_width = engine.alignment_width;
             let mut to_delete = vec![false; n];
@@ -518,7 +520,13 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
                     delete_count += 1;
                 }
             }
-            let mut deleted_rows: Vec<usize> = Vec::with_capacity(delete_count);
+            if delete_count == 0 {
+                UndoCommand::recompute_history_bytes(engine);
+                return false;
+            }
+            let mut deleted_row_indices = Vec::with_capacity(delete_count);
+            let mut deleted_names = Vec::with_capacity(delete_count);
+            let mut deleted_sequences = Vec::with_capacity(delete_count);
             let mut kept_sequences = Vec::with_capacity(n - delete_count);
             let mut kept_names = Vec::with_capacity(n - delete_count);
             for (row_index, (sequence, name)) in engine
@@ -528,7 +536,9 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
                 .enumerate()
             {
                 if to_delete[row_index] {
-                    deleted_rows.push(row_index);
+                    deleted_row_indices.push(row_index);
+                    deleted_names.push(name);
+                    deleted_sequences.push(sequence);
                 } else {
                     kept_sequences.push(sequence);
                     kept_names.push(name);
@@ -536,13 +546,18 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
             }
             engine.nucleotide_sequences = kept_sequences;
             engine.names = kept_names;
+            engine.alignment_width = engine
+                .nucleotide_sequences
+                .iter()
+                .map(Vec::len)
+                .max()
+                .unwrap_or(0);
             push_to_undo_bounded(
                 engine,
                 UndoCommand::DeletedRow(DeletedRowRecord {
-                    deleted_rows,
-                    row_indices,
-                    names,
-                    sequences,
+                    row_indices: deleted_row_indices,
+                    names: deleted_names,
+                    sequences: deleted_sequences,
                     previous_alignment_width: prev_alignment_width,
                 }),
             );

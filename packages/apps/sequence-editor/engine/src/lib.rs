@@ -2200,9 +2200,8 @@ pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>
 }
 
 // Unit tests live in separate files to keep the implementation modules focused
-// on their code. They are only compiled under `#[cfg(test)]`. Each is named
-// `<module>_tests` so that `cargo test` output is clearly namespaced
-// (e.g. `engine_tests::...`, `alphabets_tests::...`).
+// on their code. They are only compiled under `#[cfg(test)]` (with history
+// tests nested in `history/tests.rs` as `history::tests::...`).
 #[cfg(test)]
 mod alphabets_tests;
 #[cfg(test)]

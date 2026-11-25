@@ -2,9 +2,8 @@
 //!
 //! This module is compiled only under `#[cfg(test)]` (see the
 //! `mod engine_tests;` declaration in `lib.rs`). It lives in its own file to
-//! keep `lib.rs` focused on the engine implementation. Because it is a child
-//! module of the crate root, `use super::*;` gives it access to private items
-//! such as `UndoCommand` and the `nucleotide_sequences` field.
+//! keep `lib.rs` focused on the engine implementation. Dedicated undo/redo and
+//! bounded history stack tests live in `history/tests.rs`.
 
 use super::*;
 
@@ -197,23 +196,6 @@ fn exports_utf8_headers_correctly() {
         e.export_fasta_bytes(false),
         ">sēq 1\nATG\n>record_čšž\nCGTA\n".as_bytes()
     );
-}
-
-#[test]
-fn export_tracks_undo_and_redo_state() {
-    let mut e = engine_with_sample();
-    let original = e.export_fasta_bytes(true);
-    let original_ungapped = e.export_fasta_bytes(false);
-
-    assert_eq!(e.mutate_base(&[0], &[0], b'G'), Ok(()));
-    let edited = e.export_fasta_bytes(true);
-    let edited_ungapped = e.export_fasta_bytes(false);
-    assert!(e.undo());
-    assert_eq!(e.export_fasta_bytes(true), original);
-    assert_eq!(e.export_fasta_bytes(false), original_ungapped);
-    assert!(e.redo());
-    assert_eq!(e.export_fasta_bytes(true), edited);
-    assert_eq!(e.export_fasta_bytes(false), edited_ungapped);
 }
 
 #[test]
@@ -604,21 +586,6 @@ fn mutate_skips_out_of_range_rows_and_cols() {
 }
 
 #[test]
-fn mutate_records_undo_and_clears_redo() {
-    let mut e = engine_with_sample();
-    // Seed a redo entry by doing + undoing an edit.
-    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
-    assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
-    assert_eq!(e.undo_depth(), 0);
-    assert_eq!(e.redo_depth(), 1);
-    // A new mutation must clear the redo stack and push onto undo.
-    assert_eq!(e.mutate_base(&[1], &[1], b'G'), Ok(()));
-    assert_eq!(e.redo_depth(), 0);
-    assert_eq!(e.undo_depth(), 1);
-}
-
-#[test]
 fn insert_at_subset_balances_with_gaps() {
     let mut e = engine_with_sample();
     // Insert '-' at col 2 on rows 0 and 1 only.
@@ -718,153 +685,6 @@ fn delete_column_out_of_range_is_noop() {
     assert_eq!(e.get_base(0, 0), b'A');
     // No undo entry should have been recorded for a no-op.
     assert_eq!(e.undo_depth(), 0);
-}
-
-#[test]
-fn undo_substitution_restores_old_base() {
-    let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0, 1], &[3], b'G'), Ok(()));
-    assert_eq!(e.get_base(0, 3), b'G');
-    assert!(e.undo());
-    assert_eq!(e.get_base(0, 3), b'C'); // original
-    assert_eq!(e.get_base(1, 3), b'G'); // original (seq2[3] was already G)
-}
-
-#[test]
-fn redo_reapplies_substitution() {
-    let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
-    assert!(e.undo());
-    assert_eq!(e.get_base(0, 0), b'A');
-    assert!(e.redo());
-    assert_eq!(e.get_base(0, 0), b'T');
-    // Redo stack should now be empty.
-    assert!(!e.redo());
-}
-
-#[test]
-fn undo_structural_insert_restores_width_and_matrix() {
-    let mut e = engine_with_sample();
-    let width_before = e.get_alignment_width();
-    assert_eq!(e.insert_at_subset(&[0, 1], 2), Ok(()));
-    assert_eq!(e.get_alignment_width(), width_before + 1);
-    assert!(e.undo());
-    assert_eq!(e.get_alignment_width(), width_before);
-    assert_eq!(e.get_row_length(0), width_before);
-    assert_eq!(e.get_base(0, 2), b'G'); // original seq1[2]
-}
-
-#[test]
-fn redo_structural_insert_reapplies() {
-    let mut e = engine_with_sample();
-    assert_eq!(e.insert_at_subset(&[0, 1], 2), Ok(()));
-    assert!(e.undo());
-    assert!(e.redo());
-    assert_eq!(e.get_alignment_width(), 9);
-    assert_eq!(e.get_base(0, 2), b'-'); // gap
-    assert_eq!(e.get_base(2, 2), b'G'); // unchanged, non-target
-}
-
-#[test]
-fn repeated_subset_inserts_undo_and_redo_without_losing_rows() {
-    let mut e = engine_with_sample();
-    let original = e.export_fasta_bytes(true);
-
-    for _ in 0..100 {
-        let _ = e.insert_at_subset(&[0, 1], 2);
-    }
-    assert_eq!(e.get_alignment_width(), 108);
-    assert_eq!(e.undo_depth(), 100);
-
-    for _ in 0..100 {
-        assert!(e.undo());
-    }
-    assert_eq!(e.export_fasta_bytes(true), original);
-
-    for _ in 0..100 {
-        assert!(e.redo());
-    }
-    assert_eq!(e.get_alignment_width(), 108);
-    assert_eq!(e.get_base(0, 2), b'-');
-}
-
-#[test]
-fn undo_delete_column_restores() {
-    let mut e = engine_with_sample();
-    assert_eq!(e.delete_column(0), Ok(()));
-    assert_eq!(e.get_alignment_width(), 7);
-    assert!(e.undo());
-    assert_eq!(e.get_alignment_width(), 8);
-    assert_eq!(e.get_base(0, 0), b'A');
-}
-
-#[test]
-fn undo_on_empty_stack_returns_false() {
-    let mut e = engine_with_sample();
-    assert!(!e.undo());
-    assert!(!e.redo());
-}
-
-#[test]
-fn new_edit_after_undo_clears_redo_stack() {
-    let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
-    assert_eq!(e.mutate_base(&[1], &[1], b'G'), Ok(()));
-    assert!(e.undo()); // undo second
-    assert!(e.undo()); // undo first
-    assert_eq!(e.redo_depth(), 2);
-    // New edit invalidates redo branch.
-    assert_eq!(e.mutate_base(&[2], &[2], b'C'), Ok(()));
-    assert_eq!(e.redo_depth(), 0);
-    assert_eq!(e.undo_depth(), 1);
-}
-
-#[test]
-fn multi_step_undo_redo_sequence() {
-    let mut e = engine_with_sample();
-    // Edit 1: substitute
-    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
-    // Edit 2: insert
-    assert_eq!(e.insert_at_subset(&[0, 1], 2), Ok(()));
-    // Edit 3: delete column
-    assert_eq!(e.delete_column(4), Ok(()));
-
-    assert_eq!(e.undo_depth(), 3);
-    // Undo all three in reverse order.
-    assert!(e.undo()); // undo delete
-    assert_eq!(e.get_alignment_width(), 9);
-    assert!(e.undo()); // undo insert
-    assert_eq!(e.get_alignment_width(), 8);
-    assert!(e.undo()); // undo substitute
-    assert_eq!(e.get_base(0, 0), b'A');
-    assert!(!e.undo()); // stack empty
-    // Redo all three.
-    assert!(e.redo());
-    assert_eq!(e.get_base(0, 0), b'T');
-    assert!(e.redo());
-    assert_eq!(e.get_alignment_width(), 9);
-    assert!(e.redo());
-    assert_eq!(e.get_alignment_width(), 8);
-    assert!(!e.redo());
-}
-
-#[test]
-fn undo_redo_substitution_handles_out_of_bounds_positions() {
-    let mut e = engine_with_sample();
-
-    // Simulate history data containing out-of-bounds positions (e.g. row 999 or col 999).
-    // The engine should process only valid positions and keep stacks consistent.
-    e.undo_stack.push(UndoCommand::Substitutions {
-        positions: vec![(0, 0, b'G'), (999, 0, b'T'), (0, 999, b'C')],
-    });
-
-    assert!(e.undo());
-    // Only valid position (0, 0) should be restored.
-    assert_eq!(e.get_base(0, 0), b'G');
-
-    assert!(e.redo());
-    // Redo must only touch valid position (0, 0).
-    assert_eq!(e.get_base(0, 0), b'A');
 }
 
 // ── Constraint validation tests (Rules 1-8) ──
@@ -1171,28 +991,6 @@ fn move_horizontal_multi_row_atomic_on_not_iupac() {
 }
 
 #[test]
-fn move_horizontal_multi_row_single_undo_restores_all() {
-    let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0, 2], &[1], b'-'), Ok(()));
-    assert_eq!(
-        e.move_horizontal(&[0, 2], &[2, 3, 4, 5], MoveDirection::Left),
-        Ok(())
-    );
-    assert_eq!(e.get_base(0, 1), b'G');
-    assert_eq!(e.get_base(2, 1), b'G');
-    // A single undo call restores both rows
-    assert!(e.undo());
-    assert_eq!(e.get_base(0, 1), b'-');
-    assert_eq!(e.get_base(0, 2), b'G');
-    assert_eq!(e.get_base(2, 1), b'-');
-    assert_eq!(e.get_base(2, 2), b'G');
-    // Single redo re-applies both
-    assert!(e.redo());
-    assert_eq!(e.get_base(0, 1), b'G');
-    assert_eq!(e.get_base(2, 1), b'G');
-}
-
-#[test]
 fn move_horizontal_multi_row_deduplicates_rows() {
     let mut e = engine_with_sample();
     // Row 1: "ATGGTG-A". Pass row 1 multiple times.
@@ -1322,22 +1120,6 @@ fn structured_error_serializes_code_message_and_optional_context() {
     );
 }
 
-#[test]
-fn move_horizontal_undo_restores() {
-    let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0], &[1], b'-'), Ok(()));
-    // Row 0: "A-GCATGC"
-    assert_eq!(
-        e.move_horizontal(&[0], &[2, 3, 4, 5], MoveDirection::Left),
-        Ok(())
-    );
-    assert_eq!(e.get_base(0, 1), b'G');
-    assert!(e.undo());
-    // After undo: back to "A-GCATGC"
-    assert_eq!(e.get_base(0, 1), b'-');
-    assert_eq!(e.get_base(0, 2), b'G');
-}
-
 // ── Row reorder tests (Rule 5) ──
 
 #[test]
@@ -1387,16 +1169,6 @@ fn move_rows_multiple_simultaneously() {
     assert_eq!(e.get_name(0), "seq1 first record"); // unchanged (was at top)
     assert_eq!(e.get_name(1), "seq3 third record"); // row 2 moved up
     assert_eq!(e.get_name(2), "seq2"); // row 1 moved down
-}
-
-#[test]
-fn move_rows_up_undo_restores() {
-    let mut e = engine_with_sample();
-    assert_eq!(e.move_rows_up(&[1]), Ok(()));
-    assert_eq!(e.get_name(0), "seq2");
-    assert!(e.undo());
-    assert_eq!(e.get_name(0), "seq1 first record");
-    assert_eq!(e.get_name(1), "seq2");
 }
 
 #[test]
@@ -1508,20 +1280,6 @@ fn move_rows_relative_boundary_pinned_block_does_not_scramble() {
 }
 
 #[test]
-fn move_rows_relative_multi_step_creates_single_undo() {
-    let mut e = engine_with_n_rows(12);
-    // Shift rows 1, 3 down by 2 steps in one action
-    assert_eq!(e.move_rows_relative(&[1, 3], 2), Ok(()));
-    assert_eq!(e.get_name(3), "seq1");
-    assert_eq!(e.get_name(5), "seq3");
-    assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
-    assert_eq!(e.get_name(1), "seq1");
-    assert_eq!(e.get_name(3), "seq3");
-    assert_eq!(e.undo_depth(), 0);
-}
-
-#[test]
 fn move_rows_grouped_to_target_index() {
     let mut e = engine_with_n_rows(12);
     // Rows 4, 5, 10 moved and grouped starting at target row 6 -> become rows 6, 7, 8
@@ -1585,28 +1343,6 @@ fn move_rows_to_bottom_groups_arbitrary_selection_at_bottom() {
     assert!(e.undo());
     assert_eq!(e.get_name(1), "seq1");
     assert_eq!(e.get_name(3), "seq3");
-}
-
-#[test]
-fn move_rows_no_op_does_not_create_undo_entry() {
-    let mut e = engine_with_n_rows(6);
-    assert_eq!(e.undo_depth(), 0);
-
-    // Rows 0 and 1 are already at top
-    assert_eq!(e.move_rows_to_top(&[0, 1]), Ok(()));
-    assert_eq!(e.undo_depth(), 0);
-
-    // Rows 4 and 5 are already at bottom
-    assert_eq!(e.move_rows_to_bottom(&[4, 5]), Ok(()));
-    assert_eq!(e.undo_depth(), 0);
-
-    // Row 0 moving up is already at boundary
-    assert_eq!(e.move_rows_up(&[0]), Ok(()));
-    assert_eq!(e.undo_depth(), 0);
-
-    // Row 5 moving down is already at boundary
-    assert_eq!(e.move_rows_down(&[5]), Ok(()));
-    assert_eq!(e.undo_depth(), 0);
 }
 
 #[test]
@@ -1994,84 +1730,6 @@ fn realign_fewer_than_two_sequences_is_noop() {
 }
 
 #[test]
-fn realign_undo_and_redo_cycle() {
-    let mut e = MsaEngine::new();
-    e.load_fasta(">seq1\nATGCGATCGATC\n>seq2\nATGCGATC\n>seq3\nATGCATCGATCGATC")
-        .expect("valid FASTA");
-
-    let orig_seq1 = e.nucleotide_sequences[0].clone();
-    let orig_seq2 = e.nucleotide_sequences[1].clone();
-    let orig_seq3 = e.nucleotide_sequences[2].clone();
-    let orig_names = e.names.clone();
-    let orig_width = e.get_alignment_width();
-
-    e.realign().expect("realign succeeds");
-    assert_eq!(e.undo_depth(), 1);
-    assert_eq!(e.redo_depth(), 0);
-
-    let aligned_seq1 = e.nucleotide_sequences[0].clone();
-    let aligned_seq2 = e.nucleotide_sequences[1].clone();
-    let aligned_seq3 = e.nucleotide_sequences[2].clone();
-    let aligned_width = e.get_alignment_width();
-
-    // Verify change actually took place
-    assert_ne!(orig_seq2, aligned_seq2);
-
-    // Undo restores exact original state
-    assert!(e.undo());
-    assert_eq!(e.undo_depth(), 0);
-    assert_eq!(e.redo_depth(), 1);
-    assert_eq!(e.nucleotide_sequences[0], orig_seq1);
-    assert_eq!(e.nucleotide_sequences[1], orig_seq2);
-    assert_eq!(e.nucleotide_sequences[2], orig_seq3);
-    assert_eq!(e.names, orig_names);
-    assert_eq!(e.get_alignment_width(), orig_width);
-
-    // Redo re-applies alignment
-    assert!(e.redo());
-    assert_eq!(e.undo_depth(), 1);
-    assert_eq!(e.redo_depth(), 0);
-    assert_eq!(e.nucleotide_sequences[0], aligned_seq1);
-    assert_eq!(e.nucleotide_sequences[1], aligned_seq2);
-    assert_eq!(e.nucleotide_sequences[2], aligned_seq3);
-    assert_eq!(e.get_alignment_width(), aligned_width);
-}
-
-#[test]
-fn realign_clears_aminoacid_cache_on_realign_and_undo() {
-    let mut e = MsaEngine::new();
-    e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGCATGC")
-        .expect("valid FASTA");
-
-    // Populate amino acid cache directly
-    e.aminoacid_sequences
-        .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
-    assert!(!e.aminoacid_sequences.is_empty());
-
-    e.realign().expect("realign succeeds");
-    // After realign, cache should have been cleared
-    assert!(e.aminoacid_sequences.is_empty());
-
-    // Populate again before undo
-    e.aminoacid_sequences
-        .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
-    assert!(!e.aminoacid_sequences.is_empty());
-
-    assert!(e.undo());
-    // After undo, cache should have been cleared
-    assert!(e.aminoacid_sequences.is_empty());
-
-    // Populate again before redo
-    e.aminoacid_sequences
-        .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
-    assert!(!e.aminoacid_sequences.is_empty());
-
-    assert!(e.redo());
-    // After redo, cache should have been cleared
-    assert!(e.aminoacid_sequences.is_empty());
-}
-
-#[test]
 fn realign_with_existing_gaps_and_ragged_sequences() {
     let mut e = MsaEngine::new();
     e.load_fasta(">seq1\nATGC--GATC\n>seq2\nATGCGATC\n>seq3\nATGCATCGATCGATC")
@@ -2195,44 +1853,6 @@ fn realign_with_mutated_lowercase_bases_normalizes_to_uppercase() {
 }
 
 #[test]
-fn realign_successive_cycles_with_multi_step_undo() {
-    let mut e = MsaEngine::new();
-    e.load_fasta(">seq1\nATGC--GATC\n>seq2\nATGCGATC\n>seq3\nATGCATCGATCGATC")
-        .expect("valid FASTA");
-
-    let orig_seq1 = e.nucleotide_sequences[0].clone();
-    let orig_seq2 = e.nucleotide_sequences[1].clone();
-    let orig_seq3 = e.nucleotide_sequences[2].clone();
-    let orig_width = e.get_alignment_width();
-
-    // First realign
-    e.realign().expect("realign 1 succeeds");
-    assert_eq!(e.undo_depth(), 1);
-
-    // Second realign (idempotent alignment)
-    e.realign().expect("realign 2 succeeds");
-    assert_eq!(e.undo_depth(), 2);
-
-    // Third realign
-    e.realign().expect("realign 3 succeeds");
-    assert_eq!(e.undo_depth(), 3);
-
-    // Undo 3 times back to original
-    assert!(e.undo());
-    assert_eq!(e.undo_depth(), 2);
-    assert!(e.undo());
-    assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
-    assert_eq!(e.undo_depth(), 0);
-
-    // Matrix matches original
-    assert_eq!(e.nucleotide_sequences[0], orig_seq1);
-    assert_eq!(e.nucleotide_sequences[1], orig_seq2);
-    assert_eq!(e.nucleotide_sequences[2], orig_seq3);
-    assert_eq!(e.get_alignment_width(), orig_width);
-}
-
-#[test]
 fn realign_with_duplicate_record_names() {
     let mut e = MsaEngine::new();
     e.load_fasta(">dup_header\nATGCGATC\n>dup_header\nATGCATCGATCGATC")
@@ -2284,9 +1904,10 @@ fn apply_aligned_fasta_updates_matrix_and_supports_undo_redo() {
     let mut e = MsaEngine::new();
     e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
     let orig_width = e.get_alignment_width();
+    let rev_before = e.get_revision();
 
     let aligned_fasta = ">seq1\nATG--C\n>seq2\nAT-G-C\n";
-    e.apply_aligned_fasta(aligned_fasta)
+    e.apply_aligned_fasta(aligned_fasta, Some(rev_before))
         .expect("apply succeeds");
     assert_eq!(e.get_alignment_width(), 6);
     assert_eq!(e.get_row_length(0), 6);
@@ -2312,7 +1933,7 @@ fn apply_aligned_fasta_mismatch_sequence_count_rejected() {
     e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
 
     let mismatched_fasta = ">seq1\nATGC\n";
-    let res = e.apply_aligned_fasta(mismatched_fasta);
+    let res = e.apply_aligned_fasta(mismatched_fasta, None);
     assert!(res.is_err());
     let err = res.unwrap_err();
     assert_eq!(err.code, "AlignmentMismatch");
@@ -2324,7 +1945,7 @@ fn apply_aligned_fasta_ragged_lengths_rejected() {
     e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
 
     let ragged_fasta = ">seq1\nATG-C\n>seq2\nATGC\n";
-    let res = e.apply_aligned_fasta(ragged_fasta);
+    let res = e.apply_aligned_fasta(ragged_fasta, None);
     assert!(res.is_err());
     let err = res.unwrap_err();
     assert_eq!(err.code, "AlignmentMismatch");
@@ -2338,13 +1959,13 @@ fn apply_aligned_fasta_mismatched_names_or_order_rejected() {
 
     // Renamed header
     let renamed = ">seqA\nATGC\n>seq2\nATGC\n";
-    let res = e.apply_aligned_fasta(renamed);
+    let res = e.apply_aligned_fasta(renamed, None);
     assert!(res.is_err());
     assert_eq!(res.unwrap_err().code, "AlignmentMismatch");
 
     // Swapped order
     let swapped = ">seq2\nATGC\n>seq1\nATGC\n";
-    let res = e.apply_aligned_fasta(swapped);
+    let res = e.apply_aligned_fasta(swapped, None);
     assert!(res.is_err());
     assert_eq!(res.unwrap_err().code, "AlignmentMismatch");
 }
@@ -2356,7 +1977,7 @@ fn apply_aligned_fasta_modified_residues_rejected() {
 
     // Modified residue in seq2 (C -> A)
     let modified = ">seq1\nATGC\n>seq2\nATGA\n";
-    let res = e.apply_aligned_fasta(modified);
+    let res = e.apply_aligned_fasta(modified, None);
     assert!(res.is_err());
     let err = res.unwrap_err();
     assert_eq!(err.code, "AlignmentMismatch");
@@ -2377,7 +1998,7 @@ fn apply_aligned_fasta_accepts_lowercase_mutated_residues_case_insensitively() {
 
     // Aligned FASTA with uppercase residues
     let aligned = ">seq1\nAT--GC\n>seq2\nA-T-GC\n";
-    let res = e.apply_aligned_fasta(aligned);
+    let res = e.apply_aligned_fasta(aligned, None);
     assert!(
         res.is_ok(),
         "case-insensitive comparison should succeed: {:?}",
@@ -2573,60 +2194,6 @@ fn load_fasta_updates_alignment_width_to_max_existing_and_batch() {
 }
 
 #[test]
-fn load_fasta_undo_redo_prepends() {
-    let mut e = engine_with_sample();
-    assert_eq!(e.get_sequence_count(), 3);
-    assert_eq!(e.get_alignment_width(), 8);
-    assert_eq!(e.undo_depth(), 0);
-
-    // Prepend wider sequence
-    e.load_fasta(">prepended\nATGCATGCATGC").unwrap();
-    assert_eq!(e.get_sequence_count(), 4);
-    assert_eq!(e.get_alignment_width(), 12);
-    assert_eq!(e.get_name(0), "prepended");
-    assert_eq!(e.undo_depth(), 1);
-
-    // Undo restores original 3 sequences and width 8
-    assert!(e.undo());
-    assert_eq!(e.get_sequence_count(), 3);
-    assert_eq!(e.get_alignment_width(), 8);
-    assert_eq!(e.get_name(0), "seq1 first record");
-    assert_eq!(e.undo_depth(), 0);
-    assert_eq!(e.redo_depth(), 1);
-
-    // Redo restores prepended sequence and width 12
-    assert!(e.redo());
-    assert_eq!(e.get_sequence_count(), 4);
-    assert_eq!(e.get_alignment_width(), 12);
-    assert_eq!(e.get_name(0), "prepended");
-    assert_eq!(e.undo_depth(), 1);
-    assert_eq!(e.redo_depth(), 0);
-}
-
-#[test]
-fn load_fasta_conditional_snapshot_fresh_vs_prior_history() {
-    // 1. Fresh engine: no undo snapshot created
-    let mut e = MsaEngine::new();
-    assert_eq!(e.undo_depth(), 0);
-    e.load_fasta(">s1\nATGC").unwrap();
-    assert_eq!(e.undo_depth(), 0);
-
-    // 2. Prepend onto existing sequences: creates undo snapshot
-    e.load_fasta(">s2\nCGTA").unwrap();
-    assert_eq!(e.undo_depth(), 1);
-
-    // 3. Reset engine: clears undo depth to 0
-    e.reset();
-    assert_eq!(e.undo_depth(), 0);
-    assert_eq!(e.redo_depth(), 0);
-    assert_eq!(e.get_sequence_count(), 0);
-
-    // 4. Loading onto reset engine: stays at undo_depth == 0
-    e.load_fasta(">s3\nGGCC").unwrap();
-    assert_eq!(e.undo_depth(), 0);
-}
-
-#[test]
 fn reset_clears_all_state_and_caches() {
     let mut e = engine_with_sample();
     e.mutate_base(&[0], &[0], b'C').unwrap();
@@ -2658,36 +2225,6 @@ fn load_fasta_empty_input_is_noop_without_undo() {
     let count = e.load_fasta("   \n\n  ").unwrap();
     assert_eq!(count, 3);
     assert_eq!(e.get_sequence_count(), 3);
-    assert_eq!(e.undo_depth(), 0);
-}
-
-#[test]
-fn load_fasta_preserves_prior_substitutions_across_prepend_undo() {
-    let mut e = engine_with_sample();
-    assert_eq!(e.get_base(0, 0), b'A');
-
-    // Mutate base at (0, 0) from A to C
-    e.mutate_base(&[0], &[0], b'C').unwrap();
-    assert_eq!(e.get_base(0, 0), b'C');
-    assert_eq!(e.undo_depth(), 1);
-
-    // Prepend a sequence -> new row 0 is prepended, old row 0 becomes row 1
-    e.load_fasta(">new_top\nTTTT").unwrap();
-    assert_eq!(e.get_sequence_count(), 4);
-    assert_eq!(e.get_name(0), "new_top");
-    assert_eq!(e.get_base(1, 0), b'C');
-    assert_eq!(e.undo_depth(), 2);
-
-    // Undo prepend -> restores old row 0 with mutated base 'C'
-    assert!(e.undo());
-    assert_eq!(e.get_sequence_count(), 3);
-    assert_eq!(e.get_name(0), "seq1 first record");
-    assert_eq!(e.get_base(0, 0), b'C');
-    assert_eq!(e.undo_depth(), 1);
-
-    // Undo mutation -> restores original base 'A'
-    assert!(e.undo());
-    assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.undo_depth(), 0);
 }
 
@@ -2777,22 +2314,6 @@ fn delete_rows_allows_deleting_all_rows_and_restoring_via_undo() {
 }
 
 #[test]
-fn delete_rows_is_undoable_and_redoable() {
-    let mut e = engine_with_sample();
-    e.delete_rows(&[1]).unwrap();
-    assert_eq!(e.get_sequence_count(), 2);
-    assert_eq!(e.undo_depth(), 1);
-
-    assert!(e.undo());
-    assert_eq!(e.get_sequence_count(), 3);
-    assert_eq!(e.undo_depth(), 0);
-
-    assert!(e.redo());
-    assert_eq!(e.get_sequence_count(), 2);
-    assert_eq!(e.undo_depth(), 1);
-}
-
-#[test]
 fn delete_rows_out_of_range_or_empty_is_noop_without_undo_entry() {
     let mut e = engine_with_sample();
     assert_eq!(e.get_sequence_count(), 3);
@@ -2855,46 +2376,28 @@ fn delete_rows_recomputes_ragged_alignment_width() {
 }
 
 #[test]
-fn delete_rows_interleaved_with_mutations_and_prepends() {
+fn apply_aligned_fasta_accepts_matching_revision_and_rejects_stale_revision() {
     let mut e = MsaEngine::new();
-    e.load_fasta(">s1\nAAAA\n>s2\nCCCC").unwrap();
-    assert_eq!(e.undo_depth(), 0);
+    e.load_fasta(">seq1\nATGC\n>seq2\nATGC").expect("load ok");
+    let stale_rev = e.get_revision();
 
-    // 1. Mutate base at (0, 0)
-    e.mutate_base(&[0], &[0], b'G').unwrap();
-    assert_eq!(e.get_base(0, 0), b'G');
-    assert_eq!(e.undo_depth(), 1);
+    // Advance revision via an edit.
+    e.insert_at_subset(&[0], 2).expect("insert ok");
+    let current_rev = e.get_revision();
+    assert_ne!(current_rev, stale_rev);
+    let undo_before = e.undo_depth();
 
-    // 2. Prepend a new sequence -> new row 0 is prepended, mutated row becomes row 1
-    e.load_fasta(">top\nTTTT").unwrap();
-    assert_eq!(e.get_sequence_count(), 3);
-    assert_eq!(e.get_name(0), "top");
-    assert_eq!(e.get_base(1, 0), b'G');
-    assert_eq!(e.undo_depth(), 2);
+    // Even malformed FASTA must be rejected immediately as StaleRevision before parsing.
+    let err = e
+        .apply_aligned_fasta("NOT_VALID_FASTA_123", Some(stale_rev))
+        .unwrap_err();
+    assert_eq!(err.code, "StaleRevision");
+    assert_eq!(e.get_revision(), current_rev);
+    assert_eq!(e.undo_depth(), undo_before);
 
-    // 3. Delete row 2 ("s2")
-    e.delete_rows(&[2]).unwrap();
-    assert_eq!(e.get_sequence_count(), 2);
-    assert_eq!(e.get_name(0), "top");
-    assert_eq!(e.get_name(1), "s1");
-    assert_eq!(e.get_base(1, 0), b'G');
-    assert_eq!(e.undo_depth(), 3);
-
-    // 4. Undo delete -> restores row 2
-    assert!(e.undo());
-    assert_eq!(e.get_sequence_count(), 3);
-    assert_eq!(e.get_name(2), "s2");
-    assert_eq!(e.undo_depth(), 2);
-
-    // 5. Undo prepend -> restores original 2 rows with mutated base
-    assert!(e.undo());
-    assert_eq!(e.get_sequence_count(), 2);
-    assert_eq!(e.get_name(0), "s1");
-    assert_eq!(e.get_base(0, 0), b'G');
-    assert_eq!(e.undo_depth(), 1);
-
-    // 6. Undo mutation -> restores original base
-    assert!(e.undo());
-    assert_eq!(e.get_base(0, 0), b'A');
-    assert_eq!(e.undo_depth(), 0);
+    let aligned = ">seq1\nAT--GC-\n>seq2\nA-TGC--\n";
+    e.apply_aligned_fasta(aligned, Some(current_rev))
+        .expect("matching revision succeeds");
+    assert_eq!(e.get_revision(), current_rev + 1);
+    assert_eq!(e.undo_depth(), undo_before + 1);
 }

@@ -645,3 +645,6 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
     engine.aminoacid_sequences.clear();
     true
 }
+
+#[cfg(test)]
+mod tests;

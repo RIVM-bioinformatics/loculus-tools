@@ -242,7 +242,7 @@ export class EditorWorkerService {
         return await this.runCommand(async () => {
           checkAborted();
           return await this.engineWorkerProxy.applyAlignedFasta(alignedFasta, startRevision);
-        }, internalAbortController.signal);
+        }, internalAbortController.signal, false);
       } finally {
         signal?.removeEventListener('abort', onExternalAbort);
         if (signal && onAbort) {
@@ -302,7 +302,11 @@ export class EditorWorkerService {
     }, abortSignal);
   }
 
-  private runCommand<T>(command: () => Promise<T>, abortSignal?: AbortSignal): CommandResultWithAbortSignal<T> {
+  private runCommand<T>(
+    command: () => Promise<T>,
+    abortSignal?: AbortSignal,
+    throwOnAbortAfterCommand = true,
+  ): CommandResultWithAbortSignal<T> {
     const queuedCommand = this.commandQueue.then(async (): Promise<T> => {
       const { setLatestMessage } = sequenceEditorStore.getState();
       try {
@@ -314,7 +318,7 @@ export class EditorWorkerService {
           throw new DOMException('Command cancelled', 'AbortError');
         }
         const result = await command();
-        if (abortSignal?.aborted) {
+        if (throwOnAbortAfterCommand && abortSignal?.aborted) {
           throw new DOMException('Command cancelled', 'AbortError');
         }
         if (sequenceEditorStore.getState().latestMessage) {

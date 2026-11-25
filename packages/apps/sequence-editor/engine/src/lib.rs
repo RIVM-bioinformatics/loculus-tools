@@ -1017,8 +1017,7 @@ impl MsaEngine {
             .try_reserve_exact(byte_len)
             .map_err(|_| invalid_viewport())?;
 
-        for row in start_row..=row_end {
-            let seq = &self.aminoacid_sequences[row];
+        for seq in &self.aminoacid_sequences[start_row..=row_end] {
             let frame = match reading_frame {
                 0 => &seq.frame_1,
                 1 => &seq.frame_2,
@@ -1156,6 +1155,8 @@ impl MsaEngine {
     /// Simultaneous block character change (substitution) on a subset of rows
     /// and columns. Rows and columns outside `row_indices` and `col_indices`
     /// are untouched. Out-of-range rows or columns are silently skipped.
+    /// Positions already equal to `new_base` are skipped; if no cell changes,
+    /// this is a no-op (`revision`, `redo_stack`, and `aminoacid_sequences` are preserved).
     ///
     /// The entire operation is recorded as a single transaction in the undo stack.
     /// Returns a typed error on validation failure; no rows are modified.
@@ -1305,6 +1306,7 @@ impl MsaEngine {
     /// is removed and a `-` is appended at the end to keep width unchanged.
     /// Non-target rows are completely untouched.
     ///
+    /// If no in-bounds target rows have a base at `col_idx`, this is a no-op.
     /// Returns `DeleteNotGap` if any target position contains a non-`-`
     /// character; the operation is all-or-nothing.
     pub fn delete_at_subset(
@@ -1581,8 +1583,8 @@ impl MsaEngine {
     /// unless blocked by alignment boundaries. Rows hitting boundaries remain at
     /// their boundary while other rows continue shifting.
     ///
-    /// Even for multi-step shifts, this records at most ONE `StructuralSnapshot`
-    /// on the undo stack, and records NO snapshot if no rows actually move.
+    /// Even for multi-step shifts, this records at most ONE `RowReorder` command
+    /// on the undo stack, and records nothing if no rows actually move.
     pub fn move_rows_relative(
         &mut self,
         row_indices: &[usize],
@@ -1655,7 +1657,7 @@ impl MsaEngine {
     /// order around the inserted group.
     ///
     /// Clamps `target_row` to `0..=(N - selected_count)`.
-    /// Records at most ONE `StructuralSnapshot` on the undo stack, and NO snapshot
+    /// Records at most ONE `RowReorder` command on the undo stack, and nothing
     /// if the resulting order is unchanged.
     pub fn move_rows_grouped(
         &mut self,
@@ -1736,10 +1738,10 @@ impl MsaEngine {
     ///
     /// Out-of-bounds indices are ignored, and duplicate indices are deduplicated.
     /// If no valid in-bounds rows are specified or the matrix is already empty,
-    /// this is a safe no-op and records no undo snapshot.
+    /// this is a safe no-op and records no undo entry.
     ///
-    /// Otherwise, records a `StructuralSnapshot` before removing the rows,
-    /// removes the rows from both `nucleotide_sequences` and `names`, recomputes
+    /// Otherwise, moves the deleted rows into a compact `DeleteRows` record,
+    /// removes them from `nucleotide_sequences` and `names`, recomputes
     /// `alignment_width` from the remaining sequences (or sets it to 0 if all
     /// rows were deleted).
     pub fn delete_rows(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
@@ -1812,7 +1814,7 @@ impl MsaEngine {
     /// alignment width. Explicitly strips existing gaps from sequences containing nucleotide
     /// residues before progressive alignment.
     ///
-    /// Captures a structural snapshot before modification so that the
+    /// Captures a `ReplaceMatrix` swap before modification so that the
     /// entire re-alignment can be undone and redone via `undo()` and `redo()`.
     ///
     /// If there are fewer than 2 sequences, this is a safe no-op.
@@ -1829,8 +1831,12 @@ impl MsaEngine {
     }
 
     /// Apply an externally aligned FASTA into the engine, recording a single
-    /// structural undo transaction so the alignment can be undone and redone
+    /// `ReplaceMatrix` undo transaction so the alignment can be undone and redone
     /// via `undo()` and `redo()`.
+    ///
+    /// When `expected_revision` is `Some(rev)` and `rev != self.revision`,
+    /// rejects the stale alignment with error code `"StaleRevision"` before
+    /// parsing the FASTA.
     ///
     /// Enforces strict validation:
     /// - Sequence count must match the currently loaded matrix.
@@ -1840,7 +1846,21 @@ impl MsaEngine {
     pub fn apply_aligned_fasta(
         &mut self,
         fasta_content: &str,
+        expected_revision: Option<usize>,
     ) -> Result<(), StructuredEngineError> {
+        if let Some(expected) = expected_revision
+            && expected != self.revision
+        {
+            return Err(StructuredEngineError::with_code(
+                "StaleRevision",
+                format!(
+                    "Cannot apply alignment: expected revision {expected}, but engine is at revision {}",
+                    self.revision
+                ),
+                None,
+            ));
+        }
+
         let (names, sequences) = parse_fasta_records(fasta_content)?;
         if sequences.len() != self.nucleotide_sequences.len() {
             return Err(StructuredEngineError::with_code(

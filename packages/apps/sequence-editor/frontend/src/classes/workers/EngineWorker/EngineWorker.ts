@@ -18,7 +18,7 @@ import type {
  * This worker is the **single owner** of the `MsaEngine` WASM instance and its
  * linear memory for the lifetime of the page. All Rust calls happen here, off
  * the main thread, so FASTA parsing, structural mutations, and undo/redo
- * snapshots never stall the React render loop.
+ * history never stall the React render loop.
  *
  * The class is exposed to the main thread through comlink, so every public
  * method is proxied as an asynchronous call across the worker boundary.
@@ -27,24 +27,32 @@ export class EngineWorker implements EngineWorkerApi {
   private engine: MsaEngine | null = null;
   private initialization: null | Promise<void> = null;
 
-  public async applyAlignedFasta(fasta: string): Promise<void> {
+  public async applyAlignedFasta(fasta: string, expectedRevision?: number): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.apply_aligned_fasta(fasta);
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.apply_aligned_fasta(fasta, expectedRevision);
+    });
   }
 
-  public async delete(rows: number[], column: number): Promise<void> {
+  public async delete(rows: number[], column: number): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.delete_at_subset(this.toRowIndices(rows), column);
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.delete_at_subset(this.toRowIndices(rows), column);
+    });
   }
 
-  public async deleteColumn(column: number): Promise<void> {
+  public async deleteColumn(column: number): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.delete_column(column);
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.delete_column(column);
+    });
   }
 
-  public async deleteRows(rows: number[]): Promise<void> {
+  public async deleteRows(rows: number[]): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.delete_rows(this.toRowIndices(rows));
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.delete_rows(this.toRowIndices(rows));
+    });
   }
 
   public async exportGappedFasta(): Promise<string> {
@@ -79,14 +87,18 @@ export class EngineWorker implements EngineWorkerApi {
     await this.initialization;
   }
 
-  public async insert(rows: number[], column: number): Promise<void> {
+  public async insert(rows: number[], column: number): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.insert_at_subset(this.toRowIndices(rows), column);
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.insert_at_subset(this.toRowIndices(rows), column);
+    });
   }
 
-  public async load(fastaContent: string): Promise<number> {
+  public async load(fastaContent: string): Promise<boolean> {
     const engine = await this.requireEngine();
-    return engine.load_fasta(fastaContent);
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.load_fasta(fastaContent);
+    });
   }
 
   public async meta(): Promise<EngineMeta> {
@@ -94,73 +106,86 @@ export class EngineWorker implements EngineWorkerApi {
     return {
       alignmentWidth: engine.get_alignment_width(),
       redoDepth: engine.redo_depth(),
+      revision: engine.get_revision(),
       sequenceCount: engine.get_sequence_count(),
       undoDepth: engine.undo_depth(),
     };
   }
 
-  public async moveHorizontal(rows: number[], columns: number[], direction: MoveDirection): Promise<void> {
+  public async moveHorizontal(rows: number[], columns: number[], direction: MoveDirection): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.move_horizontal(this.toRowIndices(rows), this.toRowIndices(columns), direction);
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.move_horizontal(this.toRowIndices(rows), this.toRowIndices(columns), direction);
+    });
   }
 
-  public async moveRows(rows: number[], options: MoveRowsOptions): Promise<void> {
+  public async moveRows(rows: number[], options: MoveRowsOptions): Promise<boolean> {
     switch (options.mode) {
       case 'bottom': {
-        await this.moveRowsToBottom(rows);
-        break;
+        return this.moveRowsToBottom(rows);
       }
       case 'grouped': {
-        await this.moveRowsGrouped(rows, options.targetRow);
-        break;
+        return this.moveRowsGrouped(rows, options.targetRow);
       }
       case 'relative': {
-        await this.moveRowsRelative(rows, options.delta);
-        break;
+        return this.moveRowsRelative(rows, options.delta);
       }
       case 'top': {
-        await this.moveRowsToTop(rows);
-        break;
+        return this.moveRowsToTop(rows);
       }
       default: {
-        break;
+        return false;
       }
     }
   }
 
-  public async moveRowsDown(rows: number[]): Promise<void> {
+  public async moveRowsDown(rows: number[]): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.move_rows_down(this.toRowIndices(rows));
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.move_rows_down(this.toRowIndices(rows));
+    });
   }
 
-  public async moveRowsGrouped(rows: number[], targetRow: number): Promise<void> {
+  public async moveRowsGrouped(rows: number[], targetRow: number): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.move_rows_grouped(this.toRowIndices(rows), targetRow);
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.move_rows_grouped(this.toRowIndices(rows), targetRow);
+    });
   }
 
-  public async moveRowsRelative(rows: number[], delta: number): Promise<void> {
+  public async moveRowsRelative(rows: number[], delta: number): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.move_rows_relative(this.toRowIndices(rows), delta);
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.move_rows_relative(this.toRowIndices(rows), delta);
+    });
   }
 
-  public async moveRowsToBottom(rows: number[]): Promise<void> {
+  public async moveRowsToBottom(rows: number[]): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.move_rows_to_bottom(this.toRowIndices(rows));
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.move_rows_to_bottom(this.toRowIndices(rows));
+    });
   }
 
-  public async moveRowsToTop(rows: number[]): Promise<void> {
+  public async moveRowsToTop(rows: number[]): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.move_rows_to_top(this.toRowIndices(rows));
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.move_rows_to_top(this.toRowIndices(rows));
+    });
   }
 
-  public async moveRowsUp(rows: number[]): Promise<void> {
+  public async moveRowsUp(rows: number[]): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.move_rows_up(this.toRowIndices(rows));
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.move_rows_up(this.toRowIndices(rows));
+    });
   }
 
-  public async mutate(rows: number[], columns: number[], base: string): Promise<void> {
+  public async mutate(rows: number[], columns: number[], base: string): Promise<boolean> {
     const engine = await this.requireEngine();
-    engine.mutate_base(this.toRowIndices(rows), this.toRowIndices(columns), base.charCodeAt(0));
+    return this.runRevisionTrackedOperation(engine, () => {
+      engine.mutate_base(this.toRowIndices(rows), this.toRowIndices(columns), base.charCodeAt(0));
+    });
   }
 
   public async name(row: number): Promise<string> {
@@ -247,6 +272,13 @@ export class EngineWorker implements EngineWorkerApi {
       throw new Error('Engine failed to initialize');
     }
     return this.engine;
+  }
+
+  /** Runs an engine operation and returns whether its revision changed. */
+  private runRevisionTrackedOperation(engine: MsaEngine, operation: () => void): boolean {
+    const beforeRevision = engine.get_revision();
+    operation();
+    return engine.get_revision() !== beforeRevision;
   }
 
   /** Converts a plain row-index list into the typed array the WASM API expects. */

@@ -346,11 +346,14 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
             })
         }
         UndoCommand::RowReorder(RowReorderRecord { inverse_order }) => {
-            if inverse_order.len() == engine.nucleotide_sequences.len() {
+            let len = inverse_order.len();
+            if len != engine.nucleotide_sequences.len()
+                || inverse_order.iter().any(|&src| src >= len)
+            {
                 UndoCommand::recompute_history_bytes(engine);
                 return false;
             }
-            let mut next_inverse = vec![0usize; inverse_order.len()];
+            let mut next_inverse = vec![0usize; len];
             for (i, &src) in inverse_order.iter().enumerate() {
                 next_inverse[src] = i;
             }
@@ -373,6 +376,7 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
     };
     push_to_redo_bounded(engine, redo_cmd);
     engine.revision = engine.revision.wrapping_add(1);
+    engine.aminoacid_sequences.clear();
     true
 }
 
@@ -601,11 +605,14 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
             );
         }
         UndoCommand::RowReorder(RowReorderRecord { inverse_order }) => {
-            if inverse_order.len() == engine.nucleotide_sequences.len() {
+            let len = inverse_order.len();
+            if len != engine.nucleotide_sequences.len()
+                || inverse_order.iter().any(|&pos| pos >= len)
+            {
                 UndoCommand::recompute_history_bytes(engine);
                 return false;
             }
-            let mut next_inverse = vec![0; inverse_order.len()];
+            let mut next_inverse = vec![0usize; len];
             for (i, &pos) in inverse_order.iter().enumerate() {
                 next_inverse[pos] = i;
             }

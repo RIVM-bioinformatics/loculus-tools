@@ -354,7 +354,7 @@ fn realign_undo_and_redo_cycle() {
 #[test]
 fn realign_clears_aminoacid_cache_on_realign_and_undo() {
     let mut e = MsaEngine::new();
-    e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGCATGC")
+    e.load_fasta(">seq1\nATGCGATCGATC\n>seq2\nATGCGATC\n>seq3\nATGCATCGATCGATC")
         .expect("valid FASTA");
 
     // Populate amino acid cache directly
@@ -386,6 +386,42 @@ fn realign_clears_aminoacid_cache_on_realign_and_undo() {
 }
 
 #[test]
+fn realign_and_apply_aligned_fasta_identical_matrix_are_noops() {
+    let mut e = MsaEngine::new();
+    e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGCATGC")
+        .expect("valid FASTA");
+
+    // Seed redo_stack so we also verify no-op does not clear redo history.
+    e.mutate_base(&[0], &[0], b'T').expect("mutate ok");
+    assert!(e.undo());
+    assert_eq!(e.undo_depth(), 0);
+    assert_eq!(e.redo_depth(), 1);
+
+    let rev_before = e.get_revision();
+    let bytes_before = e.get_history_bytes();
+    e.aminoacid_sequences
+        .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
+
+    // Idempotent realign must be a strict no-op.
+    e.realign().expect("realign succeeds");
+    assert_eq!(e.undo_depth(), 0);
+    assert_eq!(e.redo_depth(), 1);
+    assert_eq!(e.get_revision(), rev_before);
+    assert_eq!(e.get_history_bytes(), bytes_before);
+    assert!(!e.aminoacid_sequences.is_empty());
+
+    // Applying an identical FASTA must also be a strict no-op.
+    let identical_fasta = String::from_utf8(e.export_fasta_bytes(true)).expect("valid utf8");
+    e.apply_aligned_fasta(&identical_fasta, Some(rev_before))
+        .expect("apply identical fasta succeeds");
+    assert_eq!(e.undo_depth(), 0);
+    assert_eq!(e.redo_depth(), 1);
+    assert_eq!(e.get_revision(), rev_before);
+    assert_eq!(e.get_history_bytes(), bytes_before);
+    assert!(!e.aminoacid_sequences.is_empty());
+}
+
+#[test]
 fn realign_successive_cycles_with_multi_step_undo() {
     let mut e = MsaEngine::new();
     e.load_fasta(">seq1\nATGC--GATC\n>seq2\nATGCGATC\n>seq3\nATGCATCGATCGATC")
@@ -396,15 +432,20 @@ fn realign_successive_cycles_with_multi_step_undo() {
     let orig_seq3 = e.nucleotide_sequences[2].clone();
     let orig_width = e.get_alignment_width();
 
-    // First realign
+    // First realign changes the matrix
     e.realign().expect("realign 1 succeeds");
     assert_eq!(e.undo_depth(), 1);
+    let rev_after_first = e.get_revision();
 
-    // Second realign (idempotent alignment)
+    // Second realign (idempotent alignment) is a no-op
     e.realign().expect("realign 2 succeeds");
+    assert_eq!(e.undo_depth(), 1);
+    assert_eq!(e.get_revision(), rev_after_first);
+
+    // Perform an edit that unaligns/changes the matrix, then realign again
+    e.insert_at_subset(&[0], 0).expect("insert succeeds");
     assert_eq!(e.undo_depth(), 2);
 
-    // Third realign
     e.realign().expect("realign 3 succeeds");
     assert_eq!(e.undo_depth(), 3);
 
@@ -1369,11 +1410,22 @@ fn all_mutations_undo_and_redo_clear_aminoacid_sequences_cache() {
     e.delete_rows(&[0]).unwrap();
     assert!(e.aminoacid_sequences.is_empty());
 
-    // 9. apply_aligned_fasta
-    let aligned = String::from_utf8(e.export_fasta_bytes(true)).unwrap();
+    // 9. apply_aligned_fasta (no-op when identical, clears cache when changed)
+    let identical_aligned = String::from_utf8(e.export_fasta_bytes(true)).unwrap();
     let rev = e.get_revision();
     populate_cache(&mut e);
-    e.apply_aligned_fasta(&aligned, Some(rev)).unwrap();
+    e.apply_aligned_fasta(&identical_aligned, Some(rev))
+        .unwrap();
+    assert!(!e.aminoacid_sequences.is_empty());
+    assert_eq!(e.get_revision(), rev);
+
+    let changed_aligned = e
+        .names
+        .iter()
+        .zip(&e.nucleotide_sequences)
+        .map(|(name, seq)| format!(">{name}\n-{}\n", std::str::from_utf8(seq).unwrap()))
+        .collect::<String>();
+    e.apply_aligned_fasta(&changed_aligned, Some(rev)).unwrap();
     assert!(e.aminoacid_sequences.is_empty());
 
     // Every undo() and redo() clears cache.

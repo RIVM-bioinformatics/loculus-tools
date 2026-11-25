@@ -2434,4 +2434,11 @@ fn apply_aligned_fasta_accepts_matching_revision_and_rejects_stale_revision() {
         .expect("matching revision succeeds");
     assert_eq!(e.get_revision(), current_rev + 1);
     assert_eq!(e.undo_depth(), undo_before + 1);
+
+    // Re-applying the exact same aligned FASTA with the new revision is a no-op.
+    let updated_rev = e.get_revision();
+    e.apply_aligned_fasta(aligned, Some(updated_rev))
+        .expect("identical alignment is a no-op");
+    assert_eq!(e.get_revision(), updated_rev);
+    assert_eq!(e.undo_depth(), undo_before + 1);
 }

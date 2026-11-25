@@ -2028,9 +2028,20 @@ impl MsaEngine {
 
     /// Replace matrix with newly aligned data via pointer swap, capturing a
     /// `ReplaceMatrix` undo transaction and clearing cached translation data.
+    ///
+    /// If `names`, `sequences`, and the resulting `alignment_width` are all
+    /// byte-for-byte identical to the current matrix state, this is a no-op that
+    /// leaves history, `revision`, and `aminoacid_sequences` untouched.
     fn replace_matrix_with_undo(&mut self, names: Vec<String>, sequences: Vec<Vec<u8>>) {
+        let next_alignment_width = sequences.first().map_or(0, Vec::len);
+        if self.alignment_width == next_alignment_width
+            && self.nucleotide_sequences == sequences
+            && self.names == names
+        {
+            return;
+        }
         let prev_alignment_width = self.alignment_width;
-        self.alignment_width = sequences.first().map_or(0, Vec::len);
+        self.alignment_width = next_alignment_width;
         let prev_sequences = std::mem::replace(&mut self.nucleotide_sequences, sequences);
         self.names = names;
         history::push_to_undo_stack(

@@ -1,0 +1,173 @@
+# cargo-deny configuration for loculus-tools (EUPL-1.2)
+# Documentation: https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# Check the targets built by this project: WebAssembly (wasm-pack) and Linux CI/host.
+targets = [
+    "wasm32-unknown-unknown",
+    "x86_64-unknown-linux-gnu",
+]
+all-features = false
+no-default-features = false
+
+[output]
+feature-depth = 1
+
+[advisories]
+yanked = "deny"
+ignore = []
+
+[licenses]
+# List of explicitly allowed licenses (SPDX identifiers).
+allow = [
+    # OSI-approved permissive and non-reciprocal licenses. These can be used
+    # as dependencies of an EUPL-1.2 project without imposing a conflicting
+    # reciprocal license on the combined work.
+    "0BSD",
+    "AAL",
+    "AFL-1.1",
+    "AFL-1.2",
+    "AFL-2.0",
+    "AFL-2.1",
+    "AFL-3.0",
+    "ALGLIB-Documentation",
+    "APL-1.0",
+    "Apache-1.1",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "Artistic-1.0",
+    "Artistic-1.0-Perl",
+    "Artistic-1.0-cl8",
+    "Artistic-2.0",
+    "BSD-1-Clause",
+    "BSD-2-Clause",
+    "BSD-2-Clause-Patent",
+    "BSD-3-Clause",
+    "BSD-3-Clause-LBNL",
+    "BSD-3-Clause-Open-MPI",
+    "BSL-1.0",
+    "BlueOak-1.0.0",
+    "CAL-1.0",
+    "CAL-1.0-Combined-Work-Exception",
+    "CERN-OHL-P-2.0",
+    "CNRI-Python",
+    "ECL-1.0",
+    "ECL-2.0",
+    "EFL-1.0",
+    "EFL-2.0",
+    "EUDatagrid",
+    "Entessa",
+    "Fair",
+    "Frameworx-1.0",
+    "HPND",
+    "ICU",
+    "IPA",
+    "ISC",
+    "Intel",
+    "Jam",
+    "LPL-1.0",
+    "LPL-1.02",
+    "LPPL-1.3c",
+    "LiLiQ-P-1.1",
+    "MIT",
+    "MIT-0",
+    "MIT-Modern-Variant",
+    "MirOS",
+    "Motosoto",
+    "MulanPSL-2.0",
+    "Multics",
+    "NASA-1.3",
+    "NCSA",
+    "NGPL",
+    "NTP",
+    "Naumen",
+    "OCLC-2.0",
+    "OFL-1.1",
+    "OFL-1.1-RFN",
+    "OFL-1.1-no-RFN",
+    "OGTSL",
+    "OLDAP-2.8",
+    "OLFL-1.3",
+    "PHP-3.0",
+    "PHP-3.01",
+    "PostgreSQL",
+    "Python-2.0",
+    "SimPL-2.0",
+    "Sleepycat",
+    "UCL-1.0",
+    "UPL-1.0",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Unlicense",
+    "VSL-1.0",
+    "W3C",
+    "W3C-20150513",
+    "Watcom-1.0",
+    "WordNet",
+    "Xnet",
+    "ZPL-2.0",
+    "ZPL-2.1",
+    "Zlib",
+
+    # Reciprocal licenses explicitly listed as compatible in the EUPL-1.2
+    # Appendix. CC-BY-SA-3.0 is deliberately omitted because the appendix
+    # limits it to non-software works.
+    "AGPL-3.0",
+    "AGPL-3.0-only",
+    "AGPL-3.0-or-later",
+    "CECILL-2.0",
+    "CECILL-2.1",
+    "EPL-1.0",
+    "EUPL-1.1",
+    "EUPL-1.2",
+    "GPL-2.0",
+    "GPL-2.0-only",
+    "GPL-2.0-only WITH Classpath-exception-2.0",
+    "GPL-2.0-or-later",
+    "GPL-3.0",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "LGPL-2.1",
+    "LGPL-2.1-only",
+    "LGPL-2.1-or-later",
+    "LGPL-3.0",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later",
+    "LiLiQ-R-1.1",
+    "LiLiQ-Rplus-1.1",
+    "MPL-2.0",
+    "OSL-2.1",
+    "OSL-3.0",
+]
+confidence-threshold = 0.8
+# The allowlist is an organizational policy rather than a list of licenses
+# encountered today, so unused entries should not produce warnings.
+unused-allowed-license = "allow"
+exceptions = []
+
+[licenses.private]
+ignore = false
+registries = []
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+highlight = "all"
+workspace-default-features = "allow"
+external-default-features = "allow"
+allow-workspace = true
+allow = []
+deny = []
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+[sources.allow-org]
+github = []
+gitlab = []
+bitbucket = []

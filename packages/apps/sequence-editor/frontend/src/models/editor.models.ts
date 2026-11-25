@@ -131,6 +131,8 @@ export type EngineTiming = {
 
 /** A fetched viewport or translation slice plus the metadata to interpret it. */
 export type EngineViewportResult = {
+  /** Full row-major overlay, indexed independently of the visible viewport. */
+  aminoAcidCodonOverlay?: Uint8Array;
   /** Row-major bytes, transferred from the worker via comlink. */
   bytes: Uint8Array;
   /** Number of columns per row (may be less than requested if clamped). */
@@ -170,7 +172,7 @@ export interface EngineWorkerApi {
   search: (query: string, checkRecordNames: boolean) => Promise<EngineSearchResult>;
   translate: (bounds: ViewportBounds, readingFrame: number) => Promise<EngineViewportResult>;
   undo: () => Promise<boolean>;
-  viewport: (bounds: ViewportBounds) => Promise<EngineViewportResult>;
+  viewport: (bounds: ViewportBounds, overlayReadingFrame?: number) => Promise<EngineViewportResult>;
 }
 
 export type GridGeometry = {

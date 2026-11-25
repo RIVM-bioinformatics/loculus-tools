@@ -1261,6 +1261,43 @@ fn move_horizontal_skips_short_rows_in_ragged_alignment() {
 }
 
 #[test]
+fn codon_overlay_check_sequence_lengths() {
+    let sequences = [b"AATGGT".to_vec(), b"A".to_vec(), Vec::new()];
+    let overlay = get_aminoacid_codon_overlay(1, &sequences).unwrap();
+
+    assert_eq!(
+        overlay,
+        [b"NNNGGG".to_vec(), b"X".to_vec(), Vec::new()]
+    );
+}
+
+#[test]
+fn codon_overlay_check_invalid_reading_frame() {
+    for frame in [0, 5] {
+        let err = get_aminoacid_codon_overlay(frame, &[b"ATG".to_vec()]).unwrap_err();
+        assert_eq!(err.code, "InvalidReadingFrame");
+        assert_eq!(err.context.unwrap().frame, Some(frame));
+    }
+}
+
+#[test]
+fn codon_overlay_check_reading_frame_offset() {
+    let sequences = [b"ATGTT".to_vec(), b"A".to_vec(), Vec::new()];
+    assert_eq!(
+        get_aminoacid_codon_overlay(1, &sequences).unwrap(),
+        [b"MMMXX".to_vec(), b"X".to_vec(), Vec::new()]
+    );
+    assert_eq!(
+        get_aminoacid_codon_overlay(2, &sequences).unwrap(),
+        [b"XCCCX".to_vec(), b"X".to_vec(), Vec::new()]
+    );
+    assert_eq!(
+        get_aminoacid_codon_overlay(3, &sequences).unwrap(),
+        [b"XXVVV".to_vec(), b"X".to_vec(), Vec::new()]
+    );
+}
+
+#[test]
 fn translate_rejects_invalid_reading_frame_with_context() {
     let mut e = engine_with_sample();
     let err = e.translate(0, 0, 0, 0, 5).unwrap_err();

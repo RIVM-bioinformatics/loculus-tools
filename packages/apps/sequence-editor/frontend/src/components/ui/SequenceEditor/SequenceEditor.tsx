@@ -56,6 +56,8 @@ import { SequenceEditorSearchBar } from '../SequenceEditorSearchBar';
 import type { SequenceEditorRealignModalRefMethods } from '../SequenceEditorRealignModal';
 import { SequenceEditorRealignModal } from '../SequenceEditorRealignModal';
 import type { SequenceEditorConfig } from '../../../models/config.models';
+import { SequenceEditorMenu } from '../SequenceEditorMenu';
+import { SequenceActionsBar } from '../SequenceActionsBar';
 
 import { SequenceEditorStatusBar } from './SequenceEditorStatusBar';
 import type { SequenceEditorGotoPositionDialogRefMethods } from './SequenceEditorGotoPositionDialog';
@@ -1135,13 +1137,31 @@ export const SequenceEditor = () => {
     <Box
       sx={{
         display: 'grid',
-        gridTemplateRows: 'max-content auto',
+        gridTemplateRows: 'max-content max-content auto',
         height: '100%',
         position: 'relative',
         width: '100%',
       }}
     >
-      <SequenceEditorSearchBar />
+      <Box
+        sx={{
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          py: 1,
+        }}
+      >
+        <SequenceEditorMenu />
+      </Box>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 1,
+          gridTemplateColumns: '4fr 1fr',
+          position: 'relative',
+        }}
+      >
+        <SequenceActionsBar />
+        <SequenceEditorSearchBar />
+      </Box>
       <Box
         onMouseUp={onContainerMouseUp}
         ref={containerRef}

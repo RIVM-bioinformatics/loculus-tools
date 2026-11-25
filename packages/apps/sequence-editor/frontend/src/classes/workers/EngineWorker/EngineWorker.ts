@@ -201,16 +201,30 @@ export class EngineWorker implements EngineWorkerApi {
     return engine.undo();
   }
 
-  public async viewport(bounds: ViewportBounds): Promise<EngineViewportResult> {
+  public async viewport(bounds: ViewportBounds, overlayReadingFrame?: number): Promise<EngineViewportResult> {
     const engine = await this.requireEngine();
     this.validateBounds(bounds);
-    const bytes = engine.update_viewport(
+    if (overlayReadingFrame !== undefined && ![1, 2, 3].includes(overlayReadingFrame)) {
+      throw new RangeError('Expected overlay reading frame 1, 2, or 3');
+    }
+
+    const [bytes, overlayBytes]: readonly unknown[] = engine.update_viewport(
       bounds.startRow,
       bounds.endRow,
       bounds.startCol,
       bounds.endCol,
+      overlayReadingFrame !== undefined,
+      overlayReadingFrame ?? 1,
     );
-    return this.buildViewportResult(bytes, bounds);
+    if (!(bytes instanceof Uint8Array) || !(overlayBytes instanceof Uint8Array)) {
+      throw new TypeError('Expected two Uint8Arrays from the viewport engine');
+    }
+
+    const viewport = this.buildViewportResult(bytes, bounds);
+    if (overlayReadingFrame !== undefined) {
+      viewport.aminoAcidCodonOverlay = overlayBytes;
+    }
+    return viewport;
   }
 
   /** Builds a fixed-stride viewport result from the engine's returned bytes. */

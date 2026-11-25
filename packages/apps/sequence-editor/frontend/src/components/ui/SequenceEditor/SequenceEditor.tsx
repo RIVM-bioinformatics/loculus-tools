@@ -892,14 +892,12 @@ export const SequenceEditor = () => {
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onRealign', () => {
         sequenceEditorStore.getState().setIsRealigning(true);
-        let wasCancelled = false;
         void execute({
           command: async () => {
             try {
               return await editorService.realign();
             } catch (error) {
               if (error instanceof DOMException && error.name === 'AbortError') {
-                wasCancelled = true;
                 return false;
               }
               sequenceEditorStore.getState().setLatestMessage(EngineErrorUtil.getEngineErrorMessage(error));
@@ -908,7 +906,7 @@ export const SequenceEditor = () => {
               sequenceEditorStore.getState().setIsRealigning(false);
             }
           },
-          getSelectionPostCommand: () => (wasCancelled ? selectionSubject.data : null),
+          getSelectionPostCommand: () => null,
           invalidateRowNames: true,
         });
       }),

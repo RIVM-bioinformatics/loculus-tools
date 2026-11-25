@@ -233,7 +233,7 @@ export class EngineWorker implements EngineWorkerApi {
       throw new RangeError('Expected overlay reading frame 1, 2, or 3');
     }
 
-    const [bytes, overlayBytes]: readonly unknown[] = engine.update_viewport(
+    const viewportResult: readonly unknown[] = engine.update_viewport(
       bounds.startRow,
       bounds.endRow,
       bounds.startCol,
@@ -241,6 +241,7 @@ export class EngineWorker implements EngineWorkerApi {
       overlayReadingFrame !== undefined,
       overlayReadingFrame ?? 1,
     );
+    const [bytes, overlayBytes] = viewportResult;
     if (!(bytes instanceof Uint8Array) || !(overlayBytes instanceof Uint8Array)) {
       throw new TypeError('Expected two Uint8Arrays from the viewport engine');
     }

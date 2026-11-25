@@ -489,40 +489,40 @@ pub fn get_aminoacid_codon_overlay(
     reading_frame: u8,
     nucleotide_sequences: &[Vec<u8>],
 ) -> Result<Vec<Vec<u8>>, StructuredEngineError> {
-    if nucleotide_sequences.is_empty() {
-        return Ok(Vec::new());
+  if nucleotide_sequences.is_empty() {
+    return Ok(Vec::new());
+  }
+  if reading_frame == 0 || reading_frame > 3 {
+    return Err(TranslateError::InvalidReadingFrame {
+      frame: reading_frame,
+      }
+      .into());
     }
-    if reading_frame == 0 || reading_frame > 3 {
-        return Err(TranslateError::InvalidReadingFrame {
-            frame: reading_frame,
-        }
-        .into());
+
+  let mut aminoacid_codon_overlay = Vec::new();
+  let frame_offset = usize::from(reading_frame - 1);
+  for seq in nucleotide_sequences.iter() {
+    let mut aminoacid_codon_overlay_per_seq: Vec<u8> = Vec::new();
+
+    //Check if the sequence is shorter than the frame offset and adjust accordingly
+    let sequence_frame_offset = frame_offset.min(seq.len());
+    
+    // add X for incomplete codon at the start based on reading_frame
+    aminoacid_codon_overlay_per_seq.extend(vec![b'X'; sequence_frame_offset]);
+
+    // translate codons in the sequence starting from the reading frame offset
+    for codon in seq[sequence_frame_offset..].chunks(3){
+      if codon.len() < 3 {
+        // if the codon is incomplete, fill with X
+        aminoacid_codon_overlay_per_seq.extend(vec![b'X'; codon.len()]);
+      } else { 
+        let translated_codon = translate_codon([codon[0], codon[1], codon[2]]);
+        aminoacid_codon_overlay_per_seq.extend(vec![translated_codon; 3]);
+      }
     }
-
-    let mut aminoacid_codon_overlay = Vec::new();
-    let frame_offset = usize::from(reading_frame - 1);
-    for seq in nucleotide_sequences.iter() {
-        let mut aminoacid_codon_overlay_per_seq: Vec<u8> = Vec::new();
-
-        //Check if the sequence is shorter than the frame offset and adjust accordingly
-        let sequence_frame_offset = frame_offset.min(seq.len());
-
-        // add X for incomplete codon at the start based on reading_frame
-        aminoacid_codon_overlay_per_seq.extend(vec![b'X'; sequence_frame_offset]);
-
-        // translate codons in the sequence starting from the reading frame offset
-        for codon in seq[sequence_frame_offset..].chunks(3) {
-            if codon.len() < 3 {
-                // if the codon is incomplete, fill with X
-                aminoacid_codon_overlay_per_seq.extend(vec![b'X'; codon.len()]);
-            } else {
-                let translated_codon = translate_codon([codon[0], codon[1], codon[2]]);
-                aminoacid_codon_overlay_per_seq.extend(vec![translated_codon; 3]);
-            }
-        }
-        aminoacid_codon_overlay.push(aminoacid_codon_overlay_per_seq);
-    }
-    Ok(aminoacid_codon_overlay)
+    aminoacid_codon_overlay.push(aminoacid_codon_overlay_per_seq);
+  }
+  Ok(aminoacid_codon_overlay)
 }
 
 #[wasm_bindgen]
@@ -708,34 +708,28 @@ impl MsaEngine {
         // Compute the number of rows and columns in the requested slice, checking for overflow.
         let rows = match inclusive_range_len(start_row, row_end) {
             Some(rows) => rows,
-            None => {
-                return js_sys::Array::of2(
-                    &js_sys::Uint8Array::new_with_length(0),
-                    &js_sys::Uint8Array::new_with_length(0),
-                );
-            }
+            None => return js_sys::Array::of2(
+                &js_sys::Uint8Array::new_with_length(0),
+                &js_sys::Uint8Array::new_with_length(0),
+            ),
         };
 
         // Fixed column stride: every row contributes exactly this many bytes.
         let cols = match inclusive_range_len(start_col, end_col) {
             Some(cols) => cols,
-            None => {
-                return js_sys::Array::of2(
-                    &js_sys::Uint8Array::new_with_length(0),
-                    &js_sys::Uint8Array::new_with_length(0),
-                );
-            }
+            None => return js_sys::Array::of2(
+                &js_sys::Uint8Array::new_with_length(0),
+                &js_sys::Uint8Array::new_with_length(0),
+            ),
         };
 
         // Check that the total byte length does not exceed the maximum allowed for the viewport buffer.
         let byte_len = match rows.checked_mul(cols) {
             Some(byte_len) if byte_len <= MAX_VIEWPORT_BYTES => byte_len,
-            _ => {
-                return js_sys::Array::of2(
-                    &js_sys::Uint8Array::new_with_length(0),
-                    &js_sys::Uint8Array::new_with_length(0),
-                );
-            }
+            _ => return js_sys::Array::of2(
+                &js_sys::Uint8Array::new_with_length(0),
+                &js_sys::Uint8Array::new_with_length(0),
+            ),
         };
 
         // Reserve the necessary capacity in the viewport buffer. If it fails, return an empty Uint8Array.
@@ -746,6 +740,7 @@ impl MsaEngine {
             );
         }
 
+      
         let overlay = include_translation_map
             .then(|| get_aminoacid_codon_overlay(reading_frame, &self.nucleotide_sequences));
 
@@ -766,7 +761,7 @@ impl MsaEngine {
                     .resize(self.viewport_buffer.len() + cols - seq_cols, b' ');
             }
         }
-
+        
         match overlay {
             Some(Err(error)) => {
                 console_log!("Failed to create codon overlay: {error}");

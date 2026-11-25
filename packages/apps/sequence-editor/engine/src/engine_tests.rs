@@ -1063,7 +1063,10 @@ fn codon_overlay_check_sequence_lengths() {
     let sequences = [b"AATGGT".to_vec(), b"A".to_vec(), Vec::new()];
     let overlay = get_aminoacid_codon_overlay(1, &sequences).unwrap();
 
-    assert_eq!(overlay, [b"NNNGGG".to_vec(), b"X".to_vec(), Vec::new()]);
+    assert_eq!(
+        overlay,
+        [b"NNNGGG".to_vec(), b"X".to_vec(), Vec::new()]
+    );
 }
 
 #[test]

@@ -19,15 +19,12 @@ impl UndoCommand {
                 positions.capacity() * std::mem::size_of::<(usize, usize, u8)>()
             }
             Self::PrependedSequences(PrependedSequencesRecord {
-                count,
-                names,
-                sequences,
-                previous_alignment_width,
+                names, sequences, ..
             }) => {
-                count * std::mem::size_of::<usize>()
-                    + names.capacity() * std::mem::size_of::<String>()
+                names.capacity() * std::mem::size_of::<String>()
+                    + names.iter().map(String::capacity).sum::<usize>()
                     + sequences.capacity() * std::mem::size_of::<Vec<u8>>()
-                    + previous_alignment_width * std::mem::size_of::<usize>()
+                    + sequences.iter().map(Vec::capacity).sum::<usize>()
             }
             Self::InsertAtSubset(InsertAtSubsetRecord {
                 target_rows,
@@ -35,32 +32,30 @@ impl UndoCommand {
                 ..
             }) => {
                 target_rows.capacity() * std::mem::size_of::<usize>()
-                    + padded_short_rows.capacity() * std::mem::size_of::<usize>()
+                    + padded_short_rows.capacity() * std::mem::size_of::<(usize, usize)>()
             }
             Self::DeleteAtSubset(DeleteAtSubsetRecord { target_rows, .. }) => {
-                target_rows.capacity() * std::mem::size_of::<usize>() + std::mem::size_of::<usize>()
+                target_rows.capacity() * std::mem::size_of::<usize>()
             }
             Self::DeleteColumn(DeleteColumnRecord { removed_bases, .. }) => {
-                std::mem::size_of::<usize>()
-                    + removed_bases.capacity() * std::mem::size_of::<Option<u8>>()
+                removed_bases.capacity() * std::mem::size_of::<Option<u8>>()
             }
             Self::DeletedRow(DeletedRowRecord {
-                deleted_rows,
                 row_indices,
                 names,
                 sequences,
                 ..
             }) => {
-                deleted_rows.capacity() * std::mem::size_of::<usize>()
-                    + row_indices.capacity() * std::mem::size_of::<usize>()
+                row_indices.capacity() * std::mem::size_of::<usize>()
                     + names.capacity() * std::mem::size_of::<String>()
+                    + names.iter().map(String::capacity).sum::<usize>()
                     + sequences.capacity() * std::mem::size_of::<Vec<u8>>()
-                    + std::mem::size_of::<usize>() // for previous_alignment_width
+                    + sequences.iter().map(Vec::capacity).sum::<usize>()
             }
             Self::HorizontalMove(HorizontalMoveRecord { rows, .. }) => {
                 rows.capacity() * std::mem::size_of::<usize>()
             }
-            Self::RowReorder(RowReorderRecord { inverse_order, .. }) => {
+            Self::RowReorder(RowReorderRecord { inverse_order }) => {
                 inverse_order.capacity() * std::mem::size_of::<usize>()
             }
             Self::ReplaceMatrix(ReplacedMatrixRecord { sequences, .. }) => {
@@ -90,11 +85,21 @@ pub(crate) fn push_to_undo_bounded(engine: &mut MsaEngine, cmd: UndoCommand) {
         UndoCommand::recompute_history_bytes(engine);
         return;
     }
+    UndoCommand::recompute_history_bytes(engine);
     while !engine.undo_stack.is_empty()
         && (engine.undo_stack.len() >= engine.max_undo_depth
             || engine.history_bytes.saturating_add(cmd_bytes) > engine.max_history_bytes)
     {
         if let Some(evicted) = engine.undo_stack.pop_front() {
+            engine.history_bytes = engine
+                .history_bytes
+                .saturating_sub(evicted.estimated_byte_size());
+        }
+    }
+    while !engine.redo_stack.is_empty()
+        && engine.history_bytes.saturating_add(cmd_bytes) > engine.max_history_bytes
+    {
+        if let Some(evicted) = engine.redo_stack.pop_front() {
             engine.history_bytes = engine
                 .history_bytes
                 .saturating_sub(evicted.estimated_byte_size());
@@ -144,8 +149,6 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
         Some(c) => c,
         None => return false,
     };
-    // Here you would typically handle the command, e.g., apply it and push to redo stack
-    // For now, let's just return true to indicate a command was popped
     let redo_cmd = match cmd {
         UndoCommand::Substitutions(SubstitutionRecord { mut positions }) => {
             let mut write_idx = 0;
@@ -162,6 +165,7 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
             }
             positions.truncate(write_idx);
             if positions.is_empty() {
+                UndoCommand::recompute_history_bytes(engine);
                 return false;
             }
             UndoCommand::Substitutions(SubstitutionRecord { positions })
@@ -210,6 +214,7 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
                     seq.truncate(original_len);
                 }
             }
+            engine.alignment_width = previous_alignment_width;
             UndoCommand::InsertAtSubset(InsertAtSubsetRecord {
                 target_rows,
                 insertion_col,
@@ -226,7 +231,7 @@ pub(crate) fn apply_undo_action(engine: &mut MsaEngine) -> bool {
                     && column_index < seq.len()
                 {
                     seq.pop();
-                    seq.insert(column_index, b'-')
+                    seq.insert(column_index, b'-');
                 }
             }
             UndoCommand::DeleteAtSubset(DeleteAtSubsetRecord {
@@ -385,8 +390,6 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
         Some(c) => c,
         None => return false,
     };
-    // Here you would typically handle the command, e.g., apply it and push to undo stack
-    // For now, let's just return true to indicate a command was popped
     match cmd {
         UndoCommand::Substitutions(SubstitutionRecord { mut positions }) => {
             let mut write_idx = 0;
@@ -403,6 +406,7 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
             }
             positions.truncate(write_idx);
             if positions.is_empty() {
+                UndoCommand::recompute_history_bytes(engine);
                 return false;
             }
             push_to_undo_bounded(
@@ -417,7 +421,7 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
             ..
         }) => {
             let prev_alignment_width = engine.alignment_width;
-            let batch_width = sequences.iter().map(|seq| seq.len()).max().unwrap_or(0);
+            let batch_width = sequences.iter().map(Vec::len).max().unwrap_or(0);
             sequences.append(&mut engine.nucleotide_sequences);
             names.append(&mut engine.names);
             engine.nucleotide_sequences = sequences;
@@ -455,7 +459,7 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
             engine.alignment_width = engine
                 .nucleotide_sequences
                 .iter()
-                .map(|seq| seq.len())
+                .map(Vec::len)
                 .max()
                 .unwrap_or(0);
             push_to_undo_bounded(
@@ -473,11 +477,11 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
             column_index,
         }) => {
             for &row in &target_rows {
-                if let Some(seq) = engine.nucleotide_sequences.get_mut(row) {
-                    if column_index < seq.len() {
-                        seq.remove(column_index);
-                        seq.push(b'-');
-                    }
+                if let Some(seq) = engine.nucleotide_sequences.get_mut(row)
+                    && column_index < seq.len()
+                {
+                    seq.remove(column_index);
+                    seq.push(b'-');
                 }
             }
             push_to_undo_bounded(
@@ -574,21 +578,19 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
         }) => {
             for &row in &rows {
                 if let Some(seq) = engine.nucleotide_sequences.get_mut(row) {
-                    if start_col > 0 && end_col < seq.len() {
-                        match direction {
-                            MoveDirection::Left => {
-                                if start_col > 0 && end_col < seq.len() {
-                                    let gap = seq[start_col - 1];
-                                    seq.copy_within(start_col..=end_col, start_col - 1);
-                                    seq[end_col] = gap;
-                                }
+                    match direction {
+                        MoveDirection::Left => {
+                            if start_col > 0 && end_col < seq.len() {
+                                let gap = seq[start_col - 1];
+                                seq.copy_within(start_col..=end_col, start_col - 1);
+                                seq[end_col] = gap;
                             }
-                            MoveDirection::Right => {
-                                if end_col + 1 < seq.len() {
-                                    let gap = seq[end_col + 1];
-                                    seq.copy_within(start_col..=end_col, start_col + 1);
-                                    seq[start_col] = gap;
-                                }
+                        }
+                        MoveDirection::Right => {
+                            if end_col + 1 < seq.len() {
+                                let gap = seq[end_col + 1];
+                                seq.copy_within(start_col..=end_col, start_col + 1);
+                                seq[start_col] = gap;
                             }
                         }
                     }
@@ -630,7 +632,7 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
         }) => {
             std::mem::swap(&mut engine.nucleotide_sequences, &mut sequences);
             std::mem::swap(&mut engine.alignment_width, &mut previous_alignment_width);
-            push_to_redo_bounded(
+            push_to_undo_bounded(
                 engine,
                 UndoCommand::ReplaceMatrix(ReplacedMatrixRecord {
                     sequences,
@@ -640,5 +642,6 @@ pub(crate) fn apply_redo_action(engine: &mut MsaEngine) -> bool {
         }
     }
     engine.revision = engine.revision.wrapping_add(1);
+    engine.aminoacid_sequences.clear();
     true
 }

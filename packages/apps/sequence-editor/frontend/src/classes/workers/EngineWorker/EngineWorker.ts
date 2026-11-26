@@ -183,19 +183,6 @@ export class EngineWorker implements EngineWorkerApi {
     return engine.search(query, checkRecordNames) as EngineSearchResult;
   }
 
-  public async translate(bounds: ViewportBounds, readingFrame: number): Promise<EngineViewportResult> {
-    const engine = await this.requireEngine();
-    this.validateBounds(bounds);
-    const bytes = engine.translate(
-      bounds.startRow,
-      bounds.endRow,
-      bounds.startCol,
-      bounds.endCol,
-      readingFrame,
-    );
-    return this.buildViewportResult(bytes, bounds);
-  }
-
   public async undo(): Promise<boolean> {
     const engine = await this.requireEngine();
     return engine.undo();
@@ -208,7 +195,7 @@ export class EngineWorker implements EngineWorkerApi {
       throw new RangeError('Expected overlay reading frame 1, 2, or 3');
     }
 
-    const [bytes, overlayBytes]: readonly unknown[] = engine.update_viewport(
+    const viewportBytes: unknown = engine.update_viewport(
       bounds.startRow,
       bounds.endRow,
       bounds.startCol,
@@ -216,6 +203,11 @@ export class EngineWorker implements EngineWorkerApi {
       overlayReadingFrame !== undefined,
       overlayReadingFrame ?? 1,
     );
+    if (!Array.isArray(viewportBytes) || viewportBytes.length !== 2) {
+      throw new TypeError('Expected two Uint8Arrays from the viewport engine');
+    }
+    const bytes: unknown = viewportBytes[0];
+    const overlayBytes: unknown = viewportBytes[1];
     if (!(bytes instanceof Uint8Array) || !(overlayBytes instanceof Uint8Array)) {
       throw new TypeError('Expected two Uint8Arrays from the viewport engine');
     }

@@ -12,6 +12,7 @@ import {
   createFastaDataStoreInitialState,
 } from '@rivm-loculus-tools/common-frontend/stores/fastaDataStore';
 
+import { READING_MODE } from '../../models/editor.models';
 import type {
   EditorSelection,
   EngineMeta,
@@ -49,10 +50,10 @@ export interface SequenceEditorStoreState extends FastaDataStoreState {
   customNucleotidePalette: NucleotidePalette;
   engineMeta: EngineMeta | null;
   isRealigning: boolean;
-  isTranslated: boolean;
   latestMessage: null | string;
   nucleotidePalette: NucleotidePalette;
   readingFrame: 1 | 2 | 3;
+  readingMode: READING_MODE;
   searchQuery: string;
   searchResult: EngineSearchResult | null;
   searchResultHighlightedIndex: null | number;
@@ -72,10 +73,10 @@ const createSequenceEditorStoreInitialState = (): SequenceEditorStoreState => ({
   },
   engineMeta: null,
   isRealigning: false,
-  isTranslated: false,
   latestMessage: null,
   nucleotidePalette: ALI_VIEW_DEFAULT_NUCLEOTIDE_PALETTE,
   readingFrame: 1,
+  readingMode: READING_MODE.NUCLEOTIDE,
   searchQuery: '',
   searchResult: null,
   searchResultHighlightedIndex: null,

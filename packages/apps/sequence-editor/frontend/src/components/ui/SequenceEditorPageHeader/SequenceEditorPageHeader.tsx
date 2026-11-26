@@ -13,12 +13,6 @@ import ImportExportIcon from '@mui/icons-material/ImportExport';
 import CodeIcon from '@mui/icons-material/Code';
 import PublishIcon from '@mui/icons-material/Publish';
 import { useStore } from 'zustand';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
-import {
-  CircularProgress,
-  IconButton,
-  Tooltip,
-} from '@mui/material';
 import { ButtonWithMenu } from '@rivm-loculus-tools/common-frontend/components/ui/ButtonWithMenu';
 import type { ButtonWithMenuProps } from '@rivm-loculus-tools/common-frontend/components/ui/ButtonWithMenu';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
@@ -28,8 +22,6 @@ import { useConfig } from '@rivm-loculus-tools/common-frontend/hooks/useConfig';
 import { sequenceEditorStore } from '../../../stores/sequenceEditorStore';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
 import type { SequenceEditorConfig } from '../../../models/config.models';
-
-import { SequenceEditorUndoRedoButtons } from './SequenceEditorUndoRedoButtons';
 
 export const SequenceEditorPageHeader = () => {
   const loculusService = useMemo(() => container.resolve(LoculusService), []);
@@ -48,7 +40,6 @@ export const SequenceEditorPageHeader = () => {
     () => false,
   );
 
-  const isRealigning = useStore(sequenceEditorStore, (state) => state.isRealigning);
   const resetDataset = useStore(sequenceEditorStore, (state) => state.resetDataset);
 
   const sequenceCount = useStore(sequenceEditorStore, (state) => state.engineMeta?.sequenceCount ?? 0);
@@ -58,13 +49,6 @@ export const SequenceEditorPageHeader = () => {
   const onReset = useCallback(() => {
     resetDataset();
   }, [resetDataset]);
-
-  const onRealignButtonClick = useCallback(() => {
-    if (isRealigning) {
-      return;
-    }
-    container.resolve(SequenceEditorEventBusService).emit('onRealign');
-  }, [isRealigning]);
 
   const onClickExportFasta = useCallback(() => {
     container.resolve(SequenceEditorEventBusService).emit('onExportUngappedFasta');
@@ -123,28 +107,6 @@ export const SequenceEditorPageHeader = () => {
       )}
       rightComponent={(
         <>
-          <SequenceEditorUndoRedoButtons />
-          <Tooltip title={isRealigning ? 'Re-aligning sequences...' : 'Re-align all sequences (MAFFT FFT-NS-1)'}>
-            <span>
-              <IconButton
-                aria-label={isRealigning ? 'Re-aligning sequences...' : 'Re-align all sequences (MAFFT FFT-NS-1)'}
-                color={'inherit'}
-                disabled={isRealigning || (sequenceCount ?? 0) < 2}
-                onClick={onRealignButtonClick}
-                size={'small'}
-                sx={{ opacity: 0.85 }}
-              >
-                {isRealigning ? (
-                  <CircularProgress
-                    color={'inherit'}
-                    size={18}
-                  />
-                ) : (
-                  <AutoFixHighIcon fontSize={'small'} />
-                )}
-              </IconButton>
-            </span>
-          </Tooltip>
           <FastaPageHeaderResetButton onReset={onReset} />
           <FastaPageHeaderImportButton />
           <ButtonWithMenu

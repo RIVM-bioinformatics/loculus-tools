@@ -20,22 +20,45 @@ import {
   EDITOR_DIRECTION,
   EDITOR_PATH_PROPERTIES_TYPE,
   MATRIX_TYPE,
+  READING_MODE,
 } from '../../models/editor.models';
 import { PaletteUtil } from '../PaletteUtil';
 import { DEFAULT_GRID_GEOMETRY } from '../../constants';
 import type {
   AminoAcidPalette,
   NucleotidePalette,
+  PaletteEntry,
 } from '../../models/palette.models';
+
+type CellRenderConfig = {
+  aminoAcidCodonOverlay?: Uint8Array;
+  aminoAcidPalette: AminoAcidPalette;
+  meta: EngineMeta;
+  nucleotidePalette: NucleotidePalette;
+  readingFrame: number;
+  readingMode: READING_MODE;
+};
+
+type SearchRenderState = {
+  highlightedSearchMatchFlags: null | Uint8Array;
+  highlightedSearchMatchPath: null | Path2D;
+  highlightedSearchRowFlags: null | Uint8Array;
+  searchMatchFlags: null | Uint8Array;
+  searchMatchPath: null | Path2D;
+  searchRowFlags: null | Uint8Array;
+};
 
 export class EditorUtil {
 
   public static drawCanvas({
+    aminoAcidPalette,
     canvasElement,
     devicePixelRatio,
     geometry,
     meta,
-    palette,
+    nucleotidePalette,
+    readingFrame,
+    readingMode,
     rowNames,
     rowNamesStartRow,
     scrollLeft,
@@ -47,11 +70,14 @@ export class EditorUtil {
     viewportHeight,
     viewportWidth,
   }: {
+    aminoAcidPalette: AminoAcidPalette;
     canvasElement: HTMLCanvasElement;
     devicePixelRatio: number;
     geometry: GridGeometry;
     meta: EngineMeta;
-    palette: AminoAcidPalette | NucleotidePalette;
+    nucleotidePalette: NucleotidePalette;
+    readingFrame?: number;
+    readingMode?: READING_MODE;
     rowNames: string[];
     rowNamesStartRow: number;
     scrollLeft: number;
@@ -111,7 +137,22 @@ export class EditorUtil {
       const { cellHeight, cellWidth, dividerWidth, labelWidth, rulerHeight } = geometry;
       const gridStart = labelWidth + dividerWidth;
 
-      const { bytes, cols, rows, startCol, startRow } = viewport;
+      const {
+        aminoAcidCodonOverlay,
+        bytes,
+        cols,
+        rows,
+        startCol,
+        startRow,
+      } = viewport;
+      const cellRenderConfig = EditorUtil.getCellRenderConfig({
+        aminoAcidCodonOverlay,
+        aminoAcidPalette,
+        meta,
+        nucleotidePalette,
+        readingFrame,
+        readingMode,
+      });
       const hasSearchResult = (searchResult?.positions.length ?? 0) > 0;
       const searchMatchFlags = hasSearchResult ? new Uint8Array(rows * cols) : null;
       const highlightedSearchMatchFlags = highlightedSearchHit ? new Uint8Array(rows * cols) : null;
@@ -119,8 +160,6 @@ export class EditorUtil {
       const highlightedSearchRowFlags = highlightedSearchHit ? new Uint8Array(rows) : null;
       const searchMatchPath = hasSearchResult ? new Path2D() : null;
       const highlightedSearchMatchPath = highlightedSearchHit ? new Path2D() : null;
-      let hasSearchMatches = false;
-      let hasHighlightedSearchMatches = false;
 
       const addSearchHitToFlags = (
         hit: EngineSearchResult['positions'][number],
@@ -168,76 +207,40 @@ export class EditorUtil {
         }
       }
 
-      // Render cells
-      context.font = '12px monospace';
-      context.textAlign = 'center';
-      context.textBaseline = 'middle';
-      for (let row = 0; row < rows; row++) {
-        // cell position on screen, offset by the viewport's grid origin and current scroll
-        const y = (startRow + row) * cellHeight + rulerHeight - scrollTop;
-        if (y + cellHeight < rulerHeight || y > viewportHeight) {
-          continue;
-        }
-        for (let col = 0; col < cols; col++) {
-          const x = (startCol + col) * cellWidth + gridStart - scrollLeft;
-          if (x + cellWidth < gridStart || x > viewportWidth) {
-            continue;
-          }
-          const byte = bytes[row * cols + col];
-          const cellCol = startCol + col;
-          const cellRow = startRow + row;
-          const charCode = byte ?? '';
-          const label = String.fromCharCode(charCode);
-          const colors = PaletteUtil.paletteEntryFor(palette, label);
-          let cellBackground = colors.background;
-          if (byte === null) {
-            cellBackground = '#e9eef2';
-          } else if (label === ' ') {
-            cellBackground = '#f7f8f9';
-          }
-          let cellForeground = colors.foreground;
-          const isSelected = isCellSelected(cellRow, cellCol);
-          if (isSelected) {
-            cellBackground = colors.backgroundSelected;
-            cellForeground = colors.foregroundSelected;
-          }
-          const cellIndex = row * cols + col;
-          const matchesSearch = searchMatchFlags?.[cellIndex] === 1;
-          const matchesHighlightedSearch = highlightedSearchMatchFlags?.[cellIndex] === 1;
-          const rectanglePath = new Path2D();
-          rectanglePath.rect(x, y, cellWidth, cellHeight);
-          rectanglePath.closePath();
-          editorAssembly.cells.pathPropertiesMap.set(rectanglePath, {
-            col: cellCol,
-            row: cellRow,
-            type: EDITOR_PATH_PROPERTIES_TYPE.CELL,
-          });
-          // draw path on canvas
-          context.fillStyle = cellBackground;
-          context.fill(rectanglePath);
-          if (matchesHighlightedSearch || highlightedSearchRowFlags?.[row] === 1) {
-            context.fillStyle = 'rgba(255, 193, 7, 0.35)';
-            context.fillRect(x + 2, y + 2, Math.max(0, cellWidth - 4), Math.max(0, cellHeight - 4));
-          }
-          context.fillStyle = cellForeground;
-          context.fillText(label, x + cellWidth / 2, y + cellHeight / 2);
-          if ((matchesSearch || searchRowFlags?.[row] === 1) && searchMatchPath) {
-            hasSearchMatches = true;
-            searchMatchPath.rect(x + 0.5, y + 0.5, cellWidth - 1, cellHeight - 1);
-            if ((matchesHighlightedSearch || highlightedSearchRowFlags?.[row] === 1) && highlightedSearchMatchPath) {
-              hasHighlightedSearchMatches = true;
-              highlightedSearchMatchPath.rect(x + 1, y + 1, cellWidth - 2, cellHeight - 2);
-            }
-          }
-        }
-      }
+      const cellSearchState = EditorUtil.drawCells({
+        bytes,
+        cellHeight,
+        cellRenderConfig,
+        cellWidth,
+        cols,
+        context,
+        editorAssembly,
+        gridStart,
+        isCellSelected,
+        rows,
+        rulerHeight,
+        scrollLeft,
+        scrollTop,
+        searchRenderState: {
+          highlightedSearchMatchFlags,
+          highlightedSearchMatchPath,
+          highlightedSearchRowFlags,
+          searchMatchFlags,
+          searchMatchPath,
+          searchRowFlags,
+        },
+        startCol,
+        startRow,
+        viewportHeight,
+        viewportWidth,
+      });
 
-      if (hasSearchMatches && searchMatchPath) {
+      if (cellSearchState.hasSearchMatches && searchMatchPath) {
         context.strokeStyle = '#000000';
         context.lineWidth = 1;
         context.stroke(searchMatchPath);
       }
-      if (hasHighlightedSearchMatches && highlightedSearchMatchPath) {
+      if (cellSearchState.hasHighlightedSearchMatches && highlightedSearchMatchPath) {
         context.lineWidth = 2;
         context.stroke(highlightedSearchMatchPath);
       }
@@ -474,7 +477,6 @@ export class EditorUtil {
     return EditorUtil.getMovedRowsGroupedSelection(selection, targetRow, metaData);
   }
 
-
   public static getMovedRowsGroupedSelection(selection: EditorSelection | null, targetRow: number, metaData: EngineMeta | null): EditorSelection | null {
     if (!selection || !metaData) {
       return null;
@@ -636,6 +638,7 @@ export class EditorUtil {
 
     return undefined;
   }
+
 
   /**
    * Performs a hit-test against the tree assembly's path maps to find the
@@ -1088,12 +1091,304 @@ export class EditorUtil {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
+  private static drawCell({
+    bytes,
+    cellHeight,
+    cellRenderConfig,
+    cellWidth,
+    col,
+    cols,
+    context,
+    editorAssembly,
+    highlightedSearchMatchFlags,
+    highlightedSearchMatchPath,
+    highlightedSearchRowFlags,
+    isCellSelected,
+    row,
+    searchMatchFlags,
+    searchMatchPath,
+    searchRowFlags,
+    startCol,
+    startRow,
+    x,
+    y,
+  }: {
+    bytes: Uint8Array;
+    cellHeight: number;
+    cellRenderConfig: CellRenderConfig;
+    cellWidth: number;
+    col: number;
+    cols: number;
+    context: CanvasRenderingContext2D;
+    editorAssembly: EditorAssembly;
+    highlightedSearchMatchFlags: null | Uint8Array;
+    highlightedSearchMatchPath: null | Path2D;
+    highlightedSearchRowFlags: null | Uint8Array;
+    isCellSelected: (row: number, col: number) => boolean;
+    row: number;
+    searchMatchFlags: null | Uint8Array;
+    searchMatchPath: null | Path2D;
+    searchRowFlags: null | Uint8Array;
+    startCol: number;
+    startRow: number;
+    x: number;
+    y: number;
+  }): { hasHighlightedSearchMatches: boolean; hasSearchMatches: boolean } {
+    const cellCol = startCol + col;
+    const cellRow = startRow + row;
+    const { colorByte, colors, label } = EditorUtil.getCellRenderData({
+      bytes,
+      cellCol,
+      cellRenderConfig,
+      cellRow,
+      col,
+      cols,
+      row,
+      startCol,
+    });
+    let cellBackground = colors.background;
+    if (colorByte === undefined) {
+      cellBackground = '#e9eef2';
+    } else if (label === ' ') {
+      cellBackground = '#f7f8f9';
+    }
+    let cellForeground = colors.foreground;
+    if (isCellSelected(cellRow, cellCol)) {
+      cellBackground = colors.backgroundSelected;
+      cellForeground = colors.foregroundSelected;
+    }
+    const cellIndex = row * cols + col;
+    const matchesSearch = searchMatchFlags?.[cellIndex] === 1;
+    const matchesHighlightedSearch = highlightedSearchMatchFlags?.[cellIndex] === 1;
+    const rectanglePath = new Path2D();
+    rectanglePath.rect(x, y, cellWidth, cellHeight);
+    rectanglePath.closePath();
+    editorAssembly.cells.pathPropertiesMap.set(rectanglePath, {
+      col: cellCol,
+      row: cellRow,
+      type: EDITOR_PATH_PROPERTIES_TYPE.CELL,
+    });
+    context.fillStyle = cellBackground;
+    const fillX = Math.floor(x);
+    const fillY = Math.floor(y);
+    const fillRight = Math.ceil(x + cellWidth);
+    const fillBottom = Math.ceil(y + cellHeight);
+    context.fillRect(fillX, fillY, fillRight - fillX, fillBottom - fillY);
+    if (matchesHighlightedSearch || highlightedSearchRowFlags?.[row] === 1) {
+      context.fillStyle = 'rgba(255, 193, 7, 0.35)';
+      context.fillRect(x + 2, y + 2, Math.max(0, cellWidth - 4), Math.max(0, cellHeight - 4));
+    }
+    context.fillStyle = cellForeground;
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(label, x + cellWidth / 2, y + cellHeight / 2);
+    let hasHighlightedSearchMatches = false;
+    if ((matchesSearch || searchRowFlags?.[row] === 1) && searchMatchPath) {
+      searchMatchPath.rect(x + 0.5, y + 0.5, cellWidth - 1, cellHeight - 1);
+      if ((matchesHighlightedSearch || highlightedSearchRowFlags?.[row] === 1) && highlightedSearchMatchPath) {
+        hasHighlightedSearchMatches = true;
+        highlightedSearchMatchPath.rect(x + 1, y + 1, cellWidth - 2, cellHeight - 2);
+      }
+    }
+    return {
+      hasHighlightedSearchMatches,
+      hasSearchMatches: matchesSearch || searchRowFlags?.[row] === 1,
+    };
+  }
+
+  private static drawCells({
+    bytes,
+    cellHeight,
+    cellRenderConfig,
+    cellWidth,
+    cols,
+    context,
+    editorAssembly,
+    gridStart,
+    isCellSelected,
+    rows,
+    rulerHeight,
+    scrollLeft,
+    scrollTop,
+    searchRenderState,
+    startCol,
+    startRow,
+    viewportHeight,
+    viewportWidth,
+  }: {
+    bytes: Uint8Array;
+    cellHeight: number;
+    cellRenderConfig: CellRenderConfig;
+    cellWidth: number;
+    cols: number;
+    context: CanvasRenderingContext2D;
+    editorAssembly: EditorAssembly;
+    gridStart: number;
+    isCellSelected: (row: number, col: number) => boolean;
+    rows: number;
+    rulerHeight: number;
+    scrollLeft: number;
+    scrollTop: number;
+    searchRenderState: SearchRenderState;
+    startCol: number;
+    startRow: number;
+    viewportHeight: number;
+    viewportWidth: number;
+  }): { hasHighlightedSearchMatches: boolean; hasSearchMatches: boolean } {
+    let hasHighlightedSearchMatches = false;
+    let hasSearchMatches = false;
+    const {
+      highlightedSearchMatchFlags,
+      highlightedSearchMatchPath,
+      highlightedSearchRowFlags,
+      searchMatchFlags,
+      searchMatchPath,
+      searchRowFlags,
+    } = searchRenderState;
+
+    for (let row = 0; row < rows; row++) {
+      const y = (startRow + row) * cellHeight + rulerHeight - scrollTop;
+      if (y + cellHeight < rulerHeight || y > viewportHeight) {
+        continue;
+      }
+      for (let col = 0; col < cols; col++) {
+        const x = (startCol + col) * cellWidth + gridStart - scrollLeft;
+        if (x + cellWidth < gridStart || x > viewportWidth) {
+          continue;
+        }
+        const result = EditorUtil.drawCell({
+          bytes,
+          cellHeight,
+          cellRenderConfig,
+          cellWidth,
+          col,
+          cols,
+          context,
+          editorAssembly,
+          highlightedSearchMatchFlags,
+          highlightedSearchMatchPath,
+          highlightedSearchRowFlags,
+          isCellSelected,
+          row,
+          searchMatchFlags,
+          searchMatchPath,
+          searchRowFlags,
+          startCol,
+          startRow,
+          x,
+          y,
+        });
+        hasSearchMatches ||= result.hasSearchMatches;
+        hasHighlightedSearchMatches ||= result.hasHighlightedSearchMatches;
+      }
+    }
+
+    return { hasHighlightedSearchMatches, hasSearchMatches };
+  }
+
   private static getCanvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
     const ctx = canvas.getContext('2d');
     if (!ctx) {
       throw new Error('Failed to acquire 2D canvas context.');
     }
     return ctx;
+  }
+
+  private static getCellRenderConfig({
+    aminoAcidCodonOverlay,
+    aminoAcidPalette,
+    meta,
+    nucleotidePalette,
+    readingFrame,
+    readingMode,
+  }: {
+    aminoAcidCodonOverlay?: Uint8Array;
+    aminoAcidPalette: AminoAcidPalette;
+    meta: EngineMeta;
+    nucleotidePalette: NucleotidePalette;
+    readingFrame?: number;
+    readingMode?: READING_MODE;
+  }): CellRenderConfig {
+    const requestedReadingMode = readingMode ?? READING_MODE.NUCLEOTIDE;
+    const effectiveReadingMode = aminoAcidCodonOverlay && requestedReadingMode !== READING_MODE.NUCLEOTIDE
+      ? requestedReadingMode
+      : READING_MODE.NUCLEOTIDE;
+    return {
+      aminoAcidCodonOverlay,
+      aminoAcidPalette,
+      meta,
+      nucleotidePalette,
+      readingFrame: readingFrame ?? 1,
+      readingMode: effectiveReadingMode,
+    };
+  }
+
+  private static getCellRenderData({
+    bytes,
+    cellCol,
+    cellRenderConfig,
+    cellRow,
+    col,
+    cols,
+    row,
+  }: {
+    bytes: Uint8Array;
+    cellCol: number;
+    cellRenderConfig: CellRenderConfig;
+    cellRow: number;
+    col: number;
+    cols: number;
+    row: number;
+    startCol: number;
+  }): { colorByte: number | undefined; colors: PaletteEntry; label: string } {
+    const {
+      aminoAcidCodonOverlay,
+      aminoAcidPalette,
+      meta,
+      nucleotidePalette,
+      readingFrame,
+      readingMode,
+    } = cellRenderConfig;
+    const nucleotideByte = bytes[row * cols + col];
+    let overlayByte: number | undefined;
+    if (aminoAcidCodonOverlay && cellRow < meta.sequenceCount && cellCol < meta.alignmentWidth) {
+      overlayByte = aminoAcidCodonOverlay[cellRow * meta.alignmentWidth + cellCol];
+    }
+    const usesAminoAcidPalette = readingMode === READING_MODE.AMINO_ACIDS
+      || readingMode === READING_MODE.NUCLEOTIDE_PLUS_AMINO_ACIDS;
+    const backgroundByte = usesAminoAcidPalette ? overlayByte : nucleotideByte;
+    let labelByte: number | undefined = nucleotideByte;
+    if (readingMode === READING_MODE.AMINO_ACIDS) {
+      labelByte = overlayByte;
+      if (
+        overlayByte !== undefined
+        && cellCol >= readingFrame - 1
+        && (cellCol - (readingFrame - 1)) % 3 !== 1
+      ) {
+        labelByte = undefined;
+      }
+    }
+    const label = labelByte === undefined ? '' : String.fromCharCode(labelByte);
+    const backgroundLabel = backgroundByte === undefined ? '' : String.fromCharCode(backgroundByte);
+    const backgroundPalette = usesAminoAcidPalette ? aminoAcidPalette : nucleotidePalette;
+    const foregroundPalette = readingMode === READING_MODE.NUCLEOTIDE_PLUS_AMINO_ACIDS
+      ? nucleotidePalette
+      : backgroundPalette;
+    const backgroundColors = PaletteUtil.paletteEntryFor(backgroundPalette, backgroundLabel);
+    const foregroundColors = PaletteUtil.paletteEntryFor(
+      foregroundPalette,
+      labelByte === undefined ? '' : String.fromCharCode(labelByte),
+    );
+    return {
+      colorByte: backgroundByte,
+      colors: {
+        background: backgroundColors.background,
+        backgroundSelected: backgroundColors.backgroundSelected,
+        foreground: foregroundColors.foreground,
+        foregroundSelected: foregroundColors.foregroundSelected,
+      },
+      label,
+    };
   }
 
   private static searchHitAt(result: null | SearchResult, index: number): null | SearchMatch {

@@ -1,4 +1,5 @@
 import { container } from 'tsyringe';
+import { Box } from '@mui/material';
 import { SearchBar } from '@rivm-loculus-tools/common-frontend/components/ui/SearchBar';
 import { useCallback } from 'react';
 import { useStore } from 'zustand';
@@ -23,14 +24,16 @@ export const SequenceEditorSearchBar = () => {
   }, [setSearchHighlightedIndex]);
 
   return (
-    <SearchBar
-      allowNavigation
-      highlightedIndex={searchHighlightedIndex}
-      numResults={searchResults?.num_matches}
-      onHighlightedIndexChange={onHighlightedIndexChange}
-      onSearchQueryChange={onSearchQueryChange}
-      searchQuery={searchQuery}
-      truncated={searchResults?.truncated}
-    />
+    <Box sx={{ marginRight: 1 }}>
+      <SearchBar
+        allowNavigation
+        highlightedIndex={searchHighlightedIndex}
+        numResults={searchResults?.num_matches}
+        onHighlightedIndexChange={onHighlightedIndexChange}
+        onSearchQueryChange={onSearchQueryChange}
+        searchQuery={searchQuery}
+        truncated={searchResults?.truncated}
+      />
+    </Box>
   );
 };

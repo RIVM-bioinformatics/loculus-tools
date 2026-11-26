@@ -39,8 +39,9 @@ It is purely a synchronous in-memory data engine.
 - **Zero-allocation scrolling:** A single reusable viewport buffer avoids
   per-scroll allocations.
 - **Windowed access:** The frontend never has to deal with the whole matrix; it always works with a bounded slice to reduce memory usage and improve performance.
-- **Simple, correct history:** Undo/redo via cheap per-edit records for
-  substitutions and full-matrix snapshots for structural edits.
+- **Simple, compact history:** Undo/redo via compact, reversible `UndoCommand`
+  deltas and pointer swaps ($O(\text{affected cells/indices})$ memory) bounded by
+  both depth (`2000`) and byte budget (`256 MiB`).
 
 > [!NOTE]
 > **If the intended usecase is ~16MB, why go through all this effort to make a separate engine instead of doing everything in the React app?**
@@ -65,7 +66,7 @@ It is purely a synchronous in-memory data engine.
 > sliding-window Canvas renderer viable and keeps scrolling smooth no matter
 > the size of the alignment (with some limits of course).
 > 5. **The Web Worker model keeps the UI thread responsive.** All parsing, structural
-> edits, undo/redo snapshots, and (future) search run synchronously in the
+> edits, compact undo/redo history recording, and search run synchronously in the
 > worker, off the main thread, so a large FASTA parse or a structural insert
 > across 80 sequences never drops a frame on the UI thread. Doing this in
 > React would block rendering for a noticeable period.
@@ -126,55 +127,52 @@ codegen-units = 1
 The engine is a single `#[wasm_bindgen]` struct that owns all state:
 
 ```rust
+pub const DEFAULT_MAX_UNDO_DEPTH: usize = 2000;
+pub const DEFAULT_MAX_HISTORY_BYTES: usize = 256 * 1024 * 1024;
+
 #[wasm_bindgen]
 pub struct MsaEngine {
-    sequences: Vec<Vec<u8>>,   // the alignment matrix, row-major
-    names: Vec<String>,        // one row identifier per sequence
-    alignment_width: usize,    // global column count
-    viewport_buffer: Vec<u8>,  // reusable slice buffer
-    undo_stack: Vec<UndoCommand>,
-    redo_stack: Vec<UndoCommand>,
+    nucleotide_sequences: Vec<Vec<u8>>,       // the alignment matrix, row-major
+    aminoacid_sequences: Vec<AminoacidSequence>, // lazily computed 3-frame translation cache
+    names: Vec<String>,                       // one row identifier per sequence
+    alignment_width: usize,                   // global column count
+    viewport_buffer: Vec<u8>,                 // reusable slice buffer
+    undo_stack: VecDeque<UndoCommand>,
+    redo_stack: VecDeque<UndoCommand>,
+    history_bytes: usize,
+    max_undo_depth: usize,
+    max_history_bytes: usize,
+    revision: usize,
 }
 ```
 
 | Field | Purpose |
 | ------- | --------- |
-| `sequences` | The matrix. Each inner `Vec<u8>` is one sequence of ASCII bytes (`b'A'`, `b'-'`, ...). |
-| `names` | Row identifiers, parallel to `sequences`. |
+| `nucleotide_sequences` | The matrix. Each inner `Vec<u8>` is one sequence of ASCII bytes (`b'A'`, `b'-'`, ...). |
+| `aminoacid_sequences` | Lazily populated 3-frame translation cache; invalidated on every applied mutation, `undo()`, `redo()`, and `load_fasta()`. |
+| `names` | Row identifiers, parallel to `nucleotide_sequences`. |
 | `alignment_width` | The global number of columns. Set from the longest sequence at load time. |
 | `viewport_buffer` | A single reusable buffer for viewport extraction, pre-allocated to ~5000 bytes and grown on demand. |
-| `undo_stack` / `redo_stack` | Transactional edit history. |
+| `undo_stack` / `redo_stack` | Bounded transactional edit history (`VecDeque` for O(1) oldest-entry FIFO eviction on `undo_stack`). |
+| `history_bytes` | Exact sum of `UndoCommand::estimated_byte_size()` across `undo_stack` and `redo_stack`. |
+| `max_undo_depth` / `max_history_bytes` | Dual history bounds (defaults `2000` commands and `256 MiB`). |
+| `revision` | Monotonically wrapping counter incremented on applied mutations, non-empty loads, `undo()`, `redo()`, and `reset()`. |
 
 ### 3.2 `UndoCommand`
 
-History is stored as an enum with two variants, chosen primarily for simplicity:
+History is stored without `Clone` using compact reversible record structs and pointer swaps:
 
-```rust
-#[derive(Clone)]
-enum UndoCommand {
-    /// Cheap character changes: store exactly what changed and where.
-    Substitutions {
-        positions: Vec<(usize, usize, u8)>,
-    },
-    /// Structural inserts/deletes: a lightweight clone of the full matrix.
-    StructuralSnapshot {
-        matrix_snapshot: Vec<Vec<u8>>,
-        names_snapshot: Vec<String>,
-        width_snapshot: usize,
-    },
-}
-```
+- **`Substitutions(SubstitutionRecord { positions: Vec<(usize, usize, u8)> })`**: `(row, col, base_to_restore)` tuples swapped in-place on `undo`/`redo`.
+- **`HorizontalMove(HorizontalMoveRecord { rows, start_col, end_col, direction })`**: 1-column block rotation across `rows` over inclusive `[start_col, end_col]`.
+- **`RowReorder(RowReorderRecord { inverse_order: Vec<usize> })`**: row permutation applied in-place via cycle decomposition (moving `Vec<u8>`/`String` headers without cloning bytes).
+- **`InsertAtSubset(InsertAtSubsetRecord { target_rows, insertion_col, padded_short_rows, previous_alignment_width })`**: records target rows plus `(row_idx, orig_len)` only for ragged short rows padded before insertion.
+- **`DeleteAtSubset(DeleteAtSubsetRecord { target_rows, column_index })`**: target rows had `b'-'` removed at `column_index` and `b'-'` appended at end.
+- **`DeleteColumn(DeleteColumnRecord { column_index, removed_bases, previous_alignment_width })`**: stores 1 `Option<u8>` per row (`None` for short ragged rows).
+- **`DeletedRow(DeletedRowRecord { row_indices, names, sequences, previous_alignment_width })`**: owns moved `names` and `sequences` on `undo_stack`; when undone onto `redo_stack`, clears `names`/`sequences` and retains only `row_indices` to re-delete.
+- **`PrependedSequences(PrependedSequencesRecord { count, names, sequences, previous_alignment_width })`**: stores `count` only on `undo_stack`; when undone onto `redo_stack`, holds drained `names`/`sequences`.
+- **`ReplaceMatrix(ReplacedMatrixRecord { sequences, previous_alignment_width })`**: swaps `nucleotide_sequences` via `std::mem::replace`/`std::mem::swap` for `realign` and `apply_aligned_fasta`.
 
-- **`Substitutions`**  
-  used for base changes.  It records only the column, the
-  affected rows, and the previous bases in parallel vectors (same index = same cell). This is O(changed cells), so a single base edit costs almost nothing.
-- **`StructuralSnapshot`**  
-  used for insertions/deletions that change row lengths, and for horizontal moves and row reorders.  
-  It stores a full clone of the matrix, the names vector, and the width. This is O(matrix) but is cheap in practice given the ~16MB ceiling, and it keeps the logic trivially correct.
-
-> **Design note:** The full-matrix snapshot approach is a deliberate trade-off.
-> It is simple and fast enough for the expected ~16MB footprint, but it would
-> need revisiting if the engine ever needs to support much larger alignments.
+`UndoCommand::estimated_byte_size(&self) -> usize` computes `size_of::<Self>()` plus heap capacities of owned vectors/strings. `push_to_undo_stack()` clears `redo_stack`, evicts oldest `undo_stack` entries via `pop_front()` until both `max_undo_depth` and `max_history_bytes` are satisfied, recomputes `history_bytes`, increments `revision`, and clears `aminoacid_sequences`.
 
 ---
 
@@ -190,13 +188,13 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 | Method | Signature (JS-facing) | Description |
 |--------|----------------------|-------------|
 | `new()` | `new MsaEngine()` | Construct an empty engine. |
-| `reset()` | `reset(): void` | Reset the engine to its initial empty state, clearing all sequences, names, caches, and undo/redo history. |
+| `reset()` | `reset(): void` | Reset the engine to its initial empty state, clearing all sequences, names, caches, and undo/redo history while monotonically advancing `revision`. |
 
 ### 4.2 Loading
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `load_fasta` | `load_fasta(fasta: string): number` | Validate and parse FASTA atomically; prepend sequences ahead of existing rows, update width, and create an undo snapshot if prior state exists. Throw a structured error on invalid input. |
+| `load_fasta` | `load_fasta(fasta: string): number` | Validate and parse FASTA atomically; prepend sequences ahead of existing rows, update width, and record a compact `PrependedSequences` command if prior state exists. Throw a structured error on invalid input. |
 
 `load_fasta` behavior:
 
@@ -204,10 +202,10 @@ raw pointers are only meaningful within that worker's WASM linear memory.
   input is valid are sequences prepended ahead of existing rows;
   invalid input leaves the current engine state intact.
 - If the engine already contains state (sequences or undo/redo history), a
-  `StructuralSnapshot` is recorded so the addition can be undone (`Ctrl+Z` / `Cmd+Z`).
-  Initial load into a fresh or reset engine keeps `undo_depth == 0`.
+  `PrependedSequences` command is recorded so the addition can be undone (`Ctrl+Z` / `Cmd+Z`).
+  Initial load into a fresh or reset engine keeps `undo_depth == 0` and advances `revision`.
 - Empty or whitespace-only input is a no-op that returns the current sequence
-  count without creating an undo snapshot.
+  count without modifying `revision`, `redo_stack`, or `aminoacid_sequences`.
 - Scans line by line. A line starting with `>` begins a new record; the complete
   trimmed header after `>` becomes the row name. Validation diagnostics use the
   first whitespace-delimited token as the sequence ID.
@@ -283,6 +281,12 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 | `get_row_length` | `(row: number): number` | Length of a specific row, or `0` if invalid. Useful for detecting ragged alignments. |
 | `undo_depth` | `(): number` | Number of commands on the undo stack. |
 | `redo_depth` | `(): number` | Number of commands on the redo stack. |
+| `get_revision` | `(): number` | Monotonic revision counter across applied edits, non-empty loads, `undo`, `redo`, and `reset`. |
+| `get_history_bytes` | `(): number` | Estimated heap byte footprint across undo and redo stacks. |
+| `get_max_undo_depth` | `(): number` | Configured maximum undo stack depth (default `2000`). |
+| `set_max_undo_depth` | `(max_depth: number): void` | Set maximum undo stack depth and immediately evict oldest undo entries if exceeded. |
+| `get_max_history_bytes` | `(): number` | Configured maximum history byte budget (default `256 MiB`). |
+| `set_max_history_bytes` | `(max_bytes: number): void` | Set maximum history byte budget and immediately evict oldest entries if exceeded. |
 
 ### 4.5 FASTA Export
 
@@ -376,10 +380,11 @@ columns.
   nucleotide or `-`. If any target position contains a character that is
   neither, or the new base is neither, the method returns `EditError::MutateNotIupac`
   and **no rows are modified** (all-or-nothing).
-- Records a `Substitutions` undo command capturing the old bases of the cells it
-  actually changed.
-- If no cells are actually mutated (all out of range or empty inputs), it is a no-op and records
-  nothing.
+- Records a `Substitutions` undo command capturing only the cells whose byte
+  actually changed (`seq[c] != new_base`).
+- If no cells are actually mutated (empty inputs, all out of range, or all
+  targets already equal `new_base`), it is a no-op and leaves `undo_stack`,
+  `redo_stack`, `revision`, and `aminoacid_sequences` untouched.
 - Returns `Ok(())` on success, or `Err(EditError::MutateNotIupac)` on validation failure.
 
 ### 5.2 `insert_at_subset(rows, col)`
@@ -387,33 +392,36 @@ columns.
 Simultaneous gap insertion at a single column on a **subset** of rows. The
 inserted character is always `-` (there is no `base` parameter).
 
-- Target rows receive `-` at `col_idx`.
+- If the matrix is empty or no valid in-bounds row indices are provided, returns `Ok(())` as a no-op.
+- Target rows receive `-` at `col_idx` (ragged short rows are padded first and their original lengths saved in `padded_short_rows`).
 - **Non-target rows have a `-` appended at the end** to keep matrix width
   consistent (they are not modified at `col_idx`).
-- `alignment_width` is incremented by 1.
-- Records a `StructuralSnapshot` undo command.
+- `alignment_width` is updated from the resulting row lengths.
+- Records an `InsertAtSubset` undo command.
 - Returns `Ok(())` (no validation is needed since only `-` can be inserted).
 
 ### 5.3 `delete_at_subset(rows, col)`
 
 Simultaneous deletion at a single column on a **subset** of rows.
 
-- Only the rows in `rows` are affected. The character at `col` is **removed**
+- Only the in-bounds rows in `rows` where `col < seq.len()` are affected. The character at `col` is **removed**
   and a `-` is appended at the end to keep the row length unchanged.
 - **Non-target rows are completely untouched** (no gap-fill, no modification).
 - `alignment_width` is left unchanged.
-- **Validation (Rule 1, [section 5](#50-editing-constraints-the-ruleset)):** The character at `col` in every target row must be
+- **Validation (Rule 1, [section 5](#50-editing-constraints-the-ruleset)):** The character at `col` in every in-bounds target row (`col < seq.len()`) must be
   `-`. If any target row has a non-`-` character, the method returns
   `EditError::DeleteNotGap` and **no rows are modified** (all-or-nothing).
-- Records a `StructuralSnapshot` undo command.
+- If no valid in-bounds target rows have a base at `col`, returns `Ok(())` as a no-op.
+- Records a `DeleteAtSubset` undo command.
 - Returns `Ok(())` on success, or `Err(EditError::DeleteNotGap)` on validation failure.
 
 ### 5.4 `delete_column(col)`
 
 Delete a column from **every** row, shrinking `alignment_width` by 1.
 
+- No-op if the matrix is empty or `col >= alignment_width`.
 - This is the width-preserving inverse of a full-column insert.
-- Records a `StructuralSnapshot` undo command.
+- Records a `DeleteColumn` undo command storing one `Option<u8>` per row.
 - Returns `Ok(())`.
 
 ### 5.5 `move_horizontal(row_indices, col_indices, direction)`
@@ -436,7 +444,7 @@ calls for multi-position moves.
   or `Err(EditError::MoveNoGapTarget)` if the adjacent position is not `-` (all-or-nothing:
   if any target row fails validation, no row is modified).
 - Out-of-range rows or rows shorter than the selected column range are skipped.
-- Records a single `StructuralSnapshot` undo command for the entire multi-row operation.
+- Records a single `HorizontalMove` undo command for the entire multi-row operation.
 
 ### 5.6 Row reordering (`move_rows_relative`, `move_rows_grouped`, `move_rows_to_top`, `move_rows_to_bottom`, `move_rows_up`, `move_rows_down`)
 
@@ -454,37 +462,37 @@ Reorder rows without character constraints, updating both `sequences` and `names
   - Clamps `target_row` to `0..=(sequence_count - selected_count)`.
 - `move_rows_to_top(row_indices)`: snaps and groups the selected rows at the top (index `0`).
 - `move_rows_to_bottom(row_indices)`: snaps and groups the selected rows at the bottom (index `sequence_count - selected_count`).
-- **Undo History & No-Op Rule**: Every row movement records at most **one** `StructuralSnapshot` undo command (capturing both sequences and names). If the resulting order is identical to the current order (e.g. attempting to move rows already at boundary), no snapshot is recorded.
+- **Undo History & No-Op Rule**: Every row movement permutes rows in-place via cycle decomposition and records at most **one** `RowReorder { inverse_order }` undo command. If the resulting order is identical to the current order (e.g. attempting to move rows already at boundary), no undo entry is recorded.
 - Returns `Ok(())`.
 
 ### 5.7 Row Deletion (`delete_rows`)
 
 `MsaEngine::delete_rows(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError>`
 
-- **Atomicity**: Deduplicates and bounds-checks `row_indices`. If no valid rows exist, returns `Ok(())` without pushing an undo entry. Otherwise, creates an atomic `StructuralSnapshot`.
+- **Atomicity**: Deduplicates and bounds-checks `row_indices`. If no valid rows exist, returns `Ok(())` without pushing an undo entry. Otherwise, moves deleted rows in ascending index order into `DeletedRow`.
 - **Width recalculation**: Recomputes `alignment_width` from the maximum length of remaining rows, or `0` if all rows are removed.
-- **Cache invalidation**: Clears `aminoacid_sequences` and `viewport_buffer`.
+- **Cache invalidation**: Clears `aminoacid_sequences` via `push_to_undo_stack`.
 - **Zero-row state**: The matrix safely supports `sequence_count == 0`; `undo()` restores all deleted rows and original width.
 
 ### 5.8 Sequence re-alignment (`realign`)
 
 Re-aligns all loaded sequences across the whole matrix using the pure-Rust `mafft` crate (`AlignmentMode::FftNs2` with `ScoringModel::Dna` and `with_retree(1)` for FFT-NS-1).
 
-- Safe no-op when fewer than 2 sequences are loaded (no snapshot recorded).
+- Safe no-op when fewer than 2 sequences are loaded (no undo entry recorded).
 - Enforces size bounds (`MAX_ALIGNMENT_SEQUENCES = 1,000`, `MAX_ALIGNMENT_TOTAL_RESIDUES = 5,000,000`, and `MAX_ALIGNMENT_OUTPUT_CELLS = 500,000,000`) returning `InputTooLarge` if exceeded to prevent WASM linear memory exhaustion.
 - Strips existing gap characters (`-`) prior to invoking MAFFT progressive alignment.
 - Preserves all-gap or empty rows mid-edit, emitting them as uniform all-gap rows with length equal to the aligned width.
-- Requires at least 2 sequences containing non-gap nucleotide residues; rejects with `EmptySequence` error before capturing an undo snapshot if fewer than 2 sequences have residues.
+- Requires at least 2 sequences containing non-gap nucleotide residues; rejects with `EmptySequence` error before mutating state if fewer than 2 sequences have residues.
 - Unaligned/ragged sequences are progressively aligned; `alignment_width` is updated to the maximum sequence length after alignment.
-- Captures a `StructuralSnapshot` prior to mutating matrix, names, and width, enabling complete multi-level transactional `undo()` and `redo()`.
-- Invalidates and clears `aminoacid_sequences` cache so subsequent translated views reflect the new alignment coordinates.
+- Swaps the previous matrix into a `ReplaceMatrix` undo entry prior to mutating (or returns without recording if the aligned matrix is byte-for-byte identical), enabling complete multi-level transactional `undo()` and `redo()`.
+- Invalidates and clears `aminoacid_sequences` cache when the matrix changes so subsequent translated views reflect the new alignment coordinates.
 - Returns `Ok(())`.
 
 ### 5.9 External alignment integration (`apply_aligned_fasta` & `align_fasta`)
 
 To support non-blocking and cancelable sequence re-alignment, the engine provides:
 - Standalone `align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>`: Computes MAFFT FFT-NS-1 on an unaligned or gapped FASTA string, suitable for execution inside an ephemeral worker without initializing the full engine. Preserves all-gap rows and returns formatted FASTA or returns `StructuredEngineError` if UTF-8 encoding or validation fails.
-- Method `apply_aligned_fasta(&mut self, fasta_content: &str) -> Result<(), StructuredEngineError>`: Validates that sequence counts match, all aligned rows have uniform equal lengths, sequence headers and order match the current matrix, and ungapped residue identities are strictly conserved. Takes a `StructuralSnapshot` onto `undo_stack`, replaces the nucleotide matrix, updates `alignment_width`, and clears `aminoacid_sequences`.
+- Method `apply_aligned_fasta(&mut self, fasta_content: &str, expected_revision: Option<usize>) -> Result<(), StructuredEngineError>`: Checks `expected_revision` first (returning `"StaleRevision"` before parsing FASTA if mismatched), then validates that sequence counts match, all aligned rows have uniform equal lengths, sequence headers and order match the current matrix, and ungapped residue identities are strictly conserved. If the resulting matrix is byte-for-byte identical to the current state (`names`, `sequences`, and `alignment_width`), leaves history, `revision`, and `aminoacid_sequences` untouched; otherwise swaps the previous matrix into a `ReplaceMatrix` command onto `undo_stack`, updates `alignment_width`, increments `revision`, and clears `aminoacid_sequences`.
 
 ### 5.10 Structured errors
 
@@ -552,51 +560,44 @@ oversized results, or reservation failures return `InvalidViewport` with
 | `UnexpectedRuntimeError` | Unrecognized runtime failure. | None unless available |
 | `InvalidAlphabet` | Sequence contains characters outside IUPAC nucleotides and `-`. | `invalidCharacters` lists every occurrence; scalar fields mirror the first |
 | `InvalidFastaFormat` | Sequence data appears before a FASTA header. | `line` |
+| `StaleRevision` | `apply_aligned_fasta` received an `expected_revision` that does not match `self.revision`. | None |
+| `AlignmentMismatch` | `apply_aligned_fasta` sequence count, lengths, headers, or residues do not match the current matrix. | `row`, `sequenceId` on residue mismatch |
+| `EmptySequence` | Fewer than 2 sequences contain nucleotide residues for alignment. | `row`, `sequenceId` |
+| `InputTooLarge` | Matrix or alignment exceeds `MAX_ALIGNMENT_*` limits. | None |
+| `AlignmentFailed` | MAFFT returned an invalid aligned sequence set. | None |
 
 ---
 
 ## 6. Undo / Redo
 
-The engine maintains two stacks. Every mutation pushes onto `undo_stack` and
-clears `redo_stack`.
+The engine maintains bounded `VecDeque<UndoCommand>` stacks (`undo_stack` and `redo_stack`). Every applied mutation pushes onto `undo_stack` via `push_to_undo_stack()`, clears `redo_stack`, evicts oldest entries in FIFO order when `max_undo_depth` (`2000`) or `max_history_bytes` (`256 MiB`) would be exceeded, recomputes `history_bytes`, increments `revision`, and clears `aminoacid_sequences`.
 
 ### 6.1 `undo(): boolean`
 
-Pops the most recent command and reverses it:
+Pops the most recent command (`pop_back()`) and reverses it in-place:
 
-- **`Substitutions`**: restores the old bases by replaying row/base pairs, and
-  captures current (post-edit) bases into a new `Substitutions` command pushed
-  onto the redo stack. Replay rebuilds paired vectors from actually applied
-  rows, so row/base alignment is preserved even if invalid history is observed.
-- **`StructuralSnapshot`**: captures the current (post-edit) state as a new
-  `StructuralSnapshot` on the redo stack, then restores the stored snapshot.
+- **`Substitutions`**: swaps `(row, col, target_base)` in-place inside `positions` with zero heap allocations (filtering out-of-bounds entries via compaction); returns `false` without incrementing `revision` if zero cells were in-bounds.
+- **`HorizontalMove` / `RowReorder` / `InsertAtSubset` / `DeleteAtSubset` / `DeleteColumn` / `DeletedRow` / `PrependedSequences` / `ReplaceMatrix`**: applies the exact compact inverse in-place or via pointer swaps (`DeletedRow` moves restored rows back into the matrix and keeps only `row_indices` on `redo_stack`; `PrependedSequences` drains prepended rows onto `redo_stack`; `ReplaceMatrix` swaps buffers via `std::mem::swap`).
 
-Returns `true` if an undo was applied, `false` if the undo stack is empty.
+Recomputes `history_bytes`, enforces `max_history_bytes` across both stacks, increments `revision`, and clears `aminoacid_sequences`. Specifically:
+
+- If the reverse command's `estimated_byte_size()` alone exceeds `max_history_bytes`, `redo_stack` is cleared and the oversized redo entry is not pushed (preserving earlier `undo_stack` entries while preventing older redo entries from skipping over the un-recorded undone step).
+- Otherwise, the reverse command is pushed onto `redo_stack`, `history_bytes` is recomputed, and if `history_bytes > max_history_bytes`, oldest `undo_stack` entries are evicted first (`pop_front()`), followed by oldest `redo_stack` entries (`pop_front()`) if `undo_stack` is empty.
+
+Returns `true` if an undo was applied, `false` if the undo stack was empty or degenerate.
 
 ### 6.2 `redo(): boolean`
 
-Symmetric to `undo`. Pops from `redo_stack` and re-applies:
+Symmetric to `undo`. Pops from `redo_stack`, re-applies the forward edit in-place, pushes the reverse command back to `undo_stack` while enforcing `max_undo_depth` and `max_history_bytes` (clearing `undo_stack` without pushing if the command itself exceeds `max_history_bytes` or `max_undo_depth == 0`, otherwise evicting oldest `undo_stack` then oldest `redo_stack` entries as needed), recomputes `history_bytes`, increments `revision`, and clears `aminoacid_sequences`.
 
-- **`Substitutions`**: re-applies stored bases by replaying row/base pairs,
-  capturing current (pre-redo) bases into a new `Substitutions` command on the
-  undo stack. As in `undo`, paired vectors are rebuilt from rows that were
-  actually applied.
-- **`StructuralSnapshot`**: captures the current state as a new snapshot on the
-  undo stack, then restores the stored snapshot.
-
-Returns `true` if a redo was applied, `false` if the redo stack is empty.
+Returns `true` if a redo was applied, `false` if the redo stack was empty or degenerate.
 
 ### 6.3 Invariants
 
-- A new edit after an undo clears the redo stack (the redo branch is
-  invalidated).
-- Undo/redo of structural edits is implemented by swapping full snapshots, so
-  the two stacks can hold interleaved `Substitutions` and `StructuralSnapshot`
-  commands and still replay correctly in sequence.
-- `Substitutions` commands pushed during undo/redo always keep row/base vectors
-  aligned (same length, same index mapping).
-- `undo()` and `redo()` clear the cached `aminoacid_sequences` so translated
-  views remain consistent with restored nucleotide states.
+- No-op mutations leave `undo_stack`, `redo_stack`, `revision`, and `aminoacid_sequences` untouched.
+- A new applied edit after an undo clears `redo_stack` (the redo branch is invalidated).
+- `history_bytes` is always recomputed from `undo_stack` + `redo_stack` so payload transitions (`DeletedRow`, `PrependedSequences`, `ReplaceMatrix`) never drift, and `get_history_bytes() <= get_max_history_bytes()` holds across `push_to_undo_stack()`, `undo()`, `redo()`, `set_max_undo_depth()`, and `set_max_history_bytes()`.
+- `undo()` and `redo()` clear the cached `aminoacid_sequences` so translated views remain consistent with restored nucleotide states.
 
 ---
 
@@ -720,8 +721,9 @@ and render.
 - **Viewport extraction** is O(visible cells) and reuses a pre-allocated buffer
   (no per-scroll allocation).
 - **Substitutions** are O(changed cells) and record O(changed cells) undo data.
-- **Structural edits** are O(matrix) for the snapshot, acceptable at the ~16MB
-  ceiling.
+- **Structural edits** record compact O(affected rows/cells) deltas or O(1)
+  pointer swaps (`ReplaceMatrix`, `DeletedRow`, `PrependedSequences`), bounded by
+  `max_undo_depth` (`2000`) and `max_history_bytes` (`256 MiB`).
 - **Zero-copy path:** `update_viewport` + `sabView.set()` gives near-zero
   bridge-back latency (a single typed-array memcpy into shared memory), versus
   ~0.28ms for the `buffer.slice` + transfer path.
@@ -741,7 +743,7 @@ implemented in `www/` and are described in the companion documents.
 | Core data structures & memory layout | ✅ Done (`MsaEngine`, viewport buffer) |
 | WASM boundary API | ✅ Done (`load_fasta`, `update_viewport`, `update_viewport_into`, metadata getters) |
 | Mutation core | ✅ Done (`mutate_base`, `insert_at_subset`, `delete_at_subset`, `delete_column`, `delete_rows`, `move_horizontal`, `move_rows_relative`, `move_rows_grouped`, `move_rows_to_top`, `move_rows_to_bottom`, `move_rows_up`, `move_rows_down`) with IUPAC/gap validation and typed `EditError` results |
-| Undo/Redo | ✅ Done (`Substitutions` + `StructuralSnapshot`) |
+| Undo/Redo | ✅ Done (9 compact `UndoCommand` variants + bounded `VecDeque` depth/byte eviction) |
 | Web Worker bridge | ✅ Done (in `www/`, consumes the engine) |
 | MUI test harness | ✅ Done (in `www/`, consumes the engine) |
 | Canvas renderer | ⏳ Planned (2D `<canvas>` sliding-window viewport, in `www/`) |
@@ -761,8 +763,6 @@ a search/hit-navigation API).
 
 - **Ragged alignments:** `load_fasta` does not enforce uniform row length; the
   caller must detect and handle raggedness via `get_row_length`.
-- **Structural snapshot cost:** Full-matrix snapshots are fine at ~16MB but
-  would need revisiting for much larger alignments.
 - **Canvas renderer:** The production renderer will be a 2D `<canvas>` that
   paints the sliding-window viewport (the same pattern demonstrated by the test
   harness), rather than a WebGL pipeline. This keeps the rendering layer simple

@@ -89,6 +89,7 @@ export type EditorSelection = {
 export type EngineMeta = {
   alignmentWidth: number;
   redoDepth: number;
+  revision: number;
   sequenceCount: number;
   undoDepth: number;
 };
@@ -152,26 +153,26 @@ export type EngineViewportResult = {
 };
 
 export interface EngineWorkerApi {
-  applyAlignedFasta: (fasta: string) => Promise<void>;
-  delete: (rows: number[], column: number) => Promise<void>;
-  deleteColumn: (column: number) => Promise<void>;
-  deleteRows: (rows: number[]) => Promise<void>;
+  applyAlignedFasta: (fasta: string, expectedRevision?: number) => Promise<boolean>;
+  delete: (rows: number[], column: number) => Promise<boolean>;
+  deleteColumn: (column: number) => Promise<boolean>;
+  deleteRows: (rows: number[]) => Promise<boolean>;
   exportGappedFasta: () => Promise<string>;
   exportUngappedFasta: () => Promise<string>;
   /** Idempotently initializes the WASM engine; resolves once it is ready. */
   initialize: () => Promise<void>;
-  insert: (rows: number[], column: number) => Promise<void>;
-  load: (fastaContent: string) => Promise<number>;
+  insert: (rows: number[], column: number) => Promise<boolean>;
+  load: (fastaContent: string) => Promise<boolean>;
   meta: () => Promise<EngineMeta>;
-  moveHorizontal: (rows: number[], columns: number[], direction: MoveDirection) => Promise<void>;
-  moveRows: (rows: number[], options: MoveRowsOptions) => Promise<void>;
-  moveRowsDown: (rows: number[]) => Promise<void>;
-  moveRowsGrouped: (rows: number[], targetRow: number) => Promise<void>;
-  moveRowsRelative: (rows: number[], delta: number) => Promise<void>;
-  moveRowsToBottom: (rows: number[]) => Promise<void>;
-  moveRowsToTop: (rows: number[]) => Promise<void>;
-  moveRowsUp: (rows: number[]) => Promise<void>;
-  mutate: (rows: number[], columns: number[], base: string) => Promise<void>;
+  moveHorizontal: (rows: number[], columns: number[], direction: MoveDirection) => Promise<boolean>;
+  moveRows: (rows: number[], options: MoveRowsOptions) => Promise<boolean>;
+  moveRowsDown: (rows: number[]) => Promise<boolean>;
+  moveRowsGrouped: (rows: number[], targetRow: number) => Promise<boolean>;
+  moveRowsRelative: (rows: number[], delta: number) => Promise<boolean>;
+  moveRowsToBottom: (rows: number[]) => Promise<boolean>;
+  moveRowsToTop: (rows: number[]) => Promise<boolean>;
+  moveRowsUp: (rows: number[]) => Promise<boolean>;
+  mutate: (rows: number[], columns: number[], base: string) => Promise<boolean>;
   name: (row: number) => Promise<string>;
   redo: () => Promise<boolean>;
   reset: () => Promise<void>;

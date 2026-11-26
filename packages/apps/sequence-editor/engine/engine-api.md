@@ -41,26 +41,26 @@ interface EngineClient {
   lastTimingRef: React.MutableRefObject<CallTiming | null>; // sync timing ref
 
   // Operations
-  load: (fasta: string) => Promise<number>;
+  load: (fasta: string) => Promise<boolean>;
   reset: () => Promise<void>;
   viewport: (r: ViewportRequest) => Promise<ViewportResult & { bytes: Uint8Array }>;
-  mutate: (rows: number[], col: number, base: string) => Promise<void>;
-  insert: (rows: number[], col: number) => Promise<void>;
-  delete: (rows: number[], col: number) => Promise<void>;
-  deleteColumn: (col: number) => Promise<void>;
-  deleteRows: (rows: number[]) => Promise<void>;
-  moveHorizontal: (rows: number[], cols: number[], direction: "Left" | "Right") => Promise<void>;
-  moveRows: (rows: number[], options: MoveRowsOptions) => Promise<void>;
-  moveRowsRelative: (rows: number[], delta: number) => Promise<void>;
-  moveRowsGrouped: (rows: number[], targetRow: number) => Promise<void>;
-  moveRowsToTop: (rows: number[]) => Promise<void>;
-  moveRowsToBottom: (rows: number[]) => Promise<void>;
-  moveRowsUp: (rows: number[]) => Promise<void>;
-  moveRowsDown: (rows: number[]) => Promise<void>;
-  applyAlignedFasta: (fasta: string) => Promise<void>;
+  mutate: (rows: number[], columns: number[], base: string) => Promise<boolean>;
+  insert: (rows: number[], col: number) => Promise<boolean>;
+  delete: (rows: number[], col: number) => Promise<boolean>;
+  deleteColumn: (col: number) => Promise<boolean>;
+  deleteRows: (rows: number[]) => Promise<boolean>;
+  moveHorizontal: (rows: number[], cols: number[], direction: "Left" | "Right") => Promise<boolean>;
+  moveRows: (rows: number[], options: MoveRowsOptions) => Promise<boolean>;
+  moveRowsRelative: (rows: number[], delta: number) => Promise<boolean>;
+  moveRowsGrouped: (rows: number[], targetRow: number) => Promise<boolean>;
+  moveRowsToTop: (rows: number[]) => Promise<boolean>;
+  moveRowsToBottom: (rows: number[]) => Promise<boolean>;
+  moveRowsUp: (rows: number[]) => Promise<boolean>;
+  moveRowsDown: (rows: number[]) => Promise<boolean>;
+  applyAlignedFasta: (fasta: string, expectedRevision?: number) => Promise<boolean>;
   undo: () => Promise<boolean>;
   redo: () => Promise<boolean>;
-  meta: () => Promise<Meta>;
+  meta: () => Promise<EngineMeta>;
   name: (row: number) => Promise<string>;
   exportGappedFasta: () => Promise<string>;
   exportUngappedFasta: () => Promise<string>;
@@ -117,25 +117,25 @@ loops, where React state may not have flushed yet).
 
 ## 3. Loading Data
 
-### `load(fasta: string): Promise<number>`
+### `load(fasta: string): Promise<boolean>`
 
-Parses FASTA content into the engine and returns the **total number of sequences**
-now in the engine.
+Parses FASTA content into the engine and returns `true` if sequences were loaded
+(`false` for empty or whitespace-only no-op input).
 
 ```ts
-const count = await engine.load(">seq1\nATGCATGC\n>seq2\nATGGTG-A");
-console.log(count); // 2
+const changed = await engine.load(">seq1\nATGCATGC\n>seq2\nATGGTG-A");
+console.log(changed); // true
 ```
 
 **Behavior to know:**
 
 - Calling `load` **prepends** parsed sequences in order ahead of any existing rows.
 - If the engine already contains state (sequences or undo/redo history), a
-  `StructuralSnapshot` is recorded before prepending, making the addition
+  compact `PrependedSequences` command is recorded before prepending, making the addition
   undoable via `undo()`. An initial load into a fresh or reset engine keeps
-  `undoDepth === 0`.
-- Calling `load` with empty or whitespace-only input is a no-op that returns the
-  current sequence count without creating an undo snapshot.
+  `undoDepth === 0` while advancing `revision`.
+- Calling `load` with empty or whitespace-only input is a no-op that returns `false`
+  without modifying `revision`, `redoDepth`, or the translation cache.
 - The global alignment width updates to `max(existing_width, batch_width)`.
 - Sequence bytes are uppercased; internal whitespace is skipped; sequences may
   span multiple lines.
@@ -156,16 +156,17 @@ console.log(count); // 2
 
 ## 4. Reading Data
 
-### `meta(): Promise<Meta>`
+### `meta(): Promise<EngineMeta>`
 
 Returns overall alignment metadata:
 
 ```ts
-interface Meta {
-  sequences: number;  // number of loaded sequences (rows)
-  width: number;      // global alignment width (columns)
-  undoDepth: number;  // commands currently on the undo stack
-  redoDepth: number;  // commands currently on the redo stack
+interface EngineMeta {
+  alignmentWidth: number; // global alignment width (columns)
+  redoDepth: number;      // commands currently on the redo stack
+  revision: number;       // increments mutation/undo/redo/reset counter
+  sequenceCount: number;  // number of loaded sequences (rows)
+  undoDepth: number;      // commands currently on the undo stack
 }
 ```
 
@@ -262,8 +263,8 @@ const ungappedFasta = await engine.exportUngappedFasta();
 
 ## 5. Editing Data
 
-All edit methods are **asynchronous** and resolve once the engine has applied
-the change. After an edit, refetch the affected viewport to see the new state.
+All edit methods are **asynchronous** and resolve to a `boolean` indicating whether
+the engine state actually changed (`true` when applied, `false` for a no-op). After an applied edit, refetch the affected viewport to see the new state.
 
 ### 5.0 Editing constraints (the ruleset)
 
@@ -294,7 +295,7 @@ one of them is rejected with an error code (see [section 9](#9-error-handling)) 
 8. **`alignment_width` from the longest sequence.** The alignment width is set
    from the longest loaded sequence.
 
-### `mutate(rows: number[], columns: number[], base: string): Promise<void>`
+### `mutate(rows: number[], columns: number[], base: string): Promise<boolean>`
 
 Changes the base across a target shape defined by a subset of rows and columns. Rows and columns not listed are
 untouched.
@@ -308,8 +309,8 @@ await engine.mutate([0, 1], [1, 2, 3], "N"); // set cols 1..=3 to 'N' on rows 0 
 - `columns` — array of column indices to change.
 - `base` — a single character (e.g. `"A"`, `"G"`, `"-"`). Only the first
   character's code is used.
-- Out-of-range rows/columns are silently skipped.
-- The entire operation is recorded as a single transaction in the undo stack.
+- Out-of-range rows/columns and cells already equal to `base` are silently skipped; if no cell changes, resolves to `false` as a no-op.
+- The entire operation is recorded as a single compact `Substitutions` transaction in the undo stack.
 
 **Validation (Rule 3, [section 5](#50-editing-constraints-the-ruleset)):** The existing character at each target position must be
 an IUPAC nucleotide (`A`, `C`, `G`, `T`, `U`, `R`, `Y`, `S`, `W`, `K`, `M`,
@@ -318,12 +319,13 @@ itself be an IUPAC nucleotide or a gap (`-`). If any target position contains a
 character that is neither, or `base` is neither, the promise rejects with error
 code `"MutateNotIupac"` and **no rows are modified** (all-or-nothing).
 
-### `insert(rows: number[], col: number): Promise<void>`
+### `insert(rows: number[], col: number): Promise<boolean>`
 
 Inserts a gap (`-`) at a single column on a **subset** of rows. The inserted
 character is always `-` — there is no `base` parameter. Target rows receive the
 gap at `col_idx`; **non-target rows have a `-` appended at the end** to keep
-matrix width consistent. The alignment width increases by 1.
+matrix width consistent. The alignment width increases by 1. Returns `false`
+as a no-op if the matrix is empty or no valid in-bounds row indices are passed.
 
 ```ts
 await engine.insert([0, 1], 2);
@@ -333,43 +335,45 @@ await engine.insert([0, 1], 2);
 - `rows` — array of row indices to receive the gap at `col_idx`.
 - `col` — the column index where the gap is inserted in target rows.
 
-### `delete(rows: number[], col: number): Promise<void>`
+### `delete(rows: number[], col: number): Promise<boolean>`
 
 Deletes a column on a **subset** of rows. Only the rows in `rows` are affected:
 the character at `col` is removed and a `-` is appended at the end to keep the
-row length unchanged. **Non-target rows are completely untouched.**
+row length unchanged. **Non-target rows are completely untouched.** Returns `false`
+as a no-op if no valid in-bounds target rows have a base at `col`.
 
 ```ts
 await engine.delete([0, 2], 1);
 ```
 
-**Validation (Rule 1, [section 5](#50-editing-constraints-the-ruleset)):** The character at `col` in every target row must be
+**Validation (Rule 1, [section 5](#50-editing-constraints-the-ruleset)):** The character at `col` in every in-bounds target row must be
 gap (`-`). If any target row has a non-`-` character at that position, the
 promise rejects with error code `"DeleteNotGap"` and **no rows are modified**
 (all-or-nothing). To delete an IUPAC character, first mutate it to `-` via
 `mutate()`, then call `delete()`.
 
-### `deleteColumn(col: number): Promise<void>`
+### `deleteColumn(col: number): Promise<boolean>`
 
 Deletes a column from **every** row, shrinking the alignment width by 1. This is
-the width-shrinking inverse of a full-column insert.
+the width-shrinking inverse of a full-column insert. Returns `false` if the
+matrix is empty or `col >= alignmentWidth`.
 
 ```ts
 await engine.deleteColumn(4);
 ```
 
-### `deleteRows(rows: number[]): Promise<void>`
+### `deleteRows(rows: number[]): Promise<boolean>`
 
 Deletes the specified row indices from the matrix in a single atomic transaction.
 - Out-of-bounds indices are ignored.
-- Records an undo step if at least one row was removed.
+- Records a compact `DeletedRow` undo step if at least one row was removed (resolves `false` otherwise).
 - Recomputes alignment width from remaining rows (or 0 if all rows were deleted).
 
 ```ts
 await engine.deleteRows([1, 3]);
 ```
 
-### `moveHorizontal(rows: number[], cols: number[], direction: "Left" | "Right"): Promise<void>`
+### `moveHorizontal(rows: number[], cols: number[], direction: "Left" | "Right"): Promise<boolean>`
 
 Moves a contiguous block of IUPAC characters horizontally by **1 position**
 across one or more rows. Each call moves exactly 1 position; issue multiple calls
@@ -389,9 +393,9 @@ await engine.moveHorizontal([0], [2, 3, 4, 5], "Left");
 nucleotides (not `-`). The adjacent position in the move direction must be a
 gap (`-`). If either condition fails on any target row, the promise rejects with error code
 `"MoveNotIupac"` or `"MoveNoGapTarget"` and **no rows are modified**
-(all-or-nothing). A single undo snapshot records the entire multi-row move.
+(all-or-nothing). A single compact `HorizontalMove` undo entry records the entire multi-row move.
 
-### `moveRows(rows: number[], options: MoveRowsOptions): Promise<void>`
+### `moveRows(rows: number[], options: MoveRowsOptions): Promise<boolean>`
 
 Standardized vertical move command supporting all reordering modes:
 - `{ mode: 'relative', delta: number }`: relative in-place shift.
@@ -399,19 +403,19 @@ Standardized vertical move command supporting all reordering modes:
 - `{ mode: 'top' }`: snap and group to row 0.
 - `{ mode: 'bottom' }`: snap and group to the bottom.
 
-### `moveRowsRelative(rows: number[], delta: number): Promise<void>`
+### `moveRowsRelative(rows: number[], delta: number): Promise<boolean>`
 
 Shifts each specified row by `delta` positions (`-` for up, `+` for down). Disjoint rows (e.g. `[1, 3, 8]` with delta `+1` -> `[2, 4, 9]`) preserve their spacing. Contiguous joined blocks (e.g. `[1, 2, 3]` with delta `+1` -> `[2, 3, 4]`) move together as a solid unit. Rows hitting alignment boundaries remain pinned while other unconstrained rows continue shifting.
 
-### `moveRowsUp(rows: number[]): Promise<void>`
+### `moveRowsUp(rows: number[]): Promise<boolean>`
 
 Convenience method calling `moveRowsRelative(rows, -1)`.
 
-### `moveRowsDown(rows: number[]): Promise<void>`
+### `moveRowsDown(rows: number[]): Promise<boolean>`
 
 Convenience method calling `moveRowsRelative(rows, 1)`.
 
-### `moveRowsGrouped(rows: number[], targetRow: number): Promise<void>`
+### `moveRowsGrouped(rows: number[], targetRow: number): Promise<boolean>`
 
 Moves the specified rows and groups them into a contiguous block starting at `targetRow`. The selected rows preserve their relative order within the group; surrounding unselected rows shift cleanly around the group.
 
@@ -419,7 +423,7 @@ Moves the specified rows and groups them into a contiguous block starting at `ta
 await engine.moveRowsGrouped([4, 5, 10], 6); // rows 4, 5, 10 move to 6, 7, 8
 ```
 
-### `moveRowsToTop(rows: number[]): Promise<void>`
+### `moveRowsToTop(rows: number[]): Promise<boolean>`
 
 Snaps the specified rows to the top (index `0`) as a contiguous group, preserving their relative internal order.
 
@@ -427,7 +431,7 @@ Snaps the specified rows to the top (index `0`) as a contiguous group, preservin
 await engine.moveRowsToTop([2, 4]); // rows 2 and 4 become rows 0 and 1
 ```
 
-### `moveRowsToBottom(rows: number[]): Promise<void>`
+### `moveRowsToBottom(rows: number[]): Promise<boolean>`
 
 Snaps the specified rows to the bottom as a contiguous group, preserving their relative internal order.
 
@@ -439,33 +443,34 @@ await engine.moveRowsToBottom([1, 3]); // rows 1 and 3 become the last rows
 
 Sequence re-alignment uses MAFFT's fast progressive alignment (`AlignmentMode::FftNs2` with `ScoringModel::Dna` and `with_retree(1)` for FFT-NS-1). In the browser architecture, alignment is run **off-thread** in an ephemeral `AlignerWorker` to keep the UI and the primary `EngineWorker` responsive, and to allow cancellation at any time:
 
-1. `EditorWorkerService.realign(signal?: AbortSignal)` exports the gapped FASTA via `exportGappedFasta()`.
+1. `EditorWorkerService.realign(signal?: AbortSignal): CommandResultWithAbortSignal<boolean>` atomically captures `exportGappedFasta()` and `meta().revision` (`startRevision`) in a single queued `runCommand`.
 2. It spins up an ephemeral `AlignerWorker` running `align_fasta(fasta)`. If cancelled, the worker can be terminated immediately without corrupting engine state.
-3. Upon completion, the result is committed to the matrix via `applyAlignedFasta(alignedFasta)`.
+3. Upon completion, the result is committed via `applyAlignedFasta(alignedFasta, startRevision)`. If another mutation ran in the meantime, `"StaleRevision"` is raised.
 
 > **Note:** The underlying Rust engine also provides a synchronous `MsaEngine::realign()` method for native unit tests and non-worker environments. In frontend code, `EditorWorkerService.realign()` is the authoritative entry point.
 
 - Safe no-op if fewer than 2 sequences are loaded.
 - Enforces size limits (`MAX_ALIGNMENT_SEQUENCES = 1,000`, `MAX_ALIGNMENT_TOTAL_RESIDUES = 5,000,000`, and `MAX_ALIGNMENT_OUTPUT_CELLS = 500,000,000`), rejecting with an `EngineStructuredError` code of `InputTooLarge` if exceeded.
 - Strips existing gaps prior to progressive alignment while preserving all-gap rows mid-edit as padded gap rows with length matching the new aligned width.
-- Requires at least 2 sequences containing non-gap nucleotide residues. Rejects with an `EngineStructuredError` code of `EmptySequence` without mutating the matrix or recording an undo snapshot if fewer than 2 sequences contain residues.
-- Captures a structural undo snapshot so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()`.
-- Invalidates the amino-acid translation cache.
+- Requires at least 2 sequences containing non-gap nucleotide residues. Rejects with an `EngineStructuredError` code of `EmptySequence` without mutating the matrix or recording an undo entry if fewer than 2 sequences contain residues.
+- Captures a compact `ReplaceMatrix` swap so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()` (no-op if the resulting matrix is byte-for-byte identical).
+- Invalidates the amino-acid translation cache when the matrix changes.
 
-### `applyAlignedFasta(fasta: string): Promise<void>`
+### `applyAlignedFasta(fasta: string, expectedRevision?: number): Promise<boolean>`
 
 Applies an externally aligned FASTA (e.g. calculated off-thread in an `AlignerWorker`) to the engine matrix.
 
 ```ts
-await engine.applyAlignedFasta(alignedFasta);
+await engine.applyAlignedFasta(alignedFasta, startRevision);
 ```
 
+- When `expectedRevision` is provided and does not match the engine's current `revision`, rejects immediately with error code `"StaleRevision"` before parsing the FASTA.
 - Validates that the number of sequences in the aligned FASTA matches the matrix.
 - Validates that all aligned rows have uniform, equal row lengths.
 - Validates that sequence headers and row ordering strictly match the matrix.
 - Validates that ungapped nucleotide residue identities are strictly conserved across every sequence.
-- Captures a structural undo snapshot so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()`.
-- Updates `alignment_width` and matrix sequences, invalidating the amino-acid translation cache.
+- If the incoming matrix (`names`, `sequences`, and resulting `alignment_width`) is byte-for-byte identical to the current matrix, returns `false` as a no-op without recording a `ReplaceMatrix` undo entry, advancing `revision`, or clearing `aminoacid_sequences`.
+- Otherwise, records a `ReplaceMatrix` pointer swap so that the entire re-alignment can be reversed with `undo()` and re-applied with `redo()`, updates `alignment_width` and matrix sequences, increments `revision`, and invalidates the amino-acid translation cache.
 
 ---
 
@@ -491,8 +496,9 @@ const didRedo = await engine.redo();
 
 **Behavior to know:**
 
-- A new edit after an undo **clears the redo stack** (the redo branch is
-  invalidated).
+- History is bounded by both command depth (`2000` default) and estimated heap byte budget (`256 MiB` default), evicting oldest undo entries in FIFO order.
+- A new applied edit after an undo **clears the redo stack** (the redo branch is
+  invalidated); no-ops leave both stacks, `revision`, and caches untouched.
 - Use `meta().undoDepth` / `meta().redoDepth` to enable/disable buttons.
 
 ---
@@ -622,6 +628,7 @@ try {
 | `"InvalidFastaFormat"` | `load()` | Sequence data appears before the first FASTA header. |
 | `"InvalidReadingFrame"` | `translate()` | Reading frame is not 0, 1, or 2; context includes `frame`. |
 | `"InvalidViewport"` | `viewport()`, `translate()` | Bounds are invalid or the requested/resulting slice exceeds the shared buffer capacity; context includes `row` and `col` (and `frame` for translation). |
+| `"StaleRevision"` | `applyAlignedFasta()` | The engine `revision` changed between exporting FASTA and applying the aligned result. |
 | `"UnexpectedRuntimeError"` | Worker request handling | An unrecognized engine or runtime exception occurred; the message describes the failure. |
 
 ---
@@ -630,22 +637,22 @@ try {
 
 | Method | Arguments | Returns | Purpose |
 | -------- | ----------- | --------- | --------- |
-| `load` | `fasta: string` | `Promise<number>` | Parse and prepend FASTA; returns total sequence count |
-| `reset` | — | `Promise<void>` | Reset engine to initial empty state |
-| `meta` | — | `Promise<Meta>` | Alignment metadata (rows, width, undo/redo depth) |
+| `load` | `fasta: string` | `Promise<boolean>` | Parse and prepend FASTA; returns `true` if sequences were loaded (`false` for empty no-op) |
+| `reset` | — | `Promise<void>` | Reset engine to initial empty state (advances `revision`) |
+| `meta` | — | `Promise<EngineMeta>` | Alignment metadata (rows, width, `revision`, undo/redo depth) |
 | `name` | `row: number` | `Promise<string>` | Row name |
 | `exportGappedFasta` | — | `Promise<string>` | Export full alignment as gapped FASTA |
 | `exportUngappedFasta` | — | `Promise<string>` | Export full alignment as ungapped FASTA |
 | `viewport` | `{startRow, endRow, startCol, endCol}` | `Promise<ViewportResult & {bytes}>` | Fetch a windowed slice |
-| `mutate` | `rows: number[], col, base: string` | `Promise<void>` | Change bases on a subset of rows (validates existing char and new base are IUPAC or `-`) |
-| `insert` | `rows: number[], col` | `Promise<void>` | Insert a `-` at col on target rows; append `-` on non-targets |
-| `delete` | `rows: number[], col` | `Promise<void>` | Delete a column on a subset (validates target is `-`; non-targets untouched) |
-| `deleteColumn` | `col: number` | `Promise<void>` | Delete a column from all rows |
-| `deleteRows` | `rows: number[]` | `Promise<void>` | Delete specified rows from alignment |
-| `moveHorizontal` | `rows: number[], cols: number[], direction` | `Promise<void>` | Move IUPAC block 1 position left/right within specified rows |
-| `moveRowsUp` | `rows: number[]` | `Promise<void>` | Move specified rows up by 1 |
-| `moveRowsDown` | `rows: number[]` | `Promise<void>` | Move specified rows down by 1 |
-| `applyAlignedFasta` | `fasta: string` | `Promise<void>` | Apply aligned FASTA with structural undo snapshot |
+| `mutate` | `rows: number[], columns: number[], base: string` | `Promise<boolean>` | Change bases on a subset of rows (`false` on no-op) |
+| `insert` | `rows: number[], col` | `Promise<boolean>` | Insert a `-` at col on target rows; append `-` on non-targets (`false` on no-op) |
+| `delete` | `rows: number[], col` | `Promise<boolean>` | Delete a column on a subset (validates target is `-`; `false` on no-op) |
+| `deleteColumn` | `col: number` | `Promise<boolean>` | Delete a column from all rows (`false` on no-op) |
+| `deleteRows` | `rows: number[]` | `Promise<boolean>` | Delete specified rows from alignment (`false` on no-op) |
+| `moveHorizontal` | `rows: number[], cols: number[], direction` | `Promise<boolean>` | Move IUPAC block 1 position left/right within specified rows (`false` on no-op) |
+| `moveRowsUp` | `rows: number[]` | `Promise<boolean>` | Move specified rows up by 1 (`false` on no-op) |
+| `moveRowsDown` | `rows: number[]` | `Promise<boolean>` | Move specified rows down by 1 (`false` on no-op) |
+| `applyAlignedFasta` | `fasta: string, expectedRevision?: number` | `Promise<boolean>` | Apply aligned FASTA with `ReplaceMatrix` swap and stale-revision check |
 | `undo` | — | `Promise<boolean>` | Undo last edit |
 | `redo` | — | `Promise<boolean>` | Redo last undone edit |
 

@@ -526,34 +526,32 @@ export const SequenceEditor = () => {
   useEffect(() => {
     const execute = async (args: {
       abortSignal?: AbortSignal;
-      command: () => Promise<void>;
+      command: () => Promise<boolean | void>;
       getSelectionPostCommand?: () => EditorSelection | null;
       invalidateRowNames?: boolean;
-    }) => {
+    }): Promise<boolean> => {
       const { abortSignal, command, getSelectionPostCommand, invalidateRowNames } = args;
       try {
-        const previousUndoDepth = metaSubject.data?.undoDepth;
-        await command();
-        if (abortSignal?.aborted) {
-          return;
+        const changed = await command();
+        if (abortSignal?.aborted || changed === false) {
+          return false;
         }
         cachedGridRangeWithViewPortResultRef.current = null;
         if (invalidateRowNames) {
           cachedGridRangeWithRowNamesRef.current = null;
         }
-        const nextMeta = await updateMeta();
+        await updateMeta();
         if (getSelectionPostCommand) {
-          if (previousUndoDepth !== undefined && nextMeta?.undoDepth === previousUndoDepth) {
-            return;
-          }
           const selection = getSelectionPostCommand();
           selectionSubject.next(selection);
           initialSelectionRef.current = selection;
         }
+        return true;
       } catch (error) {
         if (!abortSignal?.aborted) {
           console.error('Failed to post command:', error);
         }
+        return false;
       }
     };
 
@@ -566,9 +564,7 @@ export const SequenceEditor = () => {
         return;
       }
       await execute({
-        command: async () => {
-          await editorService.mutate(mutateArguments.rows, mutateArguments.columns, base);
-        },
+        command: async () => editorService.mutate(mutateArguments.rows, mutateArguments.columns, base),
       });
     };
 
@@ -609,17 +605,18 @@ export const SequenceEditor = () => {
       await execute({
         command: async () => {
           if (direction === EDITOR_DIRECTION.UP) {
-            await editorService.moveRowsToTop(rows);
-            if (scrollContainerRef.current) {
+            const changed = await editorService.moveRowsToTop(rows);
+            if (changed && scrollContainerRef.current) {
               scrollContainerRef.current.scrollTop = 0;
             }
-          } else {
-            await editorService.moveRowsToBottom(rows);
-            if (scrollContainerRef.current) {
-              scrollContainerRef.current.scrollTop =
-                scrollContainerRef.current.scrollHeight - scrollContainerRef.current.clientHeight;
-            }
+            return changed;
           }
+          const changed = await editorService.moveRowsToBottom(rows);
+          if (changed && scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop =
+              scrollContainerRef.current.scrollHeight - scrollContainerRef.current.clientHeight;
+          }
+          return changed;
         },
         getSelectionPostCommand: () =>
           EditorUtil.getMovedRowsEndSelection(selectionSubject.data, direction, metaSubject.data),
@@ -638,10 +635,9 @@ export const SequenceEditor = () => {
       await execute({
         command: async () => {
           if (direction === EDITOR_DIRECTION.UP) {
-            await editorService.moveRowsUp(rows);
-          } else {
-            await editorService.moveRowsDown(rows);
+            return editorService.moveRowsUp(rows);
           }
+          return editorService.moveRowsDown(rows);
         },
         getSelectionPostCommand: () => EditorUtil.getMovedRowsRelativeSelection(selectionSubject.data, direction, metaSubject.data),
         invalidateRowNames: true,
@@ -663,9 +659,7 @@ export const SequenceEditor = () => {
         return;
       }
       await execute({
-        command: async () => {
-          await editorService.moveHorizontal(mutateArguments.rows, mutateArguments.columns, direction);
-        },
+        command: async () => editorService.moveHorizontal(mutateArguments.rows, mutateArguments.columns, direction),
         getSelectionPostCommand: () => EditorUtil.getPostUpsertSelection(selectionSubject.data, direction),
       });
     };
@@ -688,14 +682,15 @@ export const SequenceEditor = () => {
           abortSignal: abortController.signal,
           command: async () => {
             const loadCommand = editorService.loadFasta(fasta, abortController.signal);
-            await loadCommand;
-            if (loadCommand.abortSignal?.aborted) {
-              return;
+            const changed = await loadCommand;
+            if (loadCommand.abortSignal?.aborted || !changed) {
+              return false;
             }
             if (sequenceEditorStore.getState().searchQuery) {
               eventBusService.emit('onSearch', sequenceEditorStore.getState().searchQuery);
             }
             sequenceEditorStore.getState().setLatestMessage('Pasted sequences from clipboard');
+            return true;
           },
           getSelectionPostCommand: () => EditorUtil.getPostPasteSequencesSelection(selectionSubject.data, fasta),
           invalidateRowNames: true,
@@ -868,12 +863,14 @@ export const SequenceEditor = () => {
           if (!rows?.length || !meta) {
             return;
           }
-          await execute({
+          const deleted = await execute({
             command: async () => editorService.deleteRows(rows),
             getSelectionPostCommand: () => EditorUtil.getPostDeleteRowsSelection(selection, meta.sequenceCount),
             invalidateRowNames: true,
           });
-          sequenceEditorStore.getState().setLatestMessage(`${rows.length} row${rows.length > 1 ? 's' : ''} deleted`);
+          if (deleted) {
+            sequenceEditorStore.getState().setLatestMessage(`${rows.length} row${rows.length > 1 ? 's' : ''} deleted`);
+          }
         })();
       }),
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
@@ -895,23 +892,21 @@ export const SequenceEditor = () => {
       // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       eventBusService.addEventListener('onRealign', () => {
         sequenceEditorStore.getState().setIsRealigning(true);
-        let wasCancelled = false;
         void execute({
           command: async () => {
             try {
-              await editorService.realign();
+              return await editorService.realign();
             } catch (error) {
               if (error instanceof DOMException && error.name === 'AbortError') {
-                wasCancelled = true;
-              } else {
-                sequenceEditorStore.getState().setLatestMessage(EngineErrorUtil.getEngineErrorMessage(error));
-                throw error;
+                return false;
               }
+              sequenceEditorStore.getState().setLatestMessage(EngineErrorUtil.getEngineErrorMessage(error));
+              throw error;
             } finally {
               sequenceEditorStore.getState().setIsRealigning(false);
             }
           },
-          getSelectionPostCommand: () => (wasCancelled ? selectionSubject.data : null),
+          getSelectionPostCommand: () => null,
           invalidateRowNames: true,
         });
       }),

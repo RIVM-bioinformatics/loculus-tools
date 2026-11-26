@@ -488,6 +488,7 @@ fn parse_fasta_records(
 pub fn get_aminoacid_codon_overlay(
     reading_frame: u8,
     nucleotide_sequences: &[Vec<u8>],
+    alignment_width: usize,
 ) -> Result<Vec<Vec<u8>>, StructuredEngineError> {
     if nucleotide_sequences.is_empty() {
         return Ok(Vec::new());
@@ -520,6 +521,7 @@ pub fn get_aminoacid_codon_overlay(
                 aminoacid_codon_overlay_per_seq.extend(vec![translated_codon; 3]);
             }
         }
+        aminoacid_codon_overlay_per_seq.resize(alignment_width, b' ');
         aminoacid_codon_overlay.push(aminoacid_codon_overlay_per_seq);
     }
     Ok(aminoacid_codon_overlay)
@@ -746,8 +748,13 @@ impl MsaEngine {
             );
         }
 
-        let overlay = include_translation_map
-            .then(|| get_aminoacid_codon_overlay(reading_frame, &self.nucleotide_sequences));
+        let overlay = include_translation_map.then(|| {
+            get_aminoacid_codon_overlay(
+                reading_frame,
+                &self.nucleotide_sequences,
+                self.alignment_width,
+            )
+        });
 
         // Actual viewport extraction logic
         for r in start_row..=row_end {

@@ -329,7 +329,6 @@ export const SequenceEditor = () => {
             if (!isActive || viewportCommand.abortSignal?.aborted) {
               return;
             }
-            console.log({ viewportResult });
             cachedGridRangeWithViewPortResultRef.current = {
               range: visibleGridRangeWithArguments.visibleGridRange.cache,
               viewportResult,
@@ -856,6 +855,9 @@ export const SequenceEditor = () => {
           if (!metaSubject.data) {
             return;
           }
+          if (preventMutations()) {
+            return;
+          }
           const upsertArguments = EditorUtil.getUpsertArguments(selectionSubject.data, metaSubject.data);
           if (!upsertArguments) {
             return;
@@ -870,6 +872,9 @@ export const SequenceEditor = () => {
       eventBusService.addEventListener('onDeleteBackward', () => {
         void (async () => {
           if (!metaSubject.data) {
+            return;
+          }
+          if (preventMutations()) {
             return;
           }
           const upsertArguments = EditorUtil.getUpsertArguments(selectionSubject.data, metaSubject.data, -1);

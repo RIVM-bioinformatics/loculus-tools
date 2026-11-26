@@ -9,7 +9,10 @@
 mod alphabets;
 mod constants;
 mod history;
+mod modification;
 mod search_algorithms;
+
+pub use modification::DataModificationResult;
 
 use constants::{DEFAULT_MAX_HISTORY_BYTES, DEFAULT_MAX_UNDO_DEPTH};
 use history::UndoCommand;
@@ -23,6 +26,7 @@ use mafft::{AlignmentMode, MafftEngine, ScoringModel, SeqType, Sequence, Sequenc
 use search_algorithms::{MAX_SEARCH_RESULTS, Match, MatrixType, SearchResult, naive_search};
 use serde::Serialize;
 use std::collections::VecDeque;
+use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 
 // Bound to the JS `console.log`, so this works in both the main thread and
@@ -76,7 +80,7 @@ impl std::fmt::Display for EditError {
 
 impl std::error::Error for EditError {}
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Tsify)]
 pub struct InvalidCharacterContext {
     #[serde(rename = "sequenceId")]
     pub sequence_id: String,
@@ -88,7 +92,7 @@ pub struct InvalidCharacterContext {
     pub byte: Option<u8>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Tsify)]
 pub struct ErrorContext {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub row: Option<usize>,
@@ -116,7 +120,9 @@ pub struct ErrorContext {
     pub invalid_characters: Option<Vec<InvalidCharacterContext>>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+/// Error thrown across the WASM boundary. Converted to a plain JS object via
+/// `From<StructuredEngineError> for JsValue`; `Tsify` only emits its TS declaration.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Tsify)]
 pub struct StructuredEngineError {
     pub code: String,
     pub message: String,
@@ -549,9 +555,17 @@ impl MsaEngine {
 
     /// Reset the engine to its initial empty state, clearing all sequences,
     /// names, cached amino-acid translations, viewport buffer, and undo/redo history,
-    /// Advances the `revision` so in-flight async workflows are rejected.
+    /// Advances the `revision` so in-flight async workflows are rejected; the
+    /// result therefore always reports `changed: true`.
     #[wasm_bindgen]
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| {
+            engine.reset_inner();
+            Ok(())
+        })
+    }
+
+    fn reset_inner(&mut self) {
         let next_revision = self.revision.wrapping_add(1);
         let max_undo_depth = self.max_undo_depth;
         let max_history_bytes = self.max_history_bytes;
@@ -620,12 +634,19 @@ impl MsaEngine {
     /// detect ragged alignments via `get_row_length` and viewport extractions
     /// pad with spaces.
     ///
-    /// Returns the total sequence count on success. Invalid sequence characters
+    /// Returns `changed: false` for empty input. Invalid sequence characters
     /// reject the load without changing the current engine state.
-    pub fn load_fasta(&mut self, fasta_content: &str) -> Result<usize, StructuredEngineError> {
+    pub fn load_fasta(
+        &mut self,
+        fasta_content: &str,
+    ) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| engine.load_fasta_inner(fasta_content))
+    }
+
+    fn load_fasta_inner(&mut self, fasta_content: &str) -> Result<(), StructuredEngineError> {
         let (mut staged_names, mut staged_sequences) = parse_fasta_records(fasta_content)?;
         if staged_sequences.is_empty() {
-            return Ok(self.nucleotide_sequences.len());
+            return Ok(());
         }
 
         let has_existing_state = !self.nucleotide_sequences.is_empty()
@@ -658,7 +679,7 @@ impl MsaEngine {
             self.revision = self.revision.wrapping_add(1);
         }
 
-        Ok(self.nucleotide_sequences.len())
+        Ok(())
     }
 
     /// Extract a windowed slice of the matrix into the reusable viewport buffer
@@ -1250,6 +1271,17 @@ impl MsaEngine {
         row_indices: &[usize],
         col_indices: &[usize],
         new_base: u8,
+    ) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| {
+            engine.mutate_base_inner(row_indices, col_indices, new_base)
+        })
+    }
+
+    fn mutate_base_inner(
+        &mut self,
+        row_indices: &[usize],
+        col_indices: &[usize],
+        new_base: u8,
     ) -> Result<(), StructuredEngineError> {
         // Validate the destination base: it must be an IUPAC nucleotide or '-' (Rule 3).
         if !is_iupac(new_base) && !is_gap(new_base) {
@@ -1340,6 +1372,14 @@ impl MsaEngine {
         &mut self,
         row_indices: &[usize],
         col_idx: usize,
+    ) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| engine.insert_at_subset_inner(row_indices, col_idx))
+    }
+
+    fn insert_at_subset_inner(
+        &mut self,
+        row_indices: &[usize],
+        col_idx: usize,
     ) -> Result<(), StructuredEngineError> {
         if self.nucleotide_sequences.is_empty() || row_indices.is_empty() {
             return Ok(());
@@ -1402,6 +1442,14 @@ impl MsaEngine {
         &mut self,
         row_indices: &[usize],
         col_idx: usize,
+    ) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| engine.delete_at_subset_inner(row_indices, col_idx))
+    }
+
+    fn delete_at_subset_inner(
+        &mut self,
+        row_indices: &[usize],
+        col_idx: usize,
     ) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || self.nucleotide_sequences.is_empty() {
             return Ok(());
@@ -1455,8 +1503,15 @@ impl MsaEngine {
 
     /// Delete a column from every row, shrinking `alignment_width` by 1.
     /// This is the width-preserving inverse of a full-column insert.
-    /// Returns success.
-    pub fn delete_column(&mut self, col_idx: usize) -> Result<(), StructuredEngineError> {
+    /// Returns `changed: false` when the matrix is empty or `col_idx` is out of range.
+    pub fn delete_column(
+        &mut self,
+        col_idx: usize,
+    ) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| engine.delete_column_inner(col_idx))
+    }
+
+    fn delete_column_inner(&mut self, col_idx: usize) -> Result<(), StructuredEngineError> {
         // If the matrix is empty or the column is out of range for every row,
         // nothing is removed and the width must not change.
         if self.nucleotide_sequences.is_empty() || col_idx >= self.alignment_width {
@@ -1506,6 +1561,17 @@ impl MsaEngine {
     /// The entire operation is recorded as a single transaction in the undo stack.
     /// Returns a typed error on failure; the operation is all-or-nothing.
     pub fn move_horizontal(
+        &mut self,
+        row_indices: &[usize],
+        col_indices: &[usize],
+        direction: MoveDirection,
+    ) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| {
+            engine.move_horizontal_inner(row_indices, col_indices, direction)
+        })
+    }
+
+    fn move_horizontal_inner(
         &mut self,
         row_indices: &[usize],
         col_indices: &[usize],
@@ -1686,6 +1752,14 @@ impl MsaEngine {
         &mut self,
         row_indices: &[usize],
         delta: isize,
+    ) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| engine.move_rows_relative_inner(row_indices, delta))
+    }
+
+    fn move_rows_relative_inner(
+        &mut self,
+        row_indices: &[usize],
+        delta: isize,
     ) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || delta == 0 || self.nucleotide_sequences.len() < 2 {
             return Ok(());
@@ -1760,6 +1834,14 @@ impl MsaEngine {
         &mut self,
         row_indices: &[usize],
         target_row: usize,
+    ) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| engine.move_rows_grouped_inner(row_indices, target_row))
+    }
+
+    fn move_rows_grouped_inner(
+        &mut self,
+        row_indices: &[usize],
+        target_row: usize,
     ) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || self.nucleotide_sequences.len() < 2 {
             return Ok(());
@@ -1803,7 +1885,10 @@ impl MsaEngine {
 
     /// Snap the specified rows to the top (index 0) as a grouped contiguous block,
     /// preserving their relative order.
-    pub fn move_rows_to_top(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
+    pub fn move_rows_to_top(
+        &mut self,
+        row_indices: &[usize],
+    ) -> Result<DataModificationResult, StructuredEngineError> {
         self.move_rows_grouped(row_indices, 0)
     }
 
@@ -1812,22 +1897,28 @@ impl MsaEngine {
     pub fn move_rows_to_bottom(
         &mut self,
         row_indices: &[usize],
-    ) -> Result<(), StructuredEngineError> {
+    ) -> Result<DataModificationResult, StructuredEngineError> {
         let last_pos = self.nucleotide_sequences.len().saturating_sub(1);
         self.move_rows_grouped(row_indices, last_pos)
     }
 
     /// Move the specified rows up by 1 position, preserving relative spacing.
     /// Rows already at the top (index 0) are skipped.
-    /// Returns success without creating an undo entry if no row moved.
-    pub fn move_rows_up(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
+    /// Returns `changed: false` without creating an undo entry if no row moved.
+    pub fn move_rows_up(
+        &mut self,
+        row_indices: &[usize],
+    ) -> Result<DataModificationResult, StructuredEngineError> {
         self.move_rows_relative(row_indices, -1)
     }
 
     /// Move the specified rows down by 1 position, preserving relative spacing.
     /// Rows already at the bottom are skipped.
-    /// Returns success without creating an undo entry if no row moved.
-    pub fn move_rows_down(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
+    /// Returns `changed: false` without creating an undo entry if no row moved.
+    pub fn move_rows_down(
+        &mut self,
+        row_indices: &[usize],
+    ) -> Result<DataModificationResult, StructuredEngineError> {
         self.move_rows_relative(row_indices, 1)
     }
 
@@ -1841,7 +1932,14 @@ impl MsaEngine {
     /// removes them from `nucleotide_sequences` and `names`, recomputes
     /// `alignment_width` from the remaining sequences (or sets it to 0 if all
     /// rows were deleted).
-    pub fn delete_rows(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
+    pub fn delete_rows(
+        &mut self,
+        row_indices: &[usize],
+    ) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| engine.delete_rows_inner(row_indices))
+    }
+
+    fn delete_rows_inner(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError> {
         if row_indices.is_empty() || self.nucleotide_sequences.is_empty() {
             return Ok(());
         }
@@ -1917,7 +2015,11 @@ impl MsaEngine {
     /// entire re-alignment can be undone and redone via `undo()` and `redo()`.
     ///
     /// If there are fewer than 2 sequences, this is a safe no-op.
-    pub fn realign(&mut self) -> Result<(), StructuredEngineError> {
+    pub fn realign(&mut self) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(Self::realign_inner)
+    }
+
+    fn realign_inner(&mut self) -> Result<(), StructuredEngineError> {
         if self.nucleotide_sequences.len() < 2 {
             return Ok(());
         }
@@ -1943,6 +2045,16 @@ impl MsaEngine {
     /// - Sequence headers and ordering must strictly match `self.names`.
     /// - Ungapped nucleotide residue identities must be conserved for each sequence.
     pub fn apply_aligned_fasta(
+        &mut self,
+        fasta_content: &str,
+        expected_revision: Option<usize>,
+    ) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| {
+            engine.apply_aligned_fasta_inner(fasta_content, expected_revision)
+        })
+    }
+
+    fn apply_aligned_fasta_inner(
         &mut self,
         fasta_content: &str,
         expected_revision: Option<usize>,
@@ -2053,16 +2165,24 @@ impl MsaEngine {
         );
     }
 
-    /// Undo the most recent command. Returns `true` if an undo was applied,
-    /// `false` if the undo stack is empty or the command had no applicable target.
-    pub fn undo(&mut self) -> bool {
-        crate::history::apply_undo_action(self)
+    /// Undo the most recent command. Returns `changed: false` if the undo stack
+    /// is empty or the command had no applicable target. Never returns `Err`
+    /// today; the `Result` keeps the signature uniform with other mutations.
+    pub fn undo(&mut self) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| {
+            history::apply_undo_action(engine);
+            Ok(())
+        })
     }
 
-    /// Redo the most recently undone command. Returns `true` if a redo was
-    /// applied, `false` if the redo stack is empty or the command had no applicable target.
-    pub fn redo(&mut self) -> bool {
-        crate::history::apply_redo_action(self)
+    /// Redo the most recently undone command. Returns `changed: false` if the
+    /// redo stack is empty or the command had no applicable target. Never
+    /// returns `Err` today; the `Result` keeps the signature uniform.
+    pub fn redo(&mut self) -> Result<DataModificationResult, StructuredEngineError> {
+        self.track_modification(|engine| {
+            history::apply_redo_action(engine);
+            Ok(())
+        })
     }
 
     /// Number of commands on the undo stack.
@@ -2305,5 +2425,7 @@ pub fn align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>
 mod alphabets_tests;
 #[cfg(test)]
 mod engine_tests;
+#[cfg(test)]
+mod modification_tests;
 #[cfg(test)]
 mod search_algorithms_tests;

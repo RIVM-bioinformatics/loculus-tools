@@ -5,6 +5,7 @@ import { singleton } from 'tsyringe';
 
 import type {
   AlignerWorkerApi,
+  DataModificationResult,
   EngineMeta,
   EngineSearchResult,
   EngineViewportResult,
@@ -60,19 +61,19 @@ export class EditorWorkerService {
     }
   }
 
-  public delete(rows: number[], col: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public delete(rows: number[], col: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.delete(rows, col);
     }, abortSignal);
   }
 
-  public deleteColumn(col: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public deleteColumn(col: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.deleteColumn(col);
     }, abortSignal);
   }
 
-  public deleteRows(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public deleteRows(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.deleteRows(rows);
     }, abortSignal);
@@ -102,19 +103,19 @@ export class EditorWorkerService {
     }, abortSignal);
   }
 
-  public insert(rows: number[], col: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public insert(rows: number[], col: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.insert(rows, col);
     }, abortSignal);
   }
 
-  public loadFasta(fasta: string, abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public loadFasta(fasta: string, abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.load(fasta);
     }, abortSignal);
   }
 
-  public moveHorizontal(rows: number[], cols: number[], direction: EDITOR_DIRECTION, abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public moveHorizontal(rows: number[], cols: number[], direction: EDITOR_DIRECTION, abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     if (direction !== EDITOR_DIRECTION.LEFT && direction !== EDITOR_DIRECTION.RIGHT) {
       throw new Error('Invalid horizontal move direction');
     }
@@ -123,49 +124,49 @@ export class EditorWorkerService {
     }, abortSignal);
   }
 
-  public moveRows(rows: number[], options: MoveRowsOptions, abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public moveRows(rows: number[], options: MoveRowsOptions, abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.moveRows(rows, options);
     }, abortSignal);
   }
 
-  public moveRowsDown(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public moveRowsDown(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.moveRowsDown(rows);
     }, abortSignal);
   }
 
-  public moveRowsGrouped(rows: number[], targetRow: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public moveRowsGrouped(rows: number[], targetRow: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.moveRowsGrouped(rows, targetRow);
     }, abortSignal);
   }
 
-  public moveRowsRelative(rows: number[], delta: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public moveRowsRelative(rows: number[], delta: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.moveRowsRelative(rows, delta);
     }, abortSignal);
   }
 
-  public moveRowsToBottom(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public moveRowsToBottom(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.moveRowsToBottom(rows);
     }, abortSignal);
   }
 
-  public moveRowsToTop(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public moveRowsToTop(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.moveRowsToTop(rows);
     }, abortSignal);
   }
 
-  public moveRowsUp(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public moveRowsUp(rows: number[], abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.moveRowsUp(rows);
     }, abortSignal);
   }
 
-  public mutate(rows: number[], cols: number[], base: string, abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public mutate(rows: number[], cols: number[], base: string, abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.mutate(rows, cols, base);
     }, abortSignal);
@@ -177,7 +178,7 @@ export class EditorWorkerService {
     }, abortSignal);
   }
 
-  public realign(signal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public realign(signal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     if (this.isRealigning || this.activeAlignerWorker) {
       throw new Error('Alignment is already in progress');
     }
@@ -201,7 +202,7 @@ export class EditorWorkerService {
       }
     };
 
-    const realignPromise = (async (): Promise<boolean> => {
+    const realignPromise = (async (): Promise<DataModificationResult> => {
       let worker: null | Worker = null;
       let onAbort: (() => void) | undefined;
       try {
@@ -266,15 +267,15 @@ export class EditorWorkerService {
     return Object.assign(realignPromise, { abortSignal: signal });
   }
 
-  public redo(abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public redo(abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.redo();
     }, abortSignal);
   }
 
-  public reset(abortSignal?: AbortSignal): CommandResultWithAbortSignal<void> {
+  public reset(abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
-      await this.engineWorkerProxy.reset();
+      return await this.engineWorkerProxy.reset();
     }, abortSignal);
   }
 
@@ -290,7 +291,7 @@ export class EditorWorkerService {
     }, abortSignal);
   }
 
-  public undo(abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
+  public undo(abortSignal?: AbortSignal): CommandResultWithAbortSignal<DataModificationResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.undo();
     }, abortSignal);

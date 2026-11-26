@@ -86,7 +86,7 @@ fn nucleotide_search_accepts_lowercase_queries() {
 #[test]
 fn empty_fasta_loads_zero() {
     let mut e = MsaEngine::new();
-    assert_eq!(e.load_fasta("").unwrap(), 0);
+    assert!(!e.load_fasta("").unwrap().changed);
     assert_eq!(e.get_sequence_count(), 0);
     assert_eq!(e.get_alignment_width(), 0);
 }
@@ -94,12 +94,12 @@ fn empty_fasta_loads_zero() {
 #[test]
 fn load_fasta_retains_empty_records_with_zero_length() {
     let mut e = MsaEngine::new();
-    assert_eq!(
+    assert!(
         e.load_fasta(
             ">seq1 first record\nATGCATGCATGC\n>seq2\nATGGTGCAT-TC\n>seq3 third record\n>seq4"
         )
-        .unwrap(),
-        4
+        .unwrap()
+        .changed
     );
     assert_eq!(e.get_sequence_count(), 4);
     assert_eq!(e.get_row_length(0), 12);
@@ -131,7 +131,7 @@ fn exports_loaded_alignment_as_ungapped_fasta() {
 #[test]
 fn exports_edited_alignment() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0], &[0], b'G'), Ok(()));
+    assert!(e.mutate_base(&[0], &[0], b'G').is_ok());
 
     assert_eq!(
         e.export_fasta_bytes(true),
@@ -146,7 +146,7 @@ fn exports_edited_alignment() {
 #[test]
 fn exports_current_row_order() {
     let mut e = engine_with_sample();
-    assert_eq!(e.move_rows_up(&[1]), Ok(()));
+    assert!(e.move_rows_up(&[1]).is_ok());
 
     assert_eq!(
         e.export_fasta_bytes(true),
@@ -213,7 +213,7 @@ fn reload_prepends_onto_existing_and_reset_clears() {
     assert_eq!(e.undo_depth(), 1);
 
     // Reset clears all sequences, width, and history
-    e.reset();
+    e.reset().unwrap();
     assert_eq!(e.get_sequence_count(), 0);
     assert_eq!(e.get_alignment_width(), 0);
     assert_eq!(e.undo_depth(), 0);
@@ -230,11 +230,10 @@ fn reload_prepends_onto_existing_and_reset_clears() {
 #[test]
 fn load_fasta_accepts_iupac_symbols_lowercase_and_gaps() {
     let mut e = MsaEngine::new();
-    let count = e
-        .load_fasta(">upper\nACGTURYSWKMBDHVN-\n>lower\nacgturyswkmbdhvn-")
+    e.load_fasta(">upper\nACGTURYSWKMBDHVN-\n>lower\nacgturyswkmbdhvn-")
         .unwrap();
 
-    assert_eq!(count, 2);
+    assert_eq!(e.get_sequence_count(), 2);
     assert_eq!(e.get_alignment_width(), 17);
     assert_eq!(e.get_base(1, 0), b'A');
     assert_eq!(e.get_base(1, 16), b'-');
@@ -314,7 +313,7 @@ fn load_fasta_invalid_input_preserves_engine_data_and_history() {
     let mut e = engine_with_sample();
     e.mutate_base(&[0], &[0], b'T').unwrap();
     e.mutate_base(&[0], &[1], b'A').unwrap();
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
 
     let error = e
         .load_fasta(">replacement\nACGT\n>invalid\nACG?T")
@@ -329,9 +328,9 @@ fn load_fasta_invalid_input_preserves_engine_data_and_history() {
     assert_eq!(e.undo_depth(), 1);
     assert_eq!(e.redo_depth(), 1);
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_base(0, 1), b'A');
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 1), b'T');
 }
 
@@ -474,7 +473,7 @@ fn viewport_pads_entirely_out_of_range_cols() {
 fn mutate_base_changes_only_target_rows() {
     let mut e = engine_with_sample();
     // seq1[3] = C -> G, seq2[3] = G -> G (no-op), seq3 untouched
-    assert_eq!(e.mutate_base(&[0, 1], &[3], b'G'), Ok(()));
+    assert!(e.mutate_base(&[0, 1], &[3], b'G').is_ok());
     assert_eq!(e.get_base(0, 3), b'G');
     assert_eq!(e.get_base(1, 3), b'G');
     assert_eq!(e.get_base(2, 3), b'C'); // unchanged
@@ -483,17 +482,17 @@ fn mutate_base_changes_only_target_rows() {
 #[test]
 fn mutate_base_changes_rectangle_atomically() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0, 1], &[1, 2, 3], b'N'), Ok(()));
+    assert!(e.mutate_base(&[0, 1], &[1, 2, 3], b'N').is_ok());
     for row in 0..=1 {
         for col in 1..=3 {
             assert_eq!(e.get_base(row, col), b'N');
         }
     }
     assert_eq!(e.get_base(2, 1), b'T');
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 1), b'T');
     assert_eq!(e.get_base(1, 3), b'G');
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_base(0, 1), b'N');
     assert_eq!(e.get_base(1, 3), b'N');
 }
@@ -537,7 +536,7 @@ fn mutate_base_rejects_atomically_when_later_target_is_invalid() {
 fn mutate_base_changes_arbitrary_shape_atomically() {
     let mut e = engine_with_sample();
     // Mutate rows 0 and 2 at columns 0 and 2 to 'G'
-    assert_eq!(e.mutate_base(&[0, 2], &[0, 2], b'G'), Ok(()));
+    assert!(e.mutate_base(&[0, 2], &[0, 2], b'G').is_ok());
     assert_eq!(e.get_base(0, 0), b'G');
     assert_eq!(e.get_base(0, 2), b'G');
     assert_eq!(e.get_base(2, 0), b'G');
@@ -546,13 +545,13 @@ fn mutate_base_changes_arbitrary_shape_atomically() {
     assert_eq!(e.get_base(1, 0), b'A');
     assert_eq!(e.undo_depth(), 1);
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.get_base(0, 2), b'G');
     assert_eq!(e.get_base(2, 0), b'A');
     assert_eq!(e.get_base(2, 2), b'G');
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_base(0, 0), b'G');
     assert_eq!(e.get_base(0, 2), b'G');
 }
@@ -560,28 +559,28 @@ fn mutate_base_changes_arbitrary_shape_atomically() {
 #[test]
 fn mutate_base_empty_inputs_is_noop() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[], &[0, 1], b'A'), Ok(()));
-    assert_eq!(e.mutate_base(&[0], &[], b'A'), Ok(()));
+    assert!(e.mutate_base(&[], &[0, 1], b'A').is_ok());
+    assert!(e.mutate_base(&[0], &[], b'A').is_ok());
     assert_eq!(e.undo_depth(), 0);
 }
 
 #[test]
 fn mutate_base_deduplicates_input_indices() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0, 0, 0], &[1, 1], b'C'), Ok(()));
+    assert!(e.mutate_base(&[0, 0, 0], &[1, 1], b'C').is_ok());
     assert_eq!(e.get_base(0, 1), b'C');
     assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 1), b'T');
 }
 
 #[test]
 fn mutate_skips_out_of_range_rows_and_cols() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0, 99], &[3], b'T'), Ok(()));
+    assert!(e.mutate_base(&[0, 99], &[3], b'T').is_ok());
     assert_eq!(e.get_base(0, 3), b'T');
     // col out of range: no-op, no panic
-    assert_eq!(e.mutate_base(&[0], &[999], b'T'), Ok(()));
+    assert!(e.mutate_base(&[0], &[999], b'T').is_ok());
     assert_eq!(e.get_base(0, 0), b'A');
 }
 
@@ -589,7 +588,7 @@ fn mutate_skips_out_of_range_rows_and_cols() {
 fn insert_at_subset_balances_with_gaps() {
     let mut e = engine_with_sample();
     // Insert '-' at col 2 on rows 0 and 1 only.
-    assert_eq!(e.insert_at_subset(&[0, 1], 2), Ok(()));
+    assert!(e.insert_at_subset(&[0, 1], 2).is_ok());
     assert_eq!(e.get_alignment_width(), 9);
     // Row 0: AT - GCATGC -> "AT-GCATGC"
     assert_eq!(e.get_row_length(0), 9);
@@ -603,7 +602,7 @@ fn insert_at_subset_balances_with_gaps() {
 fn insert_at_subset_on_empty_engine_is_a_noop() {
     let mut e = MsaEngine::new();
 
-    assert_eq!(e.insert_at_subset(&[0], 0), Ok(()));
+    assert!(e.insert_at_subset(&[0], 0).is_ok());
     assert_eq!(e.get_sequence_count(), 0);
     assert_eq!(e.get_alignment_width(), 0);
     assert_eq!(e.undo_depth(), 0);
@@ -614,7 +613,7 @@ fn insert_at_subset_on_empty_engine_is_a_noop() {
 fn insert_at_subset_clamps_columns_beyond_alignment_width() {
     let mut e = engine_with_sample();
 
-    assert_eq!(e.insert_at_subset(&[0], 100), Ok(()));
+    assert!(e.insert_at_subset(&[0], 100).is_ok());
     assert_eq!(e.get_alignment_width(), 9);
     for row in 0..e.get_sequence_count() {
         assert_eq!(e.get_row_length(row), 9);
@@ -628,7 +627,7 @@ fn insert_at_subset_preserves_ragged_row_behavior() {
     e.load_fasta(">short\nATGC\n>long\nATGCATGC\n>middle\nATGCAT")
         .unwrap();
 
-    assert_eq!(e.insert_at_subset(&[0], 6), Ok(()));
+    assert!(e.insert_at_subset(&[0], 6).is_ok());
     assert_eq!(e.get_row_length(0), 7);
     assert_eq!(e.get_row_length(1), 9);
     assert_eq!(e.get_row_length(2), 7);
@@ -644,7 +643,7 @@ fn delete_at_subset_removes_from_targets_only() {
     // Delete col 6 from rows 1 and 2 only. Both have '-' at col 6.
     // Row 0 untouched (no '-' at col 6).
     let result = e.delete_at_subset(&[1, 2], 6);
-    assert_eq!(result, Ok(()));
+    assert!(result.is_ok());
     // Row 0: completely untouched -> "ATGCATGC" (len 8)
     assert_eq!(e.get_row_length(0), 8);
     assert_eq!(e.get_base(0, 0), b'A');
@@ -662,7 +661,7 @@ fn delete_at_subset_removes_from_targets_only() {
 #[test]
 fn delete_column_shrinks_all_rows_and_width() {
     let mut e = engine_with_sample();
-    assert_eq!(e.delete_column(0), Ok(()));
+    assert!(e.delete_column(0).is_ok());
     assert_eq!(e.get_alignment_width(), 7);
     assert_eq!(e.get_row_length(0), 7);
     assert_eq!(e.get_row_length(1), 7);
@@ -679,7 +678,7 @@ fn delete_column_out_of_range_is_noop() {
     let width_before = e.get_alignment_width();
     // Column beyond the alignment width: nothing removed, width unchanged.
     let err = e.delete_column(100);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     assert_eq!(e.get_alignment_width(), width_before);
     assert_eq!(e.get_row_length(0), width_before);
     assert_eq!(e.get_base(0, 0), b'A');
@@ -709,7 +708,7 @@ fn delete_gap_succeeds() {
     let mut e = engine_with_sample();
     // Row 1 col 6 is '-', Row 2 col 6 is '-'.
     let err = e.delete_at_subset(&[1, 2], 6);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     // Row 1 col 6 was '-', removed, '-' appended at end
     assert_eq!(e.get_base(1, 6), b'A');
     // Row 0 completely untouched
@@ -743,7 +742,7 @@ fn mutate_gap_is_allowed() {
     let mut e = engine_with_sample();
     // Row 1 col 6 is '-'. Mutating '-' to 'A' must succeed.
     let err = e.mutate_base(&[1], &[6], b'A');
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     assert_eq!(e.get_base(1, 6), b'A');
 }
 
@@ -752,7 +751,7 @@ fn mutate_iupac_to_gap_is_allowed() {
     let mut e = engine_with_sample();
     // Row 0 col 0 is 'A' (IUPAC). Mutate to '-' must succeed.
     let err = e.mutate_base(&[0], &[0], b'-');
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     assert_eq!(e.get_base(0, 0), b'-');
 }
 
@@ -761,7 +760,7 @@ fn delete_at_subset_non_targets_untouched() {
     let mut e = engine_with_sample();
     // Delete col 6 on rows 1 and 2 (both have '-' at col 6).
     let err = e.delete_at_subset(&[1, 2], 6);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     // Row 0 (non-target) must be completely unchanged.
     assert_eq!(e.get_row_length(0), 8);
     assert_eq!(e.get_base(0, 0), b'A');
@@ -798,7 +797,7 @@ fn insert_only_accepts_gap_by_default() {
     let mut e = engine_with_sample();
     // Insert at col 2 on rows 0 and 1. Only '-' is inserted.
     let err = e.insert_at_subset(&[0, 1], 2);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     assert_eq!(e.get_alignment_width(), 9);
     // Target rows get '-' at col 2
     assert_eq!(e.get_base(0, 2), b'-');
@@ -813,7 +812,7 @@ fn insert_non_target_appends_gap() {
     let mut e = engine_with_sample();
     let orig_len = e.get_row_length(0);
     // Insert on row 0 only.
-    assert_eq!(e.insert_at_subset(&[0], 3), Ok(()));
+    assert!(e.insert_at_subset(&[0], 3).is_ok());
     assert_eq!(e.get_row_length(0), orig_len + 1);
     assert_eq!(e.get_row_length(1), orig_len + 1);
     assert_eq!(e.get_row_length(2), orig_len + 1);
@@ -831,10 +830,10 @@ fn move_horizontal_left_succeeds() {
     let mut e = engine_with_sample();
     // Row 0: "ATGCATGC". Move "CATG" (cols 2..=5) left into col 1 which is 'T'.
     // But col 1 is 'T' (IUPAC), not '-'. So first mutate col 1 to '-'.
-    assert_eq!(e.mutate_base(&[0], &[1], b'-'), Ok(()));
+    assert!(e.mutate_base(&[0], &[1], b'-').is_ok());
     // Row 0: "A-GCATGC". Now move "GCAT" (cols 2..=5) left by 1.
     let err = e.move_horizontal(&[0], &[2, 3, 4, 5], MoveDirection::Left);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     // After left move: "AGCAT-GC"
     assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.get_base(0, 1), b'G');
@@ -851,7 +850,7 @@ fn move_horizontal_right_succeeds() {
     let mut e = engine_with_sample();
     // Row 1: "ATGGTG-A". Move "GGTG" (cols 2..=5) right into col 6 which is '-'.
     let err = e.move_horizontal(&[1], &[2, 3, 4, 5], MoveDirection::Right);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     // After right move: "AT-GGTGA"
     assert_eq!(e.get_base(1, 0), b'A');
     assert_eq!(e.get_base(1, 1), b'T');
@@ -903,11 +902,11 @@ fn move_horizontal_multi_row_left_succeeds() {
     let mut e = engine_with_sample();
     // Row 0: "ATGCATGC", Row 2: "ATGCAT-C"
     // Mutate col 1 to '-' in both rows:
-    assert_eq!(e.mutate_base(&[0, 2], &[1], b'-'), Ok(()));
+    assert!(e.mutate_base(&[0, 2], &[1], b'-').is_ok());
     // Row 0: "A-GCATGC", Row 2: "A-GCAT-C"
     // Move cols 2..=5 left across rows 0 and 2
     let err = e.move_horizontal(&[0, 2], &[2, 3, 4, 5], MoveDirection::Left);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     // Row 0: "AGCAT-GC"
     assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.get_base(0, 1), b'G');
@@ -936,7 +935,7 @@ fn move_horizontal_multi_row_right_succeeds() {
     // Row 1: "ATGGTG-A" (col 6 is '-')
     // Row 2: "ATGCAT-C" (col 6 is '-')
     let err = e.move_horizontal(&[1, 2], &[2, 3, 4, 5], MoveDirection::Right);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     // Row 1: "AT-GGTGA"
     assert_eq!(e.get_base(1, 2), b'-');
     assert_eq!(e.get_base(1, 3), b'G');
@@ -959,7 +958,7 @@ fn move_horizontal_multi_row_right_succeeds() {
 fn move_horizontal_multi_row_atomic_on_target_not_gap() {
     let mut e = engine_with_sample();
     // Row 0 col 1 mutated to '-' -> "A-GCATGC"
-    assert_eq!(e.mutate_base(&[0], &[1], b'-'), Ok(()));
+    assert!(e.mutate_base(&[0], &[1], b'-').is_ok());
     // Row 1 is "ATGGTG-A" (col 1 is 'T', not '-')
     let err = e
         .move_horizontal(&[0, 1], &[2, 3, 4, 5], MoveDirection::Left)
@@ -994,9 +993,9 @@ fn move_horizontal_multi_row_atomic_on_not_iupac() {
 fn move_horizontal_multi_row_deduplicates_rows() {
     let mut e = engine_with_sample();
     // Row 1: "ATGGTG-A". Pass row 1 multiple times.
-    assert_eq!(
-        e.move_horizontal(&[1, 1, 1], &[2, 3, 4, 5], MoveDirection::Right),
-        Ok(())
+    assert!(
+        e.move_horizontal(&[1, 1, 1], &[2, 3, 4, 5], MoveDirection::Right)
+            .is_ok()
     );
     // After single move: "AT-GGTGA"
     assert_eq!(e.get_base(1, 2), b'-');
@@ -1006,8 +1005,8 @@ fn move_horizontal_multi_row_deduplicates_rows() {
 #[test]
 fn move_horizontal_empty_rows_or_cols_is_noop() {
     let mut e = engine_with_sample();
-    assert_eq!(e.move_horizontal(&[], &[2, 3], MoveDirection::Left), Ok(()));
-    assert_eq!(e.move_horizontal(&[0], &[], MoveDirection::Left), Ok(()));
+    assert!(e.move_horizontal(&[], &[2, 3], MoveDirection::Left).is_ok());
+    assert!(e.move_horizontal(&[0], &[], MoveDirection::Left).is_ok());
     assert_eq!(e.undo_depth(), 0);
 }
 
@@ -1015,9 +1014,9 @@ fn move_horizontal_empty_rows_or_cols_is_noop() {
 fn move_horizontal_skips_out_of_range_rows() {
     let mut e = engine_with_sample();
     // Row 999 is out-of-range, row 1 is valid
-    assert_eq!(
-        e.move_horizontal(&[999, 1], &[2, 3, 4, 5], MoveDirection::Right),
-        Ok(())
+    assert!(
+        e.move_horizontal(&[999, 1], &[2, 3, 4, 5], MoveDirection::Right)
+            .is_ok()
     );
     assert_eq!(e.get_base(1, 2), b'-');
     assert_eq!(e.get_base(1, 3), b'G');
@@ -1027,21 +1026,22 @@ fn move_horizontal_skips_out_of_range_rows() {
 fn move_horizontal_skips_short_rows_in_ragged_alignment() {
     let mut e = MsaEngine::new();
     let fasta = ">seq0\nATGCAT-C\n>seq1\nATG\n";
-    assert_eq!(e.load_fasta(fasta), Ok(2));
+    assert!(e.load_fasta(fasta).unwrap().changed);
+    assert_eq!(e.get_sequence_count(), 2);
 
     // When all target rows are short rows, move is a clean no-op
     let undo_depth = e.undo_depth();
-    assert_eq!(
-        e.move_horizontal(&[1], &[2, 3, 4, 5], MoveDirection::Right),
-        Ok(())
+    assert!(
+        e.move_horizontal(&[1], &[2, 3, 4, 5], MoveDirection::Right)
+            .is_ok()
     );
     assert_eq!(e.undo_depth(), undo_depth);
 
     // Row 0 has len 8 (end < 8 -> valid target).
     // Row 1 has len 3 (end >= 3 -> short row, skipped).
-    assert_eq!(
-        e.move_horizontal(&[0, 1], &[2, 3, 4, 5], MoveDirection::Right),
-        Ok(())
+    assert!(
+        e.move_horizontal(&[0, 1], &[2, 3, 4, 5], MoveDirection::Right)
+            .is_ok()
     );
     // Row 0 rotated right: "AT-GCATC"
     assert_eq!(e.get_base(0, 1), b'T');
@@ -1161,7 +1161,7 @@ fn move_rows_up_swaps_with_above() {
     let mut e = engine_with_sample();
     // Move row 1 up — swaps with row 0.
     let err = e.move_rows_up(&[1]);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     assert_eq!(e.get_name(0), "seq2");
     assert_eq!(e.get_name(1), "seq1 first record");
     assert_eq!(e.get_name(2), "seq3 third record");
@@ -1172,7 +1172,7 @@ fn move_rows_down_swaps_with_below() {
     let mut e = engine_with_sample();
     // Move row 1 down — swaps with row 2.
     let err = e.move_rows_down(&[1]);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     assert_eq!(e.get_name(0), "seq1 first record");
     assert_eq!(e.get_name(1), "seq3 third record");
     assert_eq!(e.get_name(2), "seq2");
@@ -1182,7 +1182,7 @@ fn move_rows_down_swaps_with_below() {
 fn move_rows_up_at_top_is_noop() {
     let mut e = engine_with_sample();
     let err = e.move_rows_up(&[0]);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     assert_eq!(e.get_name(0), "seq1 first record");
 }
 
@@ -1190,7 +1190,7 @@ fn move_rows_up_at_top_is_noop() {
 fn move_rows_down_at_bottom_is_noop() {
     let mut e = engine_with_sample();
     let err = e.move_rows_down(&[2]);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     assert_eq!(e.get_name(2), "seq3 third record");
 }
 
@@ -1199,7 +1199,7 @@ fn move_rows_multiple_simultaneously() {
     let mut e = engine_with_sample();
     // Move rows 0 and 2 up. Row 0 is at top (no-op), row 2 swaps with row 1.
     let err = e.move_rows_up(&[0, 2]);
-    assert_eq!(err, Ok(()));
+    assert!(err.is_ok());
     assert_eq!(e.get_name(0), "seq1 first record"); // unchanged (was at top)
     assert_eq!(e.get_name(1), "seq3 third record"); // row 2 moved up
     assert_eq!(e.get_name(2), "seq2"); // row 1 moved down
@@ -1209,7 +1209,7 @@ fn move_rows_multiple_simultaneously() {
 fn move_rows_preserves_sequence_data() {
     let mut e = engine_with_sample();
     // Row 0: "ATGCATGC", Row 1: "ATGGTG-A"
-    assert_eq!(e.move_rows_up(&[1]), Ok(()));
+    assert!(e.move_rows_up(&[1]).is_ok());
     // After swap, row 0 should have seq2's data, row 1 should have seq1's.
     assert_eq!(e.get_base(0, 0), b'A'); // seq2[0] = 'A'
     assert_eq!(e.get_base(0, 3), b'G'); // seq2[3] = 'G'
@@ -1231,7 +1231,7 @@ fn engine_with_n_rows(n: usize) -> MsaEngine {
 fn move_rows_relative_preserves_spacing_down() {
     let mut e = engine_with_n_rows(12);
     // Rows 1, 3, 8 moved down by 1 -> should become 2, 4, 9
-    assert_eq!(e.move_rows_relative(&[1, 3, 8], 1), Ok(()));
+    assert!(e.move_rows_relative(&[1, 3, 8], 1).is_ok());
     assert_eq!(e.get_name(2), "seq1");
     assert_eq!(e.get_name(4), "seq3");
     assert_eq!(e.get_name(9), "seq8");
@@ -1241,7 +1241,7 @@ fn move_rows_relative_preserves_spacing_down() {
 
     // Undo restores
     assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_name(1), "seq1");
     assert_eq!(e.get_name(3), "seq3");
     assert_eq!(e.get_name(8), "seq8");
@@ -1251,7 +1251,7 @@ fn move_rows_relative_preserves_spacing_down() {
 fn move_rows_relative_preserves_spacing_up() {
     let mut e = engine_with_n_rows(12);
     // Rows 2, 4, 9 moved up by 1 -> should become 1, 3, 8
-    assert_eq!(e.move_rows_relative(&[2, 4, 9], -1), Ok(()));
+    assert!(e.move_rows_relative(&[2, 4, 9], -1).is_ok());
     assert_eq!(e.get_name(1), "seq2");
     assert_eq!(e.get_name(3), "seq4");
     assert_eq!(e.get_name(8), "seq9");
@@ -1264,7 +1264,7 @@ fn move_rows_relative_preserves_spacing_up() {
 fn move_rows_relative_joined_block_down() {
     let mut e = engine_with_n_rows(6);
     // Rows 1, 2, 3 moved down by 1 -> should become 2, 3, 4 as a solid unit
-    assert_eq!(e.move_rows_relative(&[1, 2, 3], 1), Ok(()));
+    assert!(e.move_rows_relative(&[1, 2, 3], 1).is_ok());
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(1), "seq4"); // jumped above the block
     assert_eq!(e.get_name(2), "seq1");
@@ -1273,7 +1273,7 @@ fn move_rows_relative_joined_block_down() {
     assert_eq!(e.get_name(5), "seq5");
 
     assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_name(1), "seq1");
     assert_eq!(e.get_name(2), "seq2");
     assert_eq!(e.get_name(3), "seq3");
@@ -1284,7 +1284,7 @@ fn move_rows_relative_joined_block_down() {
 fn move_rows_relative_joined_block_up() {
     let mut e = engine_with_n_rows(6);
     // Rows 2, 3, 4 moved up by 1 -> should become 1, 2, 3 as a solid unit
-    assert_eq!(e.move_rows_relative(&[2, 3, 4], -1), Ok(()));
+    assert!(e.move_rows_relative(&[2, 3, 4], -1).is_ok());
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(1), "seq2");
     assert_eq!(e.get_name(2), "seq3");
@@ -1297,13 +1297,13 @@ fn move_rows_relative_joined_block_up() {
 fn move_rows_relative_boundary_pinned_block_does_not_scramble() {
     let mut e = engine_with_n_rows(6);
     // Boundary block at top [0, 1] moving up is a complete no-op: rows 0 and 1 must NOT swap!
-    assert_eq!(e.move_rows_relative(&[0, 1], -1), Ok(()));
+    assert!(e.move_rows_relative(&[0, 1], -1).is_ok());
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(1), "seq1");
 
     // Mixed: [0, 1] pinned at top, [3, 4] can move up to [2, 3]
-    assert_eq!(e.move_rows_relative(&[0, 1, 3, 4], -1), Ok(()));
+    assert!(e.move_rows_relative(&[0, 1, 3, 4], -1).is_ok());
     assert_eq!(e.undo_depth(), 1);
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(1), "seq1");
@@ -1317,7 +1317,7 @@ fn move_rows_relative_boundary_pinned_block_does_not_scramble() {
 fn move_rows_grouped_to_target_index() {
     let mut e = engine_with_n_rows(12);
     // Rows 4, 5, 10 moved and grouped starting at target row 6 -> become rows 6, 7, 8
-    assert_eq!(e.move_rows_grouped(&[4, 5, 10], 6), Ok(()));
+    assert!(e.move_rows_grouped(&[4, 5, 10], 6).is_ok());
     assert_eq!(e.get_name(6), "seq4");
     assert_eq!(e.get_name(7), "seq5");
     assert_eq!(e.get_name(8), "seq10");
@@ -1336,7 +1336,7 @@ fn move_rows_grouped_to_target_index() {
 
     // 1 atomic undo restores everything
     assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_name(4), "seq4");
     assert_eq!(e.get_name(5), "seq5");
     assert_eq!(e.get_name(10), "seq10");
@@ -1346,7 +1346,7 @@ fn move_rows_grouped_to_target_index() {
 fn move_rows_to_top_groups_arbitrary_selection_at_top() {
     let mut e = engine_with_n_rows(6);
     // Rows 2 and 4 moved to top
-    assert_eq!(e.move_rows_to_top(&[2, 4]), Ok(()));
+    assert!(e.move_rows_to_top(&[2, 4]).is_ok());
     assert_eq!(e.get_name(0), "seq2");
     assert_eq!(e.get_name(1), "seq4");
     assert_eq!(e.get_name(2), "seq0");
@@ -1355,7 +1355,7 @@ fn move_rows_to_top_groups_arbitrary_selection_at_top() {
     assert_eq!(e.get_name(5), "seq5");
 
     assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(2), "seq2");
     assert_eq!(e.get_name(4), "seq4");
@@ -1365,7 +1365,7 @@ fn move_rows_to_top_groups_arbitrary_selection_at_top() {
 fn move_rows_to_bottom_groups_arbitrary_selection_at_bottom() {
     let mut e = engine_with_n_rows(6);
     // Rows 1 and 3 moved to bottom
-    assert_eq!(e.move_rows_to_bottom(&[1, 3]), Ok(()));
+    assert!(e.move_rows_to_bottom(&[1, 3]).is_ok());
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(1), "seq2");
     assert_eq!(e.get_name(2), "seq4");
@@ -1374,7 +1374,7 @@ fn move_rows_to_bottom_groups_arbitrary_selection_at_bottom() {
     assert_eq!(e.get_name(5), "seq3");
 
     assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_name(1), "seq1");
     assert_eq!(e.get_name(3), "seq3");
 }
@@ -1383,7 +1383,7 @@ fn move_rows_to_bottom_groups_arbitrary_selection_at_bottom() {
 fn move_rows_relative_with_isize_min_does_not_panic_and_pins_to_top() {
     let mut e = engine_with_n_rows(6);
     // Rows 2 and 4 moved with delta = isize::MIN should shift all the way to top without panicking
-    assert_eq!(e.move_rows_relative(&[2, 4], isize::MIN), Ok(()));
+    assert!(e.move_rows_relative(&[2, 4], isize::MIN).is_ok());
     assert_eq!(e.get_name(0), "seq2");
     assert_eq!(e.get_name(1), "seq4");
     assert_eq!(e.get_name(2), "seq0");
@@ -1392,7 +1392,7 @@ fn move_rows_relative_with_isize_min_does_not_panic_and_pins_to_top() {
     assert_eq!(e.get_name(5), "seq5");
 
     assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(2), "seq2");
     assert_eq!(e.get_name(4), "seq4");
@@ -1402,7 +1402,7 @@ fn move_rows_relative_with_isize_min_does_not_panic_and_pins_to_top() {
 fn move_rows_relative_with_isize_max_does_not_hang_and_pins_to_bottom() {
     let mut e = engine_with_n_rows(6);
     // Rows 1 and 3 moved with delta = isize::MAX should shift all the way to bottom without hanging
-    assert_eq!(e.move_rows_relative(&[1, 3], isize::MAX), Ok(()));
+    assert!(e.move_rows_relative(&[1, 3], isize::MAX).is_ok());
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(1), "seq2");
     assert_eq!(e.get_name(2), "seq4");
@@ -1411,7 +1411,7 @@ fn move_rows_relative_with_isize_max_does_not_hang_and_pins_to_bottom() {
     assert_eq!(e.get_name(5), "seq3");
 
     assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_name(1), "seq1");
     assert_eq!(e.get_name(3), "seq3");
 }
@@ -1420,7 +1420,7 @@ fn move_rows_relative_with_isize_max_does_not_hang_and_pins_to_bottom() {
 fn move_rows_relative_mixed_boundary_up_and_down() {
     let mut e = engine_with_n_rows(6);
     // [0, 3] moved up by 1: row 0 remains at 0, row 3 moves to 2 (swaps with 2)
-    assert_eq!(e.move_rows_relative(&[0, 3], -1), Ok(()));
+    assert!(e.move_rows_relative(&[0, 3], -1).is_ok());
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(1), "seq1");
     assert_eq!(e.get_name(2), "seq3");
@@ -1429,7 +1429,7 @@ fn move_rows_relative_mixed_boundary_up_and_down() {
     assert_eq!(e.get_name(5), "seq5");
 
     // [1, 5] moved down by 1: row 5 remains at 5, row 1 moves to 2 (swaps with 2 which is seq3)
-    assert_eq!(e.move_rows_relative(&[1, 5], 1), Ok(()));
+    assert!(e.move_rows_relative(&[1, 5], 1).is_ok());
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(1), "seq3");
     assert_eq!(e.get_name(2), "seq1");
@@ -1444,7 +1444,7 @@ fn move_rows_relative_large_selection_and_delta_executes_efficiently() {
     let mut e = engine_with_n_rows(n);
     // Select first 5,000 rows, move down by 2,500
     let selected: Vec<usize> = (0..5000).collect();
-    assert_eq!(e.move_rows_relative(&selected, 2500), Ok(()));
+    assert!(e.move_rows_relative(&selected, 2500).is_ok());
     // Rows 0..2500 are now unselected (originally 5000..7500)
     assert_eq!(e.get_name(0), "seq5000");
     assert_eq!(e.get_name(2499), "seq7499");
@@ -1457,7 +1457,7 @@ fn move_rows_relative_large_selection_and_delta_executes_efficiently() {
 
     // Move back up by 2500
     let new_selected: Vec<usize> = (2500..7500).collect();
-    assert_eq!(e.move_rows_relative(&new_selected, -2500), Ok(()));
+    assert!(e.move_rows_relative(&new_selected, -2500).is_ok());
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(4999), "seq4999");
     assert_eq!(e.get_name(5000), "seq5000");
@@ -1949,13 +1949,13 @@ fn apply_aligned_fasta_updates_matrix_and_supports_undo_redo() {
     assert_eq!(e.undo_depth(), 1);
 
     // Undo restores original matrix and width
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), orig_width);
     assert_eq!(e.get_row_length(0), 4);
     assert_eq!(e.get_row_length(1), 4);
 
     // Redo re-applies aligned matrix
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), 6);
     assert_eq!(e.get_row_length(0), 6);
     assert_eq!(e.get_row_length(1), 6);
@@ -2042,7 +2042,7 @@ fn apply_aligned_fasta_accepts_lowercase_mutated_residues_case_insensitively() {
     assert_eq!(e.get_base(1, 0), b'A');
 
     // Undo restores the mutated state
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(1, 0), b'a');
 }
 
@@ -2092,7 +2092,7 @@ fn realign_preserves_all_gap_rows_mid_edit() {
     }
 
     // Undo restores original state
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), 8);
     assert_eq!(e.get_row_length(1), 4);
 }
@@ -2184,8 +2184,7 @@ fn load_fasta_prepends_in_order_ahead_of_existing_rows() {
     assert_eq!(e.undo_depth(), 0);
 
     // Prepend a multi-sequence batch
-    let count = e.load_fasta(">seq1\nTTTT\n>seq2\nGGGG").unwrap();
-    assert_eq!(count, 4);
+    assert!(e.load_fasta(">seq1\nTTTT\n>seq2\nGGGG").unwrap().changed);
     assert_eq!(e.get_sequence_count(), 4);
     assert_eq!(e.get_name(0), "seq1");
     assert_eq!(e.get_name(1), "seq2");
@@ -2238,7 +2237,7 @@ fn reset_clears_all_state_and_caches() {
     let mut out = [0u8; 8];
     e.update_viewport_into(0, 0, 0, 7, &mut out);
 
-    e.reset();
+    e.reset().unwrap();
     assert_eq!(e.get_sequence_count(), 0);
     assert_eq!(e.get_alignment_width(), 0);
     assert_eq!(e.undo_depth(), 0);
@@ -2256,8 +2255,7 @@ fn load_fasta_empty_input_is_noop_without_undo() {
     assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.undo_depth(), 0);
 
-    let count = e.load_fasta("   \n\n  ").unwrap();
-    assert_eq!(count, 3);
+    assert!(!e.load_fasta("   \n\n  ").unwrap().changed);
     assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.undo_depth(), 0);
 }
@@ -2291,7 +2289,7 @@ fn delete_rows_removes_single_and_disjoint_rows_and_updates_width() {
     assert_eq!(e.undo_depth(), 2);
 
     // Undo second deletion restores 4 rows
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 4);
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(1), "seq2");
@@ -2299,7 +2297,7 @@ fn delete_rows_removes_single_and_disjoint_rows_and_updates_width() {
     assert_eq!(e.get_name(3), "seq4");
 
     // Undo first deletion restores all 5 rows
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 5);
     assert_eq!(e.get_name(1), "seq1");
     assert_eq!(e.get_base(1, 0), b'C');
@@ -2329,7 +2327,7 @@ fn delete_rows_allows_deleting_all_rows_and_restoring_via_undo() {
     assert_eq!(e.update_viewport_into(0, 5, 0, 10, &mut out), 0);
 
     // Restore via undo
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.get_alignment_width(), 8);
     assert_eq!(e.get_name(0), "seq1 first record");
@@ -2340,7 +2338,7 @@ fn delete_rows_allows_deleting_all_rows_and_restoring_via_undo() {
     assert_eq!(e.redo_depth(), 1);
 
     // Reapply via redo
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 0);
     assert_eq!(e.get_alignment_width(), 0);
     assert_eq!(e.undo_depth(), 1);
@@ -2401,11 +2399,11 @@ fn delete_rows_recomputes_ragged_alignment_width() {
     assert_eq!(e.get_alignment_width(), 10);
 
     // Undo: width restored to 10, then 15, then 20
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), 10);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), 15);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), 20);
 }
 

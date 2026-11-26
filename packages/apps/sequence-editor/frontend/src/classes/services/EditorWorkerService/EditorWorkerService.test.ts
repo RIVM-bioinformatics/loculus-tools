@@ -9,7 +9,10 @@ import {
   vi,
 } from 'vitest';
 
-import type { EngineMeta } from '../../../models/editor.models';
+import type {
+  DataModificationResult,
+  EngineMeta,
+} from '../../../models/editor.models';
 
 import { EditorWorkerService } from './EditorWorkerService';
 
@@ -18,7 +21,7 @@ const mockState = vi.hoisted(() => ({
     align: vi.fn<(fasta: string) => Promise<string>>(),
   },
   engineApi: {
-    applyAlignedFasta: vi.fn<(fasta: string, expectedRevision?: number) => Promise<boolean>>(),
+    applyAlignedFasta: vi.fn<(fasta: string, expectedRevision?: number) => Promise<DataModificationResult>>(),
     exportGappedFasta: vi.fn<() => Promise<string>>(),
     meta: vi.fn<() => Promise<EngineMeta>>(),
   },
@@ -52,7 +55,7 @@ describe('EditorWorkerService.realign', () => {
       undoDepth: 0,
     });
     mockState.alignerApi.align.mockResolvedValue('>s1\nATGC\n>s2\nATGC\n');
-    mockState.engineApi.applyAlignedFasta.mockResolvedValue(true);
+    mockState.engineApi.applyAlignedFasta.mockResolvedValue({ changed: true, revision: 8 });
 
     vi.stubGlobal(
       'Worker',
@@ -74,9 +77,9 @@ describe('EditorWorkerService.realign', () => {
 
   it('returns the committed result if cancellation arrives after applyAlignedFasta was dispatched', async () => {
     const service = new EditorWorkerService();
-    let resolveApply: ((changed: boolean) => void) | undefined;
+    let resolveApply: ((result: DataModificationResult) => void) | undefined;
     mockState.engineApi.applyAlignedFasta.mockImplementation(
-      async () => new Promise<boolean>((resolve) => {
+      async () => new Promise<DataModificationResult>((resolve) => {
         resolveApply = resolve;
       }),
     );
@@ -88,9 +91,9 @@ describe('EditorWorkerService.realign', () => {
     });
 
     service.cancelRealign();
-    resolveApply?.(true);
+    resolveApply?.({ changed: true, revision: 8 });
 
-    await expect(realignPromise).resolves.toBe(true);
+    await expect(realignPromise).resolves.toEqual({ changed: true, revision: 8 });
     expect(mockState.workerInstances[0]?.terminate).toHaveBeenCalled();
   });
 

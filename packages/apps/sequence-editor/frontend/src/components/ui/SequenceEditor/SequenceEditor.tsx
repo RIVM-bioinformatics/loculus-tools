@@ -29,6 +29,7 @@ import { useFastaDataTransfer } from '@rivm-loculus-tools/common-frontend/hooks/
 import { EditorWorkerService } from '../../../classes/services/EditorWorkerService';
 import { SequenceEditorEventBusService } from '../../../classes/services/SequenceEditorEventBusService';
 import type {
+  DataModificationResult,
   EditorAssembly,
   EditorPathProperties,
   EditorSelection,
@@ -526,14 +527,14 @@ export const SequenceEditor = () => {
   useEffect(() => {
     const execute = async (args: {
       abortSignal?: AbortSignal;
-      command: () => Promise<boolean | void>;
+      command: () => Promise<DataModificationResult | null>;
       getSelectionPostCommand?: () => EditorSelection | null;
       invalidateRowNames?: boolean;
     }): Promise<boolean> => {
       const { abortSignal, command, getSelectionPostCommand, invalidateRowNames } = args;
       try {
-        const changed = await command();
-        if (abortSignal?.aborted || changed === false) {
+        const result = await command();
+        if (abortSignal?.aborted || !result?.changed) {
           return false;
         }
         cachedGridRangeWithViewPortResultRef.current = null;
@@ -605,18 +606,18 @@ export const SequenceEditor = () => {
       await execute({
         command: async () => {
           if (direction === EDITOR_DIRECTION.UP) {
-            const changed = await editorService.moveRowsToTop(rows);
-            if (changed && scrollContainerRef.current) {
+            const result = await editorService.moveRowsToTop(rows);
+            if (result.changed && scrollContainerRef.current) {
               scrollContainerRef.current.scrollTop = 0;
             }
-            return changed;
+            return result;
           }
-          const changed = await editorService.moveRowsToBottom(rows);
-          if (changed && scrollContainerRef.current) {
+          const result = await editorService.moveRowsToBottom(rows);
+          if (result.changed && scrollContainerRef.current) {
             scrollContainerRef.current.scrollTop =
               scrollContainerRef.current.scrollHeight - scrollContainerRef.current.clientHeight;
           }
-          return changed;
+          return result;
         },
         getSelectionPostCommand: () =>
           EditorUtil.getMovedRowsEndSelection(selectionSubject.data, direction, metaSubject.data),
@@ -682,15 +683,18 @@ export const SequenceEditor = () => {
           abortSignal: abortController.signal,
           command: async () => {
             const loadCommand = editorService.loadFasta(fasta, abortController.signal);
-            const changed = await loadCommand;
-            if (loadCommand.abortSignal?.aborted || !changed) {
-              return false;
+            const result = await loadCommand;
+            if (loadCommand.abortSignal?.aborted) {
+              return null;
+            }
+            if (!result.changed) {
+              return result;
             }
             if (sequenceEditorStore.getState().searchQuery) {
               eventBusService.emit('onSearch', sequenceEditorStore.getState().searchQuery);
             }
             sequenceEditorStore.getState().setLatestMessage('Pasted sequences from clipboard');
-            return true;
+            return result;
           },
           getSelectionPostCommand: () => EditorUtil.getPostPasteSequencesSelection(selectionSubject.data, fasta),
           invalidateRowNames: true,
@@ -898,7 +902,7 @@ export const SequenceEditor = () => {
               return await editorService.realign();
             } catch (error) {
               if (error instanceof DOMException && error.name === 'AbortError') {
-                return false;
+                return null;
               }
               sequenceEditorStore.getState().setLatestMessage(EngineErrorUtil.getEngineErrorMessage(error));
               throw error;

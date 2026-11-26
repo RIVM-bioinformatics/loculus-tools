@@ -103,6 +103,7 @@ wasm-bindgen = "0.2.125"
 js-sys = "0.3.77"                 # requires 0.3.x; "0.2" resolves to an ancient broken version
 serde-wasm-bindgen = "0.6"
 mafft = "0.2.0"                   # pure-Rust MAFFT v7.526 implementation
+tsify = { version = "0.5.8", default-features = false, features = ["js"] } # TS types for serde structs
 
 [dependencies.serde]
 version = "1.0"
@@ -188,13 +189,13 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 | Method | Signature (JS-facing) | Description |
 |--------|----------------------|-------------|
 | `new()` | `new MsaEngine()` | Construct an empty engine. |
-| `reset()` | `reset(): void` | Reset the engine to its initial empty state, clearing all sequences, names, caches, and undo/redo history while monotonically advancing `revision`. |
+| `reset()` | `reset(): DataModificationResult` | Reset the engine to its initial empty state, clearing all sequences, names, caches, and undo/redo history while monotonically advancing `revision` (always `changed: true`). |
 
 ### 4.2 Loading
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `load_fasta` | `load_fasta(fasta: string): number` | Validate and parse FASTA atomically; prepend sequences ahead of existing rows, update width, and record a compact `PrependedSequences` command if prior state exists. Throw a structured error on invalid input. |
+| `load_fasta` | `load_fasta(fasta: string): DataModificationResult` | Validate and parse FASTA atomically; prepend sequences ahead of existing rows, update width, and record a compact `PrependedSequences` command if prior state exists. Throw a structured error on invalid input. |
 
 `load_fasta` behavior:
 
@@ -204,8 +205,8 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 - If the engine already contains state (sequences or undo/redo history), a
   `PrependedSequences` command is recorded so the addition can be undone (`Ctrl+Z` / `Cmd+Z`).
   Initial load into a fresh or reset engine keeps `undo_depth == 0` and advances `revision`.
-- Empty or whitespace-only input is a no-op that returns the current sequence
-  count without modifying `revision`, `redo_stack`, or `aminoacid_sequences`.
+- Empty or whitespace-only input is a no-op that returns `changed: false`
+  without modifying `revision`, `redo_stack`, or `aminoacid_sequences`.
 - Scans line by line. A line starting with `>` begins a new record; the complete
   trimmed header after `>` becomes the row name. Validation diagnostics use the
   first whitespace-delimited token as the sequence ID.
@@ -304,7 +305,10 @@ Both methods return a `Uint8Array` of UTF-8 encoded FASTA bytes. Headers preserv
 All mutation methods run **synchronously** on the worker thread. Each one
 records an `UndoCommand` onto `undo_stack` *before* mutating, and clears the
 `redo_stack` (a new edit invalidates the redo branch). The main thread only
-sends a command and awaits an acknowledgment.
+sends a command and awaits an acknowledgment. Every data-modifying method
+(including `load_fasta`, `reset`, `undo`, and `redo`) returns
+`Result<DataModificationResult, StructuredEngineError>`; see
+[section 5.11](#511-modification-results).
 
 ### 5.0 Editing constraints (the ruleset)
 
@@ -467,7 +471,7 @@ Reorder rows without character constraints, updating both `sequences` and `names
 
 ### 5.7 Row Deletion (`delete_rows`)
 
-`MsaEngine::delete_rows(&mut self, row_indices: &[usize]) -> Result<(), StructuredEngineError>`
+`MsaEngine::delete_rows(&mut self, row_indices: &[usize]) -> Result<DataModificationResult, StructuredEngineError>`
 
 - **Atomicity**: Deduplicates and bounds-checks `row_indices`. If no valid rows exist, returns `Ok(())` without pushing an undo entry. Otherwise, moves deleted rows in ascending index order into `DeletedRow`.
 - **Width recalculation**: Recomputes `alignment_width` from the maximum length of remaining rows, or `0` if all rows are removed.
@@ -492,7 +496,7 @@ Re-aligns all loaded sequences across the whole matrix using the pure-Rust `maff
 
 To support non-blocking and cancelable sequence re-alignment, the engine provides:
 - Standalone `align_fasta(fasta_content: &str) -> Result<String, StructuredEngineError>`: Computes MAFFT FFT-NS-1 on an unaligned or gapped FASTA string, suitable for execution inside an ephemeral worker without initializing the full engine. Preserves all-gap rows and returns formatted FASTA or returns `StructuredEngineError` if UTF-8 encoding or validation fails.
-- Method `apply_aligned_fasta(&mut self, fasta_content: &str, expected_revision: Option<usize>) -> Result<(), StructuredEngineError>`: Checks `expected_revision` first (returning `"StaleRevision"` before parsing FASTA if mismatched), then validates that sequence counts match, all aligned rows have uniform equal lengths, sequence headers and order match the current matrix, and ungapped residue identities are strictly conserved. If the resulting matrix is byte-for-byte identical to the current state (`names`, `sequences`, and `alignment_width`), leaves history, `revision`, and `aminoacid_sequences` untouched; otherwise swaps the previous matrix into a `ReplaceMatrix` command onto `undo_stack`, updates `alignment_width`, increments `revision`, and clears `aminoacid_sequences`.
+- Method `apply_aligned_fasta(&mut self, fasta_content: &str, expected_revision: Option<usize>) -> Result<DataModificationResult, StructuredEngineError>`: Checks `expected_revision` first (returning `"StaleRevision"` before parsing FASTA if mismatched), then validates that sequence counts match, all aligned rows have uniform equal lengths, sequence headers and order match the current matrix, and ungapped residue identities are strictly conserved. If the resulting matrix is byte-for-byte identical to the current state (`names`, `sequences`, and `alignment_width`), leaves history, `revision`, and `aminoacid_sequences` untouched; otherwise swaps the previous matrix into a `ReplaceMatrix` command onto `undo_stack`, updates `alignment_width`, increments `revision`, and clears `aminoacid_sequences`.
 
 ### 5.10 Structured errors
 
@@ -535,7 +539,8 @@ pub struct InvalidCharacterContext {
 }
 ```
 
-The types derive `serde::Serialize`; `From<StructuredEngineError> for JsValue`
+The types derive `serde::Serialize` and `tsify::Tsify` (which only emits their
+TypeScript declarations into the generated `.d.ts`); `From<StructuredEngineError> for JsValue`
 uses `serde_wasm_bindgen` so wasm-bindgen throws the structured object. Context is
 boxed (`Option<Box<ErrorContext>>`) to keep the error type compact and avoid
 oversized `Result` types, while serializing identically to JavaScript. Optional
@@ -566,17 +571,47 @@ oversized results, or reservation failures return `InvalidViewport` with
 | `InputTooLarge` | Matrix or alignment exceeds `MAX_ALIGNMENT_*` limits. | None |
 | `AlignmentFailed` | MAFFT returned an invalid aligned sequence set. | None |
 
+### 5.11 Modification results
+
+Successful data-modifying calls return `DataModificationResult`
+(`src/modification.rs`):
+
+```rust
+#[serde(rename_all = "camelCase")]
+pub struct DataModificationResult {
+  pub changed: bool,   // `revision` advanced
+  pub revision: usize, // revision after the call
+}
+```
+
+- Each public method wraps a private `*_inner` body in
+  `MsaEngine::track_modification`, which compares `revision` before and after.
+  No-op early returns therefore report `changed: false` without building a
+  result on every path, and errors keep the all-or-nothing guarantee.
+- The struct derives `Tsify`, so its TypeScript interface is generated into
+  `sequence_editor.d.ts` and methods are typed `(...) => DataModificationResult`.
+- It implements wasm-bindgen's `WasmDescribe` / `IntoWasmAbi` by delegating to
+  `tsify::Ts<Self>`, so `#[wasm_bindgen]` methods return the plain Rust struct
+  (usable natively in `cargo test`) and JavaScript receives a plain,
+  structured-cloneable object. tsify deprecated `#[tsify(into_wasm_abi)]`
+  because ABI conversion cannot report failure; this impl is sound only while
+  serialization is infallible, so new fields must stay plain numbers, strings,
+  `Option`s, or `Vec`s.
+- Compatibility rules: success values stay a struct; fields are only added
+  (as `Option<T>` with `skip_serializing_if = "Option::is_none"`), never renamed,
+  removed, or redefined; consumers ignore unknown fields.
+
 ---
 
 ## 6. Undo / Redo
 
 The engine maintains bounded `VecDeque<UndoCommand>` stacks (`undo_stack` and `redo_stack`). Every applied mutation pushes onto `undo_stack` via `push_to_undo_stack()`, clears `redo_stack`, evicts oldest entries in FIFO order when `max_undo_depth` (`2000`) or `max_history_bytes` (`256 MiB`) would be exceeded, recomputes `history_bytes`, increments `revision`, and clears `aminoacid_sequences`.
 
-### 6.1 `undo(): boolean`
+### 6.1 `undo(): DataModificationResult`
 
 Pops the most recent command (`pop_back()`) and reverses it in-place:
 
-- **`Substitutions`**: swaps `(row, col, target_base)` in-place inside `positions` with zero heap allocations (filtering out-of-bounds entries via compaction); returns `false` without incrementing `revision` if zero cells were in-bounds.
+- **`Substitutions`**: swaps `(row, col, target_base)` in-place inside `positions` with zero heap allocations (filtering out-of-bounds entries via compaction); is reported as `changed: false` without incrementing `revision` if zero cells were in-bounds.
 - **`HorizontalMove` / `RowReorder` / `InsertAtSubset` / `DeleteAtSubset` / `DeleteColumn` / `DeletedRow` / `PrependedSequences` / `ReplaceMatrix`**: applies the exact compact inverse in-place or via pointer swaps (`DeletedRow` moves restored rows back into the matrix and keeps only `row_indices` on `redo_stack`; `PrependedSequences` drains prepended rows onto `redo_stack`; `ReplaceMatrix` swaps buffers via `std::mem::swap`).
 
 Recomputes `history_bytes`, enforces `max_history_bytes` across both stacks, increments `revision`, and clears `aminoacid_sequences`. Specifically:
@@ -584,13 +619,13 @@ Recomputes `history_bytes`, enforces `max_history_bytes` across both stacks, inc
 - If the reverse command's `estimated_byte_size()` alone exceeds `max_history_bytes`, `redo_stack` is cleared and the oversized redo entry is not pushed (preserving earlier `undo_stack` entries while preventing older redo entries from skipping over the un-recorded undone step).
 - Otherwise, the reverse command is pushed onto `redo_stack`, `history_bytes` is recomputed, and if `history_bytes > max_history_bytes`, oldest `undo_stack` entries are evicted first (`pop_front()`), followed by oldest `redo_stack` entries (`pop_front()`) if `undo_stack` is empty.
 
-Returns `true` if an undo was applied, `false` if the undo stack was empty or degenerate.
+Returns `changed: true` if an undo was applied, `changed: false` if the undo stack was empty or degenerate. Never returns `Err` today; the `Result` keeps the signature uniform with other mutations.
 
-### 6.2 `redo(): boolean`
+### 6.2 `redo(): DataModificationResult`
 
 Symmetric to `undo`. Pops from `redo_stack`, re-applies the forward edit in-place, pushes the reverse command back to `undo_stack` while enforcing `max_undo_depth` and `max_history_bytes` (clearing `undo_stack` without pushing if the command itself exceeds `max_history_bytes` or `max_undo_depth == 0`, otherwise evicting oldest `undo_stack` then oldest `redo_stack` entries as needed), recomputes `history_bytes`, increments `revision`, and clears `aminoacid_sequences`.
 
-Returns `true` if a redo was applied, `false` if the redo stack was empty or degenerate.
+Returns `changed: true` if a redo was applied, `changed: false` if the redo stack was empty or degenerate.
 
 ### 6.3 Invariants
 
@@ -620,10 +655,10 @@ e.load_fasta(">seq1\nATGCATGC\n>seq2\nATGGTG-A").unwrap();
 assert_eq!(e.get_sequence_count(), 2);
 assert_eq!(e.get_alignment_width(), 8);
 
-// Mutation methods return Result<(), StructuredEngineError>.
-assert_eq!(e.mutate_base(&[0], &[3], b'G'), Ok(()));
+// Mutation methods return Result<DataModificationResult, StructuredEngineError>.
+assert!(e.mutate_base(&[0], &[3], b'G').unwrap().changed);
 assert_eq!(e.get_base(0, 3), b'G');
-assert!(e.undo());
+assert!(e.undo().unwrap().changed);
 assert_eq!(e.get_base(0, 3), b'C');
 
 // Attempting to delete a non-gap returns a structured error.

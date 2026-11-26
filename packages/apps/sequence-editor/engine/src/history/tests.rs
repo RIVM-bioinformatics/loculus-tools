@@ -32,13 +32,13 @@ fn export_tracks_undo_and_redo_state() {
     let original = e.export_fasta_bytes(true);
     let original_ungapped = e.export_fasta_bytes(false);
 
-    assert_eq!(e.mutate_base(&[0], &[0], b'G'), Ok(()));
+    assert!(e.mutate_base(&[0], &[0], b'G').is_ok());
     let edited = e.export_fasta_bytes(true);
     let edited_ungapped = e.export_fasta_bytes(false);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.export_fasta_bytes(true), original);
     assert_eq!(e.export_fasta_bytes(false), original_ungapped);
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.export_fasta_bytes(true), edited);
     assert_eq!(e.export_fasta_bytes(false), edited_ungapped);
 }
@@ -47,13 +47,13 @@ fn export_tracks_undo_and_redo_state() {
 fn mutate_records_undo_and_clears_redo() {
     let mut e = engine_with_sample();
     // Seed a redo entry by doing + undoing an edit.
-    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
+    assert!(e.mutate_base(&[0], &[0], b'T').is_ok());
     assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 1);
     // A new mutation must clear the redo stack and push onto undo.
-    assert_eq!(e.mutate_base(&[1], &[1], b'G'), Ok(()));
+    assert!(e.mutate_base(&[1], &[1], b'G').is_ok());
     assert_eq!(e.redo_depth(), 0);
     assert_eq!(e.undo_depth(), 1);
 }
@@ -61,9 +61,9 @@ fn mutate_records_undo_and_clears_redo() {
 #[test]
 fn undo_substitution_restores_old_base() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0, 1], &[3], b'G'), Ok(()));
+    assert!(e.mutate_base(&[0, 1], &[3], b'G').is_ok());
     assert_eq!(e.get_base(0, 3), b'G');
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 3), b'C'); // original
     assert_eq!(e.get_base(1, 3), b'G'); // original (seq2[3] was already G)
 }
@@ -71,22 +71,22 @@ fn undo_substitution_restores_old_base() {
 #[test]
 fn redo_reapplies_substitution() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
-    assert!(e.undo());
+    assert!(e.mutate_base(&[0], &[0], b'T').is_ok());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 0), b'A');
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_base(0, 0), b'T');
     // Redo stack should now be empty.
-    assert!(!e.redo());
+    assert!(!e.redo().unwrap().changed);
 }
 
 #[test]
 fn undo_structural_insert_restores_width_and_matrix() {
     let mut e = engine_with_sample();
     let width_before = e.get_alignment_width();
-    assert_eq!(e.insert_at_subset(&[0, 1], 2), Ok(()));
+    assert!(e.insert_at_subset(&[0, 1], 2).is_ok());
     assert_eq!(e.get_alignment_width(), width_before + 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), width_before);
     assert_eq!(e.get_row_length(0), width_before);
     assert_eq!(e.get_base(0, 2), b'G'); // original seq1[2]
@@ -95,9 +95,9 @@ fn undo_structural_insert_restores_width_and_matrix() {
 #[test]
 fn redo_structural_insert_reapplies() {
     let mut e = engine_with_sample();
-    assert_eq!(e.insert_at_subset(&[0, 1], 2), Ok(()));
-    assert!(e.undo());
-    assert!(e.redo());
+    assert!(e.insert_at_subset(&[0, 1], 2).is_ok());
+    assert!(e.undo().unwrap().changed);
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), 9);
     assert_eq!(e.get_base(0, 2), b'-'); // gap
     assert_eq!(e.get_base(2, 2), b'G'); // unchanged, non-target
@@ -115,12 +115,12 @@ fn repeated_subset_inserts_undo_and_redo_without_losing_rows() {
     assert_eq!(e.undo_depth(), 100);
 
     for _ in 0..100 {
-        assert!(e.undo());
+        assert!(e.undo().unwrap().changed);
     }
     assert_eq!(e.export_fasta_bytes(true), original);
 
     for _ in 0..100 {
-        assert!(e.redo());
+        assert!(e.redo().unwrap().changed);
     }
     assert_eq!(e.get_alignment_width(), 108);
     assert_eq!(e.get_base(0, 2), b'-');
@@ -129,9 +129,9 @@ fn repeated_subset_inserts_undo_and_redo_without_losing_rows() {
 #[test]
 fn undo_delete_column_restores() {
     let mut e = engine_with_sample();
-    assert_eq!(e.delete_column(0), Ok(()));
+    assert!(e.delete_column(0).is_ok());
     assert_eq!(e.get_alignment_width(), 7);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), 8);
     assert_eq!(e.get_base(0, 0), b'A');
 }
@@ -139,20 +139,20 @@ fn undo_delete_column_restores() {
 #[test]
 fn undo_on_empty_stack_returns_false() {
     let mut e = engine_with_sample();
-    assert!(!e.undo());
-    assert!(!e.redo());
+    assert!(!e.undo().unwrap().changed);
+    assert!(!e.redo().unwrap().changed);
 }
 
 #[test]
 fn new_edit_after_undo_clears_redo_stack() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
-    assert_eq!(e.mutate_base(&[1], &[1], b'G'), Ok(()));
-    assert!(e.undo()); // undo second
-    assert!(e.undo()); // undo first
+    assert!(e.mutate_base(&[0], &[0], b'T').is_ok());
+    assert!(e.mutate_base(&[1], &[1], b'G').is_ok());
+    assert!(e.undo().unwrap().changed); // undo second
+    assert!(e.undo().unwrap().changed); // undo first
     assert_eq!(e.redo_depth(), 2);
     // New edit invalidates redo branch.
-    assert_eq!(e.mutate_base(&[2], &[2], b'C'), Ok(()));
+    assert!(e.mutate_base(&[2], &[2], b'C').is_ok());
     assert_eq!(e.redo_depth(), 0);
     assert_eq!(e.undo_depth(), 1);
 }
@@ -161,29 +161,29 @@ fn new_edit_after_undo_clears_redo_stack() {
 fn multi_step_undo_redo_sequence() {
     let mut e = engine_with_sample();
     // Edit 1: substitute
-    assert_eq!(e.mutate_base(&[0], &[0], b'T'), Ok(()));
+    assert!(e.mutate_base(&[0], &[0], b'T').is_ok());
     // Edit 2: insert
-    assert_eq!(e.insert_at_subset(&[0, 1], 2), Ok(()));
+    assert!(e.insert_at_subset(&[0, 1], 2).is_ok());
     // Edit 3: delete column
-    assert_eq!(e.delete_column(4), Ok(()));
+    assert!(e.delete_column(4).is_ok());
 
     assert_eq!(e.undo_depth(), 3);
     // Undo all three in reverse order.
-    assert!(e.undo()); // undo delete
+    assert!(e.undo().unwrap().changed); // undo delete
     assert_eq!(e.get_alignment_width(), 9);
-    assert!(e.undo()); // undo insert
+    assert!(e.undo().unwrap().changed); // undo insert
     assert_eq!(e.get_alignment_width(), 8);
-    assert!(e.undo()); // undo substitute
+    assert!(e.undo().unwrap().changed); // undo substitute
     assert_eq!(e.get_base(0, 0), b'A');
-    assert!(!e.undo()); // stack empty
+    assert!(!e.undo().unwrap().changed); // stack empty
     // Redo all three.
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_base(0, 0), b'T');
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), 9);
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), 8);
-    assert!(!e.redo());
+    assert!(!e.redo().unwrap().changed);
 }
 
 #[test]
@@ -197,11 +197,11 @@ fn undo_redo_substitution_handles_out_of_bounds_positions() {
             positions: vec![(0, 0, b'G'), (999, 0, b'T'), (0, 999, b'C')],
         }));
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     // Only valid position (0, 0) should be restored.
     assert_eq!(e.get_base(0, 0), b'G');
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     // Redo must only touch valid position (0, 0).
     assert_eq!(e.get_base(0, 0), b'A');
 }
@@ -209,14 +209,14 @@ fn undo_redo_substitution_handles_out_of_bounds_positions() {
 #[test]
 fn move_horizontal_undo_restores() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0], &[1], b'-'), Ok(()));
+    assert!(e.mutate_base(&[0], &[1], b'-').is_ok());
     // Row 0: "A-GCATGC"
-    assert_eq!(
-        e.move_horizontal(&[0], &[2, 3, 4, 5], MoveDirection::Left),
-        Ok(())
+    assert!(
+        e.move_horizontal(&[0], &[2, 3, 4, 5], MoveDirection::Left)
+            .is_ok()
     );
     assert_eq!(e.get_base(0, 1), b'G');
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     // After undo: back to "A-GCATGC"
     assert_eq!(e.get_base(0, 1), b'-');
     assert_eq!(e.get_base(0, 2), b'G');
@@ -225,21 +225,21 @@ fn move_horizontal_undo_restores() {
 #[test]
 fn move_horizontal_multi_row_single_undo_restores_all() {
     let mut e = engine_with_sample();
-    assert_eq!(e.mutate_base(&[0, 2], &[1], b'-'), Ok(()));
-    assert_eq!(
-        e.move_horizontal(&[0, 2], &[2, 3, 4, 5], MoveDirection::Left),
-        Ok(())
+    assert!(e.mutate_base(&[0, 2], &[1], b'-').is_ok());
+    assert!(
+        e.move_horizontal(&[0, 2], &[2, 3, 4, 5], MoveDirection::Left)
+            .is_ok()
     );
     assert_eq!(e.get_base(0, 1), b'G');
     assert_eq!(e.get_base(2, 1), b'G');
     // A single undo call restores both rows
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 1), b'-');
     assert_eq!(e.get_base(0, 2), b'G');
     assert_eq!(e.get_base(2, 1), b'-');
     assert_eq!(e.get_base(2, 2), b'G');
     // Single redo re-applies both
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_base(0, 1), b'G');
     assert_eq!(e.get_base(2, 1), b'G');
 }
@@ -252,19 +252,19 @@ fn move_horizontal_at_col_zero_right_undo_and_redo() {
         .expect("move right from col 0 ok");
     assert_eq!(e.nucleotide_sequences[0], b"-ATGC");
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.nucleotide_sequences[0], b"AT-GC");
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.nucleotide_sequences[0], b"-ATGC");
 }
 
 #[test]
 fn move_rows_up_undo_restores() {
     let mut e = engine_with_sample();
-    assert_eq!(e.move_rows_up(&[1]), Ok(()));
+    assert!(e.move_rows_up(&[1]).is_ok());
     assert_eq!(e.get_name(0), "seq2");
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_name(0), "seq1 first record");
     assert_eq!(e.get_name(1), "seq2");
 }
@@ -273,11 +273,11 @@ fn move_rows_up_undo_restores() {
 fn move_rows_relative_multi_step_creates_single_undo() {
     let mut e = engine_with_n_rows(12);
     // Shift rows 1, 3 down by 2 steps in one action
-    assert_eq!(e.move_rows_relative(&[1, 3], 2), Ok(()));
+    assert!(e.move_rows_relative(&[1, 3], 2).is_ok());
     assert_eq!(e.get_name(3), "seq1");
     assert_eq!(e.get_name(5), "seq3");
     assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_name(1), "seq1");
     assert_eq!(e.get_name(3), "seq3");
     assert_eq!(e.undo_depth(), 0);
@@ -289,19 +289,19 @@ fn move_rows_no_op_does_not_create_undo_entry() {
     assert_eq!(e.undo_depth(), 0);
 
     // Rows 0 and 1 are already at top
-    assert_eq!(e.move_rows_to_top(&[0, 1]), Ok(()));
+    assert!(e.move_rows_to_top(&[0, 1]).is_ok());
     assert_eq!(e.undo_depth(), 0);
 
     // Rows 4 and 5 are already at bottom
-    assert_eq!(e.move_rows_to_bottom(&[4, 5]), Ok(()));
+    assert!(e.move_rows_to_bottom(&[4, 5]).is_ok());
     assert_eq!(e.undo_depth(), 0);
 
     // Row 0 moving up is already at boundary
-    assert_eq!(e.move_rows_up(&[0]), Ok(()));
+    assert!(e.move_rows_up(&[0]).is_ok());
     assert_eq!(e.undo_depth(), 0);
 
     // Row 5 moving down is already at boundary
-    assert_eq!(e.move_rows_down(&[5]), Ok(()));
+    assert!(e.move_rows_down(&[5]).is_ok());
     assert_eq!(e.undo_depth(), 0);
 }
 
@@ -332,7 +332,7 @@ fn realign_undo_and_redo_cycle() {
     assert_ne!(orig_seq2, aligned_seq2);
 
     // Undo restores exact original state
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 1);
     assert_eq!(e.nucleotide_sequences[0], orig_seq1);
@@ -342,7 +342,7 @@ fn realign_undo_and_redo_cycle() {
     assert_eq!(e.get_alignment_width(), orig_width);
 
     // Redo re-applies alignment
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.undo_depth(), 1);
     assert_eq!(e.redo_depth(), 0);
     assert_eq!(e.nucleotide_sequences[0], aligned_seq1);
@@ -371,7 +371,7 @@ fn realign_clears_aminoacid_cache_on_realign_and_undo() {
         .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
     assert!(!e.aminoacid_sequences.is_empty());
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     // After undo, cache should have been cleared
     assert!(e.aminoacid_sequences.is_empty());
 
@@ -380,7 +380,7 @@ fn realign_clears_aminoacid_cache_on_realign_and_undo() {
         .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
     assert!(!e.aminoacid_sequences.is_empty());
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     // After redo, cache should have been cleared
     assert!(e.aminoacid_sequences.is_empty());
 }
@@ -393,7 +393,7 @@ fn realign_and_apply_aligned_fasta_identical_matrix_are_noops() {
 
     // Seed redo_stack so we also verify no-op does not clear redo history.
     e.mutate_base(&[0], &[0], b'T').expect("mutate ok");
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 1);
 
@@ -450,11 +450,11 @@ fn realign_successive_cycles_with_multi_step_undo() {
     assert_eq!(e.undo_depth(), 3);
 
     // Undo 3 times back to original
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.undo_depth(), 2);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.undo_depth(), 1);
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.undo_depth(), 0);
 
     // Matrix matches original
@@ -479,7 +479,7 @@ fn load_fasta_undo_redo_prepends() {
     assert_eq!(e.undo_depth(), 1);
 
     // Undo restores original 3 sequences and width 8
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.get_alignment_width(), 8);
     assert_eq!(e.get_name(0), "seq1 first record");
@@ -487,7 +487,7 @@ fn load_fasta_undo_redo_prepends() {
     assert_eq!(e.redo_depth(), 1);
 
     // Redo restores prepended sequence and width 12
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 4);
     assert_eq!(e.get_alignment_width(), 12);
     assert_eq!(e.get_name(0), "prepended");
@@ -508,7 +508,7 @@ fn load_fasta_conditional_snapshot_fresh_vs_prior_history() {
     assert_eq!(e.undo_depth(), 1);
 
     // 3. Reset engine: clears undo depth to 0
-    e.reset();
+    e.reset().unwrap();
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 0);
     assert_eq!(e.get_sequence_count(), 0);
@@ -536,14 +536,14 @@ fn load_fasta_preserves_prior_substitutions_across_prepend_undo() {
     assert_eq!(e.undo_depth(), 2);
 
     // Undo prepend -> restores old row 0 with mutated base 'C'
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.get_name(0), "seq1 first record");
     assert_eq!(e.get_base(0, 0), b'C');
     assert_eq!(e.undo_depth(), 1);
 
     // Undo mutation -> restores original base 'A'
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.undo_depth(), 0);
 }
@@ -555,11 +555,11 @@ fn delete_rows_is_undoable_and_redoable() {
     assert_eq!(e.get_sequence_count(), 2);
     assert_eq!(e.undo_depth(), 1);
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.undo_depth(), 0);
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 2);
     assert_eq!(e.undo_depth(), 1);
 }
@@ -591,20 +591,20 @@ fn delete_rows_interleaved_with_mutations_and_prepends() {
     assert_eq!(e.undo_depth(), 3);
 
     // 4. Undo delete -> restores row 2
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.get_name(2), "s2");
     assert_eq!(e.undo_depth(), 2);
 
     // 5. Undo prepend -> restores original 2 rows with mutated base
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 2);
     assert_eq!(e.get_name(0), "s1");
     assert_eq!(e.get_base(0, 0), b'G');
     assert_eq!(e.undo_depth(), 1);
 
     // 6. Undo mutation -> restores original base
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.undo_depth(), 0);
 }
@@ -616,7 +616,7 @@ fn mutate_base_same_base_is_noop_and_preserves_history_and_revision() {
     let mut e = engine_with_sample();
     // Create one redo entry so we verify no-op does not clear redo_stack.
     e.mutate_base(&[0], &[1], b'C').expect("mutate ok");
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 1);
 
@@ -649,10 +649,10 @@ fn mutate_base_partial_same_base_records_only_changed_cells() {
             positions: vec![(0, 3, b'C')],
         }))
     );
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 3), b'C');
     assert_eq!(e.get_base(1, 3), b'G');
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_base(0, 3), b'G');
     assert_eq!(e.get_base(1, 3), b'G');
 }
@@ -661,7 +661,7 @@ fn mutate_base_partial_same_base_records_only_changed_cells() {
 fn insert_at_subset_empty_or_oob_rows_on_non_empty_engine_is_noop() {
     let mut e = engine_with_sample();
     e.mutate_base(&[0], &[0], b'T').expect("mutate ok");
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     e.aminoacid_sequences
         .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
 
@@ -687,7 +687,7 @@ fn insert_at_subset_empty_or_oob_rows_on_non_empty_engine_is_noop() {
 fn delete_at_subset_empty_oob_rows_or_oob_col_is_noop() {
     let mut e = engine_with_sample();
     e.mutate_base(&[0], &[0], b'T').expect("mutate ok");
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     e.aminoacid_sequences
         .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
 
@@ -720,13 +720,14 @@ fn delete_column_empty_engine_is_noop() {
 fn load_fasta_empty_or_whitespace_preserves_revision_and_caches() {
     let mut e = engine_with_sample();
     e.mutate_base(&[0], &[0], b'T').expect("mutate ok");
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     e.aminoacid_sequences
         .push(MsaEngine::translate_sequence(&e.nucleotide_sequences[0]));
 
     let rev_before = e.get_revision();
-    let count = e.load_fasta("  \n\t\n").expect("empty load ok");
-    assert_eq!(count, 3);
+    let result = e.load_fasta("  \n\t\n").expect("empty load ok");
+    assert!(!result.changed);
+    assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.get_revision(), rev_before);
     assert_eq!(e.redo_depth(), 1);
     assert!(!e.aminoacid_sequences.is_empty());
@@ -747,14 +748,14 @@ fn insert_at_subset_ragged_padded_short_rows_undo_redo_exact() {
     assert_eq!(e.nucleotide_sequences[0], b"ATGC---");
     assert_eq!(e.nucleotide_sequences[1], b"ATGCATGC-");
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_row_length(0), 4);
     assert_eq!(e.get_row_length(1), 8);
     assert_eq!(e.get_alignment_width(), 8);
     assert_eq!(e.nucleotide_sequences[0], b"ATGC");
     assert_eq!(e.nucleotide_sequences[1], b"ATGCATGC");
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_row_length(0), 7);
     assert_eq!(e.get_row_length(1), 9);
     assert_eq!(e.get_alignment_width(), 9);
@@ -772,11 +773,11 @@ fn delete_at_subset_undo_redo_restores_non_trailing_gap_and_ragged_lengths() {
     assert_eq!(e.nucleotide_sequences[0], b"AGCAT-C-");
     assert_eq!(e.nucleotide_sequences[1], b"AT");
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.nucleotide_sequences[0], b"A-GCAT-C");
     assert_eq!(e.nucleotide_sequences[1], b"AT");
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.nucleotide_sequences[0], b"AGCAT-C-");
     assert_eq!(e.nucleotide_sequences[1], b"AT");
 }
@@ -792,14 +793,14 @@ fn delete_column_ragged_undo_redo_preserves_short_rows() {
     assert_eq!(e.get_alignment_width(), 5);
     assert_eq!(e.nucleotide_sequences[1], b"ATGCT");
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_row_length(0), 2);
     assert_eq!(e.get_row_length(1), 6);
     assert_eq!(e.get_alignment_width(), 6);
     assert_eq!(e.nucleotide_sequences[0], b"AT");
     assert_eq!(e.nucleotide_sequences[1], b"ATGCAT");
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_row_length(0), 2);
     assert_eq!(e.get_row_length(1), 5);
     assert_eq!(e.get_alignment_width(), 5);
@@ -832,7 +833,7 @@ fn delete_rows_unsorted_duplicate_indices_undo_redo_and_history_bytes_drop() {
     }
 
     let bytes_with_deleted_rows = e.get_history_bytes();
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 5);
     for i in 0..5 {
         assert_eq!(e.get_name(i), format!("seq{i}"));
@@ -843,7 +844,7 @@ fn delete_rows_unsorted_duplicate_indices_undo_redo_and_history_bytes_drop() {
         "redo DeletedRow should drop owned row buffers: {bytes_on_redo_stack} vs {bytes_with_deleted_rows}"
     );
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.get_name(0), "seq0");
     assert_eq!(e.get_name(1), "seq2");
@@ -865,7 +866,7 @@ fn row_reorder_undo_redo_cycle_restores_arbitrary_permutation() {
         vec!["seq1", "seq4", "seq0", "seq2", "seq3", "seq5"]
     );
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 1);
     assert_eq!(e.get_revision(), rev_initial + 2);
@@ -875,14 +876,14 @@ fn row_reorder_undo_redo_cycle_restores_arbitrary_permutation() {
         vec!["seq0", "seq1", "seq2", "seq3", "seq4", "seq5"]
     );
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.undo_depth(), 1);
     assert_eq!(e.redo_depth(), 0);
     assert_eq!(e.get_revision(), rev_initial + 3);
     let reapplied: Vec<String> = (0..6).map(|i| e.get_name(i)).collect();
     assert_eq!(reapplied, reordered);
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 1);
     assert_eq!(e.get_revision(), rev_initial + 4);
@@ -909,7 +910,7 @@ fn row_reorder_all_entry_points_support_undo_and_redo() {
         (0..4).map(|r| (e.get_name(r), e.get_base(r, 0))).collect();
 
     for _ in 0..4 {
-        assert!(e.undo());
+        assert!(e.undo().unwrap().changed);
     }
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 4);
@@ -926,7 +927,7 @@ fn row_reorder_all_entry_points_support_undo_and_redo() {
     );
 
     for _ in 0..4 {
-        assert!(e.redo());
+        assert!(e.redo().unwrap().changed);
     }
     assert_eq!(e.undo_depth(), 4);
     assert_eq!(e.redo_depth(), 0);
@@ -949,7 +950,7 @@ fn row_reorder_mismatched_or_out_of_bounds_inverse_order_returns_false_safely() 
             inverse_order: vec![1, 0],
         }),
     );
-    assert!(!e.undo());
+    assert!(!e.undo().unwrap().changed);
     assert_eq!(e.get_history_bytes(), 0);
     assert_eq!(e.get_revision(), rev_before);
 
@@ -959,7 +960,7 @@ fn row_reorder_mismatched_or_out_of_bounds_inverse_order_returns_false_safely() 
             inverse_order: vec![0, 1, 99],
         }),
     );
-    assert!(!e.redo());
+    assert!(!e.redo().unwrap().changed);
     assert_eq!(e.get_history_bytes(), 0);
     assert_eq!(e.get_revision(), rev_before);
 }
@@ -989,14 +990,14 @@ fn prepend_sequences_undo_redo_moves_rows_without_cloning() {
     }
 
     let bytes_on_undo = e.get_history_bytes();
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 1);
     assert_eq!(e.get_name(0), "orig");
     assert_eq!(e.get_alignment_width(), 4);
     let bytes_on_redo = e.get_history_bytes();
     assert!(bytes_on_redo > bytes_on_undo);
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 3);
     assert_eq!(e.get_name(0), "new1");
     assert_eq!(e.get_name(1), "new2");
@@ -1056,7 +1057,7 @@ fn default_max_undo_depth_evicts_oldest_entries_in_fifo_order() {
 
     assert_eq!(e.undo_depth(), DEFAULT_MAX_UNDO_DEPTH);
     let mut undone = 0;
-    while e.undo() {
+    while e.undo().unwrap().changed {
         undone += 1;
     }
     assert_eq!(undone, DEFAULT_MAX_UNDO_DEPTH);
@@ -1135,13 +1136,13 @@ fn history_bytes_stays_exact_across_mixed_undo_redo_and_reset() {
     e.delete_rows(&[2]).unwrap();
     assert_eq!(e.get_history_bytes(), exact_bytes(&e));
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_history_bytes(), exact_bytes(&e));
 
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_history_bytes(), exact_bytes(&e));
 
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_history_bytes(), exact_bytes(&e));
 
     // New edit clears redo stack.
@@ -1149,7 +1150,7 @@ fn history_bytes_stays_exact_across_mixed_undo_redo_and_reset() {
     assert_eq!(e.redo_depth(), 0);
     assert_eq!(e.get_history_bytes(), exact_bytes(&e));
 
-    e.reset();
+    e.reset().unwrap();
     assert_eq!(e.get_history_bytes(), 0);
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 0);
@@ -1165,7 +1166,7 @@ fn undo_prepend_sequences_oversized_redo_preserves_prior_undo_and_clears_redo() 
     // when the un-recordable undone PrependSequences is dropped.
     e.mutate_base(&[0], &[0], b'T').expect("mutate 1 ok");
     e.mutate_base(&[0], &[1], b'G').expect("mutate 2 ok");
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.undo_depth(), 1);
     assert_eq!(e.redo_depth(), 1);
 
@@ -1179,7 +1180,7 @@ fn undo_prepend_sequences_oversized_redo_preserves_prior_undo_and_clears_redo() 
 
     // Undo the prepend: drained sequences exceed max_history_bytes (512),
     // so redo_stack must be cleared without evicting prior undo_stack entries.
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_sequence_count(), 1);
     assert_eq!(e.get_name(0), "a");
     assert!(e.get_history_bytes() <= e.get_max_history_bytes());
@@ -1187,9 +1188,9 @@ fn undo_prepend_sequences_oversized_redo_preserves_prior_undo_and_clears_redo() 
     assert_eq!(e.redo_depth(), 0);
 
     // Prior undo entries remain intact and undoable.
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 1), b'C');
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 0), b'A');
 }
 
@@ -1216,14 +1217,14 @@ fn undo_replace_matrix_oversized_redo_preserves_prior_undo_and_clears_redo() {
 
     // Undoing ReplaceMatrix swaps the 4004-column matrix into redo_cmd (> 512 bytes).
     // Must succeed, keep history_bytes <= 512, preserve prior undo entry, and clear redo_stack.
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_alignment_width(), 4);
     assert!(e.get_history_bytes() <= e.get_max_history_bytes());
     assert_eq!(e.undo_depth(), 1);
     assert_eq!(e.redo_depth(), 0);
 
     // Prior mutation undo still works cleanly.
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_base(0, 0), b'A');
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 1);
@@ -1238,10 +1239,10 @@ fn undo_evicts_oldest_undo_then_oldest_redo_when_combined_stacks_exceed_budget()
     e.load_fasta(&format!(">p1\n{}\n", "A".repeat(200)))
         .expect("prepend 1 ok");
     let undo_prepend_bytes = e.get_history_bytes();
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     let redo_prepend_bytes = e.get_history_bytes();
     assert!(redo_prepend_bytes > undo_prepend_bytes);
-    e.reset();
+    e.reset().unwrap();
 
     // Budget fits 1 full redo entry + 1 undo entry, but NOT 1 redo + 2 undos and NOT 2 redos.
     let budget = redo_prepend_bytes + undo_prepend_bytes + 16;
@@ -1259,7 +1260,7 @@ fn undo_evicts_oldest_undo_then_oldest_redo_when_combined_stacks_exceed_budget()
 
     // First undo: moves p2 (~redo_prepend_bytes) onto redo_stack; combined exceeds budget,
     // so the oldest undo entry (mutate_base) is evicted while p1 remains on undo_stack.
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert!(e.get_history_bytes() <= budget);
     assert_eq!(e.undo_depth(), 1);
     assert_eq!(e.redo_depth(), 1);
@@ -1268,14 +1269,14 @@ fn undo_evicts_oldest_undo_then_oldest_redo_when_combined_stacks_exceed_budget()
     // Second undo: moves p1 (~redo_prepend_bytes) onto redo_stack; undo_stack is now empty
     // and combined redo_stack (p2 + p1) exceeds budget, so oldest redo_stack entry (p2)
     // is evicted, keeping p1 on redo_stack and history_bytes <= budget.
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert!(e.get_history_bytes() <= budget);
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 1);
     assert_eq!(e.get_name(0), "a");
 
     // Redoing restores p1 (the most recently undone step).
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_name(0), "p1");
     assert!(e.get_history_bytes() <= budget);
 }
@@ -1289,7 +1290,7 @@ fn redo_bounds_combined_stacks_and_handles_oversized_restored_command() {
     e.delete_rows(&[0]).expect("delete big row ok");
 
     // Undo DeleteRows -> on redo_stack it stores only row_indices (~120 bytes).
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     // Tighten max_history_bytes below the size of DeleteRows with deleted_rows (>400 bytes),
     // while still keeping the compact DeleteRows redo entry (and prior mutate_base) within budget.
     let redo_cmd_bytes = e.redo_stack.back().unwrap().estimated_byte_size();
@@ -1301,7 +1302,7 @@ fn redo_bounds_combined_stacks_and_handles_oversized_restored_command() {
     // Redo re-deletes row 0 and produces an oversized DeleteRows undo entry (> tight_budget).
     // Invariant history_bytes <= max_history_bytes must hold and prior undo_stack is cleared
     // so undo() cannot skip the un-recorded redo.
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert!(e.get_history_bytes() <= e.get_max_history_bytes());
     assert_eq!(e.undo_depth(), 0);
     assert_eq!(e.redo_depth(), 0);
@@ -1332,19 +1333,19 @@ fn revision_increments_on_mutations_undo_redo_and_fresh_load_only() {
     assert_eq!(e.get_revision(), 2);
 
     // Undo increments; empty undo does not.
-    assert!(e.undo());
+    assert!(e.undo().unwrap().changed);
     assert_eq!(e.get_revision(), 3);
-    assert!(!e.undo());
+    assert!(!e.undo().unwrap().changed);
     assert_eq!(e.get_revision(), 3);
 
     // Redo increments; empty redo does not.
-    assert!(e.redo());
+    assert!(e.redo().unwrap().changed);
     assert_eq!(e.get_revision(), 4);
-    assert!(!e.redo());
+    assert!(!e.redo().unwrap().changed);
     assert_eq!(e.get_revision(), 4);
 
     // Reset advances revision monotonically.
-    e.reset();
+    e.reset().unwrap();
     assert_eq!(e.get_revision(), 5);
 }
 
@@ -1432,7 +1433,7 @@ fn all_mutations_undo_and_redo_clear_aminoacid_sequences_cache() {
     let mut undo_count = 0;
     loop {
         populate_cache(&mut e);
-        if !e.undo() {
+        if !e.undo().unwrap().changed {
             assert!(!e.aminoacid_sequences.is_empty());
             break;
         }
@@ -1444,7 +1445,7 @@ fn all_mutations_undo_and_redo_clear_aminoacid_sequences_cache() {
     let mut redo_count = 0;
     loop {
         populate_cache(&mut e);
-        if !e.redo() {
+        if !e.redo().unwrap().changed {
             assert!(!e.aminoacid_sequences.is_empty());
             break;
         }

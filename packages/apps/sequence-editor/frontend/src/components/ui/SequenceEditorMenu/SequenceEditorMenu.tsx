@@ -227,7 +227,7 @@ export const SequenceEditorMenu = () => {
       {menuData.map((item) => (
         <NestedDropdown
           ButtonProps={{
-            color: 'primary',
+            color: 'secondary',
             disabled: item.disabled,
             size: 'medium',
             variant: 'text',

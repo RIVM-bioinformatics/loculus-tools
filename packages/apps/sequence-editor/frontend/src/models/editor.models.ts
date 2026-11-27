@@ -21,6 +21,13 @@ export enum MATRIX_TYPE {
   RECORD_NAME = 'record_name',
 }
 
+export enum READING_MODE {
+  AMINO_ACIDS = 'AMINO_ACIDS',
+  AMINO_ACIDS_CONDENSED = 'AMINO_ACIDS_CONDENSED',
+  NUCLEOTIDE = 'NUCLEOTIDE',
+  NUCLEOTIDE_PLUS_AMINO_ACIDS = 'NUCLEOTIDE_PLUS_AMINO_ACIDS',
+}
+
 /**
  * Contract implemented by the `EngineWorker` class and exposed to the main
  * thread through comlink. Every method is asynchronous so comlink can proxy it
@@ -170,20 +177,9 @@ export interface EngineWorkerApi {
   redo: () => Promise<boolean>;
   reset: () => Promise<void>;
   search: (query: string, checkRecordNames: boolean) => Promise<EngineSearchResult>;
-  translate: (bounds: ViewportBounds, readingFrame: number) => Promise<EngineViewportResult>;
   undo: () => Promise<boolean>;
   viewport: (bounds: ViewportBounds, overlayReadingFrame?: number) => Promise<EngineViewportResult>;
 }
-
-export type GridGeometry = {
-  cellHeight: number;
-  cellWidth: number;
-  dividerWidth: number;
-  labelWidth: number;
-  numOverscanCols: number;
-  numOverscanRows: number;
-  rulerHeight: number;
-};
 
 
 /**
@@ -208,6 +204,16 @@ export type GridGeometry = {
 // ---------------------------------------------------------------------------
 // Shared types
 // ---------------------------------------------------------------------------
+
+export type GridGeometry = {
+  cellHeight: number;
+  cellWidth: number;
+  dividerWidth: number;
+  labelWidth: number;
+  numOverscanCols: number;
+  numOverscanRows: number;
+  rulerHeight: number;
+};
 
 export type GridPoint = {
   col: number;
@@ -239,6 +245,10 @@ export type Meta = {
   width: number;
 };
 
+// ---------------------------------------------------------------------------
+// Main → Worker requests
+// ---------------------------------------------------------------------------
+
 export type MoveRowsOptions =
   | { delta: number; mode: 'relative' }
   | { mode: 'bottom' }
@@ -246,7 +256,7 @@ export type MoveRowsOptions =
   | { mode: 'top' };
 
 // ---------------------------------------------------------------------------
-// Main → Worker requests
+// Worker → Main responses
 // ---------------------------------------------------------------------------
 
 /**The following types match the Rust `search_algorithms::Match` and search_algorithms::SearchResult structures. */
@@ -255,10 +265,6 @@ export type SearchMatch = {
   matrix_type: MATRIX_TYPE;
   row: number;
 };
-
-// ---------------------------------------------------------------------------
-// Worker → Main responses
-// ---------------------------------------------------------------------------
 
 export type SearchResult = EngineSearchResult;
 

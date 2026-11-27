@@ -42,6 +42,7 @@ import type {
 import {
   EDITOR_DIRECTION,
   EDITOR_PATH_PROPERTIES_TYPE,
+  READING_MODE,
 } from '../../../models/editor.models';
 import {
   DEFAULT_GRID_GEOMETRY,
@@ -56,6 +57,8 @@ import { SequenceEditorSearchBar } from '../SequenceEditorSearchBar';
 import type { SequenceEditorRealignModalRefMethods } from '../SequenceEditorRealignModal';
 import { SequenceEditorRealignModal } from '../SequenceEditorRealignModal';
 import type { SequenceEditorConfig } from '../../../models/config.models';
+import { SequenceEditorMenu } from '../SequenceEditorMenu';
+import { SequenceActionsBar } from '../SequenceActionsBar';
 
 import { SequenceEditorStatusBar } from './SequenceEditorStatusBar';
 import type { SequenceEditorGotoPositionDialogRefMethods } from './SequenceEditorGotoPositionDialog';
@@ -321,7 +324,7 @@ export const SequenceEditor = () => {
               endRow: visibleGridRangeWithArguments.visibleGridRange.cache.endRow,
               startCol: visibleGridRangeWithArguments.visibleGridRange.cache.startCol,
               startRow: visibleGridRangeWithArguments.visibleGridRange.cache.startRow,
-            }, abortController.signal);
+            }, sequenceEditorStore.getState().readingMode !== READING_MODE.NUCLEOTIDE ? sequenceEditorStore.getState().readingFrame : undefined, abortController.signal);
             const viewportResult = await viewportCommand;
             if (!isActive || viewportCommand.abortSignal?.aborted) {
               return;
@@ -342,15 +345,18 @@ export const SequenceEditor = () => {
             if (!isActive || requestId !== visibleRangeRequestRef.current) {
               return;
             }
-            if (!canvasRef.current || !sequenceEditorStore.getState().nucleotidePalette || !cachedGridRangeWithViewPortResultRef.current || !metaSubject.data || !cachedGridRangeWithRowNamesRef.current) {
+            if (!canvasRef.current || !sequenceEditorStore.getState().nucleotidePalette || !sequenceEditorStore.getState().aminoAcidPalette || !cachedGridRangeWithViewPortResultRef.current || !metaSubject.data || !cachedGridRangeWithRowNamesRef.current) {
               return;
             }
             editorAssemblyRef.current = EditorUtil.drawCanvas({
+              aminoAcidPalette: sequenceEditorStore.getState().aminoAcidPalette,
               canvasElement: canvasRef.current,
               devicePixelRatio: container.resolve(DevicePixelRatioService).data,
               geometry: visibleGridRangeWithArguments.geometry,
               meta: metaSubject.data,
-              palette: sequenceEditorStore.getState().nucleotidePalette,
+              nucleotidePalette: sequenceEditorStore.getState().nucleotidePalette,
+              readingFrame: sequenceEditorStore.getState().readingFrame,
+              readingMode: sequenceEditorStore.getState().readingMode,
               rowNames: cachedGridRangeWithRowNamesRef.current.rowNames,
               rowNamesStartRow: cachedGridRangeWithRowNamesRef.current.range.startRow,
               scrollLeft: visibleGridRangeWithArguments.scrollLeft,
@@ -423,7 +429,11 @@ export const SequenceEditor = () => {
   useEffect(() => {
     const unsubscribeItems = [
       sequenceEditorStore.subscribe((state, prevState) => {
-        if (state.nucleotidePalette !== prevState.nucleotidePalette) {
+        if (state.readingMode !== prevState.readingMode || state.readingFrame !== prevState.readingFrame) {
+          cachedGridRangeWithViewPortResultRef.current = null;
+          updateVisibleRange();
+        }
+        if (state.nucleotidePalette !== prevState.nucleotidePalette || state.aminoAcidPalette !== prevState.aminoAcidPalette) {
           updateVisibleRange();
         }
       }),
@@ -522,6 +532,14 @@ export const SequenceEditor = () => {
     };
   }, []);
 
+  const preventMutations = useCallback(() => {
+    if (sequenceEditorStore.getState().readingMode === READING_MODE.AMINO_ACIDS) {
+      sequenceEditorStore.getState().setLatestMessage('Mutations are not allowed in amino acid reading mode.');
+      return true;
+    }
+    return false;
+  }, []);
+
   // Executes the editor actions for the keyboard shortcuts emitted via the event bus.
   useEffect(() => {
     const execute = async (args: {
@@ -557,6 +575,9 @@ export const SequenceEditor = () => {
 
     const mutate = async (base: string) => {
       if (!metaSubject.data) {
+        return;
+      }
+      if (preventMutations()) {
         return;
       }
       const mutateArguments = EditorUtil.getMutateArguments(selectionSubject.data, metaSubject.data);
@@ -645,6 +666,9 @@ export const SequenceEditor = () => {
     };
 
     const moveCells = async (direction: EDITOR_DIRECTION) => {
+      if (preventMutations()) {
+        return;
+      }
       if (!metaSubject.data) {
         return;
       }
@@ -668,6 +692,9 @@ export const SequenceEditor = () => {
     let searchAbortController: AbortController | null = null;
     let clipboardAbortController: AbortController | null = null;
     const loadClipboardFasta = async (fasta: string) => {
+      if (preventMutations()) {
+        return;
+      }
       if (sequenceEditorStore.getState().isRealigning) {
         return;
       }
@@ -828,6 +855,9 @@ export const SequenceEditor = () => {
           if (!metaSubject.data) {
             return;
           }
+          if (preventMutations()) {
+            return;
+          }
           const upsertArguments = EditorUtil.getUpsertArguments(selectionSubject.data, metaSubject.data);
           if (!upsertArguments) {
             return;
@@ -842,6 +872,9 @@ export const SequenceEditor = () => {
       eventBusService.addEventListener('onDeleteBackward', () => {
         void (async () => {
           if (!metaSubject.data) {
+            return;
+          }
+          if (preventMutations()) {
             return;
           }
           const upsertArguments = EditorUtil.getUpsertArguments(selectionSubject.data, metaSubject.data, -1);
@@ -952,7 +985,7 @@ export const SequenceEditor = () => {
       removers.forEach(remover => remover());
       editorService.cancelRealign();
     };
-  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject, config.phylogenyViewerUrl, transferFastaData]);
+  }, [editorService, selectionSubject, updateMeta, updateVisibleRange, metaSubject, config.phylogenyViewerUrl, transferFastaData, preventMutations]);
 
   useEffect(() => {
     updateVisibleRange();
@@ -1130,13 +1163,32 @@ export const SequenceEditor = () => {
     <Box
       sx={{
         display: 'grid',
-        gridTemplateRows: 'max-content auto',
+        gridTemplateRows: 'max-content max-content auto',
         height: '100%',
         position: 'relative',
         width: '100%',
       }}
     >
-      <SequenceEditorSearchBar />
+      <Box
+        sx={{
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          py: 0.5,
+        }}
+      >
+        <SequenceEditorMenu />
+      </Box>
+      <Box
+        sx={{
+          alignItems: 'center',
+          display: 'grid',
+          gap: 1,
+          gridTemplateColumns: '4fr 1fr',
+          position: 'relative',
+        }}
+      >
+        <SequenceActionsBar />
+        <SequenceEditorSearchBar />
+      </Box>
       <Box
         onMouseUp={onContainerMouseUp}
         ref={containerRef}

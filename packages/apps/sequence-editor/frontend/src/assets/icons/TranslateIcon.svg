@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 22 22"
+  shape-rendering="crispEdges">
+  <path fill="#F6442C"
+    d="M0 0h5v1h-5z M0 1h5v1h-5z M0 2h5v1h-5z M14 2h3v1h-3z M0 3h5v1h-5z M14 3h3v1h-3z M0 4h5v1h-5z M14 4h3v1h-3z M0 5h5v1h-5z M14 5h3v1h-3z M0 6h5v1h-5z M14 6h3v1h-3z M0 7h5v1h-5z M14 7h3v1h-3z M0 8h5v1h-5z M14 8h3v1h-3z M0 9h5v1h-5z M0 10h5v1h-5z M0 11h5v1h-5z M0 12h5v1h-5z M0 13h5v1h-5z M14 13h3v1h-3z M0 14h5v1h-5z M14 14h3v1h-3z M0 15h5v1h-5z M14 15h3v1h-3z M0 16h5v1h-5z M14 16h3v1h-3z M0 17h5v1h-5z M0 18h5v1h-5z M0 19h5v1h-5z M0 20h5v1h-5z M0 21h5v1h-5z" />
+  <path fill="#CCCC00"
+    d="M5 0h3v1h-3z M14 0h3v1h-3z M5 1h3v1h-3z M14 1h3v1h-3z M5 7h3v1h-3z M5 8h3v1h-3z M5 9h3v1h-3z M5 10h3v1h-3z M5 11h3v1h-3z M5 12h3v1h-3z M5 13h3v1h-3z M5 14h3v1h-3z M5 15h3v1h-3z M5 16h3v1h-3z M5 17h3v1h-3z M5 18h3v1h-3z M5 19h3v1h-3z M5 20h3v1h-3z M5 21h3v1h-3z" />
+  <path fill="#984097"
+    d="M8 0h3v1h-3z M8 1h3v1h-3z M8 2h3v1h-3z M8 3h3v1h-3z M8 4h3v1h-3z M8 5h3v1h-3z M8 6h3v1h-3z M8 7h3v1h-3z M8 8h3v1h-3z M8 9h3v1h-3z M8 10h3v1h-3z M8 11h3v1h-3z M8 13h3v1h-3z M8 14h3v1h-3z M8 15h3v1h-3z M8 16h3v1h-3z M8 17h3v1h-3z M8 18h3v1h-3z M8 19h3v1h-3z M8 20h3v1h-3z M8 21h3v1h-3z" />
+  <path fill="#78A6D5"
+    d="M11 0h3v1h-3z M20 0h2v1h-2z M11 1h3v1h-3z M20 1h2v1h-2z M5 2h3v1h-3z M11 2h3v1h-3z M20 2h2v1h-2z M5 3h3v1h-3z M11 3h3v1h-3z M20 3h2v1h-2z M5 4h3v1h-3z M11 4h3v1h-3z M20 4h2v1h-2z M5 5h3v1h-3z M11 5h3v1h-3z M20 5h2v1h-2z M5 6h3v1h-3z M11 6h3v1h-3z M20 6h2v1h-2z M11 7h3v1h-3z M20 7h2v1h-2z M11 8h3v1h-3z M20 8h2v1h-2z M11 9h3v1h-3z M11 10h3v1h-3z M11 11h3v1h-3z M11 13h3v1h-3z M20 13h2v1h-2z M11 14h3v1h-3z M20 14h2v1h-2z M11 15h3v1h-3z M20 15h2v1h-2z M11 16h3v1h-3z M20 16h2v1h-2z M11 17h3v1h-3z M20 17h2v1h-2z M11 18h3v1h-3z M20 18h2v1h-2z M11 19h3v1h-3z M20 19h2v1h-2z M11 20h3v1h-3z M20 20h2v1h-2z M11 21h3v1h-3z M20 21h2v1h-2z" />
+  <path fill="#5CED5C"
+    d="M14 17h3v1h-3z M14 18h3v1h-3z M14 19h3v1h-3z M14 20h3v1h-3z M14 21h3v1h-3z" />
+  <path fill="#404040"
+    d="M17 0h3v1h-3z M17 1h3v1h-3z M17 2h3v1h-3z M17 3h3v1h-3z M17 4h3v1h-3z M17 5h3v1h-3z M17 6h3v1h-3z M17 7h3v1h-3z M17 8h3v1h-3z M17 13h3v1h-3z M17 14h3v1h-3z M17 15h3v1h-3z M17 16h3v1h-3z M17 17h3v1h-3z M17 18h3v1h-3z M17 19h3v1h-3z M17 20h3v1h-3z M17 21h3v1h-3z" />
+  <path fill="#E6E6E6" d="M14 9h3v1h-3z M14 10h8v1h-8z M14 11h8v1h-8z" />
+</svg>

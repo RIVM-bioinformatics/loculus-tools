@@ -14,7 +14,6 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
-import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined';
 import { useStore } from 'zustand';
 import { PageCommonDrawer } from '@rivm-loculus-tools/common-frontend/components/ui/PageCommonDrawer';
 
@@ -39,11 +38,9 @@ import { CUSTOM_PALETTE_NAME } from '../../../models/palette.models';
 import { PaletteUtil } from '../../../utils/PaletteUtil';
 
 import { SequenceEditorPageDrawerColorForm } from './SequenceEditorPageDrawerColorForm';
-import { SequenceEditorPageDrawerKeyboardShortcuts } from './SequenceEditorPageDrawerKeyboardShortcuts';
 
 enum ACCORDIONS {
   COLORS = 'COLORS',
-  KEYBOARD_SHORTCUTS = 'KEYBOARD_SHORTCUTS',
   METADATA = 'METADATA',
 }
 
@@ -71,7 +68,6 @@ export const SequenceEditorPageDrawer = () => {
 
   const onColorsAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.COLORS), [toggleAccordion]);
   const onMetaDataAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.METADATA), [toggleAccordion]);
-  const onKeyboardShortcutsAccordionChange = useCallback(() => toggleAccordion(ACCORDIONS.KEYBOARD_SHORTCUTS), [toggleAccordion]);
 
   useEffect(() => {
     if (!parsedMetadata) {
@@ -132,31 +128,6 @@ export const SequenceEditorPageDrawer = () => {
         )}
       </Box>
       <Box sx={{ pb: 3 }}>
-        <Accordion
-          disableGutters
-          elevation={0}
-          expanded={expandedAccordions.includes(ACCORDIONS.KEYBOARD_SHORTCUTS)}
-          onChange={onKeyboardShortcutsAccordionChange}
-          sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Box sx={{ alignItems: 'center', display: 'flex', gap: 1 }}>
-              <KeyboardOutlinedIcon
-                color={'primary'}
-                fontSize={'small'}
-              />
-              <Typography
-                sx={{ fontWeight: 600 }}
-                variant={'body2'}
-              >
-                {'Keyboard shortcuts'}
-              </Typography>
-            </Box>
-          </AccordionSummary>
-          <AccordionDetails sx={{ p: 0 }}>
-            <SequenceEditorPageDrawerKeyboardShortcuts />
-          </AccordionDetails>
-        </Accordion>
         <Accordion
           disableGutters
           elevation={0}

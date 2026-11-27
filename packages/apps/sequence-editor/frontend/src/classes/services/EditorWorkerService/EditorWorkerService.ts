@@ -284,19 +284,13 @@ export class EditorWorkerService {
     }, abortSignal);
   }
 
-  public translate(bounds: ViewportBounds, readingFrame: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<EngineViewportResult> {
-    return this.runCommand(async () => {
-      return await this.engineWorkerProxy.translate(bounds, readingFrame);
-    }, abortSignal);
-  }
-
   public undo(abortSignal?: AbortSignal): CommandResultWithAbortSignal<boolean> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.undo();
     }, abortSignal);
   }
 
-  public viewport(bounds: ViewportBounds, abortSignal?: AbortSignal, overlayReadingFrame?: number): CommandResultWithAbortSignal<EngineViewportResult> {
+  public viewport(bounds: ViewportBounds, overlayReadingFrame?: number, abortSignal?: AbortSignal): CommandResultWithAbortSignal<EngineViewportResult> {
     return this.runCommand(async () => {
       return await this.engineWorkerProxy.viewport(bounds, overlayReadingFrame);
     }, abortSignal);

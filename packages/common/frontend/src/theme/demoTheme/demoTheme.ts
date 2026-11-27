@@ -399,8 +399,8 @@ export const createDemoThemeOptions = (paletteMode: PaletteMode): ThemeOptions =
         main: '#5160ab',
       },
       secondary: {
-        contrastText: '#323946',
-        main: '#f8f9fa',
+        contrastText: '#fff',
+        main: '#323946',
       },
       success: {
         contrastText: '#fff',

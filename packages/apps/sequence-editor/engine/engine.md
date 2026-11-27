@@ -233,7 +233,7 @@ raw pointers are only meaningful within that worker's WASM linear memory.
 
 | Method | Signature | Description |
 | -------- | ----------- | ------------- |
-| `update_viewport` | `update_viewport(startRow, endRow, startCol, endCol, includeTranslationMap, readingFrame)` | Return two `Uint8Array`s: the nucleotide viewport and, when requested, the full codon overlay. The overlay uses the full alignment width as its stride, and the reading frame is one-based (`1`, `2`, or `3`). Otherwise the second array is empty. |
+| `update_viewport` | `update_viewport(startRow, endRow, startCol, endCol, includeTranslationMap, readingFrame)` | Return two `Uint8Array`s: the nucleotide viewport and, when requested, the full codon overlay. The overlay is flattened row-major with one `alignmentWidth`-byte row per sequence; shorter translations are right-padded with ASCII spaces, so its length is `sequenceCount * alignmentWidth`. The reading frame is one-based (`1`, `2`, or `3`). Otherwise the second array is empty. |
 | `update_viewport_into` | `update_viewport_into(startRow, endRow, startCol, endCol, out: Uint8Array): number` | Write the slice directly into a caller-provided buffer (e.g. a `SharedArrayBuffer` view). Returns bytes written. |
 | `get_viewport_len` | `get_viewport_len(): number` | Bytes currently held in the viewport buffer. |
 

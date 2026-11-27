@@ -1061,15 +1061,18 @@ fn move_horizontal_skips_short_rows_in_ragged_alignment() {
 #[test]
 fn codon_overlay_check_sequence_lengths() {
     let sequences = [b"AATGGT".to_vec(), b"A".to_vec(), Vec::new()];
-    let overlay = get_aminoacid_codon_overlay(1, &sequences).unwrap();
+    let overlay = get_aminoacid_codon_overlay(1, &sequences, 6).unwrap();
 
-    assert_eq!(overlay, [b"NNNGGG".to_vec(), b"X".to_vec(), Vec::new()]);
+    assert_eq!(
+        overlay,
+        [b"NNNGGG".to_vec(), b"X     ".to_vec(), b"      ".to_vec()]
+    );
 }
 
 #[test]
 fn codon_overlay_check_invalid_reading_frame() {
     for frame in [0, 5] {
-        let err = get_aminoacid_codon_overlay(frame, &[b"ATG".to_vec()]).unwrap_err();
+        let err = get_aminoacid_codon_overlay(frame, &[b"ATG".to_vec()], 3).unwrap_err();
         assert_eq!(err.code, "InvalidReadingFrame");
         assert_eq!(err.context.unwrap().frame, Some(frame));
     }
@@ -1079,17 +1082,28 @@ fn codon_overlay_check_invalid_reading_frame() {
 fn codon_overlay_check_reading_frame_offset() {
     let sequences = [b"ATGTT".to_vec(), b"A".to_vec(), Vec::new()];
     assert_eq!(
-        get_aminoacid_codon_overlay(1, &sequences).unwrap(),
-        [b"MMMXX".to_vec(), b"X".to_vec(), Vec::new()]
+        get_aminoacid_codon_overlay(1, &sequences, 5).unwrap(),
+        [b"MMMXX".to_vec(), b"X    ".to_vec(), b"     ".to_vec()]
     );
     assert_eq!(
-        get_aminoacid_codon_overlay(2, &sequences).unwrap(),
-        [b"XCCCX".to_vec(), b"X".to_vec(), Vec::new()]
+        get_aminoacid_codon_overlay(2, &sequences, 5).unwrap(),
+        [b"XCCCX".to_vec(), b"X    ".to_vec(), b"     ".to_vec()]
     );
     assert_eq!(
-        get_aminoacid_codon_overlay(3, &sequences).unwrap(),
-        [b"XXVVV".to_vec(), b"X".to_vec(), Vec::new()]
+        get_aminoacid_codon_overlay(3, &sequences, 5).unwrap(),
+        [b"XXVVV".to_vec(), b"X    ".to_vec(), b"     ".to_vec()]
     );
+}
+
+#[test]
+fn codon_overlay_has_one_alignment_width_stride_per_sequence() {
+    let sequences = [b"ATG".to_vec(), b"A".to_vec(), Vec::new()];
+    let alignment_width = 3;
+    let overlay = get_aminoacid_codon_overlay(1, &sequences, alignment_width).unwrap();
+    let flattened = overlay.concat();
+
+    assert_eq!(flattened.len(), sequences.len() * alignment_width);
+    assert_eq!(flattened, b"MMMX     ");
 }
 
 #[test]
